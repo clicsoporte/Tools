@@ -12,6 +12,7 @@ import {
   Command,
   CommandEmpty,
   CommandGroup,
+  CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
@@ -23,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "use-debounce";
 
-interface SearchInputProps {
+export interface SearchInputProps {
   options: { label: string; value: string; className?: string }[];
   onSelect: (value: string) => void;
   placeholder?: string;
@@ -80,6 +81,9 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                 onOpenAutoFocus={(e) => e.preventDefault()} // Prevent focus stealing
             >
                 <Command>
+                     <CommandInput 
+                        placeholder={placeholder || "Buscar..."}
+                    />
                     <CommandList>
                          {options.length > 0 ? (
                              <CommandGroup>
@@ -109,5 +113,3 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
 SearchInput.displayName = "SearchInput";
 
 export { SearchInput };
-
-    

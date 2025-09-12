@@ -334,8 +334,7 @@ export default function HaciendaQueryPage() {
                                     onSelect={executeUnifiedSearch}
                                     value={unifiedSearchInput}
                                     onValueChange={setUnifiedSearchInput}
-                                    placeholder="Buscar cliente por código o nombre..."
-                                    searchPlaceholder="Buscar cliente..."
+                                    placeholder="Buscar cliente por código, nombre o cédula..."
                                 />
                             </div>
                             {isUnifiedLoading && <div className="flex justify-center py-4"><Loader2 className="animate-spin" /></div>}
@@ -403,4 +402,3 @@ export default function HaciendaQueryPage() {
         </main>
     );
 }
-

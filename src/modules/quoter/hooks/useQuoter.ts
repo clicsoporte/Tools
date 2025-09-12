@@ -843,5 +843,3 @@ export const useQuoter = () => {
     isMounted,
   };
 };
-
-    
