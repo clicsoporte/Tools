@@ -1,0 +1,20 @@
+-- Consulta SQL para obtener las existencias por artículo y bodega desde el ERP.
+-- Esta consulta sirve de base para el comando bcp.
+
+SELECT TOP (1000) [ARTICULO]
+      ,[BODEGA]
+      ,[CANT_DISPONIBLE]
+  FROM [SOFTLAND].[GAREND].[EXISTENCIA_BODEGA]
+
+--------------------------------------------------------------------------------
+
+-- Comando BCP (Bulk Copy Program) para exportar los datos a un archivo .txt
+-- Este comando debe ejecutarse desde una terminal de Windows (CMD o PowerShell)
+-- en una máquina que tenga acceso al servidor de SQL Server.
+
+-- USO:
+-- 1. Reemplaza "C:\Compartidos\Tools\inventarios.txt" con la ruta donde deseas guardar el archivo.
+-- 2. Asegúrate de que el nombre del servidor (-S "WINSRV2019DC") sea correcto.
+-- 3. La opción -T usa autenticación de Windows. Si necesitas usuario y contraseña, reemplázala con -U tu_usuario -P tu_contraseña.
+
+bcp "SELECT 'ARTICULO', 'BODEGA', 'CANT_DISPONIBLE' UNION ALL SELECT TOP 1000000 CAST(ARTICULO AS NVARCHAR(500)), CAST(BODEGA AS NVARCHAR(500)), CAST(CANT_DISPONIBLE AS NVARCHAR(500)) FROM [SOFTLAND].[GAREND].[EXISTENCIA_BODEGA]" queryout "C:\Compartidos\Tools\inventarios.txt" -c -t"\t" -S "WINSRV2019DC" -T -C 65001

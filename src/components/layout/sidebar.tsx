@@ -1,0 +1,244 @@
+/**
+ * @fileoverview Sidebar component for the main application layout.
+ * It handles navigation, displays user and company information, and adapts
+ * to mobile and desktop views.
+ */
+
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+} from "../ui/sidebar";
+import {
+  Settings,
+  Network,
+  Wrench,
+  LayoutDashboard,
+  Sheet,
+  LifeBuoy,
+  ClipboardPen,
+  CalendarCheck,
+  ShoppingCart,
+  Warehouse,
+  Search,
+  PackagePlus,
+} from "lucide-react";
+import type { Tool } from "../../modules/core/types";
+import { UserNav } from "./user-nav";
+import { Button } from "../ui/button";
+import { Skeleton } from "../ui/skeleton";
+import { useAuth } from "@/modules/core/hooks/useAuth";
+
+/**
+ * Renders the main application sidebar.
+ * It fetches current user and company data to display personalized information.
+ * It highlights the active navigation link based on the current URL path.
+ */
+export function AppSidebar() {
+  const pathname = usePathname();
+  const { user: currentUser, companyData, userRole, isLoading } = useAuth();
+
+
+  /**
+   * Determines if a navigation link should be considered active.
+   * @param href - The href of the navigation link.
+   * @returns True if the link is active, false otherwise.
+   */
+  const isActive = (href: string) => {
+    if (href === '/dashboard') {
+        return pathname === href;
+    }
+    return pathname.startsWith(href);
+  };
+  
+  const hasAdminAccess = userRole?.permissions.some(p => p.startsWith('admin:'));
+
+
+  if (isLoading) {
+    return (
+        <div className="flex h-screen">
+            <div className="w-64 bg-muted/40 p-4 flex flex-col justify-between">
+                <div>
+                    <div className="flex items-center gap-2 mb-8">
+                        <Skeleton className="h-10 w-10 rounded-full"/>
+                        <Skeleton className="h-6 w-32"/>
+                    </div>
+                    <div className="space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                         <Skeleton className="h-10 w-full" />
+                    </div>
+                </div>
+                <div>
+                    <Skeleton className="h-10 w-full mb-2" />
+                     <Skeleton className="h-10 w-full" />
+                </div>
+            </div>
+            <main className="flex-1 p-6"></main>
+        </div>
+    )
+  }
+
+  const navLinks: Tool[] = [
+    {
+      id: "dashboard",
+      name: "Panel",
+      description: "Visión general de las herramientas y actividad.",
+      href: "/dashboard",
+      icon: LayoutDashboard,
+      bgColor: "bg-blue-500",
+      textColor: "text-white",
+    },
+    {
+      id: "quoter",
+      name: "Cotizador",
+      description: "Crear y gestionar cotizaciones para clientes.",
+      href: "/dashboard/quoter",
+      icon: Sheet,
+      bgColor: "bg-green-500",
+      textColor: "text-white",
+    },
+    {
+      id: "purchase-request",
+      name: "Solicitud de Compra",
+      description: "Crear y gestionar solicitudes de compra internas.",
+      href: "/dashboard/requests",
+      icon: ShoppingCart,
+      bgColor: "bg-yellow-500",
+      textColor: "text-white",
+    },
+     {
+      id: "planner",
+      name: "Planificador OP",
+      description: "Gestionar y visualizar la carga de producción.",
+      href: "/dashboard/planner",
+      icon: CalendarCheck,
+      bgColor: "bg-purple-500",
+      textColor: "text-white",
+    },
+    {
+      id: "warehouse",
+      name: "Consulta Almacén",
+      description: "Localizar artículos y gestionar ubicaciones en bodega.",
+      href: "/dashboard/warehouse",
+      icon: Warehouse,
+      bgColor: "bg-cyan-600",
+      textColor: "text-white",
+    },
+    {
+      id: "warehouse-assign",
+      name: "Asignar Inventario",
+      description: "Mover inventario entre ubicaciones físicas.",
+      href: "/dashboard/warehouse/assign",
+      icon: PackagePlus,
+      bgColor: "bg-teal-600",
+      textColor: "text-white",
+    },
+     {
+      id: "hacienda-query",
+      name: "Consultas Hacienda",
+      description: "Verificar situación tributaria y exoneraciones.",
+      href: "/dashboard/hacienda",
+      icon: Search,
+      bgColor: "bg-blue-600",
+      textColor: "text-white",
+    },
+    {
+      id: "help",
+      name: "Centro de Ayuda",
+      description: "Consultar la documentación y guías de uso del sistema.",
+      href: "/dashboard/help",
+      icon: LifeBuoy,
+      bgColor: "bg-orange-500",
+      textColor: "text-white",
+    },
+  ];
+
+  return (
+      <Sidebar collapsible="icon" className="border-r">
+        <SidebarHeader>
+          <Button variant="ghost" size="icon" className="size-10" asChild>
+            <Link href="/dashboard">
+              <Network />
+            </Link>
+          </Button>
+          <h2 className="text-lg font-semibold tracking-tight text-sidebar-foreground">
+            {companyData?.systemName || 'Clic-Tools'}
+          </h2>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarMenu>
+            {navLinks.map((item) => (
+                <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.href)}
+                    tooltip={item.name}
+                    >
+                    <Link href={item.href}>
+                        <item.icon />
+                        <span>{item.name}</span>
+                    </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+              )
+            )}
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter>
+        <SidebarMenu>
+            <SidebarMenuItem>
+                <SidebarMenuButton
+                asChild
+                isActive={isActive("/dashboard/settings")}
+                tooltip="Mi Perfil"
+                >
+                <Link href="/dashboard/settings">
+                    <Settings />
+                    <span>Mi Perfil</span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            
+            {hasAdminAccess && (
+                 <SidebarMenuItem>
+                    <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/dashboard/admin")}
+                        tooltip="Configuración"
+                    >
+                        <Link href="/dashboard/admin">
+                        <Wrench />
+                        <span>Configuración</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            )}
+          </SidebarMenu>
+          <div className="flex items-center gap-2 p-2 mt-4 border-t border-sidebar-border">
+            <UserNav user={currentUser} />
+            <div className="flex flex-col text-sm group-data-[collapsible=icon]:hidden">
+              <span className="font-semibold text-sidebar-foreground">
+                {currentUser?.name}
+              </span>
+              <span className="text-sidebar-foreground/70">
+                {currentUser?.email}
+              </span>
+            </div>
+          </div>
+           <div className="text-center text-xs text-sidebar-foreground/50 p-2 group-data-[collapsible=icon]:hidden">
+                Clic-Tools v1.3 - Final AI Removal
+           </div>
+        </SidebarFooter>
+      </Sidebar>
+  );
+}
+
+    

@@ -1,0 +1,506 @@
+
+
+/**
+ * @fileoverview This file defines the core TypeScript types used throughout the application.
+ * Using centralized types helps ensure data consistency and provides autocompletion benefits.
+ */
+
+import type { LucideIcon } from "lucide-react";
+
+/**
+ * Represents a user account in the system.
+ */
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+  password?: string; // Hashed password from DB, or plaintext only when updating.
+  phone: string;
+  whatsapp: string;
+  avatar: string;
+  role: string; // Corresponds to a Role ID
+  recentActivity: string;
+  securityQuestion?: string;
+  securityAnswer?: string;
+};
+
+/**
+ * Represents the company's general information.
+ */
+export type Company = {
+    name: string;
+    taxId: string;
+    address: string;
+    phone: string;
+    email: string;
+    logoUrl?: string;
+    systemName?: string;
+    quotePrefix: string;
+    nextQuoteNumber: number;
+    decimalPlaces: number;
+    importMode: 'file' | 'sql';
+    customerFilePath?: string;
+    productFilePath?: string;
+    exemptionFilePath?: string;
+    stockFilePath?: string;
+    locationFilePath?: string;
+    cabysFilePath?: string;
+}
+
+/**
+ * Represents a tool or module accessible from a dashboard.
+ */
+export type Tool = {
+  id: string;
+  name: string;
+  description: string;
+  href: string;
+  icon: LucideIcon;
+  bgColor: string;
+  textColor: string;
+  adminOnly?: boolean;
+};
+
+/**
+ * Defines a user role and its associated permissions.
+ */
+export type Role = {
+  id: string;
+  name: string;
+  permissions: string[];
+};
+
+/**
+ * Represents a customer, typically imported from an ERP system.
+ */
+export type Customer = {
+    id: string; // CLIENTE
+    name: string; // NOMBRE
+    address: string; // DIRECCION
+    phone: string; // TELEFONO1
+    taxId: string; // CONTRIBUYENTE
+    currency: string; // MONEDA
+    creditLimit: number; // LIMITE_CREDITO
+    paymentCondition: string; // CONDICION_PAGO
+    salesperson: string; // VENDEDOR
+    active: 'S' | 'N'; // ACTIVO
+    email: string; // E_MAIL
+    electronicDocEmail: string; // EMAIL_DOC_ELECTRONICO
+};
+
+/**
+ * Represents a product or article, typically imported from an ERP system.
+ */
+export type Product = {
+    id: string;             // ARTICULO
+    description: string;    // DESCRIPCION
+    classification: string; // CLASIFICACION_2
+    lastEntry: string;      // ULTIMO_INGRESO
+    active: 'S' | 'N';      // ACTIVO
+    notes: string;          // NOTAS
+    unit: string;           // UNIDAD_VENTA
+    isBasicGood: 'S' | 'N'; // CANASTA_BASICA
+    cabys: string;          // CODIGO_HACIENDA
+};
+
+/**
+ * Represents a single line item within a quote.
+ */
+export type QuoteLine = {
+    id: string; // Unique identifier for the line item in the UI
+    product: Product; // The product details
+    quantity: number;
+    price: number;
+    tax: number;
+    // display fields are used to hold the string value from the input
+    // before it's parsed, allowing for more flexible user input.
+    displayQuantity: string;
+    displayPrice: string;
+};
+
+
+/**
+ * Represents the structure of the exchange rate API response.
+ */
+export type ExchangeRateApiResponse = {
+    compra?: { fecha: string; valor: number; };
+    venta: { fecha: string; valor: number; };
+}
+
+/**
+ * Represents a saved quote draft.
+ */
+export type QuoteDraft = {
+    id: string;
+    createdAt: string;
+    userId: number;
+    customerId: string | null;
+    customer?: Customer | null; // Enriched on the client side
+    lines: Omit<QuoteLine, 'displayQuantity' | 'displayPrice'>[];
+    totals: {
+        subtotal: number;
+        totalTaxes: number;
+        total: number;
+    };
+    notes: string;
+    currency: string;
+    exchangeRate: number | null;
+    purchaseOrderNumber?: string;
+}
+
+/**
+* Represents a system log entry for auditing and debugging.
+*/
+export type LogEntry = {
+    id: number;
+    timestamp: string;
+    type: "INFO" | "WARN" | "ERROR";
+    message: string;
+    details?: any; // Stored as a JSON string in the DB
+};
+
+/**
+ * Represents the settings for external APIs.
+ */
+export type ApiSettings = {
+    exchangeRateApi: string;
+    haciendaExemptionApi: string;
+    haciendaTributariaApi: string;
+};
+
+/**
+ * Represents a database module for modular maintenance operations.
+ */
+export type DatabaseModule = {
+    id: string; // e.g., 'clic-tools-main'
+    name: string; // e.g., 'Clic-Tools (Sistema Principal)'
+    dbFile: string; // e.g., 'intratool.db'
+    initFn?: (db: any) => void;
+};
+
+/**
+ * Represents a customer's tax exemption record from the ERP.
+ */
+export type Exemption = {
+    code: string;
+    description: string;
+    customer: string;
+    authNumber: string;
+    startDate: string;
+    endDate: string;
+    percentage: number;
+    docType: string;
+    institutionName: string;
+    institutionCode: string;
+};
+
+
+/**
+ * Represents a configurable exemption law in the system.
+ */
+export type ExemptionLaw = {
+  docType: string; // e.g., '99' or '03'
+  institutionName: string; // e.g., 'Régimen de Zona Franca'
+  authNumber?: string | null; // e.g., '9635', only for specific cases
+};
+
+
+// --- Production Planner Types ---
+
+export type ProductionOrderStatus = 'pending' | 'approved' | 'in-progress' | 'on-hold' | 'cancellation-request' | 'completed' | 'received-in-warehouse' | 'canceled';
+export type ProductionOrderPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export type ProductionOrder = {
+  id: number;
+  consecutive: string;
+  purchaseOrder?: string;
+  requestDate: string;
+  deliveryDate: string;
+  scheduledStartDate?: string | null;
+  customerId: string;
+  customerName: string;
+  productId: string;
+  productDescription: string;
+  quantity: number;
+  inventory?: number;
+  priority: ProductionOrderPriority;
+  status: ProductionOrderStatus;
+  notes?: string;
+  requestedBy: string;
+  approvedBy?: string;
+  lastStatusUpdateBy?: string;
+  lastStatusUpdateNotes?: string;
+  deliveredQuantity?: number;
+  erpPackageNumber?: string;
+  erpTicketNumber?: string;
+  reopened?: boolean;
+  machineId?: string | null;
+  previousStatus?: ProductionOrderStatus | null;
+};
+
+export type UpdateProductionOrderPayload = Pick<ProductionOrder, 'deliveryDate' | 'customerId' | 'customerName' | 'productId' | 'productDescription' | 'quantity' | 'inventory' | 'notes' | 'purchaseOrder'> & {
+    orderId: number;
+    updatedBy: string;
+};
+
+export type ProductionOrderHistoryEntry = {
+    id: number;
+    orderId: number;
+    timestamp: string;
+    status: ProductionOrderStatus;
+    notes?: string;
+    updatedBy: string;
+};
+
+export type PlannerMachine = {
+  id: string;
+  name: string;
+};
+
+export type PlannerSettings = {
+    nextOrderNumber?: number;
+    useWarehouseReception: boolean;
+    machines: PlannerMachine[];
+    requireMachineForStart: boolean;
+    assignmentLabel: string;
+};
+
+export type UpdateStatusPayload = {
+    orderId: number;
+    status: ProductionOrderStatus;
+    notes: string;
+    updatedBy: string;
+    deliveredQuantity?: number;
+    erpPackageNumber?: string;
+    erpTicketNumber?: string;
+    reopen: boolean;
+};
+
+export type UpdateOrderDetailsPayload = {
+  orderId: number;
+  priority?: ProductionOrderPriority;
+  machineId?: string | null;
+  scheduledStartDate?: string | null;
+  updatedBy: string;
+};
+
+export type RejectCancellationPayload = {
+    orderId: number;
+    notes: string;
+    updatedBy: string;
+}
+
+
+// --- Purchase Request Types ---
+
+export type PurchaseRequestStatus = 'pending' | 'approved' | 'ordered' | 'received' | 'received-in-warehouse' | 'canceled';
+
+export type PurchaseRequest = {
+  id: number;
+  consecutive: string;
+  purchaseOrder?: string; // Nº Orden de Compra Cliente
+  requestDate: string;
+  requiredDate: string;
+  clientId: string;
+  clientName: string;
+  itemId: string;
+  itemDescription: string;
+  quantity: number;
+  deliveredQuantity?: number;
+  inventory?: number;
+  unitSalePrice?: number; // Precio de venta unitario sin IVA
+  erpOrderNumber?: string; // Número de pedido ERP
+  manualSupplier?: string; // Proveedor (manual)
+  route?: string; // Ruta
+  shippingMethod?: string; // Método de Envío
+  status: PurchaseRequestStatus;
+  notes?: string;
+  requestedBy: string;
+  approvedBy?: string;
+  receivedInWarehouseBy?: string;
+  lastStatusUpdateBy?: string;
+  lastStatusUpdateNotes?: string;
+  reopened?: boolean;
+};
+
+export type UpdatePurchaseRequestPayload = Pick<PurchaseRequest, 'requiredDate' | 'clientId' | 'clientName' | 'itemId' | 'itemDescription' | 'quantity' | 'unitSalePrice' | 'erpOrderNumber' | 'manualSupplier' | 'route' | 'shippingMethod' | 'purchaseOrder' | 'notes' | 'inventory'> & {
+    requestId: number;
+    updatedBy: string;
+};
+
+export type PurchaseRequestHistoryEntry = {
+    id: number;
+    requestId: number;
+    timestamp: string;
+    status: PurchaseRequestStatus;
+    notes?: string;
+    updatedBy: string;
+};
+
+export type RequestSettings = {
+    nextRequestNumber?: number;
+    routes: string[];
+    shippingMethods: string[];
+    useWarehouseReception: boolean;
+};
+
+export type UpdateRequestStatusPayload = {
+    requestId: number;
+    status: PurchaseRequestStatus;
+    notes: string;
+    updatedBy: string;
+    reopen: boolean;
+    manualSupplier?: string;
+    erpOrderNumber?: string;
+    deliveredQuantity?: number;
+};
+
+// --- Warehouse Management Types ---
+
+export type LocationType = 'building' | 'zone' | 'rack' | 'shelf' | 'bin';
+
+export type WarehouseLocationLevel = {
+    type: string; // e.g. "level1", "level2"
+    name: string; // e.g. "Edificio", "Pasillo"
+}
+
+export type WarehouseSettings = {
+    locationLevels: WarehouseLocationLevel[];
+    enablePhysicalInventoryTracking: boolean;
+};
+
+export type WarehouseLocation = {
+    id: number;
+    name: string;
+    code: string; // A unique, human-readable code, e.g., R01-S03-B05
+    type: string; // Corresponds to WarehouseLocationLevel['type']
+    parentId?: number | null; // For hierarchical structure
+};
+
+/** For Advanced Mode: Tracks quantity in a specific location */
+export type WarehouseInventoryItem = {
+    id: number;
+    itemId: string; // Foreign key to main products table (Product['id'])
+    locationId: number; // Foreign key to locations table
+    quantity: number;
+    lastUpdated: string;
+};
+
+/** For Simple Mode: Maps an item to a location without quantity */
+export type ItemLocation = {
+    id: number;
+    itemId: string;
+    locationId: number;
+    clientId?: string | null;
+};
+
+export type MovementLog = {
+    id: number;
+    itemId: string;
+    quantity: number;
+    fromLocationId?: number | null; // null for initial entry
+    toLocationId?: number | null;   // null for removal
+    timestamp: string;
+    userId: number;
+    notes?: string;
+};
+
+// --- Stock Management Types ---
+export type StockInfo = {
+    itemId: string;
+    stockByWarehouse: { [key: string]: number };
+    totalStock: number;
+};
+
+export type Warehouse = {
+    id: string;
+    name: string;
+    isDefault: boolean;
+    isVisible: boolean;
+};
+
+export type StockSettings = {
+    warehouses: Warehouse[];
+};
+
+// --- Hacienda Query Types ---
+export type HaciendaContributorInfo = {
+    nombre: string;
+    tipoIdentificacion: string;
+    regimen: {
+        codigo: string;
+        descripcion: string;
+    };
+    situacion: {
+        moroso: "SI" | "NO";
+        omiso: "SI" | "NO";
+        estado: string;
+    };
+    administracionTributaria: string;
+    actividades: {
+        estado: string;
+        tipo: string;
+        codigo: string;
+        descripcion: string;
+    }[];
+};
+
+export type HaciendaExemptionApiResponse = {
+    numeroDocumento: string;
+    identificacion: string;
+    porcentajeExoneracion: number;
+    fechaEmision: string;
+    fechaVencimiento: string;
+    ano: number;
+    cabys: string[];
+    tipoAutorizacion: string;
+    tipoDocumento: {
+        codigo: string;
+        descripcion: string;
+        };
+    CodigoInstitucion: string;
+    nombreInstitucion: string;
+    poseeCabys: boolean;
+};
+
+export type EnrichedCabysItem = {
+    code: string;
+    description: string;
+};
+
+export type EnrichedExemptionInfo = HaciendaExemptionApiResponse & {
+    enrichedCabys: EnrichedCabysItem[];
+};
+
+// Legacy type for migration, can be removed later.
+export type Location = {
+    id: number;
+    name: string;
+    code: string;
+    type: string;
+    parentId?: number | null;
+}
+
+export type InventoryItem = {
+    id: number;
+    itemId: string;
+    locationId: number;
+    quantity: number;
+    lastUpdated: string;
+    erpStock?: StockInfo | null;
+};
+
+
+// --- SQL Import Types ---
+export type SqlConfig = {
+    user?: string;
+    password?: string;
+    host?: string;
+    database?: string;
+    port?: string;
+}
+
+export type ImportQuery = {
+    type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys';
+    query: string;
+}
