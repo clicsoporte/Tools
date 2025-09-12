@@ -61,9 +61,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
 }
 
 
-export async function runRequestMigrations() {
-    const db = await connectDb(REQUESTS_DB_FILE);
-    
+export async function runRequestMigrations(db: import('better-sqlite3').Database) {
     // Ensure all tables exist before trying to alter them.
     const requestsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='purchase_requests'`).get();
     if (!requestsTable) {

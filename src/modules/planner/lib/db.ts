@@ -62,8 +62,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     console.log(`Database ${PLANNER_DB_FILE} initialized for Production Planner.`);
 }
 
-export async function runPlannerMigrations() {
-    const db = await connectDb(PLANNER_DB_FILE);
+export async function runPlannerMigrations(db: import('better-sqlite3').Database) {
     const plannerTableInfo = db.prepare(`PRAGMA table_info(production_orders)`).all() as { name: string }[];
     const plannerColumns = new Set(plannerTableInfo.map(c => c.name));
     

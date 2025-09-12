@@ -66,9 +66,9 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
         console.log(`Database ${dbFile} found. Checking for migrations...`);
         try {
             if (dbFile === 'planner.db') {
-                await runPlannerMigrations();
+                await runPlannerMigrations(db);
             } else if (dbFile === 'requests.db') {
-                await runRequestMigrations();
+                await runRequestMigrations(db);
             } else if (dbFile === DB_FILE) {
                  checkAndApplyMigrations(db);
             }
