@@ -166,7 +166,7 @@ const HaciendaExemptionCard = ({ data }: { data: EnrichedExemptionInfo | null })
                 </div>
                 <div className="space-y-2 pt-2">
                     <p className="font-medium text-muted-foreground">Artículos CABYS Incluidos</p>
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
                         {data.enrichedCabys.map((item, index) => (
                             <div key={`${item.code}-${index}`} className="p-2 bg-muted/50 rounded-md text-xs">
                                 <p className="font-semibold">{item.description}</p>
