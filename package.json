@@ -1,3 +1,4 @@
+
 {
   "name": "nextn",
   "version": "0.1.0",
@@ -8,8 +9,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 9003",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
-    "clean:repo": "git rm -r --cached .next node_modules; git commit -m 'Fix: Stop tracking build artifacts and dependencies'"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
