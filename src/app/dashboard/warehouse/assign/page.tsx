@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -44,9 +43,13 @@ export default function AssignInventoryPage() {
     const [warehouseSettings, setWarehouseSettings] = useState<{ enablePhysicalInventoryTracking: boolean } | null>(null);
     
     const [productSearchTerm, setProductSearchTerm] = useState('');
+    const [isProductSearchOpen, setProductSearchOpen] = useState(false);
     const [fromLocationSearchTerm, setFromLocationSearchTerm] = useState('');
+    const [isFromLocationSearchOpen, setFromLocationSearchOpen] = useState(false);
     const [toLocationSearchTerm, setToLocationSearchTerm] = useState('');
+    const [isToLocationSearchOpen, setToLocationSearchOpen] = useState(false);
     const [newLocationSearchTerm, setNewLocationSearchTerm] = useState('');
+    const [isNewLocationSearchOpen, setNewLocationSearchOpen] = useState(false);
 
     const [debouncedProductSearch] = useDebounce(productSearchTerm, 500);
     const [debouncedFromLocationSearch] = useDebounce(fromLocationSearchTerm, 500);
@@ -127,6 +130,7 @@ export default function AssignInventoryPage() {
     );
 
     const handleSelectProduct = (value: string) => {
+        setProductSearchOpen(false);
         const product = products.find(p => p.id === value);
         if (product) {
             setSelectedProductId(value);
@@ -265,10 +269,12 @@ export default function AssignInventoryPage() {
                                 <Label>Desde (Origen)</Label>
                                 <SearchInput
                                     options={fromLocationOptions}
-                                    onSelect={(value) => { setFromLocationId(value); setFromLocationSearchTerm(locations.find(l => String(l.id) === value)?.name || ''); }}
+                                    onSelect={(value) => { setFromLocationId(value); setFromLocationSearchTerm(locations.find(l => String(l.id) === value)?.name || ''); setFromLocationSearchOpen(false); }}
                                     value={fromLocationSearchTerm}
                                     onValueChange={setFromLocationSearchTerm}
                                     placeholder="Ninguno"
+                                    open={isFromLocationSearchOpen}
+                                    onOpenChange={setFromLocationSearchOpen}
                                 />
                             </div>
                             <div className="col-span-1 text-center pt-6">
@@ -278,10 +284,12 @@ export default function AssignInventoryPage() {
                                 <Label>Hacia (Destino)</Label>
                                 <SearchInput
                                     options={toLocationOptions}
-                                    onSelect={(value) => { setToLocationId(value); setToLocationSearchTerm(locations.find(l => String(l.id) === value)?.name || ''); }}
+                                    onSelect={(value) => { setToLocationId(value); setToLocationSearchTerm(locations.find(l => String(l.id) === value)?.name || ''); setToLocationSearchOpen(false); }}
                                     value={toLocationSearchTerm}
                                     onValueChange={setToLocationSearchTerm}
                                     placeholder="Selecciona destino"
+                                    open={isToLocationSearchOpen}
+                                    onOpenChange={setToLocationSearchOpen}
                                 />
                             </div>
                         </div>
@@ -321,10 +329,12 @@ export default function AssignInventoryPage() {
                      <Label>Nueva Ubicación a Asignar</Label>
                      <SearchInput
                         options={newLocationOptions}
-                        onSelect={(value) => { setNewLocationId(value); setNewLocationSearchTerm(locations.find(l => String(l.id) === value)?.name || ''); }}
+                        onSelect={(value) => { setNewLocationId(value); setNewLocationSearchTerm(locations.find(l => String(l.id) === value)?.name || ''); setNewLocationSearchOpen(false); }}
                         value={newLocationSearchTerm}
                         onValueChange={setNewLocationSearchTerm}
                         placeholder="Selecciona una ubicación..."
+                        open={isNewLocationSearchOpen}
+                        onOpenChange={setNewLocationSearchOpen}
                     />
                 </CardContent>
                 <CardFooter>
@@ -352,6 +362,8 @@ export default function AssignInventoryPage() {
                             value={productSearchTerm}
                             onValueChange={setProductSearchTerm}
                             placeholder="Selecciona un artículo..."
+                            open={isProductSearchOpen}
+                            onOpenChange={setProductSearchOpen}
                         />
                     </CardContent>
                 </Card>

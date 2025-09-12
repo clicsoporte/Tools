@@ -27,10 +27,12 @@ export interface SearchInputProps {
   options: { label: string; value: string; className?: string }[];
   onSelect: (value: string) => void;
   placeholder?: string;
-  value: string; // The current text input value
+  value: string;
   onValueChange: (search: string) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   className?: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({ 
@@ -40,24 +42,24 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
     value,
     onValueChange,
     onKeyDown,
-    className
+    className,
+    open,
+    onOpenChange
   }, ref) => {
     
-    const [isOpen, setIsOpen] = React.useState(false);
-    const showPopover = isOpen && options.length > 0;
+    const showPopover = open && value.length > 1 && options.length > 0;
     
     const handleSelect = (optionValue: string) => {
-        setIsOpen(false); // Close popover first
         onSelect(optionValue);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         onValueChange(e.target.value);
-        if (!isOpen) setIsOpen(true);
+        if (!open) onOpenChange(true);
     };
 
     return (
-        <Popover open={showPopover} onOpenChange={setIsOpen}>
+        <Popover open={showPopover} onOpenChange={onOpenChange}>
             <div className={cn("relative w-full", className)}>
                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <PopoverTrigger asChild>
@@ -67,9 +69,6 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                         placeholder={placeholder}
                         value={value}
                         onChange={handleChange}
-                        onFocus={() => {
-                            if (value && options.length > 0) setIsOpen(true);
-                        }}
                         onKeyDown={onKeyDown}
                         className="pl-8"
                         autoComplete="off"
@@ -86,6 +85,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                         placeholder={placeholder || "Buscar..."}
                         value={value}
                         onValueChange={onValueChange}
+                        disabled
                     />
                     <CommandList>
                          {options.length > 0 ? (
@@ -101,11 +101,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                                 </CommandItem>
                                 ))}
                             </CommandGroup>
-                        ) : (
-                             <CommandEmpty>
-                                {value.length > 1 ? "No se encontraron resultados." : "Sigue escribiendo para buscar..."}
-                            </CommandEmpty>
-                        )}
+                        ) : null }
                     </CommandList>
                 </Command>
             </PopoverContent>

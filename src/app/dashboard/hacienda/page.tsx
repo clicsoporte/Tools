@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -197,6 +196,7 @@ export default function HaciendaQueryPage() {
     const [unifiedErpExemption, setUnifiedErpExemption] = useState<Exemption | null>(null);
 
     const [unifiedSearchInput, setUnifiedSearchInput] = useState("");
+    const [isUnifiedSearchOpen, setUnifiedSearchOpen] = useState(false);
     const [debouncedUnifiedSearch] = useDebounce(unifiedSearchInput, 500);
 
     const [taxpayerId, setTaxpayerId] = useState('');
@@ -228,7 +228,7 @@ export default function HaciendaQueryPage() {
     }, [setTitle, toast]);
 
     const customerOptions = useMemo(() => {
-        if (!debouncedUnifiedSearch) return [];
+        if (debouncedUnifiedSearch.length < 2) return [];
         const searchLower = debouncedUnifiedSearch.toLowerCase();
         return customers
             .filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower))
@@ -267,6 +267,7 @@ export default function HaciendaQueryPage() {
     };
 
     const executeUnifiedSearch = async (customerId: string) => {
+        setUnifiedSearchOpen(false);
         setIsUnifiedLoading(true);
         // Reset API-dependent states, but not the ERP one initially
         setUnifiedContributorData(null);
@@ -335,6 +336,8 @@ export default function HaciendaQueryPage() {
                                     value={unifiedSearchInput}
                                     onValueChange={setUnifiedSearchInput}
                                     placeholder="Buscar cliente por código, nombre o cédula..."
+                                    open={isUnifiedSearchOpen}
+                                    onOpenChange={setUnifiedSearchOpen}
                                 />
                             </div>
                             {isUnifiedLoading && <div className="flex justify-center py-4"><Loader2 className="animate-spin" /></div>}

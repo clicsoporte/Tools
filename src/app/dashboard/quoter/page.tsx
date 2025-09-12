@@ -207,6 +207,8 @@ export default function QuoterPage() {
                   value={state.customerSearchTerm}
                   onValueChange={actions.setCustomerSearchTerm}
                   placeholder="Buscar cliente por código o nombre..."
+                  open={state.isCustomerSearchOpen}
+                  onOpenChange={actions.setCustomerSearchOpen}
                 />
                 <div className="flex items-center space-x-2 pt-1">
                   <Checkbox
@@ -421,6 +423,8 @@ export default function QuoterPage() {
                     onValueChange={actions.setProductSearchTerm}
                     onKeyDown={actions.handleProductInputKeyDown}
                     placeholder="Buscar producto por código o descripción..."
+                    open={state.isProductSearchOpen}
+                    onOpenChange={actions.setProductSearchOpen}
                   />
                 <div className="flex items-center space-x-2 pt-2">
                   <Checkbox

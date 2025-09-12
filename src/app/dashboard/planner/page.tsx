@@ -97,7 +97,9 @@ export default function PlannerPage() {
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
     const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+    const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
     const [productSearchTerm, setProductSearchTerm] = useState("");
+    const [isProductSearchOpen, setProductSearchOpen] = useState(false);
     const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, 300);
     const [debouncedProductSearch] = useDebounce(productSearchTerm, 300);
     
@@ -419,6 +421,7 @@ export default function PlannerPage() {
     }
     
     const handleSelectProduct = (value: string) => {
+        setProductSearchOpen(false);
         const product = products.find(p => p.id === value);
         if (product) {
             const productWithStock = { ...product, inventory: stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0 };
@@ -432,6 +435,7 @@ export default function PlannerPage() {
     };
 
     const handleSelectCustomer = (value: string) => {
+        setCustomerSearchOpen(false);
         const customer = customers.find(c => c.id === value);
         if (customer) {
             if (orderToEdit) {
@@ -935,6 +939,8 @@ export default function PlannerPage() {
                                                     onValueChange={setCustomerSearchTerm}
                                                     placeholder="Buscar cliente..."
                                                     onKeyDown={handleCustomerInputKeyDown}
+                                                    open={isCustomerSearchOpen}
+                                                    onOpenChange={setCustomerSearchOpen}
                                                 />
                                             </div>
 
@@ -947,6 +953,8 @@ export default function PlannerPage() {
                                                     onValueChange={setProductSearchTerm}
                                                     placeholder="Buscar producto..."
                                                     onKeyDown={handleProductInputKeyDown}
+                                                    open={isProductSearchOpen}
+                                                    onOpenChange={setProductSearchOpen}
                                                 />
                                             </div>
 
@@ -1401,5 +1409,3 @@ export default function PlannerPage() {
         </main>
     );
 }
-
-    

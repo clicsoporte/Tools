@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -86,7 +85,9 @@ export default function PurchaseRequestPage() {
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
     const [clientSearchTerm, setClientSearchTerm] = useState("");
+    const [isClientSearchOpen, setClientSearchOpen] = useState(false);
     const [itemSearchTerm, setItemSearchTerm] = useState("");
+    const [isItemSearchOpen, setItemSearchOpen] = useState(false);
     const [debouncedClientSearch] = useDebounce(clientSearchTerm, 300);
     const [debouncedItemSearch] = useDebounce(itemSearchTerm, 300);
     
@@ -328,6 +329,7 @@ export default function PurchaseRequestPage() {
     };
     
     const handleSelectItem = (value: string) => {
+        setItemSearchOpen(false);
         const product = items.find(p => p.id === value);
         if (product) {
             if (requestToEdit) {
@@ -340,6 +342,7 @@ export default function PurchaseRequestPage() {
     };
 
     const handleSelectClient = (value: string) => {
+        setClientSearchOpen(false);
         const client = clients.find(c => c.id === value);
         if (client) {
             if (requestToEdit) {
@@ -564,6 +567,8 @@ export default function PurchaseRequestPage() {
                                                 value={clientSearchTerm}
                                                 onValueChange={setClientSearchTerm}
                                                 placeholder="Buscar cliente..."
+                                                open={isClientSearchOpen}
+                                                onOpenChange={setClientSearchOpen}
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -574,6 +579,8 @@ export default function PurchaseRequestPage() {
                                                 value={itemSearchTerm}
                                                 onValueChange={setItemSearchTerm}
                                                 placeholder="Buscar artículo..."
+                                                open={isItemSearchOpen}
+                                                onOpenChange={setItemSearchOpen}
                                             />
                                         </div>
                                         
@@ -960,5 +967,3 @@ export default function PurchaseRequestPage() {
         </main>
     );
 }
-
-    

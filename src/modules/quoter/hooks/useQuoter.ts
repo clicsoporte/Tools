@@ -124,10 +124,13 @@ export const useQuoter = () => {
   const [decimalPlaces, setDecimalPlaces] = useState(initialQuoteState.decimalPlaces);
   const [exemptionInfo, setExemptionInfo] = useState<ExemptionInfo | null>(null);
   
-  // State for search
+  // State for search popovers
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
-  const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, 500);
+  const [isProductSearchOpen, setProductSearchOpen] = useState(false);
+  const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
+
+  const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, 300);
   const [debouncedProductSearch] = useDebounce(productSearchTerm, 300);
 
 
@@ -351,6 +354,7 @@ export const useQuoter = () => {
   };
 
   const handleSelectCustomer = (customerId: string) => {
+    setCustomerSearchOpen(false);
     if (!customerId) {
         setSelectedCustomer(null);
         setCustomerDetails("");
@@ -408,6 +412,7 @@ export const useQuoter = () => {
   };
 
   const handleSelectProduct = (productId: string) => {
+    setProductSearchOpen(false);
     if (!productId) {
       setProductSearchTerm("");
       return;
@@ -825,14 +830,14 @@ export const useQuoter = () => {
       quoteNumber, deliveryDate, sellerName, quoteDate, companyData, currentUser, sellerType,
       paymentTerms, creditDays, validUntilDate, notes, products, customers, showInactiveCustomers,
       showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, purchaseOrderNumber,
-      exemptionInfo, isRefreshing, customerSearchTerm, productSearchTerm,
+      exemptionInfo, isRefreshing, customerSearchTerm, productSearchTerm, isProductSearchOpen, isCustomerSearchOpen
     },
     actions: {
       setCurrency, setLines, setSelectedCustomer, setCustomerDetails, setDeliveryAddress, setExchangeRate,
       setQuoteNumber, setDeliveryDate, setSellerName, setQuoteDate, setSellerType, setPaymentTerms,
       setCreditDays, setValidUntilDate, setNotes, setShowInactiveCustomers,
       setShowInactiveProducts, setSelectedLineForInfo, setDecimalPlaces, setPurchaseOrderNumber,
-      setProductSearchTerm, setCustomerSearchTerm,
+      setProductSearchTerm, setCustomerSearchTerm, setProductSearchOpen, setCustomerSearchOpen,
       addLine, removeLine, updateLine, updateLineProductDetail, handleCurrencyToggle, formatCurrency,
       handleSelectCustomer, handleSelectProduct, incrementAndSaveQuoteNumber, handleSaveDecimalPlaces,
       generatePDF, resetQuote, saveDraft, loadDrafts, handleLoadDraft, handleDeleteDraft, handleNumericInputBlur,
