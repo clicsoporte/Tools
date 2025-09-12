@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -314,6 +313,7 @@ export default function HaciendaQueryPage() {
         setIsExemptionLoading(false);
     };
 
+    // Función wrapper para adaptar el tipo de setUnifiedSearchInput
     const handleSearchInputChange = (value: string) => {
         setUnifiedSearchInput(value);
     };
