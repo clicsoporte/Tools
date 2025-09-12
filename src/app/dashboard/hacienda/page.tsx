@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isValid } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { logError } from '@/modules/core/lib/logger';
-import { SearchInput } from '@/components/ui/combobox';
+import { SearchInput } from '@/components/ui/search-input';
 import { cn } from '@/lib/utils';
 import { useDebounce } from 'use-debounce';
 
