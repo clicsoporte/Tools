@@ -22,7 +22,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { useDebounce } from "use-debounce";
 
 export interface SearchInputProps {
   options: { label: string; value: string; className?: string }[];
@@ -45,10 +44,11 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
   }, ref) => {
     
     const [isOpen, setIsOpen] = React.useState(false);
+    const showPopover = isOpen && options.length > 0;
     
     const handleSelect = (optionValue: string) => {
+        setIsOpen(false); // Close popover first
         onSelect(optionValue);
-        setIsOpen(false);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,7 +57,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
     };
 
     return (
-        <Popover open={isOpen && options.length > 0} onOpenChange={setIsOpen}>
+        <Popover open={showPopover} onOpenChange={setIsOpen}>
             <div className={cn("relative w-full", className)}>
                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <PopoverTrigger asChild>
@@ -68,10 +68,11 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                         value={value}
                         onChange={handleChange}
                         onFocus={() => {
-                            if (value) setIsOpen(true);
+                            if (value && options.length > 0) setIsOpen(true);
                         }}
                         onKeyDown={onKeyDown}
                         className="pl-8"
+                        autoComplete="off"
                     />
                 </PopoverTrigger>
             </div>
@@ -80,9 +81,11 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                 align="start"
                 onOpenAutoFocus={(e) => e.preventDefault()} // Prevent focus stealing
             >
-                <Command>
+                <Command shouldFilter={false}>
                      <CommandInput 
                         placeholder={placeholder || "Buscar..."}
+                        value={value}
+                        onValueChange={onValueChange}
                     />
                     <CommandList>
                          {options.length > 0 ? (
