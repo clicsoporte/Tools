@@ -24,33 +24,6 @@ NC='\033[0m' # No Color
 # Salir inmediatamente si un comando falla
 set -e
 
-echo -e "${GREEN}Iniciando la configuración y limpieza de Clic-Tools...${NC}"
-
-# --- Limpieza del Repositorio Git ---
-echo -e "\n${YELLOW}Paso 0: Limpiando el caché y el historial de Git...${NC}"
-echo "Esto eliminará las carpetas 'node_modules' y '.next' del seguimiento de Git."
-
-# Eliminar node_modules del caché de git si está siendo rastreado
-if git ls-files --error-unmatch "node_modules" > /dev/null 2>&1; then
-    echo "Eliminando 'node_modules' del caché de Git..."
-    git rm -r --cached node_modules
-else
-    echo "'node_modules' no está siendo rastreado por Git. No se necesita limpieza."
-fi
-
-# Eliminar .next del caché de git si está siendo rastreado
-if git ls-files --error-unmatch ".next" > /dev/null 2>&1; then
-    echo "Eliminando '.next' del caché de Git..."
-    git rm -r --cached .next
-else
-    echo "'.next' no está siendo rastreado por Git. No se necesita limpieza."
-fi
-
-echo -e "${GREEN}Limpieza de Git completada.${NC}"
-echo -e "${YELLOW}IMPORTANTE: Después de este script, ejecuta 'git add .' y 'git commit' para guardar los cambios de limpieza.${NC}"
-echo -e "${YELLOW}Luego, tu 'git push' debería funcionar.${NC}"
-
-
 # --- Verificación inicial ---
 if [ ! -f "package.json" ]; then
     echo -e "\n${RED}ERROR: No se encontró 'package.json'.${NC}"
@@ -155,5 +128,3 @@ echo -e "Puedes ver los logs en tiempo real con: ${YELLOW}pm2 logs $APP_NAME${NC
 echo -e "\nPor defecto, la aplicación debería estar accesible en el puerto definido en package.json (ej: 9003)."
 echo -e "Asegúrate de que el firewall (si está activo) permita el tráfico en ese puerto."
 echo -e "Ejemplo de comando para UFW: ${YELLOW}sudo ufw allow 9003${NC}"
-
-    
