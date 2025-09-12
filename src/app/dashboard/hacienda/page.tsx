@@ -314,6 +314,10 @@ export default function HaciendaQueryPage() {
         setIsExemptionLoading(false);
     };
 
+    const handleSearchInputChange = (value: string) => {
+        setUnifiedSearchInput(value);
+    };
+
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-8">
             <Tabs defaultValue="unified">
@@ -335,7 +339,7 @@ export default function HaciendaQueryPage() {
                                     options={customerOptions}
                                     onSelect={executeUnifiedSearch}
                                     value={unifiedSearchInput}
-                                    onValueChange={setUnifiedSearchInput}
+                                    onValueChange={handleSearchInputChange}
                                     placeholder="Buscar cliente por código, nombre o cédula..."
                                     open={isUnifiedSearchOpen}
                                     onOpenChange={setUnifiedSearchOpen}
