@@ -29,5 +29,5 @@ export const updateInventory = async(itemId: string, locationId: number, quantit
 
 // --- Simple Mode Actions ---
 export const getItemLocations = async (itemId: string): Promise<ItemLocation[]> => getItemLocationsServer(itemId);
-export const assignItemToLocation = async (itemId: string, locationId: number): Promise<void> => assignItemToLocationServer(itemId, locationId);
+export const assignItemToLocation = async (itemId: string, locationId: number): Promise<void> => assignItemToLocationServer(itemId);
 export const unassignItemFromLocation = async (itemLocationId: number): Promise<void> => unassignItemFromLocationServer(itemLocationId);

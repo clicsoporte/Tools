@@ -77,6 +77,44 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
     console.log(`Database ${WAREHOUSE_DB_FILE} initialized for Warehouse Management.`);
 };
 
+export async function runWarehouseMigrations(db: import('better-sqlite3').Database) {
+    const warehouseConfigTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='warehouse_config'`).get();
+    if (!warehouseConfigTable) {
+        // Table doesn't exist, probably a fresh DB, let initialization handle it
+        return;
+    }
+
+    // Migration to add enablePhysicalInventoryTracking
+    try {
+        const settingsRow = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string } | undefined;
+        if (settingsRow) {
+            const settings = JSON.parse(settingsRow.value);
+            if (typeof settings.enablePhysicalInventoryTracking !== 'boolean') {
+                console.log("MIGRATION (warehouse.db): Adding enablePhysicalInventoryTracking to settings.");
+                settings.enablePhysicalInventoryTracking = false;
+                db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(settings));
+            }
+        }
+    } catch (error) {
+        console.error("Error during warehouse settings migration:", error);
+    }
+    
+    const itemLocationsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='item_locations'`).get();
+    if (!itemLocationsTable) {
+        console.log("MIGRATION (warehouse.db): Creating item_locations table.");
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS item_locations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                itemId TEXT NOT NULL,
+                locationId INTEGER NOT NULL,
+                clientId TEXT,
+                FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE,
+                UNIQUE (itemId, locationId, clientId)
+            );
+        `);
+    }
+}
+
 export async function getWarehouseSettings(): Promise<WarehouseSettings> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     try {

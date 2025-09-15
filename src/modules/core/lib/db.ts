@@ -10,7 +10,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { initialUsers, initialCompany, initialRoles } from './data';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, Warehouse, StockSettings, Location, InventoryItem, SqlConfig, ImportQuery } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, Warehouse, StockSettings, Location, InventoryItem, SqlConfig, ImportQuery, ItemLocation } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -76,6 +76,9 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             } else if (dbFile === 'requests.db') {
                 const { runRequestMigrations } = await import('../../requests/lib/db');
                 await runRequestMigrations(db);
+            } else if (dbFile === 'warehouse.db') {
+                 const { runWarehouseMigrations } = await import('../../warehouse/lib/db');
+                 await runWarehouseMigrations(db);
             } else if (dbFile === DB_FILE) {
                  checkAndApplyMigrations(db);
             }
@@ -809,7 +812,7 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
         await saveAllStock(dataArray as { itemId: string, warehouseId: string, stock: number }[]);
         return { count: new Set(dataArray.map(item => item.itemId)).size, source: filePath };
     }
-    else if (type === 'locations') await saveAllLocations(dataArray);
+    else if (type === 'locations') await saveAllLocations(dataArray as ItemLocation[]);
 
     return { count: dataArray.length, source: filePath };
 }
@@ -844,7 +847,7 @@ async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' |
         await saveAllStock(mappedData as { itemId: string, warehouseId: string, stock: number }[]);
         return { count: new Set(mappedData.map(item => item.itemId)).size, source: 'SQL Server' };
     }
-    else if (type === 'locations') await saveAllLocations(mappedData);
+    else if (type === 'locations') await saveAllLocations(mappedData as ItemLocation[]);
     else if (type === 'cabys') {
         const { count } = await updateCabysCatalogFromSqlData(mappedData);
         return { count, source: 'SQL Server' };
@@ -947,13 +950,13 @@ export async function saveAllStock(stockData: { itemId: string, warehouseId: str
     }
 }
 
-export async function saveAllLocations(locationData: any[]): Promise<void> {
+export async function saveAllLocations(locationData: ItemLocation[]): Promise<void> {
     const db = await connectDb('warehouse.db');
 
     const insertLocation = db.prepare('INSERT OR IGNORE INTO locations (name, code, type) VALUES (@name, @code, @type)');
     const assignItem = db.prepare('INSERT OR IGNORE INTO item_locations (itemId, locationId, clientId) VALUES (?, ?, ?)');
     
-    const transaction = db.transaction((data) => {
+    const transaction = db.transaction((data: ItemLocation[]) => {
         db.prepare('DELETE FROM item_locations WHERE clientId IS NOT NULL').run(); // Clear only client-specific locations
         
         const locationMap = new Map<string, number>();
@@ -961,7 +964,7 @@ export async function saveAllLocations(locationData: any[]): Promise<void> {
         existingLocations.forEach(loc => locationMap.set(loc.code, loc.id));
 
         for (const item of data) {
-            const rackCode = `RACK-${item.rack}`;
+            const rackCode = `RACK-${(item as any).rack}`; // Type assertion to access legacy property
             if (!locationMap.has(rackCode)) {
                 insertLocation.run({ name: rackCode, code: rackCode, type: 'rack' });
                 const newLocId = db.prepare('SELECT id FROM locations WHERE code = ?').get(rackCode) as {id: number};
@@ -969,7 +972,7 @@ export async function saveAllLocations(locationData: any[]): Promise<void> {
             }
             const locationId = locationMap.get(rackCode)!;
             
-            assignItem.run(item.itemId, locationId, item.client || null);
+            assignItem.run(item.itemId, locationId, item.clientId || null);
         }
     });
 
