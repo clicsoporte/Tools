@@ -53,11 +53,11 @@ export const initialUsers: User[] = [
  * Initial company data for the general settings.
  */
 export const initialCompany: Company = {
-    name: "Clic-Tools Solutions S.A.",
-    taxId: "3-101-123456",
+    name: "CLIC SOPORTE Y CLIC TIENDA S.R.L",
+    taxId: "3102894538",
     address: "San José, Costa Rica",
-    phone: "+(506) 8888-8888",
-    email: "facturacion@clic-tools.com",
+    phone: "+50640000630",
+    email: "facturacion@clicsoporte.com",
     systemName: "Clic-Tools",
     quotePrefix: "COT-",
     nextQuoteNumber: 1,
