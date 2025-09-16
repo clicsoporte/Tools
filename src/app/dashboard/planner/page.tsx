@@ -133,7 +133,7 @@ export default function PlannerPage() {
         if(plannerSettings?.customStatuses) {
             const newConfig = {...statusConfig};
             plannerSettings.customStatuses.forEach(cs => {
-                if(cs.isActive) {
+                if(cs.isActive && cs.label) {
                     newConfig[cs.id] = { label: cs.label, color: cs.color };
                 }
             });
@@ -384,7 +384,7 @@ export default function PlannerPage() {
     const handleDetailUpdate = async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; scheduledDateRange?: DateRange }) => {
         if (!currentUser) return;
         
-        setIsSubmitting(true);
+        // No need to set submitting state for these quick updates
         try {
             const updatedOrder = await updateProductionOrderDetails({
                 orderId,
@@ -392,19 +392,13 @@ export default function PlannerPage() {
                 updatedBy: currentUser.name
             });
 
-            const updateOrderInState = (order: ProductionOrder) => {
-                setActiveOrders(prev => prev.map(o => o.id === order.id ? order : o));
-                setArchivedOrders(prev => prev.map(o => o.id === order.id ? order : o));
-            }
-            updateOrderInState(updatedOrder);
-
-            toast({ title: "Orden Actualizada", description: `Los detalles de la orden han sido guardados.` });
+            setActiveOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
+            setArchivedOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
+            
             await logInfo("Production order details updated", { orderId, details });
         } catch (error: any) {
              logError("Failed to update order details", { error: error.message });
             toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
         }
     }
 
@@ -738,7 +732,7 @@ export default function PlannerPage() {
         const defaultWarehouseName = defaultWarehouseId ? stockSettings?.warehouses.find(w => w.id === defaultWarehouseId)?.name : 'Total';
 
         const customStatusActions = plannerSettings?.customStatuses
-            .filter(cs => cs.isActive)
+            .filter(cs => cs.isActive && cs.label)
             .map(cs => (
                 <Button key={cs.id} variant="ghost" className="justify-start" style={{color: cs.color}} onClick={() => openStatusDialog(order, cs.id)}>{cs.label}</Button>
             ));
@@ -1017,7 +1011,7 @@ export default function PlannerPage() {
                                                     options={customerOptions}
                                                     onSelect={handleSelectCustomer}
                                                     value={customerSearchTerm}
-                                                    onValueChange={(val) => { handleSelectCustomer(''); setCustomerSearchTerm(val); }}
+                                                    onValueChange={(val) => { if (!val) handleSelectCustomer(''); setCustomerSearchTerm(val); }}
                                                     placeholder="Buscar cliente..."
                                                     onKeyDown={handleCustomerInputKeyDown}
                                                     open={isCustomerSearchOpen}
@@ -1031,7 +1025,7 @@ export default function PlannerPage() {
                                                     options={productOptions}
                                                     onSelect={handleSelectProduct}
                                                     value={productSearchTerm}
-                                                    onValueChange={(val) => { handleSelectProduct(''); setProductSearchTerm(val); }}
+                                                    onValueChange={(val) => { if (!val) handleSelectProduct(''); setProductSearchTerm(val); }}
                                                     placeholder="Buscar producto..."
                                                     onKeyDown={handleProductInputKeyDown}
                                                     open={isProductSearchOpen}

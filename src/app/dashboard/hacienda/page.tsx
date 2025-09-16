@@ -127,6 +127,18 @@ const ErpExemptionCard = ({ erpData }: { erpData: Exemption | null }) => {
 };
 
 const HaciendaExemptionCard = ({ data }: { data: EnrichedExemptionInfo | null }) => {
+    const [cabysFilter, setCabysFilter] = useState('');
+
+    const filteredCabys = useMemo(() => {
+        if (!data || !data.enrichedCabys) return [];
+        if (!cabysFilter) return data.enrichedCabys;
+        const lowerFilter = cabysFilter.toLowerCase();
+        return data.enrichedCabys.filter(item => 
+            item.code.includes(lowerFilter) || 
+            item.description.toLowerCase().includes(lowerFilter)
+        );
+    }, [data, cabysFilter]);
+
     if (!data) {
         return (
             <Card>
@@ -163,11 +175,28 @@ const HaciendaExemptionCard = ({ data }: { data: EnrichedExemptionInfo | null })
                          <p className="text-muted-foreground">Vencimiento</p>
                         <p className="font-bold">{format(parseISO(data.fechaVencimiento), 'dd/MM/yyyy')}</p>
                     </div>
+                     <div>
+                        <p className="text-muted-foreground">Tipo Autorización</p>
+                        <p className="capitalize">{data.tipoAutorizacion}</p>
+                    </div>
+                     <div>
+                        <p className="text-muted-foreground">Institución</p>
+                        <p>{data.nombreInstitucion} ({data.CodigoInstitucion})</p>
+                    </div>
                 </div>
                 <div className="space-y-2 pt-2">
-                    <p className="font-medium text-muted-foreground">Artículos CABYS Incluidos</p>
+                    <p className="font-medium text-muted-foreground">Artículos CABYS Incluidos ({filteredCabys.length})</p>
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Buscar por código o descripción..."
+                            value={cabysFilter}
+                            onChange={(e) => setCabysFilter(e.target.value)}
+                            className="pl-9"
+                        />
+                    </div>
                     <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                        {data.enrichedCabys.map((item, index) => (
+                        {filteredCabys.map((item, index) => (
                             <div key={`${item.code}-${index}`} className="p-2 bg-muted/50 rounded-md text-xs">
                                 <p className="font-semibold">{item.description}</p>
                                 <p className="text-muted-foreground">Código: {item.code}</p>
