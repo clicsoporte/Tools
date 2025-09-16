@@ -27,6 +27,7 @@ import {
   LayoutDashboard,
   Map,
   PackagePlus,
+  BookMarked,
 } from "lucide-react";
 
 /**
@@ -264,10 +265,19 @@ export const adminTools: Tool[] = [
       {
         id: "general-settings",
         name: "Configuración General",
-        description: "Gestionar los datos de la empresa y consecutivos.",
+        description: "Gestionar los datos de la empresa y logo.",
         href: "/dashboard/admin/general",
         icon: Briefcase,
         bgColor: "bg-orange-500",
+        textColor: "text-white",
+      },
+      {
+        id: "quoter-settings",
+        name: "Config. Cotizador",
+        description: "Gestionar prefijos y consecutivos del cotizador.",
+        href: "/dashboard/admin/general", // Points to the same page
+        icon: BookMarked,
+        bgColor: "bg-green-600",
         textColor: "text-white",
       },
       {

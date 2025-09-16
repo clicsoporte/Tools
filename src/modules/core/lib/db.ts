@@ -125,6 +125,7 @@ function checkAndApplyMigrations(db: Database.Database) {
         if (!companyColumns.has('locationFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN locationFilePath TEXT`);
         if (!companyColumns.has('cabysFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN cabysFilePath TEXT`);
         if (!companyColumns.has('importMode')) db.exec(`ALTER TABLE company_settings ADD COLUMN importMode TEXT DEFAULT 'file'`);
+        if (!companyColumns.has('logoUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN logoUrl TEXT`);
 
         const adminUser = db.prepare('SELECT role FROM users WHERE id = 1').get() as { role: string } | undefined;
         if (adminUser && adminUser.role !== 'admin') {
@@ -280,7 +281,7 @@ async function initializeMainDatabase(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS roles (id TEXT PRIMARY KEY, name TEXT, permissions TEXT);
     CREATE TABLE IF NOT EXISTS company_settings (
         id INTEGER PRIMARY KEY DEFAULT 1, name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
-        systemName TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER DEFAULT 2, 
+        logoUrl TEXT, systemName TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER DEFAULT 2, 
         customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT, stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT,
         importMode TEXT DEFAULT 'file'
     );
@@ -337,10 +338,11 @@ async function initializeMainDatabase(db: Database.Database) {
     for (const role of initialRoles) {
         insertRole.run({ ...role, permissions: JSON.stringify(role.permissions) });
     }
-    db.prepare('INSERT OR REPLACE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, importMode) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
-      initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email,
-      initialCompany.systemName, initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.importMode
-    );
+    db.prepare('INSERT OR REPLACE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, importMode, logoUrl) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(
+          initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email,
+          initialCompany.systemName, initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.importMode, initialCompany.logoUrl || null
+      );
     db.prepare(`INSERT OR IGNORE INTO stock_settings (key, value) VALUES ('warehouses', '[]')`).run();
     db.prepare('INSERT OR REPLACE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)').run('https://api.hacienda.go.cr/indicadores/tc/dolar', 'https://api.hacienda.go.cr/fe/ex?autorizacion=', 'https://api.hacienda.go.cr/fe/ae?identificacion=');
     
@@ -376,7 +378,7 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
         db.prepare(`
             UPDATE company_settings SET 
                 name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email,
-                systemName = @systemName, quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber, 
+                logoUrl = @logoUrl, systemName = @systemName, quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber, 
                 decimalPlaces = @decimalPlaces, customerFilePath = @customerFilePath, 
                 productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath, stockFilePath = @stockFilePath,
                 locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath, importMode = @importMode
