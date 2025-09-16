@@ -28,6 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'requestedBy'> = {
@@ -45,6 +46,7 @@ const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' |
     route: '',
     shippingMethod: '',
     inventory: 0,
+    priority: 'medium',
 };
 
 const statusConfig: { [key in PurchaseRequestStatus]: { label: string; color: string } } = {
@@ -225,16 +227,17 @@ export default function PurchaseRequestPage() {
 
         setIsSubmitting(true);
         try {
-            await updatePurchaseRequest({
+            const updatedRequest = await updatePurchaseRequest({
                 requestId: requestToEdit.id,
                 updatedBy: currentUser.name,
                 ...requestToEdit,
             });
+            setActiveRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r));
+            setArchivedRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r));
             toast({ title: "Solicitud Actualizada", description: `La solicitud ${requestToEdit.consecutive} ha sido guardada.` });
             await logInfo("Purchase request updated", { request: requestToEdit.consecutive });
             setEditRequestDialogOpen(false);
             setRequestToEdit(null);
-            await loadRequestData();
         } catch (error: any) {
             logError("Failed to edit purchase request", { error: error.message });
             toast({ title: "Error al Editar", description: error.message, variant: "destructive" });
@@ -267,7 +270,7 @@ export default function PurchaseRequestPage() {
         
         setIsSubmitting(true);
         try {
-            await updatePurchaseRequestStatus({
+            const updatedRequest = await updatePurchaseRequestStatus({
                 requestId: requestToUpdate.id,
                 status: newStatus,
                 notes: statusUpdateNotes,
@@ -275,13 +278,27 @@ export default function PurchaseRequestPage() {
                 reopen: false,
                 deliveredQuantity: finalDeliveredQuantity,
             });
+            
+            const useWarehouse = requestSettings?.useWarehouseReception;
+            const shouldBeActive = useWarehouse
+                ? updatedRequest.status !== 'received-in-warehouse' && updatedRequest.status !== 'canceled'
+                : updatedRequest.status !== 'received' && updatedRequest.status !== 'canceled';
+
+            if(shouldBeActive) {
+                setActiveRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r).filter(r => r.id !== requestToUpdate.id || r.id === updatedRequest.id));
+                setArchivedRequests(prev => prev.filter(r => r.id !== updatedRequest.id));
+            } else {
+                setArchivedRequests(prev => [updatedRequest, ...prev.filter(r => r.id !== updatedRequest.id)]);
+                setActiveRequests(prev => prev.filter(r => r.id !== updatedRequest.id));
+            }
+
             toast({ title: "Estado Actualizado", description: `La solicitud ${requestToUpdate.consecutive} ahora está ${statusConfig[newStatus].label}.` });
             await logInfo("Purchase request status updated", { request: requestToUpdate.consecutive, newStatus: newStatus });
             setStatusDialogOpen(false);
-            await loadRequestData();
         } catch (error: any) {
             logError("Failed to update request status", { error: error.message });
             toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
+            await loadRequestData();
         } finally {
             setIsSubmitting(false);
         }
@@ -307,22 +324,26 @@ export default function PurchaseRequestPage() {
 
         setIsSubmitting(true);
         try {
-            await updatePurchaseRequestStatus({
+            const updatedRequest = await updatePurchaseRequestStatus({
                 requestId: requestToUpdate.id,
                 status: 'pending',
                 notes: 'Solicitud reabierta por el administrador.',
                 updatedBy: currentUser.name,
                 reopen: true
             });
+            
+            setActiveRequests(prev => [updatedRequest, ...prev]);
+            setArchivedRequests(prev => prev.filter(o => o.id !== requestToUpdate.id));
+
             toast({ title: "Solicitud Reabierta", description: `La solicitud ${requestToUpdate.consecutive} ha sido movida a pendientes.` });
             await logInfo("Purchase request reopened", { request: requestToUpdate.consecutive });
             setReopenDialogOpen(false);
             setReopenStep(0);
             setReopenConfirmationText('');
-            await loadRequestData();
         } catch (error: any) {
             logError("Failed to reopen request", { error: error.message });
             toast({ title: "Error al Reabrir", description: error.message, variant: "destructive" });
+            await loadRequestData();
         } finally {
             setIsSubmitting(false);
         }
@@ -512,7 +533,7 @@ export default function PurchaseRequestPage() {
                             <p className="text-muted-foreground">"{request.lastStatusUpdateNotes}" - <span className="italic">{request.lastStatusUpdateBy}</span></p>
                         </div>
                      )}
-                </CardContent>
+                </CardFooter>
                 <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
                     <span>Solicitado por: {request.requestedBy} el {format(parseISO(request.requestDate), 'dd/MM/yyyy')}</span>
                     {request.approvedBy && <span>Aprobado por: {request.approvedBy}</span>}
@@ -558,6 +579,7 @@ export default function PurchaseRequestPage() {
                                         <DialogTitle>Crear Nueva Solicitud de Compra</DialogTitle>
                                         <DialogDescription>Complete los detalles para crear una nueva solicitud.</DialogDescription>
                                     </DialogHeader>
+                                    <ScrollArea className="h-[60vh] md:h-auto">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="client-search">Cliente</Label>
@@ -698,6 +720,7 @@ export default function PurchaseRequestPage() {
                                             />
                                         </div>
                                     </div>
+                                    </ScrollArea>
                                     <DialogFooter>
                                         <DialogClose asChild>
                                             <Button type="button" variant="ghost">Cancelar</Button>
@@ -776,6 +799,7 @@ export default function PurchaseRequestPage() {
                             <DialogTitle>Editar Solicitud - {requestToEdit?.consecutive}</DialogTitle>
                             <DialogDescription>Modifique los detalles de la solicitud.</DialogDescription>
                         </DialogHeader>
+                        <ScrollArea className="h-[60vh] md:h-auto">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                              <div className="space-y-2">
                                 <Label>Cliente</Label>
@@ -798,6 +822,7 @@ export default function PurchaseRequestPage() {
                                 <Textarea id="edit-request-notes" value={requestToEdit?.notes || ''} onChange={e => setRequestToEdit(prev => prev ? { ...prev, notes: e.target.value } : null)} />
                             </div>
                         </div>
+                        </ScrollArea>
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
                             <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Guardar Cambios</Button>

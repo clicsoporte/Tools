@@ -263,7 +263,7 @@ export default function PlannerPage() {
         
         setIsSubmitting(true);
         try {
-            await updateProductionOrder({
+            const updatedOrder = await updateProductionOrder({
                 orderId: orderToEdit.id,
                 updatedBy: currentUser.name,
                 deliveryDate: orderToEdit.deliveryDate,
@@ -276,11 +276,12 @@ export default function PlannerPage() {
                 notes: orderToEdit.notes,
                 purchaseOrder: orderToEdit.purchaseOrder,
             });
+            setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            setArchivedOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
             toast({ title: "Orden Actualizada", description: `La orden ${orderToEdit.consecutive} ha sido guardada.` });
             await logInfo("Production order updated", { order: orderToEdit.consecutive });
             setEditOrderDialogOpen(false);
             setOrderToEdit(null);
-            await loadPlannerData();
         } catch (error: any) {
             logError("Failed to edit production order", { error: error.message });
             toast({ title: "Error al Editar", description: error.message, variant: "destructive" });
@@ -334,7 +335,7 @@ export default function PlannerPage() {
         
         setIsSubmitting(true);
         try {
-            await updateProductionOrderStatus({
+            const updatedOrder = await updateProductionOrderStatus({
                 orderId: orderToUpdate.id,
                 status: newStatus,
                 notes: statusUpdateNotes,
@@ -344,13 +345,31 @@ export default function PlannerPage() {
                 erpTicketNumber: newStatus === 'received-in-warehouse' ? erpTicketNumber : undefined,
                 reopen: false,
             });
+            
+            // Optimistic update
+            const updateOrderInState = (order: ProductionOrder) => {
+                 const useWarehouse = plannerSettings?.useWarehouseReception;
+                 const shouldBeActive = useWarehouse
+                    ? order.status !== 'received-in-warehouse' && order.status !== 'canceled'
+                    : order.status !== 'completed' && order.status !== 'canceled';
+
+                if(shouldBeActive) {
+                    setActiveOrders(prev => prev.map(o => o.id === order.id ? order : o).filter(o => o.id !== orderToUpdate.id || o.id === order.id));
+                    setArchivedOrders(prev => prev.filter(o => o.id !== order.id));
+                } else {
+                    setArchivedOrders(prev => [order, ...prev.filter(o => o.id !== order.id)]);
+                    setActiveOrders(prev => prev.filter(o => o.id !== order.id));
+                }
+            }
+            updateOrderInState(updatedOrder);
+
             toast({ title: "Estado Actualizado", description: `La orden ${orderToUpdate.consecutive} ahora está ${dynamicStatusConfig[newStatus]?.label}.` });
             await logInfo("Production order status updated", { order: orderToUpdate.consecutive, newStatus: newStatus });
             setStatusDialogOpen(false);
-            await loadPlannerData();
         } catch (error: any) {
             logError("Failed to update order status", { error: error.message });
             toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
+            await loadPlannerData(); // Fallback to full reload on error
         } finally {
             setIsSubmitting(false);
         }
@@ -359,14 +378,15 @@ export default function PlannerPage() {
     const handleDetailUpdate = async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; scheduledDateRange?: DateRange }) => {
         if (!currentUser) return;
         try {
-            await updateProductionOrderDetails({
+            const updatedOrder = await updateProductionOrderDetails({
                 orderId,
                 ...details,
                 updatedBy: currentUser.name
             });
+            setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            setArchivedOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
             toast({ title: "Orden Actualizada", description: `Los detalles de la orden han sido guardados.` });
             await logInfo("Production order details updated", { orderId, details });
-            await loadPlannerData();
         } catch (error: any) {
              logError("Failed to update order details", { error: error.message });
             toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
@@ -395,22 +415,25 @@ export default function PlannerPage() {
 
         setIsSubmitting(true);
         try {
-            await updateProductionOrderStatus({
+            const updatedOrder = await updateProductionOrderStatus({
                 orderId: orderToUpdate.id,
                 status: 'pending',
                 notes: 'Orden reabierta por el administrador.',
                 updatedBy: currentUser.name,
                 reopen: true
             });
+            setActiveOrders(prev => [updatedOrder, ...prev]);
+            setArchivedOrders(prev => prev.filter(o => o.id !== orderToUpdate.id));
+
             toast({ title: "Orden Reabierta", description: `La orden ${orderToUpdate.consecutive} ha sido movida a pendientes.` });
             await logInfo("Production order reopened", { order: orderToUpdate.consecutive });
             setReopenDialogOpen(false);
             setReopenStep(0);
             setReopenConfirmationText('');
-            await loadPlannerData();
         } catch (error: any) {
             logError("Failed to reopen order", { error: error.message });
             toast({ title: "Error al Reabrir", description: error.message, variant: "destructive" });
+            await loadPlannerData(); // Fallback to full reload on error
         } finally {
             setIsSubmitting(false);
         }
@@ -420,14 +443,14 @@ export default function PlannerPage() {
         if (!currentUser) return;
         setIsSubmitting(true);
         try {
-            await rejectCancellationRequest({
+            const updatedOrder = await rejectCancellationRequest({
                 orderId: order.id,
                 notes: 'La solicitud de cancelación fue rechazada.',
                 updatedBy: currentUser.name,
             });
+            setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
             toast({ title: 'Solicitud Rechazada', description: `La orden ${order.consecutive} ha sido devuelta a su estado anterior.` });
             await logInfo('Cancellation request rejected', { orderId: order.id });
-            await loadPlannerData();
         } catch (error: any) {
              logError("Failed to reject cancellation request", { error: error.message });
             toast({ title: "Error al Rechazar", description: error.message, variant: "destructive" });
@@ -901,7 +924,7 @@ export default function PlannerPage() {
                             <p className="text-muted-foreground">"{order.lastStatusUpdateNotes}" - <span className="italic">{order.lastStatusUpdateBy}</span></p>
                         </div>
                      )}
-                </CardContent>
+                </CardFooter>
                 <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
                     <span>Solicitado por: {order.requestedBy} el {format(parseISO(order.requestDate), 'dd/MM/yyyy')}</span>
                     {order.approvedBy && <span>Aprobado por: {order.approvedBy}</span>}
@@ -1435,5 +1458,3 @@ export default function PlannerPage() {
         </main>
     );
 }
-
-    
