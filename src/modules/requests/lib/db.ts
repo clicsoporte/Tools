@@ -4,7 +4,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload } from '../../core/types';
+import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus } from '../../core/types';
 
 const REQUESTS_DB_FILE = 'requests.db';
 
@@ -41,7 +41,8 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
             receivedInWarehouseBy TEXT,
             lastStatusUpdateBy TEXT,
             lastStatusUpdateNotes TEXT,
-            reopened BOOLEAN DEFAULT FALSE
+            reopened BOOLEAN DEFAULT FALSE,
+            previousStatus TEXT
         );
         CREATE TABLE IF NOT EXISTS purchase_request_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,6 +99,10 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
      if (!columns.has('receivedDate')) {
          console.log("MIGRATION (requests.db): Adding receivedDate column to purchase_requests.");
          db.exec(`ALTER TABLE purchase_requests ADD COLUMN receivedDate TEXT`);
+    }
+     if (!columns.has('previousStatus')) {
+        console.log("MIGRATION (requests.db): Adding previousStatus column to purchase_requests.");
+        db.exec(`ALTER TABLE purchase_requests ADD COLUMN previousStatus TEXT`);
     }
 }
 
@@ -161,7 +166,7 @@ export async function getRequests(): Promise<PurchaseRequest[]> {
     return db.prepare('SELECT * FROM purchase_requests ORDER BY requestDate DESC').all() as PurchaseRequest[];
 }
 
-export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate'>, requestedBy: string): Promise<PurchaseRequest> {
+export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const settings = await getSettings();
@@ -275,6 +280,14 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
     if(status === 'received'){
         receivedDate = new Date().toISOString();
     }
+    
+    let previousStatus = currentRequest.previousStatus;
+    if (status === 'canceled' && currentRequest.status !== 'canceled') {
+        previousStatus = currentRequest.status;
+    } else if (status !== 'canceled') {
+        previousStatus = null;
+    }
+
 
     const transaction = db.transaction(() => {
         const stmt = db.prepare(`
@@ -288,7 +301,8 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
                 erpOrderNumber = @erpOrderNumber,
                 deliveredQuantity = @deliveredQuantity,
                 receivedInWarehouseBy = @receivedInWarehouseBy,
-                receivedDate = @receivedDate
+                receivedDate = @receivedDate,
+                previousStatus = @previousStatus
             WHERE id = @requestId
         `);
 
@@ -303,7 +317,8 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
             erpOrderNumber: erpOrderNumber !== undefined ? erpOrderNumber : currentRequest.erpOrderNumber,
             deliveredQuantity: deliveredQuantity !== undefined ? deliveredQuantity : currentRequest.deliveredQuantity,
             receivedInWarehouseBy: receivedInWarehouseBy !== undefined ? receivedInWarehouseBy : currentRequest.receivedInWarehouseBy,
-            receivedDate: receivedDate
+            receivedDate: receivedDate,
+            previousStatus: previousStatus
         });
         
         const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
@@ -318,4 +333,39 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
 export async function getRequestHistory(requestId: number): Promise<PurchaseRequestHistoryEntry[]> {
     const db = await connectDb(REQUESTS_DB_FILE);
     return db.prepare('SELECT * FROM purchase_request_history WHERE requestId = ? ORDER BY timestamp DESC').all(requestId) as PurchaseRequestHistoryEntry[];
+}
+
+export async function rejectCancellation(payload: RejectCancellationPayload): Promise<void> {
+    const db = await connectDb(REQUESTS_DB_FILE);
+    const { orderId, notes, updatedBy } = payload;
+
+    const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(orderId) as PurchaseRequest | undefined;
+    if (!currentRequest || currentRequest.status !== 'canceled') { // Assuming 'canceled' is the state to revert from
+        throw new Error("La solicitud no está en un estado que se pueda revertir.");
+    }
+
+    const statusToRevertTo = currentRequest.previousStatus || 'approved'; 
+
+    const transaction = db.transaction(() => {
+        const stmt = db.prepare(`
+            UPDATE purchase_requests SET
+                status = @status,
+                lastStatusUpdateNotes = @notes,
+                lastStatusUpdateBy = @updatedBy,
+                previousStatus = NULL
+            WHERE id = @requestId
+        `);
+
+        stmt.run({
+            status: statusToRevertTo,
+            notes: notes || null,
+            updatedBy: updatedBy,
+            requestId: orderId,
+        });
+
+        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        historyStmt.run(orderId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
+    });
+
+    transaction();
 }

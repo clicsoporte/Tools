@@ -64,12 +64,12 @@ export default function HelpPage() {
                   ¡Bienvenido a <strong>{company?.systemName || "la Aplicación"}</strong>! Piensa en este sistema como tu navaja suiza digital para las tareas diarias de la empresa. Ha sido diseñado para ser súper rápido y fácil de usar desde cualquier computadora en la oficina.
                 </p>
                 <p>
-                  El objetivo es simple: tener todas las herramientas importantes (como hacer cotizaciones o planificar la producción) en un solo lugar, con la flexibilidad de obtener datos tanto de archivos de texto como directamente desde el ERP.
+                  El objetivo es simple: tener todas las herramientas importantes (como hacer cotizaciones, solicitudes de compra o planificar la producción) en un solo lugar, con la flexibilidad de obtener datos tanto de archivos de texto como directamente desde el ERP.
                 </p>
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="item-2">
+            <AccordionItem value="item-quoter">
               <AccordionTrigger className="text-lg font-semibold">
                 <DollarSign className="mr-4 h-6 w-6 text-green-500" />
                 Módulo Cotizador
@@ -80,7 +80,7 @@ export default function HelpPage() {
                 </p>
                 <ul className="list-disc space-y-3 pl-6">
                   <li>
-                    <strong>Paso 1: Elige al Cliente.</strong> Empieza a escribir el nombre o código del cliente. El sistema te mostrará una lista de sugerencias. Cuando lo veas, haz clic para seleccionarlo y todos sus datos se llenarán automáticamente.
+                    <strong>Paso 1: Elige al Cliente.</strong> Empieza a escribir el nombre o código del cliente. El sistema te mostrará una lista de sugerencias. Cuando lo veas, haz clic para seleccionarlo y todos sus datos se llenarán automáticamente (dirección, condición de pago, etc.).
                   </li>
                    <li>
                     <strong>Paso 2: Agrega Productos.</strong> En el buscador de productos, escribe el código o la descripción. Verás una lista de sugerencias con la cantidad que hay en el inventario del ERP. Presiona `Enter` o haz clic para añadirlo a la cotización.
@@ -91,6 +91,93 @@ export default function HelpPage() {
                   <li>
                     <strong>Paso 3: Generar PDF (<FileDown className="inline h-4 w-4" />):</strong> Cuando todo esté listo, genera un PDF profesional. El número de cotización se actualizará solo para la próxima vez.
                   </li>
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+            
+             <AccordionItem value="item-requests">
+              <AccordionTrigger className="text-lg font-semibold">
+                <ShoppingCart className="mr-4 h-6 w-6 text-yellow-500" />
+                Módulo Solicitud de Compra
+              </AccordionTrigger>
+              <AccordionContent className="prose max-w-none text-base space-y-4">
+                <p>
+                  Esta herramienta te permite crear, gestionar y dar seguimiento a las solicitudes de compra internas de manera centralizada.
+                </p>
+                <ul className="list-disc space-y-3 pl-6">
+                  <li>
+                    <strong>Crear Solicitud (<FilePlus className="inline h-4 w-4" />):</strong> Haz clic en "Nueva Solicitud" para abrir el formulario. Busca al cliente y el artículo de la misma forma que en el cotizador. Completa los campos como la cantidad requerida, la fecha en que lo necesitas y el proveedor (si lo conoces).
+                  </li>
+                   <li>
+                    <strong>Flujo de Estados:</strong> Las solicitudes pasan por varios estados para un seguimiento claro:
+                     <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                        <li><strong>Pendiente:</strong> La solicitud ha sido creada y está esperando aprobación.</li>
+                        <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> Un usuario con permisos ha aprobado la compra.</li>
+                        <li><strong>Ordenada (<Truck className="inline h-4 w-4 text-blue-600"/>):</strong> Ya se realizó el pedido al proveedor.</li>
+                        <li><strong>Recibida (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> El producto ha llegado. Aquí puedes registrar la cantidad real que se recibió.</li>
+                        <li><strong>Cancelada (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> La solicitud ha sido cancelada.</li>
+                    </ul>
+                  </li>
+                  <li>
+                    <strong>Prioridad y Cantidad Recibida:</strong> Puedes establecer una prioridad a la solicitud para indicar su urgencia. Al recibir el producto, puedes indicar si la cantidad recibida es diferente a la solicitada, y el sistema te mostrará la diferencia.
+                  </li>
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-planner">
+              <AccordionTrigger className="text-lg font-semibold">
+                <CalendarCheck className="mr-4 h-6 w-6 text-purple-500" />
+                Módulo Planificador OP
+              </AccordionTrigger>
+              <AccordionContent className="prose max-w-none text-base space-y-4">
+                 <p>
+                  Organiza y visualiza la carga de trabajo del taller o la producción. Permite un seguimiento detallado de cada orden.
+                </p>
+                <ul className="list-disc space-y-3 pl-6">
+                    <li>
+                        <strong>Crear Órdenes:</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
+                    </li>
+                    <li>
+                        <strong>Programación por Rango de Fechas:</strong> Cada orden te permite asignar un **rango de fechas** (inicio y fin) para su producción, lo que te da una visión clara de la ocupación de tus recursos a lo largo de varios días.
+                    </li>
+                    <li>
+                        <strong>Gestión de Estados y Asignaciones:</strong>
+                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                            <li>Asigna cada orden a una máquina o proceso específico desde un menú desplegable. Puedes configurar estas máquinas en el panel de administración.</li>
+                            <li>Cambia el estado de la orden (Aprobada, En Progreso, En Espera, Completada) para reflejar su avance en tiempo real.</li>
+                             <li>**Estados Personalizados:** Define hasta 4 estados adicionales en la configuración para adaptar el flujo a tu proceso exacto (ej: "En Diseño", "Esperando Material").</li>
+                        </ul>
+                    </li>
+                     <li>
+                        <strong>Prioridad:</strong> Utiliza el selector de prioridad (Urgente, Alta, Media, Baja) para organizar el trabajo y asegurar que las órdenes más importantes se atiendan primero.
+                    </li>
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+            
+            <AccordionItem value="item-warehouse">
+              <AccordionTrigger className="text-lg font-semibold">
+                <Warehouse className="mr-4 h-6 w-6 text-cyan-600" />
+                Módulo de Almacenes
+              </AccordionTrigger>
+              <AccordionContent className="prose max-w-none text-base space-y-4">
+                 <p>Este módulo te da control total sobre la ubicación de tu inventario físico.</p>
+                <ul className="list-disc space-y-3 pl-6">
+                    <li>
+                        <strong>Consulta de Almacén (<Search className="inline h-4 w-4"/>):</strong> En esta pantalla, puedes buscar un artículo y el sistema te mostrará instantáneamente en qué ubicaciones físicas se encuentra y, si está activado, la cantidad exacta en cada una. También puedes ver el stock total del ERP.
+                    </li>
+                     <li>
+                        <strong>Asignar Inventario (<PackagePlus className="inline h-4 w-4"/>):</strong> Esta es la herramienta para organizar tu almacén. Aquí puedes:
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                             <li>Seleccionar un artículo.</li>
+                             <li>Asignarle una o más ubicaciones (ej: Rack 01, Estante A).</li>
+                             <li>Si el modo avanzado está activo en la configuración, puedes **mover cantidades específicas** de una ubicación a otra.</li>
+                        </ul>
+                    </li>
+                     <li>
+                        <strong>Configuración (<Map className="inline h-4 w-4"/>):</strong> En **Administración > Config. Almacenes**, puedes definir la estructura de tu almacén (los "niveles", como Edificio, Pasillo, Rack, etc.) y luego crear cada ubicación física específica.
+                    </li>
                 </ul>
               </AccordionContent>
             </AccordionItem>
@@ -107,11 +194,11 @@ export default function HelpPage() {
                 <div className="space-y-4">
                     <div className="flex items-start gap-4">
                         <Users className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
-                        <div><h4 className="font-semibold">Gestión de Usuarios y Roles</h4><p>Crear, editar o eliminar usuarios y definir qué puede hacer cada uno usando roles y permisos detallados.</p></div>
+                        <div><h4 className="font-semibold">Gestión de Usuarios y Roles</h4><p>Crear, editar o eliminar usuarios y definir qué puede hacer cada uno usando roles y permisos detallados. Puedes crear roles personalizados (ej: "Comprador") y asignarle solo los permisos que necesita.</p></div>
                     </div>
                      <div className="flex items-start gap-4">
                         <Building className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
-                        <div><h4 className="font-semibold">Configuración General y de Módulos</h4><p>Establecer los datos de tu empresa (nombre, logo, prefijos) y ajustar el comportamiento de cada módulo.</p></div>
+                        <div><h4 className="font-semibold">Configuración General y de Módulos</h4><p>Establecer los datos de tu empresa (nombre, logo, prefijos) y ajustar el comportamiento de cada módulo (Cotizador, Planificador, Compras, etc.) desde sus propias tarjetas de configuración.</p></div>
                     </div>
                      <div className="flex items-start gap-4">
                         <FileUp className="mt-1 h-6 w-6 text-cyan-500 shrink-0" />
@@ -124,6 +211,10 @@ export default function HelpPage() {
                             </ul>
                         </div>
                     </div>
+                     <div className="flex items-start gap-4">
+                        <Database className="mt-1 h-6 w-6 text-red-500 shrink-0" />
+                        <div><h4 className="font-semibold">Mantenimiento</h4><p>Realiza copias de seguridad (backup) de la base de datos de cada módulo, restáuralas, o reinicia un módulo a su estado de fábrica si algo sale mal.</p></div>
+                    </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -131,7 +222,7 @@ export default function HelpPage() {
             <AccordionItem value="item-import">
                 <AccordionTrigger className="text-lg font-semibold">
                   <DatabaseZap className="mr-4 h-6 w-6 text-red-500" />
-                  Guía de Importación de Datos
+                  Guía Detallada de Importación de Datos
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base space-y-4">
                     <p>La importación se gestiona desde **Administración {'>'} Importar Datos**. Aquí puedes elegir el método que mejor se adapte a tus necesidades.</p>
