@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -288,7 +289,7 @@ export default function PurchaseRequestPage() {
                 : updatedRequest.status !== 'received' && updatedRequest.status !== 'canceled';
 
             if(shouldBeActive) {
-                setActiveRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r).filter(r => r.id !== requestToUpdate.id || r.id === updatedRequest.id));
+                setActiveRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r));
                 setArchivedRequests(prev => prev.filter(r => r.id !== updatedRequest.id));
             } else {
                 setArchivedRequests(prev => [updatedRequest, ...prev.filter(r => r.id !== updatedRequest.id)]);
@@ -362,9 +363,8 @@ export default function PurchaseRequestPage() {
                 setNewRequest(prev => ({ ...prev, itemId: product.id, itemDescription: product.description || '' }));
             }
             setItemSearchTerm(`${product.id} - ${product.description}`);
-        } else {
-            setItemSearchTerm('');
         }
+        setItemSearchTerm('');
     };
 
     const handleSelectClient = (value: string) => {
@@ -377,9 +377,8 @@ export default function PurchaseRequestPage() {
                 setNewRequest(prev => ({ ...prev, clientId: client.id, clientName: client.name }));
             }
             setClientSearchTerm(`${client.id} - ${client.name}`);
-        } else {
-            setClientSearchTerm('');
         }
+        setClientSearchTerm('');
     };
 
     const handleRefresh = async () => {
@@ -551,7 +550,7 @@ export default function PurchaseRequestPage() {
                     {request.approvedBy && <span>Aprobado por: {request.approvedBy}</span>}
                 </CardFooter>
             </Card>
-        )
+        );
     }
     
     if (isAuthorized === null || (isAuthorized && isLoading)) {

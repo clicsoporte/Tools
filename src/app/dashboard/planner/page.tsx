@@ -1,3 +1,5 @@
+
+
 // FINAL VALIDATION CHECK
 'use client';
 
@@ -278,11 +280,8 @@ export default function PlannerPage() {
                 purchaseOrder: orderToEdit.purchaseOrder,
             });
             
-            const updateOrderInState = (order: ProductionOrder) => {
-                setActiveOrders(prev => prev.map(o => o.id === order.id ? order : o));
-                setArchivedOrders(prev => prev.map(o => o.id === order.id ? order : o));
-            }
-            updateOrderInState(updatedOrder);
+            setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            setArchivedOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
 
             toast({ title: "Orden Actualizada", description: `La orden ${orderToEdit.consecutive} ha sido guardada.` });
             await logInfo("Production order updated", { order: orderToEdit.consecutive });
@@ -352,22 +351,18 @@ export default function PlannerPage() {
                 reopen: false,
             });
             
-            // Optimistic update
-            const updateOrderInState = (order: ProductionOrder) => {
-                 const useWarehouse = plannerSettings?.useWarehouseReception;
-                 const shouldBeActive = useWarehouse
-                    ? order.status !== 'received-in-warehouse' && order.status !== 'canceled'
-                    : order.status !== 'completed' && order.status !== 'canceled';
+             const useWarehouse = plannerSettings?.useWarehouseReception;
+             const shouldBeActive = useWarehouse
+                ? updatedOrder.status !== 'received-in-warehouse' && updatedOrder.status !== 'canceled'
+                : updatedOrder.status !== 'completed' && updatedOrder.status !== 'canceled';
 
-                if(shouldBeActive) {
-                    setActiveOrders(prev => prev.map(o => o.id === order.id ? order : o).filter(o => o.id !== orderToUpdate.id || o.id === order.id));
-                    setArchivedOrders(prev => prev.filter(o => o.id !== order.id));
-                } else {
-                    setArchivedOrders(prev => [order, ...prev.filter(o => o.id !== order.id)]);
-                    setActiveOrders(prev => prev.filter(o => o.id !== order.id));
-                }
+            if(shouldBeActive) {
+                setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+                setArchivedOrders(prev => prev.filter(o => o.id !== updatedOrder.id));
+            } else {
+                setArchivedOrders(prev => [updatedOrder, ...prev.filter(o => o.id !== updatedOrder.id)]);
+                setActiveOrders(prev => prev.filter(o => o.id !== updatedOrder.id));
             }
-            updateOrderInState(updatedOrder);
 
             toast({ title: "Estado Actualizado", description: `La orden ${orderToUpdate.consecutive} ahora está ${dynamicStatusConfig[newStatus]?.label}.` });
             await logInfo("Production order status updated", { order: orderToUpdate.consecutive, newStatus: newStatus });
@@ -476,14 +471,8 @@ export default function PlannerPage() {
                  setNewOrder(prev => ({ ...prev, productId: productWithStock.id, productDescription: productWithStock.description || '', inventory: productWithStock.inventory }));
             }
             setProductSearchTerm(`${product.id} - ${product.description}`);
-        } else if (!value) {
-            if (orderToEdit) {
-                 setOrderToEdit(prev => prev ? { ...prev, productId: '', productDescription: '' } : null);
-            } else {
-                 setNewOrder(prev => ({ ...prev, productId: '', productDescription: '' }));
-            }
-            setProductSearchTerm('');
         }
+        setProductSearchTerm('');
     };
 
     const handleSelectCustomer = (value: string) => {
@@ -496,14 +485,8 @@ export default function PlannerPage() {
                 setNewOrder(prev => ({ ...prev, customerId: customer.id, customerName: customer.name }));
             }
              setCustomerSearchTerm(`${customer.id} - ${customer.name}`);
-        } else if (!value) {
-            if (orderToEdit) {
-                setOrderToEdit(prev => prev ? { ...prev, customerId: '', customerName: '' } : null);
-            } else {
-                setNewOrder(prev => ({ ...prev, customerId: '', customerName: '' }));
-            }
-            setCustomerSearchTerm('');
         }
+        setCustomerSearchTerm('');
     };
 
     const handleRefresh = async () => {
@@ -735,7 +718,7 @@ export default function PlannerPage() {
             .map(cs => (
                 <Button key={cs.id} variant="ghost" className="justify-start" style={{color: cs.color}} onClick={() => openStatusDialog(order, cs.id)}>{cs.label}</Button>
             ));
-            
+        
         return (
             <Card key={order.id} className="w-full">
                 <CardHeader className="p-4">
