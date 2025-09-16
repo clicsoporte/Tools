@@ -384,7 +384,6 @@ export default function PlannerPage() {
     const handleDetailUpdate = async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; scheduledDateRange?: DateRange }) => {
         if (!currentUser) return;
         
-        // No need to set submitting state for these quick updates
         try {
             const updatedOrder = await updateProductionOrderDetails({
                 orderId,

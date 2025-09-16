@@ -33,7 +33,7 @@ import { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 
 
-const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'requestedBy'> = {
+const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'requestedBy' | 'receivedDate'> = {
     requiredDate: '',
     clientId: '',
     clientName: '',
@@ -426,7 +426,7 @@ export default function PurchaseRequestPage() {
         const canApprove = hasPermission('requests:status:approve') && request.status === 'pending';
         const canOrder = hasPermission('requests:status:ordered') && request.status === 'approved';
         const canReceive = hasPermission('requests:status:received') && request.status === 'ordered';
-        const canReceiveInWarehouse = hasPermission('requests:receive') && request.status === 'received' && requestSettings?.useWarehouseReception;
+        const canReceiveInWarehouse = hasPermission('requests:status:received') && request.status === 'received' && requestSettings?.useWarehouseReception;
         const canCancel = hasPermission('requests:status:cancel') && request.status !== 'received' && request.status !== 'canceled' && request.status !== 'received-in-warehouse';
         
         const canEditPending = hasPermission('requests:edit:pending') && request.status === 'pending';
@@ -1026,4 +1026,3 @@ export default function PurchaseRequestPage() {
         </main>
     );
 }
-
