@@ -1,11 +1,10 @@
-
-
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
  */
 
 import type { LucideIcon } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 
 /**
  * Represents a user account in the system.
@@ -289,7 +288,7 @@ export type UpdateOrderDetailsPayload = {
   orderId: number;
   priority?: ProductionOrderPriority;
   machineId?: string | null;
-  scheduledDateRange?: { from: Date | undefined; to: Date | undefined };
+  scheduledDateRange?: DateRange;
   updatedBy: string;
 };
 
@@ -303,6 +302,7 @@ export type RejectCancellationPayload = {
 // --- Purchase Request Types ---
 
 export type PurchaseRequestStatus = 'pending' | 'approved' | 'ordered' | 'received' | 'received-in-warehouse' | 'canceled';
+export type PurchaseRequestPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export type PurchaseRequest = {
   id: number;
@@ -310,6 +310,7 @@ export type PurchaseRequest = {
   purchaseOrder?: string; // Nº Orden de Compra Cliente
   requestDate: string;
   requiredDate: string;
+  receivedDate?: string;
   clientId: string;
   clientName: string;
   itemId: string;
@@ -317,6 +318,7 @@ export type PurchaseRequest = {
   quantity: number;
   deliveredQuantity?: number;
   inventory?: number;
+  priority: PurchaseRequestPriority;
   unitSalePrice?: number; // Precio de venta unitario sin IVA
   erpOrderNumber?: string; // Número de pedido ERP
   manualSupplier?: string; // Proveedor (manual)
@@ -332,7 +334,7 @@ export type PurchaseRequest = {
   reopened?: boolean;
 };
 
-export type UpdatePurchaseRequestPayload = Pick<PurchaseRequest, 'requiredDate' | 'clientId' | 'clientName' | 'itemId' | 'itemDescription' | 'quantity' | 'unitSalePrice' | 'erpOrderNumber' | 'manualSupplier' | 'route' | 'shippingMethod' | 'purchaseOrder' | 'notes' | 'inventory'> & {
+export type UpdatePurchaseRequestPayload = Pick<PurchaseRequest, 'requiredDate' | 'clientId' | 'clientName' | 'itemId' | 'itemDescription' | 'quantity' | 'unitSalePrice' | 'erpOrderNumber' | 'manualSupplier' | 'route' | 'shippingMethod' | 'purchaseOrder' | 'notes' | 'inventory' | 'priority'> & {
     requestId: number;
     updatedBy: string;
 };
@@ -513,5 +515,3 @@ export type ImportQuery = {
     type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys';
     query: string;
 }
-
-    

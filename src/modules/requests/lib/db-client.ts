@@ -18,15 +18,15 @@ export async function getPurchaseRequests(): Promise<PurchaseRequest[]> {
     return getRequests();
 }
 
-export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy'>, requestedBy: string): Promise<PurchaseRequest> {
+export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate'>, requestedBy: string): Promise<PurchaseRequest> {
     return addRequest(request, requestedBy);
 }
 
-export async function updatePurchaseRequest(payload: UpdatePurchaseRequestPayload): Promise<void> {
+export async function updatePurchaseRequest(payload: UpdatePurchaseRequestPayload): Promise<PurchaseRequest> {
     return updateRequest(payload);
 }
 
-export async function updatePurchaseRequestStatus(payload: UpdateRequestStatusPayload): Promise<void> {
+export async function updatePurchaseRequestStatus(payload: UpdateRequestStatusPayload): Promise<PurchaseRequest> {
     return updateStatus(payload);
 }
 

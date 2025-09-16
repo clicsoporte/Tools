@@ -24,15 +24,15 @@ export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'c
     return addOrder(order, requestedBy);
 }
 
-export async function updateProductionOrder(payload: UpdateProductionOrderPayload): Promise<void> {
+export async function updateProductionOrder(payload: UpdateProductionOrderPayload): Promise<ProductionOrder> {
     return updateOrder(payload);
 }
 
-export async function updateProductionOrderStatus(payload: UpdateStatusPayload): Promise<void> {
+export async function updateProductionOrderStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
     return updateStatus(payload);
 }
 
-export async function updateProductionOrderDetails(payload: UpdateOrderDetailsPayload): Promise<void> {
+export async function updateProductionOrderDetails(payload: UpdateOrderDetailsPayload): Promise<ProductionOrder> {
     return updateDetails(payload);
 }
 
@@ -51,5 +51,3 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<void> {
     return rejectCancellationServer(payload);
 }
-
-    

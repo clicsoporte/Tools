@@ -241,10 +241,11 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
     const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
     historyStmt.run(newOrderId, new Date().toISOString(), 'pending', newOrder.requestedBy, 'Orden creada');
 
-    return { ...newOrder, id: newOrderId };
+    const createdOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(newOrderId) as ProductionOrder;
+    return createdOrder;
 }
 
-export async function updateOrder(payload: UpdateProductionOrderPayload): Promise<void> {
+export async function updateOrder(payload: UpdateProductionOrderPayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     const { orderId, updatedBy, ...dataToUpdate } = payload;
     
@@ -269,7 +270,8 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
 
     if (changes.length === 0) {
         // No changes detected, no need to update or log history
-        return;
+        const updatedOrderNoChanges = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+        return updatedOrderNoChanges;
     }
     const historyNotes = `Orden editada. ${changes.join(' ')}`;
 
@@ -293,9 +295,11 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
     });
 
     transaction();
+    const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+    return updatedOrder;
 }
 
-export async function updateStatus(payload: UpdateStatusPayload): Promise<void> {
+export async function updateStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     const { orderId, status, notes, updatedBy, deliveredQuantity, erpPackageNumber, erpTicketNumber, reopen } = payload;
 
@@ -349,9 +353,11 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<void> 
     });
 
     transaction();
+    const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+    return updatedOrder;
 }
 
-export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise<void> {
+export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     const { orderId, priority, machineId, scheduledDateRange, updatedBy } = payload;
     
@@ -392,7 +398,10 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
         }
     }
     
-    if (updates.length === 0) return;
+    if (updates.length === 0) {
+        const orderWithoutChanges = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+        return orderWithoutChanges;
+    };
 
     query += ` ${updates.join(', ')} WHERE id = @orderId`;
     const historyNotes = `Detalles actualizados: ${historyItems.join('. ')}`;
@@ -406,6 +415,8 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
     });
 
     transaction();
+    const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+    return updatedOrder;
 }
 
 
@@ -443,11 +454,9 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
             orderId: orderId,
         });
 
-        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        const historyStmt = db.prepare('INSERT INTO production_order_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
         historyStmt.run(orderId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
     });
 
     transaction();
 }
-
-    

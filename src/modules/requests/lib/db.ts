@@ -20,6 +20,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
             purchaseOrder TEXT,
             requestDate TEXT NOT NULL,
             requiredDate TEXT NOT NULL,
+            receivedDate TEXT,
             clientId TEXT NOT NULL,
             clientName TEXT NOT NULL,
             itemId TEXT NOT NULL,
@@ -27,6 +28,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
             quantity REAL NOT NULL,
             deliveredQuantity REAL,
             inventory REAL,
+            priority TEXT DEFAULT 'medium',
             unitSalePrice REAL,
             erpOrderNumber TEXT,
             manualSupplier TEXT,
@@ -88,6 +90,14 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
     if (!columns.has('inventory')) {
          console.log("MIGRATION (requests.db): Adding inventory column to purchase_requests.");
          db.exec(`ALTER TABLE purchase_requests ADD COLUMN inventory REAL;`);
+    }
+    if (!columns.has('priority')) {
+         console.log("MIGRATION (requests.db): Adding priority column to purchase_requests.");
+         db.exec(`ALTER TABLE purchase_requests ADD COLUMN priority TEXT DEFAULT 'medium'`);
+    }
+     if (!columns.has('receivedDate')) {
+         console.log("MIGRATION (requests.db): Adding receivedDate column to purchase_requests.");
+         db.exec(`ALTER TABLE purchase_requests ADD COLUMN receivedDate TEXT`);
     }
 }
 
@@ -151,7 +161,7 @@ export async function getRequests(): Promise<PurchaseRequest[]> {
     return db.prepare('SELECT * FROM purchase_requests ORDER BY requestDate DESC').all() as PurchaseRequest[];
 }
 
-export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy'>, requestedBy: string): Promise<PurchaseRequest> {
+export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate'>, requestedBy: string): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const settings = await getSettings();
@@ -170,11 +180,11 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         INSERT INTO purchase_requests (
             consecutive, requestDate, requiredDate, clientId, clientName,
             itemId, itemDescription, quantity, unitSalePrice, erpOrderNumber, manualSupplier, route, shippingMethod, purchaseOrder,
-            status, notes, requestedBy, reopened, inventory
+            status, notes, requestedBy, reopened, inventory, priority
         ) VALUES (
             @consecutive, @requestDate, @requiredDate, @clientId, @clientName,
             @itemId, @itemDescription, @quantity, @unitSalePrice, @erpOrderNumber, @manualSupplier, @route, @shippingMethod, @purchaseOrder,
-            @status, @notes, @requestedBy, @reopened, @inventory
+            @status, @notes, @requestedBy, @reopened, @inventory, @priority
         )
     `);
 
@@ -199,10 +209,11 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
     const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
     historyStmt.run(newRequestId, new Date().toISOString(), 'pending', newRequest.requestedBy, 'Solicitud creada');
 
-    return { ...newRequest, id: newRequestId };
+    const createdRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(newRequestId) as PurchaseRequest;
+    return createdRequest;
 }
 
-export async function updateRequest(payload: UpdatePurchaseRequestPayload): Promise<void> {
+export async function updateRequest(payload: UpdatePurchaseRequestPayload): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
     const { requestId, updatedBy, ...dataToUpdate } = payload;
     
@@ -227,7 +238,8 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
                 shippingMethod = @shippingMethod,
                 purchaseOrder = @purchaseOrder,
                 notes = @notes,
-                inventory = @inventory
+                inventory = @inventory,
+                priority = @priority
             WHERE id = @requestId
         `).run({ requestId, ...dataToUpdate });
 
@@ -236,9 +248,11 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
     });
 
     transaction();
+    const updatedRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
+    return updatedRequest;
 }
 
-export async function updateStatus(payload: UpdateRequestStatusPayload): Promise<void> {
+export async function updateStatus(payload: UpdateRequestStatusPayload): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
     const { requestId, status, notes, updatedBy, reopen, manualSupplier, erpOrderNumber, deliveredQuantity } = payload;
 
@@ -257,6 +271,11 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
         receivedInWarehouseBy = updatedBy;
     }
 
+    let receivedDate = currentRequest.receivedDate;
+    if(status === 'received'){
+        receivedDate = new Date().toISOString();
+    }
+
     const transaction = db.transaction(() => {
         const stmt = db.prepare(`
             UPDATE purchase_requests SET
@@ -268,7 +287,8 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
                 manualSupplier = @manualSupplier,
                 erpOrderNumber = @erpOrderNumber,
                 deliveredQuantity = @deliveredQuantity,
-                receivedInWarehouseBy = @receivedInWarehouseBy
+                receivedInWarehouseBy = @receivedInWarehouseBy,
+                receivedDate = @receivedDate
             WHERE id = @requestId
         `);
 
@@ -282,7 +302,8 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
             manualSupplier: manualSupplier !== undefined ? manualSupplier : currentRequest.manualSupplier,
             erpOrderNumber: erpOrderNumber !== undefined ? erpOrderNumber : currentRequest.erpOrderNumber,
             deliveredQuantity: deliveredQuantity !== undefined ? deliveredQuantity : currentRequest.deliveredQuantity,
-            receivedInWarehouseBy: receivedInWarehouseBy !== undefined ? receivedInWarehouseBy : currentRequest.receivedInWarehouseBy
+            receivedInWarehouseBy: receivedInWarehouseBy !== undefined ? receivedInWarehouseBy : currentRequest.receivedInWarehouseBy,
+            receivedDate: receivedDate
         });
         
         const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
@@ -290,6 +311,8 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
     });
 
     transaction();
+    const updatedRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
+    return updatedRequest;
 }
 
 export async function getRequestHistory(requestId: number): Promise<PurchaseRequestHistoryEntry[]> {
