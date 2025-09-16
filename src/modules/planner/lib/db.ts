@@ -4,7 +4,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, Warehouse, UpdateProductionOrderPayload } from '../../core/types';
+import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, Warehouse, UpdateProductionOrderPayload, CustomStatus } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
@@ -22,6 +22,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
             requestDate TEXT NOT NULL,
             deliveryDate TEXT NOT NULL,
             scheduledStartDate TEXT,
+            scheduledEndDate TEXT,
             customerId TEXT NOT NULL,
             customerName TEXT NOT NULL,
             productId TEXT NOT NULL,
@@ -54,11 +55,19 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     `;
     db.exec(schema);
 
+    const defaultCustomStatuses: CustomStatus[] = [
+        { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
+        { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
+        { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
+        { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
+    ];
+
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('nextOrderNumber', '1')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('useWarehouseReception', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('machines', '[]')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('requireMachineForStart', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('assignmentLabel', 'Máquina Asignada')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
     console.log(`Database ${PLANNER_DB_FILE} initialized for Production Planner.`);
 }
 
@@ -78,6 +87,10 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
         console.log("MIGRATION (planner.db): Adding scheduledStartDate column to production_orders.");
         db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledStartDate TEXT`);
     }
+    if (!plannerColumns.has('scheduledEndDate')) {
+        console.log("MIGRATION (planner.db): Adding scheduledEndDate column to production_orders.");
+        db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledEndDate TEXT`);
+    }
 
     const historyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='production_order_history'`).get();
     if (!historyTable) {
@@ -94,6 +107,19 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
             );
          `);
     }
+
+    // Migration for custom statuses
+    const customStatusesRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'customStatuses'`).get() as { value: string } | undefined;
+    if (!customStatusesRow) {
+        console.log("MIGRATION (planner.db): Adding customStatuses to settings.");
+         const defaultCustomStatuses: CustomStatus[] = [
+            { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
+            { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
+            { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
+            { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
+        ];
+        db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
+    }
 }
 
 
@@ -107,6 +133,7 @@ export async function getSettings(): Promise<PlannerSettings> {
         machines: [],
         requireMachineForStart: false,
         assignmentLabel: 'Máquina Asignada',
+        customStatuses: [],
     };
 
     for (const row of settingsRows) {
@@ -124,6 +151,12 @@ export async function getSettings(): Promise<PlannerSettings> {
             settings.requireMachineForStart = row.value === 'true';
         } else if (row.key === 'assignmentLabel') {
             settings.assignmentLabel = row.value;
+        } else if (row.key === 'customStatuses') {
+            try {
+                settings.customStatuses = JSON.parse(row.value);
+            } catch {
+                settings.customStatuses = [];
+            }
         }
     }
     return settings;
@@ -148,6 +181,9 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
         if (settingsToUpdate.assignmentLabel !== undefined) {
             db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('assignmentLabel', settingsToUpdate.assignmentLabel);
         }
+        if (settingsToUpdate.customStatuses !== undefined) {
+            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('customStatuses', JSON.stringify(settingsToUpdate.customStatuses));
+        }
     });
 
     transaction(settings);
@@ -158,7 +194,7 @@ export async function getOrders(): Promise<ProductionOrder[]> {
     return db.prepare('SELECT * FROM production_orders ORDER BY requestDate DESC').all() as ProductionOrder[];
 }
 
-export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'requestedBy'>, requestedBy: string): Promise<ProductionOrder> {
+export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'>, requestedBy: string): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const settings = await getSettings();
@@ -174,17 +210,18 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         machineId: null,
         previousStatus: null,
         scheduledStartDate: null,
+        scheduledEndDate: null,
     };
 
     const stmt = db.prepare(`
         INSERT INTO production_orders (
             consecutive, purchaseOrder, requestDate, deliveryDate, customerId, customerName,
             productId, productDescription, quantity, inventory, priority,
-            status, notes, requestedBy, reopened, machineId, previousStatus, scheduledStartDate
+            status, notes, requestedBy, reopened, machineId, previousStatus, scheduledStartDate, scheduledEndDate
         ) VALUES (
             @consecutive, @purchaseOrder, @requestDate, @deliveryDate, @customerId, @customerName,
             @productId, @productDescription, @quantity, @inventory, @priority,
-            @status, @notes, @requestedBy, @reopened, @machineId, @previousStatus, @scheduledStartDate
+            @status, @notes, @requestedBy, @reopened, @machineId, @previousStatus, @scheduledStartDate, @scheduledEndDate
         )
     `);
 
@@ -316,7 +353,7 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<void> 
 
 export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise<void> {
     const db = await connectDb(PLANNER_DB_FILE);
-    const { orderId, priority, machineId, scheduledStartDate, updatedBy } = payload;
+    const { orderId, priority, machineId, scheduledDateRange, updatedBy } = payload;
     
     const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
     if (!currentOrder) throw new Error("Order not found.");
@@ -339,12 +376,20 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
         params.machineId = machineId;
         historyItems.push(`${settings.assignmentLabel || 'Máquina'}: de ${oldMachineName} a ${newMachineName}`);
     }
-     if (scheduledStartDate !== undefined && currentOrder.scheduledStartDate !== scheduledStartDate) {
-        updates.push('scheduledStartDate = @scheduledStartDate');
-        params.scheduledStartDate = scheduledStartDate;
-        const oldDate = currentOrder.scheduledStartDate ? format(parseISO(currentOrder.scheduledStartDate), 'dd/MM/yyyy') : 'ninguna';
-        const newDate = scheduledStartDate ? format(parseISO(scheduledStartDate), 'dd/MM/yyyy') : 'ninguna';
-        historyItems.push(`Fecha Programada: de ${oldDate} a ${newDate}`);
+     if (scheduledDateRange) {
+        const newStartDate = scheduledDateRange.from ? scheduledDateRange.from.toISOString().split('T')[0] : null;
+        const newEndDate = scheduledDateRange.to ? scheduledDateRange.to.toISOString().split('T')[0] : null;
+        if (currentOrder.scheduledStartDate !== newStartDate || currentOrder.scheduledEndDate !== newEndDate) {
+            updates.push('scheduledStartDate = @scheduledStartDate', 'scheduledEndDate = @scheduledEndDate');
+            params.scheduledStartDate = newStartDate;
+            params.scheduledEndDate = newEndDate;
+            
+            const oldStart = currentOrder.scheduledStartDate ? format(parseISO(currentOrder.scheduledStartDate), 'dd/MM/yy') : 'N/A';
+            const oldEnd = currentOrder.scheduledEndDate ? format(parseISO(currentOrder.scheduledEndDate), 'dd/MM/yy') : 'N/A';
+            const newStart = newStartDate ? format(parseISO(newStartDate), 'dd/MM/yy') : 'N/A';
+            const newEnd = newEndDate ? format(parseISO(newEndDate), 'dd/MM/yy') : 'N/A';
+            historyItems.push(`Fecha Prog.: de ${oldStart}-${oldEnd} a ${newStart}-${newEnd}`);
+        }
     }
     
     if (updates.length === 0) return;
@@ -404,3 +449,5 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
 
     transaction();
 }
+
+    

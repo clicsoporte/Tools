@@ -207,7 +207,7 @@ export type ExemptionLaw = {
 
 // --- Production Planner Types ---
 
-export type ProductionOrderStatus = 'pending' | 'approved' | 'in-progress' | 'on-hold' | 'cancellation-request' | 'completed' | 'received-in-warehouse' | 'canceled';
+export type ProductionOrderStatus = 'pending' | 'approved' | 'in-progress' | 'on-hold' | 'cancellation-request' | 'completed' | 'received-in-warehouse' | 'canceled' | 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
 export type ProductionOrderPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export type ProductionOrder = {
@@ -217,6 +217,7 @@ export type ProductionOrder = {
   requestDate: string;
   deliveryDate: string;
   scheduledStartDate?: string | null;
+  scheduledEndDate?: string | null;
   customerId: string;
   customerName: string;
   productId: string;
@@ -257,12 +258,20 @@ export type PlannerMachine = {
   name: string;
 };
 
+export type CustomStatus = {
+    id: 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
+    label: string;
+    color: string;
+    isActive: boolean;
+};
+
 export type PlannerSettings = {
     nextOrderNumber?: number;
     useWarehouseReception: boolean;
     machines: PlannerMachine[];
     requireMachineForStart: boolean;
     assignmentLabel: string;
+    customStatuses: CustomStatus[];
 };
 
 export type UpdateStatusPayload = {
@@ -280,7 +289,7 @@ export type UpdateOrderDetailsPayload = {
   orderId: number;
   priority?: ProductionOrderPriority;
   machineId?: string | null;
-  scheduledStartDate?: string | null;
+  scheduledDateRange?: { from: Date | undefined; to: Date | undefined };
   updatedBy: string;
 };
 
@@ -504,3 +513,5 @@ export type ImportQuery = {
     type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys';
     query: string;
 }
+
+    

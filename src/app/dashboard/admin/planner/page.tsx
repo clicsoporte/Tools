@@ -8,14 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import type { PlannerMachine, PlannerSettings } from "@/modules/core/types";
+import type { PlannerMachine, PlannerSettings, CustomStatus } from "@/modules/core/types";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { getPlannerSettings, savePlannerSettings } from "@/modules/planner/lib/db-client";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Palette } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
+const defaultColors = [ '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#ff7300', '#0088fe', '#00c49f', '#ffbb28' ];
 
 export default function PlannerSettingsPage() {
     useAuthorization(['admin:settings:planner']);
@@ -32,6 +36,14 @@ export default function PlannerSettingsPage() {
             const currentSettings = await getPlannerSettings();
             if (!currentSettings.assignmentLabel) {
                 currentSettings.assignmentLabel = 'Máquina Asignada';
+            }
+            if (!currentSettings.customStatuses || currentSettings.customStatuses.length < 4) {
+                 currentSettings.customStatuses = [
+                    { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
+                    { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
+                    { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
+                    { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
+                ];
             }
             setSettings(currentSettings);
             setIsLoading(false);
@@ -57,6 +69,17 @@ export default function PlannerSettingsPage() {
         setSettings(prev => prev ? { ...prev, machines: prev.machines.filter(m => m.id !== id) } : null);
     };
 
+    const handleCustomStatusChange = (id: CustomStatus['id'], field: keyof CustomStatus, value: any) => {
+        if (!settings) return;
+        setSettings(prev => {
+            if (!prev) return null;
+            const updatedStatuses = prev.customStatuses.map(cs => 
+                cs.id === id ? { ...cs, [field]: value } : cs
+            );
+            return { ...prev, customStatuses: updatedStatuses };
+        });
+    };
+
     const handleSave = async () => {
         if (!settings) return;
         try {
@@ -72,9 +95,10 @@ export default function PlannerSettingsPage() {
     if (isLoading || !settings) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
-                <div className="mx-auto max-w-2xl space-y-6">
+                <div className="mx-auto max-w-4xl space-y-6">
                     <Skeleton className="h-48 w-full" />
                     <Skeleton className="h-64 w-full" />
+                    <Skeleton className="h-96 w-full" />
                 </div>
             </main>
         );
@@ -82,7 +106,7 @@ export default function PlannerSettingsPage() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="mx-auto max-w-2xl space-y-6">
+            <div className="mx-auto max-w-4xl space-y-6">
                 <Card>
                     <CardHeader>
                         <CardTitle>Configuración General del Planificador</CardTitle>
@@ -163,6 +187,71 @@ export default function PlannerSettingsPage() {
                 </Card>
                 
                 <Card>
+                    <CardHeader>
+                        <CardTitle>Estados Personalizados de Órdenes</CardTitle>
+                        <CardDescription>Define hasta 4 estados adicionales para tu flujo de trabajo. Solo se mostrarán si están activos y tienen un nombre.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {settings.customStatuses.map((status, index) => (
+                            <div key={status.id} className="space-y-4 rounded-lg border p-4">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-semibold">Estado Personalizado {index + 1}</h4>
+                                    <div className="flex items-center space-x-2">
+                                        <Label htmlFor={`active-${status.id}`}>Activo</Label>
+                                        <Switch
+                                            id={`active-${status.id}`}
+                                            checked={status.isActive}
+                                            onCheckedChange={(checked) => handleCustomStatusChange(status.id, 'isActive', checked)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                                    <div className="space-y-2">
+                                        <Label htmlFor={`label-${status.id}`}>Nombre del Estado (Etiqueta)</Label>
+                                        <Input
+                                            id={`label-${status.id}`}
+                                            value={status.label}
+                                            onChange={(e) => handleCustomStatusChange(status.id, 'label', e.target.value)}
+                                            placeholder="Ej: En Diseño, Esperando Material"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor={`color-${status.id}`}>Color</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                id={`color-${status.id}`}
+                                                value={status.color}
+                                                onChange={(e) => handleCustomStatusChange(status.id, 'color', e.target.value)}
+                                            />
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" size="icon">
+                                                        <Palette className="h-4 w-4" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-48 p-2">
+                                                    <div className="grid grid-cols-4 gap-2">
+                                                        {defaultColors.map(color => (
+                                                            <button
+                                                                key={color}
+                                                                className={cn("h-8 w-8 rounded-full border", color === status.color && "ring-2 ring-ring")}
+                                                                style={{ backgroundColor: color }}
+                                                                onClick={() => handleCustomStatusChange(status.id, 'color', color)}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                            <div className="h-8 w-8 rounded-full border" style={{ backgroundColor: status.color }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+
+                <Card>
                     <CardFooter className="border-t px-6 py-4">
                         <Button onClick={handleSave}>Guardar Todos los Cambios</Button>
                     </CardFooter>
@@ -171,3 +260,5 @@ export default function PlannerSettingsPage() {
         </main>
     );
 }
+
+    

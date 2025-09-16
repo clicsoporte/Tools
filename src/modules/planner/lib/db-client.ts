@@ -20,7 +20,7 @@ export async function getProductionOrders(): Promise<ProductionOrder[]> {
     return getOrders();
 }
 
-export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'requestedBy'>, requestedBy: string): Promise<ProductionOrder> {
+export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'>, requestedBy: string): Promise<ProductionOrder> {
     return addOrder(order, requestedBy);
 }
 
@@ -51,3 +51,5 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<void> {
     return rejectCancellationServer(payload);
 }
+
+    
