@@ -95,6 +95,7 @@ export default function PlannerPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [classificationFilter, setClassificationFilter] = useState("all");
+    const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
     const [customerSearchTerm, setCustomerSearchTerm] = useState("");
@@ -276,8 +277,13 @@ export default function PlannerPage() {
                 notes: orderToEdit.notes,
                 purchaseOrder: orderToEdit.purchaseOrder,
             });
-            setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-            setArchivedOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            
+            const updateOrderInState = (order: ProductionOrder) => {
+                setActiveOrders(prev => prev.map(o => o.id === order.id ? order : o));
+                setArchivedOrders(prev => prev.map(o => o.id === order.id ? order : o));
+            }
+            updateOrderInState(updatedOrder);
+
             toast({ title: "Orden Actualizada", description: `La orden ${orderToEdit.consecutive} ha sido guardada.` });
             await logInfo("Production order updated", { order: orderToEdit.consecutive });
             setEditOrderDialogOpen(false);
@@ -377,14 +383,21 @@ export default function PlannerPage() {
     
     const handleDetailUpdate = async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; scheduledDateRange?: DateRange }) => {
         if (!currentUser) return;
+        
+        setIsSubmitting(true);
         try {
             const updatedOrder = await updateProductionOrderDetails({
                 orderId,
                 ...details,
                 updatedBy: currentUser.name
             });
-            setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-            setArchivedOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+
+            const updateOrderInState = (order: ProductionOrder) => {
+                setActiveOrders(prev => prev.map(o => o.id === order.id ? order : o));
+                setArchivedOrders(prev => prev.map(o => o.id === order.id ? order : o));
+            }
+            updateOrderInState(updatedOrder);
+
             toast({ title: "Orden Actualizada", description: `Los detalles de la orden han sido guardados.` });
             await logInfo("Production order details updated", { orderId, details });
         } catch (error: any) {
@@ -420,7 +433,7 @@ export default function PlannerPage() {
                 status: 'pending',
                 notes: 'Orden reabierta por el administrador.',
                 updatedBy: currentUser.name,
-                reopen: true
+                reopen: true,
             });
             setActiveOrders(prev => [updatedOrder, ...prev]);
             setArchivedOrders(prev => prev.filter(o => o.id !== orderToUpdate.id));
@@ -443,12 +456,12 @@ export default function PlannerPage() {
         if (!currentUser) return;
         setIsSubmitting(true);
         try {
-            const updatedOrder = await rejectCancellationRequest({
+            await rejectCancellationRequest({
                 orderId: order.id,
                 notes: 'La solicitud de cancelación fue rechazada.',
                 updatedBy: currentUser.name,
             });
-            setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            await loadPlannerData(); // Full reload to ensure consistency
             toast({ title: 'Solicitud Rechazada', description: `La orden ${order.consecutive} ha sido devuelta a su estado anterior.` });
             await logInfo('Cancellation request rejected', { orderId: order.id });
         } catch (error: any) {
@@ -470,6 +483,13 @@ export default function PlannerPage() {
                  setNewOrder(prev => ({ ...prev, productId: productWithStock.id, productDescription: productWithStock.description || '', inventory: productWithStock.inventory }));
             }
             setProductSearchTerm(`${product.id} - ${product.description}`);
+        } else if (!value) {
+            if (orderToEdit) {
+                 setOrderToEdit(prev => prev ? { ...prev, productId: '', productDescription: '' } : null);
+            } else {
+                 setNewOrder(prev => ({ ...prev, productId: '', productDescription: '' }));
+            }
+            setProductSearchTerm('');
         }
     };
 
@@ -483,6 +503,13 @@ export default function PlannerPage() {
                 setNewOrder(prev => ({ ...prev, customerId: customer.id, customerName: customer.name }));
             }
              setCustomerSearchTerm(`${customer.id} - ${customer.name}`);
+        } else if (!value) {
+            if (orderToEdit) {
+                setOrderToEdit(prev => prev ? { ...prev, customerId: '', customerName: '' } : null);
+            } else {
+                setNewOrder(prev => ({ ...prev, customerId: '', customerName: '' }));
+            }
+            setCustomerSearchTerm('');
         }
     };
 
@@ -674,9 +701,14 @@ export default function PlannerPage() {
             
             const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
 
-            return searchMatch && statusMatch && classificationMatch;
+            const dateMatch = !dateFilter || !dateFilter.from || (
+                new Date(order.deliveryDate) >= dateFilter.from &&
+                new Date(order.deliveryDate) <= (dateFilter.to || dateFilter.from)
+            );
+
+            return searchMatch && statusMatch && classificationMatch && dateMatch;
         });
-    }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products]);
+    }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products, dateFilter]);
 
     const renderOrderCard = (order: ProductionOrder) => {
         const canBeReopened = hasPermission('planner:reopen') && (
@@ -706,7 +738,7 @@ export default function PlannerPage() {
         const defaultWarehouseName = defaultWarehouseId ? stockSettings?.warehouses.find(w => w.id === defaultWarehouseId)?.name : 'Total';
 
         const customStatusActions = plannerSettings?.customStatuses
-            .filter(cs => cs.isActive && !['pending', 'completed', 'received-in-warehouse', 'canceled', 'cancellation-request'].includes(order.status))
+            .filter(cs => cs.isActive)
             .map(cs => (
                 <Button key={cs.id} variant="ghost" className="justify-start" style={{color: cs.color}} onClick={() => openStatusDialog(order, cs.id)}>{cs.label}</Button>
             ));
@@ -931,7 +963,7 @@ export default function PlannerPage() {
                 </CardFooter>
             </Card>
         );
-    }
+    };
     
     if (isAuthorized === null || (isAuthorized && isLoading)) {
         return (
@@ -985,7 +1017,7 @@ export default function PlannerPage() {
                                                     options={customerOptions}
                                                     onSelect={handleSelectCustomer}
                                                     value={customerSearchTerm}
-                                                    onValueChange={setCustomerSearchTerm}
+                                                    onValueChange={(val) => { handleSelectCustomer(''); setCustomerSearchTerm(val); }}
                                                     placeholder="Buscar cliente..."
                                                     onKeyDown={handleCustomerInputKeyDown}
                                                     open={isCustomerSearchOpen}
@@ -999,7 +1031,7 @@ export default function PlannerPage() {
                                                     options={productOptions}
                                                     onSelect={handleSelectProduct}
                                                     value={productSearchTerm}
-                                                    onValueChange={setProductSearchTerm}
+                                                    onValueChange={(val) => { handleSelectProduct(''); setProductSearchTerm(val); }}
                                                     placeholder="Buscar producto..."
                                                     onKeyDown={handleProductInputKeyDown}
                                                     open={isProductSearchOpen}
@@ -1124,7 +1156,29 @@ export default function PlannerPage() {
                                 {classifications.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                        <Button variant="ghost" onClick={() => { setSearchTerm(''); setStatusFilter('all'); setClassificationFilter('all'); }}>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn("w-full md:w-[240px] justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateFilter?.from ? (
+                                        dateFilter.to ? (
+                                            `${format(dateFilter.from, "LLL dd, y")} - ${format(dateFilter.to, "LLL dd, y")}`
+                                        ) : (
+                                            format(dateFilter.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Filtrar por fecha</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="range" selected={dateFilter} onSelect={setDateFilter} />
+                            </PopoverContent>
+                        </Popover>
+                        <Button variant="ghost" onClick={() => { setSearchTerm(''); setStatusFilter('all'); setClassificationFilter('all'); setDateFilter(undefined); }}>
                             <FilterX className="mr-2 h-4 w-4" />
                             Limpiar
                         </Button>

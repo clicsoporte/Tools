@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX } from 'lucide-react';
+import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -29,6 +29,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DateRange } from 'react-day-picker';
+import { Calendar } from '@/components/ui/calendar';
 
 
 const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'requestedBy'> = {
@@ -84,6 +86,7 @@ export default function PurchaseRequestPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [classificationFilter, setClassificationFilter] = useState("all");
+    const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
     const [clientSearchTerm, setClientSearchTerm] = useState("");
@@ -359,6 +362,8 @@ export default function PurchaseRequestPage() {
                 setNewRequest(prev => ({ ...prev, itemId: product.id, itemDescription: product.description || '' }));
             }
             setItemSearchTerm(`${product.id} - ${product.description}`);
+        } else {
+            setItemSearchTerm('');
         }
     };
 
@@ -372,6 +377,8 @@ export default function PurchaseRequestPage() {
                 setNewRequest(prev => ({ ...prev, clientId: client.id, clientName: client.name }));
             }
             setClientSearchTerm(`${client.id} - ${client.name}`);
+        } else {
+            setClientSearchTerm('');
         }
     };
 
@@ -403,9 +410,14 @@ export default function PurchaseRequestPage() {
             
             const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
 
-            return searchMatch && statusMatch && classificationMatch;
+            const dateMatch = !dateFilter || !dateFilter.from || (
+                new Date(request.requiredDate) >= dateFilter.from &&
+                new Date(request.requiredDate) <= (dateFilter.to || dateFilter.from)
+            );
+
+            return searchMatch && statusMatch && classificationMatch && dateMatch;
         });
-    }, [viewingArchived, activeRequests, archivedRequests, debouncedSearchTerm, statusFilter, classificationFilter, items]);
+    }, [viewingArchived, activeRequests, archivedRequests, debouncedSearchTerm, statusFilter, classificationFilter, items, dateFilter]);
 
 
     const renderRequestCard = (request: PurchaseRequest) => {
@@ -587,7 +599,7 @@ export default function PurchaseRequestPage() {
                                                 options={clientOptions}
                                                 onSelect={handleSelectClient}
                                                 value={clientSearchTerm}
-                                                onValueChange={setClientSearchTerm}
+                                                onValueChange={(val) => { if(!val) handleSelectClient(''); setClientSearchTerm(val); }}
                                                 placeholder="Buscar cliente..."
                                                 open={isClientSearchOpen}
                                                 onOpenChange={setClientSearchOpen}
@@ -599,7 +611,7 @@ export default function PurchaseRequestPage() {
                                                 options={itemOptions}
                                                 onSelect={handleSelectItem}
                                                 value={itemSearchTerm}
-                                                onValueChange={setItemSearchTerm}
+                                                onValueChange={(val) => { if(!val) handleSelectItem(''); setItemSearchTerm(val); }}
                                                 placeholder="Buscar artículo..."
                                                 open={isItemSearchOpen}
                                                 onOpenChange={setItemSearchOpen}
@@ -766,7 +778,29 @@ export default function PurchaseRequestPage() {
                                 {classifications.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                        <Button variant="ghost" onClick={() => { setSearchTerm(''); setStatusFilter('all'); setClassificationFilter('all'); }}>
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn("w-full md:w-[240px] justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateFilter?.from ? (
+                                        dateFilter.to ? (
+                                            `${format(dateFilter.from, "LLL dd, y")} - ${format(dateFilter.to, "LLL dd, y")}`
+                                        ) : (
+                                            format(dateFilter.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Filtrar por fecha</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="range" selected={dateFilter} onSelect={setDateFilter} />
+                            </PopoverContent>
+                        </Popover>
+                        <Button variant="ghost" onClick={() => { setSearchTerm(''); setStatusFilter('all'); setClassificationFilter('all'); setDateFilter(undefined); }}>
                             <FilterX className="mr-2 h-4 w-4" />
                             Limpiar
                         </Button>
@@ -992,3 +1026,4 @@ export default function PurchaseRequestPage() {
         </main>
     );
 }
+
