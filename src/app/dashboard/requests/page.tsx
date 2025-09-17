@@ -62,6 +62,13 @@ const statusConfig: { [key in PurchaseRequestStatus]: { label: string; color: st
     canceled: { label: "Cancelada", color: "bg-red-700" },
 };
 
+const priorityConfig: { [key in PurchaseRequestPriority]: { label: string; className: string } } = {
+    low: { label: "Baja", className: "text-gray-500" },
+    medium: { label: "Media", className: "text-blue-500" },
+    high: { label: "Alta", className: "text-yellow-600" },
+    urgent: { label: "Urgente", className: "text-red-600" },
+};
+
 export default function PurchaseRequestPage() {
     const { isAuthorized, hasPermission } = useAuthorization(['requests:read']);
     const { setTitle } = usePageTitle();
@@ -189,7 +196,7 @@ export default function PurchaseRequestPage() {
         const searchLower = debouncedItemSearch.toLowerCase();
         return items
             .filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower))
-            .map(p => ({ value: p.id, label: `${p.id} - ${p.description}` }));
+            .map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
     }, [items, debouncedItemSearch]);
 
     const handleCreateRequest = async () => {
@@ -358,7 +365,7 @@ export default function PurchaseRequestPage() {
         setItemSearchOpen(false);
         const product = items.find(p => p.id === value);
         if (product) {
-            const fullDescription = `${product.id} - ${product.description}`;
+            const fullDescription = `[${product.id}] - ${product.description}`;
             if (requestToEdit) {
                 setRequestToEdit(prev => prev ? { ...prev, itemId: product.id, itemDescription: product.description || '' } : null);
             } else {

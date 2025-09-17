@@ -223,7 +223,7 @@ export default function PlannerPage() {
         const searchLower = debouncedProductSearch.toLowerCase();
         return products
             .filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower))
-            .map(p => ({ value: p.id, label: `${p.id} - ${p.description}` }));
+            .map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
     }, [products, debouncedProductSearch]);
 
     const handleCreateOrder = async () => {
@@ -465,7 +465,7 @@ export default function PlannerPage() {
         const product = products.find(p => p.id === value);
         if (product) {
             const productWithStock = { ...product, inventory: stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0 };
-            const fullDescription = `${productWithStock.id} - ${productWithStock.description}`;
+            const fullDescription = `[${productWithStock.id}] - ${productWithStock.description}`;
             if (orderToEdit) {
                  setOrderToEdit(prev => prev ? { ...prev, productId: productWithStock.id, productDescription: productWithStock.description || '', inventory: productWithStock.inventory } : null);
             } else {
@@ -997,7 +997,7 @@ export default function PlannerPage() {
                                                     options={customerOptions}
                                                     onSelect={(value) => handleSelectCustomer(value)}
                                                     value={customerSearchTerm}
-                                                    onValueChange={setCustomerSearchTerm}
+                                                    onValueChange={(val) => { if(!val) handleSelectCustomer(''); setCustomerSearchTerm(val); }}
                                                     placeholder="Buscar cliente..."
                                                     onKeyDown={handleCustomerInputKeyDown}
                                                     open={isCustomerSearchOpen}
@@ -1011,7 +1011,7 @@ export default function PlannerPage() {
                                                     options={productOptions}
                                                     onSelect={(value) => handleSelectProduct(value)}
                                                     value={productSearchTerm}
-                                                    onValueChange={setProductSearchTerm}
+                                                    onValueChange={(val) => { if(!val) handleSelectProduct(''); setProductSearchTerm(val); }}
                                                     placeholder="Buscar producto..."
                                                     onKeyDown={handleProductInputKeyDown}
                                                     open={isProductSearchOpen}
