@@ -268,33 +268,31 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
         changes.push(`Notas actualizadas.`);
     }
 
-    if (changes.length === 0) {
-        // No changes detected, no need to update or log history
-        const updatedOrderNoChanges = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-        return updatedOrderNoChanges;
+    if (changes.length > 0) {
+        const historyNotes = `Orden editada. ${changes.join(' ')}`;
+
+        const transaction = db.transaction(() => {
+            db.prepare(`
+                UPDATE production_orders SET
+                    deliveryDate = @deliveryDate,
+                    customerId = @customerId,
+                    customerName = @customerName,
+                    productId = @productId,
+                    productDescription = @productDescription,
+                    quantity = @quantity,
+                    inventory = @inventory,
+                    notes = @notes,
+                    purchaseOrder = @purchaseOrder
+                WHERE id = @orderId
+            `).run({ orderId, ...dataToUpdate });
+
+            const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+            historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, historyNotes);
+        });
+
+        transaction();
     }
-    const historyNotes = `Orden editada. ${changes.join(' ')}`;
-
-    const transaction = db.transaction(() => {
-        db.prepare(`
-            UPDATE production_orders SET
-                deliveryDate = @deliveryDate,
-                customerId = @customerId,
-                customerName = @customerName,
-                productId = @productId,
-                productDescription = @productDescription,
-                quantity = @quantity,
-                inventory = @inventory,
-                notes = @notes,
-                purchaseOrder = @purchaseOrder
-            WHERE id = @orderId
-        `).run({ orderId, ...dataToUpdate });
-
-        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, historyNotes);
-    });
-
-    transaction();
+    
     const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
     return updatedOrder;
 }
@@ -454,7 +452,7 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
             orderId: orderId,
         });
 
-        const historyStmt = db.prepare('INSERT INTO production_order_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
         historyStmt.run(orderId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
     });
 
