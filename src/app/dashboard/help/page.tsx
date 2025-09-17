@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertCircle, Database, ToggleRight, FilePlus, BookMarked, Save, Copy, Folder } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertCircle, Database, ToggleRight, FilePlus, BookMarked, Save, Copy, Folder, AlertTriangle } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
 import { getCompanySettings } from "../../../modules/core/lib/db-client";
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -238,7 +238,7 @@ export default function HelpPage() {
                     <ol className="list-decimal space-y-2 pl-6">
                         <li>Activa el interruptor en "Importar desde Archivos".</li>
                         <li>Asegúrate de que tus archivos de texto (`.txt` separados por tabulador o `.csv` para CABYS) estén en una carpeta en el servidor.</li>
-                        <li>En cada tarjeta, introduce la <strong>ruta completa</strong> al archivo correspondiente (ej: `C:\import_data\clientes.txt`).</li>
+                        <li>En cada tarjeta, introduce la <strong>ruta completa</strong> al archivo correspondiente (ej: `C:\\import_data\\clientes.txt`).</li>
                         <li>Haz clic en el botón "Procesar Archivo" de cada tarjeta para cargar los datos.</li>
                     </ol>
 
