@@ -23,6 +23,7 @@ const config: Config = {
     'bg-cyan-600',
     'bg-teal-600',
     'bg-blue-600',
+    'bg-emerald-600',
   ],
   theme: {
     extend: {
