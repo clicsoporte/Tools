@@ -69,8 +69,6 @@ const statusConfig: { [key in ProductionOrderStatus]?: { label: string; color: s
     canceled: { label: "Cancelada", color: "bg-red-700" },
 };
 
-const ARCHIVED_PAGE_SIZE = 50;
-
 export default function PlannerPage() {
     const { isAuthorized, hasPermission } = useAuthorization(['planner:read']);
     const { setTitle } = usePageTitle();
@@ -86,6 +84,7 @@ export default function PlannerPage() {
     const [archivedOrders, setArchivedOrders] = useState<ProductionOrder[]>([]);
     const [viewingArchived, setViewingArchived] = useState(false);
     const [archivedPage, setArchivedPage] = useState(0);
+    const [pageSize, setPageSize] = useState(50);
     const [totalArchived, setTotalArchived] = useState(0);
     const [plannerSettings, setPlannerSettings] = useState<PlannerSettings | null>(null);
     const [stockSettings, setStockSettings] = useState<StockSettings | null>(null);
@@ -154,42 +153,55 @@ export default function PlannerPage() {
     const loadPlannerData = useCallback(async (page = 0) => {
         setIsLoading(true);
         try {
-            const { orders, totalArchivedCount } = await getProductionOrders({
-                page: viewingArchived ? page : 0,
-                pageSize: ARCHIVED_PAGE_SIZE,
-            });
-            
-            const settings = await getPlannerSettings();
-            const stockSettingsData = await getStockSettings();
-            
-            const useWarehouse = settings.useWarehouseReception;
-            
-            const activeFilter = (o: ProductionOrder) => useWarehouse
-                ? o.status !== 'received-in-warehouse' && o.status !== 'canceled'
-                : o.status !== 'completed' && o.status !== 'canceled';
-            
-            const archivedFilter = (o: ProductionOrder) => useWarehouse
-                ? o.status === 'received-in-warehouse' || o.status === 'canceled'
-                : o.status === 'completed' || o.status === 'canceled';
+            const filters = {
+                searchTerm: debouncedSearchTerm,
+                status: statusFilter,
+                classification: classificationFilter,
+                dateRange: dateFilter,
+                productIds: (classificationFilter !== 'all' && products.length > 0)
+                    ? products.filter(p => p.classification === classificationFilter).map(p => p.id)
+                    : undefined
+            };
 
-            setActiveOrders(orders.filter(activeFilter));
-            setArchivedOrders(orders.filter(archivedFilter));
+            const { activeOrders, archivedOrders, totalArchivedCount } = await getProductionOrders({
+                page: viewingArchived ? page : undefined,
+                pageSize: viewingArchived ? pageSize : undefined,
+                filters: viewingArchived ? filters : undefined
+            });
+
+            if (!viewingArchived) {
+                // If not viewing archived, we get all active orders and filter them on the client
+                setActiveOrders(activeOrders);
+            } else {
+                // If viewing archived, the server has already filtered and paginated
+                setArchivedOrders(archivedOrders);
+            }
+            
             setTotalArchived(totalArchivedCount);
-            setPlannerSettings(settings);
-            setStockSettings(stockSettingsData);
+            
+            // Only fetch settings if they are not already loaded
+            if (!plannerSettings) {
+                const settings = await getPlannerSettings();
+                setPlannerSettings(settings);
+            }
+            if (!stockSettings) {
+                const stockSettingsData = await getStockSettings();
+                setStockSettings(stockSettingsData);
+            }
+
         } catch (error) {
             logError("Failed to load planner orders", { error });
             toast({ title: "Error", description: "No se pudieron cargar las órdenes de producción.", variant: "destructive" });
         } finally {
             setIsLoading(false);
         }
-    }, [toast, viewingArchived]);
+    }, [toast, viewingArchived, pageSize, plannerSettings, stockSettings, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter, products]);
     
     useEffect(() => {
         if (isAuthorized) {
             loadPlannerData(archivedPage);
         }
-    }, [isAuthorized, loadPlannerData, archivedPage, viewingArchived]);
+    }, [isAuthorized, loadPlannerData, archivedPage, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
     
     useEffect(() => {
         if (isAuthorized === null) return;
@@ -662,9 +674,13 @@ export default function PlannerPage() {
     }, [products]);
 
     const filteredOrders = useMemo(() => {
-        const baseOrders = viewingArchived ? archivedOrders : activeOrders;
-        
-        return baseOrders.filter(order => {
+        if (viewingArchived) {
+            // For archived, the server does the filtering, so we just return the data.
+            return archivedOrders;
+        }
+
+        // For active, we filter on the client-side as we fetch all of them.
+        return activeOrders.filter(order => {
             const product = products.find(p => p.id === order.productId);
             const searchMatch = debouncedSearchTerm 
                 ? order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
@@ -1158,6 +1174,21 @@ export default function PlannerPage() {
                             Limpiar
                         </Button>
                     </div>
+                     {viewingArchived && (
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="page-size">Registros por página:</Label>
+                            <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+                                <SelectTrigger id="page-size" className="w-[100px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="100">100</SelectItem>
+                                    <SelectItem value="200">200</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
             
@@ -1178,7 +1209,7 @@ export default function PlannerPage() {
                 )}
             </div>
 
-            {viewingArchived && totalArchived > ARCHIVED_PAGE_SIZE && (
+            {viewingArchived && totalArchived > pageSize && (
                  <div className="flex items-center justify-center space-x-2 py-4">
                     <Button
                         variant="outline"
@@ -1190,13 +1221,13 @@ export default function PlannerPage() {
                         Anterior
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                        Página {archivedPage + 1} de {Math.ceil(totalArchived / ARCHIVED_PAGE_SIZE)}
+                        Página {archivedPage + 1} de {Math.ceil(totalArchived / pageSize)}
                     </span>
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setArchivedPage(p => p + 1)}
-                        disabled={(archivedPage + 1) * ARCHIVED_PAGE_SIZE >= totalArchived}
+                        disabled={(archivedPage + 1) * pageSize >= totalArchived}
                     >
                         Siguiente
                         <ChevronRight className="ml-2 h-4 w-4" />
@@ -1513,3 +1544,4 @@ export default function PlannerPage() {
         </main>
     );
 }
+

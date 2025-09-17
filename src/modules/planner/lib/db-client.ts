@@ -3,7 +3,7 @@
  */
 'use client';
 
-import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, Warehouse, RejectCancellationPayload, UpdateProductionOrderPayload } from '../../core/types';
+import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, Warehouse, RejectCancellationPayload, UpdateProductionOrderPayload, DateRange } from '../../core/types';
 import { 
     getOrders, 
     addOrder, 
@@ -16,7 +16,17 @@ import {
     rejectCancellation as rejectCancellationServer,
 } from './db';
 
-export async function getProductionOrders(options: { page?: number, pageSize?: number }): Promise<{ orders: ProductionOrder[], totalArchivedCount: number }> {
+export async function getProductionOrders(options: { 
+    page?: number; 
+    pageSize?: number;
+    filters?: {
+        searchTerm?: string;
+        status?: string;
+        classification?: string;
+        dateRange?: DateRange;
+        productIds?: string[];
+    };
+}): Promise<{ activeOrders: ProductionOrder[], archivedOrders: ProductionOrder[], totalArchivedCount: number }> {
     return getOrders(options);
 }
 

@@ -3,8 +3,8 @@
  */
 "use server";
 
-import { connectDb } from '../../core/lib/db';
-import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, Warehouse, UpdateProductionOrderPayload, CustomStatus } from '../../core/types';
+import { connectDb, getAllProducts } from '../../core/lib/db';
+import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, Warehouse, UpdateProductionOrderPayload, CustomStatus, DateRange } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
@@ -189,42 +189,80 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
     transaction(settings);
 }
 
-export async function getOrders(options: { page?: number, pageSize?: number }): Promise<{ orders: ProductionOrder[], totalArchivedCount: number }> {
+export async function getOrders(options: { 
+    page?: number; 
+    pageSize?: number;
+    filters?: {
+        searchTerm?: string;
+        status?: string;
+        classification?: string;
+        dateRange?: DateRange;
+        productIds?: string[];
+    };
+}): Promise<{ activeOrders: ProductionOrder[], archivedOrders: ProductionOrder[], totalArchivedCount: number }> {
     const db = await connectDb(PLANNER_DB_FILE);
-    const { page = 0, pageSize = 50 } = options;
-
+    
     const settings = await getSettings();
     const archivedStatuses = settings.useWarehouseReception
         ? ['received-in-warehouse', 'canceled']
         : ['completed', 'canceled'];
-
+    
     const archivedWhereClause = `status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`;
     
-    // Get paginated archived orders
-    const archivedOrders = db.prepare(`
-        SELECT * FROM production_orders 
-        WHERE ${archivedWhereClause}
-        ORDER BY requestDate DESC
-        LIMIT ? OFFSET ?
-    `).all(pageSize, page * pageSize) as ProductionOrder[];
+    let activeOrders: ProductionOrder[] = [];
+    let archivedOrders: ProductionOrder[] = [];
+    let totalArchivedCount = 0;
 
-    // Get all active orders
-    const activeOrders = db.prepare(`
-        SELECT * FROM production_orders 
-        WHERE NOT ${archivedWhereClause}
-        ORDER BY requestDate DESC
-    `).all() as ProductionOrder[];
+    // If we're not filtering archived orders, fetch all active orders.
+    if (options.filters === undefined || options.page === undefined) {
+        activeOrders = db.prepare(`SELECT * FROM production_orders WHERE NOT ${archivedWhereClause} ORDER BY requestDate DESC`).all() as ProductionOrder[];
+    }
+    
+    // Always calculate total archived count (unfiltered for total pagination info)
+    totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM production_orders WHERE ${archivedWhereClause}`).get() as { count: number }).count;
 
-    // Get total count of archived orders for pagination info
-    const totalArchivedCount = (db.prepare(`
-        SELECT COUNT(*) as count FROM production_orders 
-        WHERE ${archivedWhereClause}
-    `).get() as { count: number }).count;
-    
-    // Combine active and the current page of archived orders
-    const allOrders = [...activeOrders, ...archivedOrders];
-    
-    return { orders: allOrders, totalArchivedCount };
+    // If we are viewing archived (paginated and filtered view)
+    if (options.page !== undefined && options.pageSize !== undefined && options.filters) {
+        const { page, pageSize, filters } = options;
+        const { searchTerm, status, classification, dateRange, productIds } = filters;
+
+        let whereClauses = [archivedWhereClause];
+        const params: any[] = [];
+
+        if (searchTerm) {
+            whereClauses.push(`(consecutive LIKE ? OR customerName LIKE ? OR productDescription LIKE ?)`);
+            const likeTerm = `%${searchTerm}%`;
+            params.push(likeTerm, likeTerm, likeTerm);
+        }
+        if (status && status !== 'all') {
+            whereClauses.push(`status = ?`);
+            params.push(status);
+        }
+        if (productIds && productIds.length > 0) {
+            const placeholders = productIds.map(() => '?').join(',');
+            whereClauses.push(`productId IN (${placeholders})`);
+            params.push(...productIds);
+        }
+        if (dateRange?.from) {
+            whereClauses.push(`deliveryDate >= ?`);
+            params.push(dateRange.from.toISOString().split('T')[0]);
+        }
+        if (dateRange?.to) {
+            whereClauses.push(`deliveryDate <= ?`);
+            params.push(dateRange.to.toISOString().split('T')[0]);
+        }
+        
+        const finalWhere = whereClauses.join(' AND ');
+        
+        const filteredArchivedQuery = `SELECT * FROM production_orders WHERE ${finalWhere} ORDER BY requestDate DESC LIMIT ? OFFSET ?`;
+        archivedOrders = db.prepare(filteredArchivedQuery).all(...params, pageSize, page * pageSize) as ProductionOrder[];
+        
+        // Recalculate total for filtered results to adjust pagination
+        const filteredCountQuery = `SELECT COUNT(*) as count FROM production_orders WHERE ${finalWhere}`;
+        totalArchivedCount = (db.prepare(filteredCountQuery).get(...params.slice(0, params.length)) as { count: number }).count;
+    }
+
+    return { activeOrders, archivedOrders, totalArchivedCount };
 }
 
 export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'>, requestedBy: string): Promise<ProductionOrder> {
