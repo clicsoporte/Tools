@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User as UserIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -71,8 +71,6 @@ const priorityConfig: { [key in PurchaseRequestPriority]: { label: string; class
     urgent: { label: "Urgente", className: "text-red-600" },
 };
 
-const ARCHIVED_PAGE_SIZE = 50;
-
 export default function PurchaseRequestPage() {
     const { isAuthorized, hasPermission } = useAuthorization(['requests:read']);
     const { setTitle } = usePageTitle();
@@ -88,6 +86,7 @@ export default function PurchaseRequestPage() {
     const [archivedRequests, setArchivedRequests] = useState<PurchaseRequest[]>([]);
     const [viewingArchived, setViewingArchived] = useState(false);
     const [archivedPage, setArchivedPage] = useState(0);
+    const [pageSize, setPageSize] = useState(50);
     const [totalArchived, setTotalArchived] = useState(0);
     
     const [clients, setClients] = useState<Customer[]>([]);
@@ -134,9 +133,20 @@ export default function PurchaseRequestPage() {
     const loadRequestData = useCallback(async (page = 0) => {
         setIsLoading(true);
         try {
+             const filters = {
+                searchTerm: debouncedSearchTerm,
+                status: statusFilter,
+                classification: classificationFilter,
+                dateRange: dateFilter,
+                productIds: (classificationFilter !== 'all' && items.length > 0)
+                    ? items.filter(p => p.classification === classificationFilter).map(p => p.id)
+                    : undefined
+            };
+
             const { requests, totalArchivedCount } = await getPurchaseRequests({
-                page: viewingArchived ? page : 0,
-                pageSize: ARCHIVED_PAGE_SIZE
+                page: viewingArchived ? page : undefined,
+                pageSize: viewingArchived ? pageSize : undefined,
+                filters: viewingArchived ? filters : undefined
             });
             const settings = await getRequestSettings();
             
@@ -150,8 +160,12 @@ export default function PurchaseRequestPage() {
                 ? o.status === 'received-in-warehouse' || o.status === 'canceled'
                 : o.status === 'received' || o.status === 'canceled';
 
-            setActiveRequests(requests.filter(activeFilter));
-            setArchivedRequests(requests.filter(archivedFilter));
+            if (!viewingArchived) {
+                setActiveRequests(requests.filter(activeFilter));
+            } else {
+                setArchivedRequests(requests); // Data is already filtered by server
+            }
+            
             setTotalArchived(totalArchivedCount);
             setRequestSettings(settings);
         } catch (error) {
@@ -160,13 +174,13 @@ export default function PurchaseRequestPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [toast, viewingArchived]);
+    }, [toast, viewingArchived, pageSize, items, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
     
      useEffect(() => {
         if (isAuthorized) {
             loadRequestData(archivedPage);
         }
-    }, [isAuthorized, loadRequestData, archivedPage, viewingArchived]);
+    }, [isAuthorized, loadRequestData, archivedPage, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
 
     useEffect(() => {
         if (isAuthorized === null) return;
@@ -405,9 +419,11 @@ export default function PurchaseRequestPage() {
     }, [items]);
 
     const filteredRequests = useMemo(() => {
-        const baseRequests = viewingArchived ? archivedRequests : activeRequests;
-        
-        return baseRequests.filter(request => {
+        if (viewingArchived) {
+            return archivedRequests;
+        }
+
+        return activeRequests.filter(request => {
             const product = items.find(p => p.id === request.itemId);
             const searchMatch = debouncedSearchTerm 
                 ? request.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
@@ -559,7 +575,7 @@ export default function PurchaseRequestPage() {
                         <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Tipo de Compra</p>
                              <div className="flex items-center gap-2">
-                                {request.purchaseType === 'multiple' ? <Users className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                {request.purchaseType === 'multiple' ? <Users className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
                                 <span>{request.purchaseType === 'multiple' ? 'Múltiples Proveedores' : 'Proveedor Único'}</span>
                             </div>
                         </div>
@@ -862,6 +878,21 @@ export default function PurchaseRequestPage() {
                             Limpiar
                         </Button>
                     </div>
+                     {viewingArchived && (
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="page-size">Registros por página:</Label>
+                            <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+                                <SelectTrigger id="page-size" className="w-[100px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="50">50</SelectItem>
+                                    <SelectItem value="100">100</SelectItem>
+                                    <SelectItem value="200">200</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
             
@@ -882,7 +913,7 @@ export default function PurchaseRequestPage() {
                 )}
             </div>
 
-             {viewingArchived && totalArchived > ARCHIVED_PAGE_SIZE && (
+             {viewingArchived && totalArchived > pageSize && (
                  <div className="flex items-center justify-center space-x-2 py-4">
                     <Button
                         variant="outline"
@@ -894,13 +925,13 @@ export default function PurchaseRequestPage() {
                         Anterior
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                        Página {archivedPage + 1} de {Math.ceil(totalArchived / ARCHIVED_PAGE_SIZE)}
+                        Página {archivedPage + 1} de {Math.ceil(totalArchived / pageSize)}
                     </span>
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setArchivedPage(p => p + 1)}
-                        disabled={(archivedPage + 1) * ARCHIVED_PAGE_SIZE >= totalArchived}
+                        disabled={(archivedPage + 1) * pageSize >= totalArchived}
                     >
                         Siguiente
                         <ChevronRight className="ml-2 h-4 w-4" />
