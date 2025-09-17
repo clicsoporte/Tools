@@ -13,7 +13,7 @@ import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, Sto
 import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, RefreshCw, Loader2, Info, User } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/modules/core/hooks/useToast';
+import { useToast } from '@/modules/core/hooks/use-toast';
 import { logError } from '@/modules/core/lib/logger';
 import { Separator } from '@/components/ui/separator';
 import { getWarehouseSettings } from '@/modules/warehouse/lib/actions';
