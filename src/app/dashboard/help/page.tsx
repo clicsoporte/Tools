@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertCircle, Database, ToggleRight, FilePlus } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertCircle, Database, ToggleRight, FilePlus, BookMarked } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
 import { getCompanySettings } from "../../../modules/core/lib/db-client";
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -176,7 +176,7 @@ export default function HelpPage() {
                         </ul>
                     </li>
                      <li>
-                        <strong>Configuración (<Map className="inline h-4 w-4"/>):</strong> En <strong>Administración > Config. Almacenes</strong>, puedes definir la estructura de tu almacén (los "niveles", como Edificio, Pasillo, Rack, etc.) y luego crear cada ubicación física específica.
+                        <strong>Configuración (<Map className="inline h-4 w-4"/>):</strong> En <strong>Administración &gt; Config. Almacenes</strong>, puedes definir la estructura de tu almacén (los "niveles", como Edificio, Pasillo, Rack, etc.) y luego crear cada ubicación física específica.
                     </li>
                 </ul>
               </AccordionContent>
@@ -286,3 +286,5 @@ export default function HelpPage() {
     </main>
   );
 }
+
+    
