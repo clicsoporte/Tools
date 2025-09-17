@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertCircle, Database, ToggleRight } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertCircle, Database, ToggleRight, FilePlus } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
 import { getCompanySettings } from "../../../modules/core/lib/db-client";
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -139,7 +139,7 @@ export default function HelpPage() {
                         <strong>Crear Órdenes:</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
                     </li>
                     <li>
-                        <strong>Programación por Rango de Fechas:</strong> Cada orden te permite asignar un **rango de fechas** (inicio y fin) para su producción, lo que te da una visión clara de la ocupación de tus recursos a lo largo de varios días.
+                        <strong>Programación por Rango de Fechas:</strong> Cada orden te permite asignar un <strong>rango de fechas</strong> (inicio y fin) para su producción, lo que te da una visión clara de la ocupación de tus recursos a lo largo de varios días.
                     </li>
                     <li>
                         <strong>Gestión de Estados y Asignaciones:</strong>
@@ -172,11 +172,11 @@ export default function HelpPage() {
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                              <li>Seleccionar un artículo.</li>
                              <li>Asignarle una o más ubicaciones (ej: Rack 01, Estante A).</li>
-                             <li>Si el modo avanzado está activo en la configuración, puedes **mover cantidades específicas** de una ubicación a otra.</li>
+                             <li>Si el modo avanzado está activo en la configuración, puedes <strong>mover cantidades específicas</strong> de una ubicación a otra.</li>
                         </ul>
                     </li>
                      <li>
-                        <strong>Configuración (<Map className="inline h-4 w-4"/>):</strong> En **Administración > Config. Almacenes**, puedes definir la estructura de tu almacén (los "niveles", como Edificio, Pasillo, Rack, etc.) y luego crear cada ubicación física específica.
+                        <strong>Configuración (<Map className="inline h-4 w-4"/>):</strong> En <strong>Administración > Config. Almacenes</strong>, puedes definir la estructura de tu almacén (los "niveles", como Edificio, Pasillo, Rack, etc.) y luego crear cada ubicación física específica.
                     </li>
                 </ul>
               </AccordionContent>
@@ -225,14 +225,14 @@ export default function HelpPage() {
                   Guía Detallada de Importación de Datos
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base space-y-4">
-                    <p>La importación se gestiona desde **Administración {'>'} Importar Datos**. Aquí puedes elegir el método que mejor se adapte a tus necesidades.</p>
+                    <p>La importación se gestiona desde <strong>Administración {'>'} Importar Datos</strong>. Aquí puedes elegir el método que mejor se adapte a tus necesidades.</p>
                     
                     <h4 className="font-semibold">Modo 1: Desde Archivos (.txt / .csv)</h4>
                     <p>Este método es útil para una configuración rápida o si no tienes acceso directo a la base de datos del ERP.</p>
                     <ol className="list-decimal space-y-2 pl-6">
                         <li>Activa el interruptor en "Importar desde Archivos".</li>
                         <li>Asegúrate de que tus archivos de texto (`.txt` separados por tabulador o `.csv` para CABYS) estén en una carpeta en el servidor.</li>
-                        <li>En cada tarjeta, introduce la **ruta completa** al archivo correspondiente (ej: `C:\import_data\clientes.txt`).</li>
+                        <li>En cada tarjeta, introduce la <strong>ruta completa</strong> al archivo correspondiente (ej: `C:\import_data\clientes.txt`).</li>
                         <li>Haz clic en el botón "Procesar Archivo" de cada tarjeta para cargar los datos.</li>
                     </ol>
 
@@ -240,13 +240,13 @@ export default function HelpPage() {
                     <p>Este método es el más robusto y eficiente. Sincroniza los datos directamente desde tu ERP a la base de datos local de la aplicación.</p>
                      <ol className="list-decimal space-y-2 pl-6">
                         <li>Activa el interruptor en "Importar desde SQL Server".</li>
-                        <li>Despliega la sección **"Configuración de Conexión a SQL Server"**.</li>
-                        <li>Rellena los datos de tu servidor ERP. **Importante:** Por seguridad, se recomienda crear un usuario de SQL que solo tenga permisos de **lectura (`SELECT`)** sobre las tablas o vistas necesarias.</li>
+                        <li>Despliega la sección <strong>"Configuración de Conexión a SQL Server"</strong>.</li>
+                        <li>Rellena los datos de tu servidor ERP. <strong>Importante:</strong> Por seguridad, se recomienda crear un usuario de SQL que solo tenga permisos de <strong>lectura (`SELECT`)</strong> sobre las tablas o vistas necesarias.</li>
                         <li>Guarda la configuración. Estos datos se almacenarán de forma segura en un archivo `.env` en el servidor.</li>
-                        <li>Despliega la sección **"Gestión de Consultas SQL"**.</li>
+                        <li>Despliega la sección <strong>"Gestión de Consultas SQL"</strong>.</li>
                         <li>Para cada tipo de dato (Clientes, Artículos, etc.), pega la consulta `SELECT` que extrae la información de tu ERP. Asegúrate de que los nombres de las columnas en tu `SELECT` coincidan con los esperados por el sistema (ej. `SELECT ID_Cliente AS CLIENTE, NombreCliente AS NOMBRE, ... FROM VistaClientes`).</li>
                         <li>Guarda las consultas.</li>
-                        <li>Una vez configurado, solo tienes que hacer clic en el botón grande **"Importar Todos los Datos desde ERP"** para ejecutar todas las consultas y actualizar la base de datos local.</li>
+                        <li>Una vez configurado, solo tienes que hacer clic en el botón grande <strong>"Importar Todos los Datos desde ERP"</strong> para ejecutar todas las consultas y actualizar la base de datos local.</li>
                     </ol>
                     <Alert>
                         <ToggleRight className="h-4 w-4" />
