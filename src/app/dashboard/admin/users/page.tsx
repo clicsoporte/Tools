@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Admin page for user management.
  * Allows admins to view, create, edit, and delete users.
@@ -423,7 +424,7 @@ export default function UsersPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Separator />
+                        <Separator className="my-6" />
                          <div className="space-y-2">
                             <Label htmlFor="edit-password">Nueva Contraseña</Label>
                             <Input 
