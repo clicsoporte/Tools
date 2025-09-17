@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -34,7 +35,7 @@ import { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 
 
-const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'requestedBy' | 'receivedDate'> = {
+const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'requestedBy' | 'receivedDate' | 'previousStatus'> = {
     requiredDate: '',
     clientId: '',
     clientName: '',
@@ -289,10 +290,10 @@ export default function PurchaseRequestPage() {
                 : updatedRequest.status !== 'received' && updatedRequest.status !== 'canceled';
 
             if(shouldBeActive) {
-                setActiveRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r));
+                setActiveRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r).filter(r => r.id !== updatedRequest.id || shouldBeActive));
                 setArchivedRequests(prev => prev.filter(r => r.id !== updatedRequest.id));
             } else {
-                setArchivedRequests(prev => [updatedRequest, ...prev.filter(r => r.id !== updatedRequest.id)]);
+                 setArchivedRequests(prev => [updatedRequest, ...prev.filter(r => r.id !== updatedRequest.id)]);
                 setActiveRequests(prev => prev.filter(r => r.id !== updatedRequest.id));
             }
 
@@ -362,9 +363,8 @@ export default function PurchaseRequestPage() {
             } else {
                 setNewRequest(prev => ({ ...prev, itemId: product.id, itemDescription: product.description || '' }));
             }
-            setItemSearchTerm(`${product.id} - ${product.description}`);
+            setItemSearchTerm('');
         }
-        setItemSearchTerm('');
     };
 
     const handleSelectClient = (value: string) => {
@@ -376,9 +376,8 @@ export default function PurchaseRequestPage() {
             } else {
                 setNewRequest(prev => ({ ...prev, clientId: client.id, clientName: client.name }));
             }
-            setClientSearchTerm(`${client.id} - ${client.name}`);
+            setClientSearchTerm('');
         }
-        setClientSearchTerm('');
     };
 
     const handleRefresh = async () => {
@@ -591,12 +590,12 @@ export default function PurchaseRequestPage() {
                                         <DialogDescription>Complete los detalles para crear una nueva solicitud.</DialogDescription>
                                     </DialogHeader>
                                     <ScrollArea className="h-[60vh] md:h-auto">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="client-search">Cliente</Label>
                                             <SearchInput
                                                 options={clientOptions}
-                                                onSelect={handleSelectClient}
+                                                onSelect={(value) => { handleSelectClient(value); setClientSearchOpen(false); }}
                                                 value={clientSearchTerm}
                                                 onValueChange={(val) => { if(!val) handleSelectClient(''); setClientSearchTerm(val); }}
                                                 placeholder="Buscar cliente..."
@@ -608,7 +607,7 @@ export default function PurchaseRequestPage() {
                                             <Label htmlFor="item-search">Artículo / Servicio</Label>
                                             <SearchInput
                                                 options={itemOptions}
-                                                onSelect={handleSelectItem}
+                                                onSelect={(value) => { handleSelectItem(value); setItemSearchOpen(false); }}
                                                 value={itemSearchTerm}
                                                 onValueChange={(val) => { if(!val) handleSelectItem(''); setItemSearchTerm(val); }}
                                                 placeholder="Buscar artículo..."
@@ -833,7 +832,7 @@ export default function PurchaseRequestPage() {
                             <DialogDescription>Modifique los detalles de la solicitud.</DialogDescription>
                         </DialogHeader>
                         <ScrollArea className="h-[60vh] md:h-auto">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
                              <div className="space-y-2">
                                 <Label>Cliente</Label>
                                 <Input value={requestToEdit?.clientName} disabled />

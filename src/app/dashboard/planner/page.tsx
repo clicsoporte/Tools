@@ -379,21 +379,21 @@ export default function PlannerPage() {
     const handleDetailUpdate = async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; scheduledDateRange?: DateRange }) => {
         if (!currentUser) return;
         
-        try {
-            const updatedOrder = await updateProductionOrderDetails({
-                orderId,
-                ...details,
-                updatedBy: currentUser.name
-            });
+        const originalOrder = activeOrders.find(o => o.id === orderId) || archivedOrders.find(o => o.id === orderId);
+        if (!originalOrder) return;
+        
+        const updatedOrder = await updateProductionOrderDetails({
+            orderId,
+            ...details,
+            updatedBy: currentUser.name
+        });
 
-            setActiveOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
-            setArchivedOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
+        const newActiveOrders = activeOrders.map(o => o.id === orderId ? updatedOrder : o);
+        const newArchivedOrders = archivedOrders.map(o => o.id === orderId ? updatedOrder : o);
+        setActiveOrders(newActiveOrders);
+        setArchivedOrders(newArchivedOrders);
             
-            await logInfo("Production order details updated", { orderId, details });
-        } catch (error: any) {
-             logError("Failed to update order details", { error: error.message });
-            toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
-        }
+        await logInfo("Production order details updated", { orderId, details });
     }
 
     const handleOpenHistory = async (order: ProductionOrder) => {
@@ -470,9 +470,8 @@ export default function PlannerPage() {
             } else {
                  setNewOrder(prev => ({ ...prev, productId: productWithStock.id, productDescription: productWithStock.description || '', inventory: productWithStock.inventory }));
             }
-            setProductSearchTerm(`${product.id} - ${product.description}`);
+            setProductSearchTerm('');
         }
-        setProductSearchTerm('');
     };
 
     const handleSelectCustomer = (value: string) => {
@@ -484,9 +483,8 @@ export default function PlannerPage() {
             } else {
                 setNewOrder(prev => ({ ...prev, customerId: customer.id, customerName: customer.name }));
             }
-             setCustomerSearchTerm(`${customer.id} - ${customer.name}`);
+             setCustomerSearchTerm('');
         }
-        setCustomerSearchTerm('');
     };
 
     const handleRefresh = async () => {
@@ -718,7 +716,7 @@ export default function PlannerPage() {
             .map(cs => (
                 <Button key={cs.id} variant="ghost" className="justify-start" style={{color: cs.color}} onClick={() => openStatusDialog(order, cs.id)}>{cs.label}</Button>
             ));
-        
+            
         return (
             <Card key={order.id} className="w-full">
                 <CardHeader className="p-4">
@@ -991,7 +989,7 @@ export default function PlannerPage() {
                                                 <Label htmlFor="customer-search">Cliente</Label>
                                                 <SearchInput
                                                     options={customerOptions}
-                                                    onSelect={handleSelectCustomer}
+                                                    onSelect={(value) => { handleSelectCustomer(value); setCustomerSearchOpen(false); }}
                                                     value={customerSearchTerm}
                                                     onValueChange={(val) => { if (!val) handleSelectCustomer(''); setCustomerSearchTerm(val); }}
                                                     placeholder="Buscar cliente..."
@@ -1005,7 +1003,7 @@ export default function PlannerPage() {
                                                 <Label htmlFor="product-search">Producto</Label>
                                                 <SearchInput
                                                     options={productOptions}
-                                                    onSelect={handleSelectProduct}
+                                                    onSelect={(value) => { handleSelectProduct(value); setProductSearchOpen(false); }}
                                                     value={productSearchTerm}
                                                     onValueChange={(val) => { if (!val) handleSelectProduct(''); setProductSearchTerm(val); }}
                                                     placeholder="Buscar producto..."
