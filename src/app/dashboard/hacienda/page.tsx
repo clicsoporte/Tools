@@ -342,9 +342,13 @@ export default function HaciendaQueryPage() {
         setIsExemptionLoading(false);
     };
 
-    // Función wrapper para adaptar el tipo de setUnifiedSearchInput
     const handleSearchInputChange = (value: string) => {
         setUnifiedSearchInput(value);
+        if (value.length > 1) {
+            setUnifiedSearchOpen(true);
+        } else {
+            setUnifiedSearchOpen(false);
+        }
     };
 
     return (
