@@ -3,7 +3,7 @@
  */
 'use client';
 
-import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, Warehouse, RejectCancellationPayload, UpdateProductionOrderPayload, DateRange } from '../../core/types';
+import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, RejectCancellationPayload, UpdateProductionOrderPayload, DateRange } from '../../core/types';
 import { 
     getOrders, 
     addOrder, 

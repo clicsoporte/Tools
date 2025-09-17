@@ -56,7 +56,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     db.exec(schema);
 
     // Apply migrations right after initialization to ensure schema is up-to-date
-    runPlannerMigrations(db);
+    await runPlannerMigrations(db);
 
     const defaultCustomStatuses: CustomStatus[] = [
         { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
@@ -221,13 +221,13 @@ export async function getOrders(options: {
         activeOrders = db.prepare(`SELECT * FROM production_orders WHERE NOT ${archivedWhereClause} ORDER BY requestDate DESC`).all() as ProductionOrder[];
     }
     
-    // Always calculate total archived count (unfiltered for total pagination info)
+    // Always calculate total archived count (unfiltered for total pagination info initially)
     totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM production_orders WHERE ${archivedWhereClause}`).get() as { count: number }).count;
 
     // If we are viewing archived (paginated and filtered view)
     if (options.page !== undefined && options.pageSize !== undefined && options.filters) {
         const { page, pageSize, filters } = options;
-        const { searchTerm, status, classification, dateRange, productIds } = filters;
+        const { searchTerm, status, dateRange, productIds } = filters;
 
         let whereClauses = [archivedWhereClause];
         const params: any[] = [];

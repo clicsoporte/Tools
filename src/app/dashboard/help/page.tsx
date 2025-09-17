@@ -121,6 +121,9 @@ export default function HelpPage() {
                   <li>
                     <strong>Prioridad y Cantidad Recibida:</strong> Puedes establecer una prioridad a la solicitud para indicar su urgencia. Al recibir el producto, puedes indicar si la cantidad recibida es diferente a la solicitada, y el sistema te mostrará la diferencia.
                   </li>
+                   <li>
+                    <strong>Vista de Archivados:</strong> Para mantener la velocidad, la vista de "Archivados" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
+                  </li>
                 </ul>
               </AccordionContent>
             </AccordionItem>
@@ -139,7 +142,7 @@ export default function HelpPage() {
                         <strong>Crear Órdenes:</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
                     </li>
                     <li>
-                        <strong>Programación por Rango de Fechas:</strong> Cada orden te permite asignar un <strong>rango de fechas</strong> (inicio y fin) para su producción, lo que te da una visión clara de la ocupación de tus recursos a lo largo de varios días.
+                        <strong>Programación por Rango de Fechas:</strong> Una orden de producción a menudo abarca varios días. Para reflejar esto, haz clic en el área de "Fecha Programada" de una orden para abrir un calendario y seleccionar un rango de fechas de inicio y fin.
                     </li>
                     <li>
                         <strong>Gestión de Estados y Asignaciones:</strong>
@@ -151,6 +154,9 @@ export default function HelpPage() {
                     </li>
                      <li>
                         <strong>Prioridad:</strong> Utiliza el selector de prioridad (Urgente, Alta, Media, Baja) para organizar el trabajo y asegurar que las órdenes más importantes se atiendan primero.
+                    </li>
+                     <li>
+                        <strong>Vista de Archivados:</strong> Para mantener la velocidad, la vista de "Archivados" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
                     </li>
                 </ul>
               </AccordionContent>
@@ -286,5 +292,3 @@ export default function HelpPage() {
     </main>
   );
 }
-
-    

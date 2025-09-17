@@ -57,6 +57,8 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
         );
     `;
     db.exec(schema);
+    
+    await runRequestMigrations(db);
 
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('nextRequestNumber', '1')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('routes', '["Ruta GAM", "Fuera de GAM"]')`).run();
@@ -226,7 +228,7 @@ export async function getRequests(options: {
         totalArchivedCount = (db.prepare(countQuery).get(...params) as { count: number }).count;
         
     } else {
-        // Default behavior: fetch all requests
+        // Default behavior: fetch all requests (both active and archived)
         allRequests = db.prepare(`SELECT * FROM purchase_requests ORDER BY requestDate DESC`).all() as PurchaseRequest[];
         totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM purchase_requests WHERE ${archivedWhereClause}`).get() as { count: number }).count;
     }

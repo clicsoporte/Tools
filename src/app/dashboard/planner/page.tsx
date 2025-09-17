@@ -21,7 +21,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getAllCustomers, getAllProducts, getAllStock, getStockSettings } from '@/modules/core/lib/db-client';
 import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest } from '@/modules/planner/lib/db-client';
-import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Warehouse, StockSettings, Company, CustomStatus } from '@/modules/core/types';
+import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Warehouse, StockSettings, Company, CustomStatus, DateRange } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -34,7 +34,6 @@ import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { DateRange } from 'react-day-picker';
 
 const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'requestedBy' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate'> = {
     deliveryDate: '',
@@ -369,8 +368,16 @@ export default function PlannerPage() {
                 reopen: false,
             });
             
-            setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            const newActiveOrders = activeOrders.filter(o => o.id !== updatedOrder.id);
+            if (['completed', 'received-in-warehouse', 'canceled'].includes(updatedOrder.status)) {
+                setActiveOrders(newActiveOrders);
+            } else {
+                setActiveOrders(newActiveOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            }
+            
             setArchivedOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            await loadPlannerData(archivedPage);
+
 
             toast({ title: "Estado Actualizado", description: `La orden ${orderToUpdate.consecutive} ahora está ${dynamicStatusConfig[newStatus]?.label}.` });
             await logInfo("Production order status updated", { order: orderToUpdate.consecutive, newStatus: newStatus });
@@ -395,10 +402,9 @@ export default function PlannerPage() {
             updatedBy: currentUser.name
         });
 
-        const newActiveOrders = activeOrders.map(o => o.id === orderId ? updatedOrder : o);
-        const newArchivedOrders = archivedOrders.map(o => o.id === orderId ? updatedOrder : o);
-        setActiveOrders(newActiveOrders);
-        setArchivedOrders(newArchivedOrders);
+        // Optimistic update
+        setActiveOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
+        setArchivedOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
             
         await logInfo("Production order details updated", { orderId, details });
     }
@@ -907,7 +913,7 @@ export default function PlannerPage() {
                                                 `${format(parseISO(order.scheduledStartDate), "dd/MM/yy")} - ${format(parseISO(order.scheduledEndDate), "dd/MM/yy")}`
                                                 : format(parseISO(order.scheduledStartDate), "dd/MM/yy")
                                             ) : (
-                                                <span>Programar fecha</span>
+                                                <span>Programar Fecha</span>
                                             )}
                                         </Button>
                                     </PopoverTrigger>
@@ -1241,7 +1247,7 @@ export default function PlannerPage() {
             
             {/* EDIT ORDER DIALOG */}
             <Dialog open={isEditOrderDialogOpen} onOpenChange={setEditOrderDialogOpen}>
-                <DialogContent className="sm:max-w-3xl">
+                 <DialogContent className="sm:max-w-3xl">
                     <form onSubmit={handleEditOrder}>
                         <DialogHeader>
                             <DialogTitle>Editar Orden de Producción - {orderToEdit?.consecutive}</DialogTitle>
@@ -1319,13 +1325,8 @@ export default function PlannerPage() {
                             </div>
                         </ScrollArea>
                         <DialogFooter>
-                            <DialogClose asChild>
-                                <Button type="button" variant="ghost">Cancelar</Button>
-                            </DialogClose>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting && <Loader2 className="mr-2 animate-spin"/>}
-                                Guardar Cambios
-                            </Button>
+                            <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
+                            <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Guardar Cambios</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>

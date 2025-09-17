@@ -44,7 +44,11 @@
 
 ### 3.1. Cotizador (`/dashboard/quoter`)
 ### 3.2. Planificador (`/dashboard/planner`)
+-   **Paginación de Archivados**: Para manejar un gran volumen de datos, las órdenes archivadas se cargan por páginas. Puedes usar los botones de "Anterior" y "Siguiente" para navegar. Los filtros de búsqueda se aplican a todo el conjunto de datos archivados.
+
 ### 3.3. Solicitud de Compra (`/dashboard/requests`)
+-   **Paginación de Archivados**: Al igual que en el planificador, las solicitudes archivadas se cargan por páginas, y la búsqueda es eficiente sobre todo el historial.
+
 ### 3.4. Almacenes (`/dashboard/warehouse`)
 ### 3.5. Consultas Hacienda (`/dashboard/hacienda`)
 
