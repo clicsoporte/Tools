@@ -44,7 +44,7 @@ export type Company = {
     stockFilePath?: string;
     locationFilePath?: string;
     cabysFilePath?: string;
-}
+};
 
 /**
  * Represents a tool or module accessible from a dashboard.
@@ -332,6 +332,7 @@ export type PurchaseRequest = {
   lastStatusUpdateBy?: string;
   lastStatusUpdateNotes?: string;
   reopened?: boolean;
+  previousStatus?: PurchaseRequestStatus | null;
 };
 
 export type UpdatePurchaseRequestPayload = Pick<PurchaseRequest, 'requiredDate' | 'clientId' | 'clientName' | 'itemId' | 'itemDescription' | 'quantity' | 'unitSalePrice' | 'erpOrderNumber' | 'manualSupplier' | 'route' | 'shippingMethod' | 'purchaseOrder' | 'notes' | 'inventory' | 'priority'> & {
