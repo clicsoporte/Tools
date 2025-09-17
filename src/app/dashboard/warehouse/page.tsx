@@ -135,7 +135,7 @@ export default function WarehousePage() {
                     <div key={loc.id} className="flex items-center gap-1">
                         <LocationIcon type={loc.type} />
                         <span>{loc.name}</span>
-                        {index < path.length - 1 && <span>/</span>}
+                        {index < path.length - 1 && <span className="hidden sm:inline">/</span>}
                     </div>
                 ))}
             </div>
@@ -237,7 +237,7 @@ export default function WarehousePage() {
             <div className="max-w-4xl mx-auto">
                 <Card>
                     <CardHeader>
-                        <div className="flex justify-between items-start">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                             <div className="flex items-center gap-4">
                                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-600 text-white">
                                     <WarehouseIcon className="h-6 w-6" />
@@ -247,7 +247,7 @@ export default function WarehousePage() {
                                     <CardDescription>Busca un artículo o cliente para encontrar su ubicación y existencias.</CardDescription>
                                 </div>
                             </div>
-                            <Button onClick={handleRefresh} disabled={isRefreshing}>
+                            <Button onClick={handleRefresh} disabled={isRefreshing} className="w-full sm:w-auto">
                                 {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                                 Refrescar Datos del ERP
                             </Button>

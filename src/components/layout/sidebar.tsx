@@ -16,6 +16,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  useSidebar,
 } from "../ui/sidebar";
 import {
   Settings,
@@ -45,6 +46,13 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 export function AppSidebar() {
   const pathname = usePathname();
   const { user: currentUser, companyData, userRole, isLoading } = useAuth();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
 
   /**
@@ -165,7 +173,7 @@ export function AppSidebar() {
       <Sidebar collapsible="icon" className="border-r">
         <SidebarHeader>
           <Button variant="ghost" size="icon" className="size-10" asChild>
-            <Link href="/dashboard">
+            <Link href="/dashboard" onClick={handleLinkClick}>
               <Network />
             </Link>
           </Button>
@@ -182,7 +190,7 @@ export function AppSidebar() {
                     isActive={isActive(item.href)}
                     tooltip={item.name}
                     >
-                    <Link href={item.href}>
+                    <Link href={item.href} onClick={handleLinkClick}>
                         <item.icon />
                         <span>{item.name}</span>
                     </Link>
@@ -200,7 +208,7 @@ export function AppSidebar() {
                 isActive={isActive("/dashboard/settings")}
                 tooltip="Mi Perfil"
                 >
-                <Link href="/dashboard/settings">
+                <Link href="/dashboard/settings" onClick={handleLinkClick}>
                     <Settings />
                     <span>Mi Perfil</span>
                 </Link>
@@ -214,7 +222,7 @@ export function AppSidebar() {
                         isActive={isActive("/dashboard/admin")}
                         tooltip="Configuración"
                     >
-                        <Link href="/dashboard/admin">
+                        <Link href="/dashboard/admin" onClick={handleLinkClick}>
                         <Wrench />
                         <span>Configuración</span>
                         </Link>

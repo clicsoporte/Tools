@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -264,8 +265,8 @@ export default function AssignInventoryPage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                     <div className="space-y-4">
-                        <div className="grid grid-cols-5 gap-2 items-center">
-                            <div className="col-span-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-center">
+                            <div className="col-span-1 sm:col-span-2">
                                 <Label>Desde (Origen)</Label>
                                 <SearchInput
                                     options={fromLocationOptions}
@@ -280,7 +281,7 @@ export default function AssignInventoryPage() {
                             <div className="col-span-1 text-center pt-6">
                                 <ArrowRight className="h-6 w-6 mx-auto text-muted-foreground" />
                             </div>
-                            <div className="col-span-2">
+                            <div className="col-span-1 sm:col-span-2">
                                 <Label>Hacia (Destino)</Label>
                                 <SearchInput
                                     options={toLocationOptions}
@@ -350,32 +351,34 @@ export default function AssignInventoryPage() {
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="grid gap-8 md:grid-cols-3">
-                <Card className="md:col-span-1">
-                    <CardHeader>
-                        <CardTitle>Seleccionar Artículo</CardTitle>
-                        <CardDescription>Busca el artículo al que deseas asignar una ubicación.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <SearchInput
-                            options={productOptions}
-                            onSelect={handleSelectProduct}
-                            value={productSearchTerm}
-                            onValueChange={setProductSearchTerm}
-                            placeholder="Selecciona un artículo..."
-                            open={isProductSearchOpen}
-                            onOpenChange={setProductSearchOpen}
-                        />
-                    </CardContent>
-                </Card>
+                <div className="md:col-span-1 space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Seleccionar Artículo</CardTitle>
+                            <CardDescription>Busca el artículo al que deseas asignar una ubicación.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <SearchInput
+                                options={productOptions}
+                                onSelect={handleSelectProduct}
+                                value={productSearchTerm}
+                                onValueChange={setProductSearchTerm}
+                                placeholder="Selecciona un artículo..."
+                                open={isProductSearchOpen}
+                                onOpenChange={setProductSearchOpen}
+                            />
+                        </CardContent>
+                    </Card>
+                    {renderCurrentInventory()}
+                </div>
 
-                <div className="md:col-span-2 space-y-6">
+                <div className="md:col-span-2">
                     { !warehouseSettings?.enablePhysicalInventoryTracking && (
-                         <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800">
+                         <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 mb-6">
                             <Info className="h-5 w-5"/>
                             <p className="text-sm">El modo de control de inventario físico está desactivado. Solo se pueden asignar ubicaciones, no cantidades.</p>
                         </div>
                     )}
-                   {renderCurrentInventory()}
                    {warehouseSettings?.enablePhysicalInventoryTracking ? renderAdvancedMode() : renderSimpleMode()}
                 </div>
             </div>
