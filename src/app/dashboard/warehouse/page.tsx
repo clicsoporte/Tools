@@ -36,7 +36,7 @@ export default function WarehousePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
+    const [debouncedSearchTerm] = useDebounce(searchTerm, 1500);
     
     const [locations, setLocations] = useState<WarehouseLocation[]>([]);
     const [inventory, setInventory] = useState<WarehouseInventoryItem[]>([]);
