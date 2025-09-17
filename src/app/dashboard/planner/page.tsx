@@ -465,11 +465,14 @@ export default function PlannerPage() {
         const product = products.find(p => p.id === value);
         if (product) {
             const productWithStock = { ...product, inventory: stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0 };
+            const fullDescription = `${productWithStock.id} - ${productWithStock.description}`;
             if (orderToEdit) {
                  setOrderToEdit(prev => prev ? { ...prev, productId: productWithStock.id, productDescription: productWithStock.description || '', inventory: productWithStock.inventory } : null);
             } else {
                  setNewOrder(prev => ({ ...prev, productId: productWithStock.id, productDescription: productWithStock.description || '', inventory: productWithStock.inventory }));
             }
+            setProductSearchTerm(fullDescription);
+        } else {
             setProductSearchTerm('');
         }
     };
@@ -478,12 +481,15 @@ export default function PlannerPage() {
         setCustomerSearchOpen(false);
         const customer = customers.find(c => c.id === value);
         if (customer) {
+            const fullDescription = `${customer.id} - ${customer.name}`;
             if (orderToEdit) {
                 setOrderToEdit(prev => prev ? { ...prev, customerId: customer.id, customerName: customer.name } : null);
             } else {
                 setNewOrder(prev => ({ ...prev, customerId: customer.id, customerName: customer.name }));
             }
-             setCustomerSearchTerm('');
+            setCustomerSearchTerm(fullDescription);
+        } else {
+            setCustomerSearchTerm('');
         }
     };
 
@@ -543,7 +549,7 @@ export default function PlannerPage() {
                 order.consecutive,
                 order.purchaseOrder || 'N/A',
                 order.customerName,
-                order.productDescription,
+                `[${order.productId}] ${order.productDescription}`,
                 order.quantity.toLocaleString(),
                 format(parseISO(order.deliveryDate), 'dd/MM/yyyy'),
                 priorityConfig[order.priority].label,
@@ -595,7 +601,7 @@ export default function PlannerPage() {
         }
         
         addDetail("Cliente", order.customerName);
-        addDetail("Producto", order.productDescription);
+        addDetail("Producto", `[${order.productId}] ${order.productDescription}`);
         addDetail("Nº OC Cliente", order.purchaseOrder);
         addDetail("Cantidad Solicitada", order.quantity.toLocaleString());
         
@@ -722,7 +728,7 @@ export default function PlannerPage() {
                 <CardHeader className="p-4">
                     <div className="flex justify-between items-start gap-2">
                         <div>
-                            <CardTitle className="text-lg">{order.consecutive} - {order.productDescription}</CardTitle>
+                            <CardTitle className="text-lg">{order.consecutive} - [{order.productId}] {order.productDescription}</CardTitle>
                             <CardDescription>{order.customerName}{order.purchaseOrder && ` (OC: ${order.purchaseOrder})`}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
@@ -930,7 +936,7 @@ export default function PlannerPage() {
                             <p className="text-muted-foreground">"{order.lastStatusUpdateNotes}" - <span className="italic">{order.lastStatusUpdateBy}</span></p>
                         </div>
                      )}
-                </CardFooter>
+                </CardContent>
                 <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
                     <span>Solicitado por: {order.requestedBy} el {format(parseISO(order.requestDate), 'dd/MM/yyyy')}</span>
                     {order.approvedBy && <span>Aprobado por: {order.approvedBy}</span>}
@@ -989,9 +995,9 @@ export default function PlannerPage() {
                                                 <Label htmlFor="customer-search">Cliente</Label>
                                                 <SearchInput
                                                     options={customerOptions}
-                                                    onSelect={(value) => { handleSelectCustomer(value); setCustomerSearchOpen(false); }}
+                                                    onSelect={(value) => handleSelectCustomer(value)}
                                                     value={customerSearchTerm}
-                                                    onValueChange={(val) => { if (!val) handleSelectCustomer(''); setCustomerSearchTerm(val); }}
+                                                    onValueChange={setCustomerSearchTerm}
                                                     placeholder="Buscar cliente..."
                                                     onKeyDown={handleCustomerInputKeyDown}
                                                     open={isCustomerSearchOpen}
@@ -1003,9 +1009,9 @@ export default function PlannerPage() {
                                                 <Label htmlFor="product-search">Producto</Label>
                                                 <SearchInput
                                                     options={productOptions}
-                                                    onSelect={(value) => { handleSelectProduct(value); setProductSearchOpen(false); }}
+                                                    onSelect={(value) => handleSelectProduct(value)}
                                                     value={productSearchTerm}
-                                                    onValueChange={(val) => { if (!val) handleSelectProduct(''); setProductSearchTerm(val); }}
+                                                    onValueChange={setProductSearchTerm}
                                                     placeholder="Buscar producto..."
                                                     onKeyDown={handleProductInputKeyDown}
                                                     open={isProductSearchOpen}
@@ -1194,7 +1200,7 @@ export default function PlannerPage() {
 
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-product-search">Producto</Label>
-                                    <Input value={orderToEdit?.productDescription} disabled />
+                                    <Input value={`[${orderToEdit?.productId}] ${orderToEdit?.productDescription}`} disabled />
                                 </div>
 
                                 <div className="space-y-2">

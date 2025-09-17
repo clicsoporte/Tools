@@ -358,11 +358,14 @@ export default function PurchaseRequestPage() {
         setItemSearchOpen(false);
         const product = items.find(p => p.id === value);
         if (product) {
+            const fullDescription = `${product.id} - ${product.description}`;
             if (requestToEdit) {
                 setRequestToEdit(prev => prev ? { ...prev, itemId: product.id, itemDescription: product.description || '' } : null);
             } else {
                 setNewRequest(prev => ({ ...prev, itemId: product.id, itemDescription: product.description || '' }));
             }
+            setItemSearchTerm(fullDescription);
+        } else {
             setItemSearchTerm('');
         }
     };
@@ -371,11 +374,14 @@ export default function PurchaseRequestPage() {
         setClientSearchOpen(false);
         const client = clients.find(c => c.id === value);
         if (client) {
+            const fullDescription = `${client.id} - ${client.name}`;
             if (requestToEdit) {
                 setRequestToEdit(prev => prev ? { ...prev, clientId: client.id, clientName: client.name } : null);
             } else {
                 setNewRequest(prev => ({ ...prev, clientId: client.id, clientName: client.name }));
             }
+            setClientSearchTerm(fullDescription);
+        } else {
             setClientSearchTerm('');
         }
     };
@@ -436,7 +442,7 @@ export default function PurchaseRequestPage() {
                 <CardHeader className="p-4">
                     <div className="flex justify-between items-start gap-2">
                         <div>
-                            <CardTitle className="text-lg">{request.consecutive} - {request.itemDescription}</CardTitle>
+                            <CardTitle className="text-lg">{request.consecutive} - [{request.itemId}] {request.itemDescription}</CardTitle>
                             <CardDescription>Cliente: {request.clientName}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
@@ -543,7 +549,7 @@ export default function PurchaseRequestPage() {
                             <p className="text-muted-foreground">"{request.lastStatusUpdateNotes}" - <span className="italic">{request.lastStatusUpdateBy}</span></p>
                         </div>
                      )}
-                </CardFooter>
+                </CardContent>
                 <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
                     <span>Solicitado por: {request.requestedBy} el {format(parseISO(request.requestDate), 'dd/MM/yyyy')}</span>
                     {request.approvedBy && <span>Aprobado por: {request.approvedBy}</span>}
@@ -595,7 +601,7 @@ export default function PurchaseRequestPage() {
                                             <Label htmlFor="client-search">Cliente</Label>
                                             <SearchInput
                                                 options={clientOptions}
-                                                onSelect={(value) => { handleSelectClient(value); setClientSearchOpen(false); }}
+                                                onSelect={(value) => handleSelectClient(value)}
                                                 value={clientSearchTerm}
                                                 onValueChange={(val) => { if(!val) handleSelectClient(''); setClientSearchTerm(val); }}
                                                 placeholder="Buscar cliente..."
@@ -607,7 +613,7 @@ export default function PurchaseRequestPage() {
                                             <Label htmlFor="item-search">Artículo / Servicio</Label>
                                             <SearchInput
                                                 options={itemOptions}
-                                                onSelect={(value) => { handleSelectItem(value); setItemSearchOpen(false); }}
+                                                onSelect={(value) => handleSelectItem(value)}
                                                 value={itemSearchTerm}
                                                 onValueChange={(val) => { if(!val) handleSelectItem(''); setItemSearchTerm(val); }}
                                                 placeholder="Buscar artículo..."
@@ -839,7 +845,7 @@ export default function PurchaseRequestPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Artículo / Servicio</Label>
-                                <Input value={requestToEdit?.itemDescription} disabled />
+                                <Input value={`[${requestToEdit?.itemId}] ${requestToEdit?.itemDescription}`} disabled />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="edit-request-quantity">Cantidad</Label>
