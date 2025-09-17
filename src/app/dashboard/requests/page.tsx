@@ -13,14 +13,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon } from 'lucide-react';
+import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getAllCustomers, getAllProducts } from '@/modules/core/lib/db-client';
+import { getAllCustomers, getAllProducts, getAllStock } from '@/modules/core/lib/db-client';
 import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings } from '@/modules/requests/lib/db-client';
-import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestHistoryEntry, User, RequestSettings, PurchaseRequestPriority } from '@/modules/core/types';
+import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestHistoryEntry, User, RequestSettings, PurchaseRequestPriority, StockInfo } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,7 @@ import { useDebounce } from 'use-debounce';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 
 const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'requestedBy' | 'receivedDate' | 'previousStatus'> = {
@@ -51,6 +52,7 @@ const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' |
     shippingMethod: '',
     inventory: 0,
     priority: 'medium',
+    purchaseType: 'single',
 };
 
 const statusConfig: { [key in PurchaseRequestStatus]: { label: string; color: string } } = {
@@ -86,6 +88,7 @@ export default function PurchaseRequestPage() {
     
     const [clients, setClients] = useState<Customer[]>([]);
     const [items, setItems] = useState<Product[]>([]);
+    const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
     const [requestSettings, setRequestSettings] = useState<RequestSettings | null>(null);
     
     const [newRequest, setNewRequest] = useState(emptyRequest);
@@ -163,12 +166,14 @@ export default function PurchaseRequestPage() {
         const loadInitialData = async () => {
             setIsLoading(true);
             try {
-                const [clientsData, itemsData] = await Promise.all([
+                const [clientsData, itemsData, stockData] = await Promise.all([
                     getAllCustomers(),
                     getAllProducts(),
+                    getAllStock(),
                 ]);
                 setClients(clientsData);
                 setItems(itemsData);
+                setStockLevels(stockData);
                 await loadRequestData();
             } catch (error) {
                 logError("Failed to load request initial data", { error });
@@ -449,8 +454,8 @@ export default function PurchaseRequestPage() {
                 <CardHeader className="p-4">
                     <div className="flex justify-between items-start gap-2">
                         <div>
-                            <CardTitle className="text-lg">{request.consecutive} - [{request.itemId}] {request.itemDescription}</CardTitle>
-                            <CardDescription>Cliente: {request.clientName}</CardDescription>
+                            <CardTitle className="text-lg">{`[${request.itemId}] ${request.itemDescription}`}</CardTitle>
+                            <CardDescription>Cliente: {request.clientName} - Solicitud: {request.consecutive}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {request.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
@@ -475,7 +480,33 @@ export default function PurchaseRequestPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-4 pt-0">
-                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 text-sm">
+                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6 text-sm">
+                        
+                         <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Estado Actual</p>
+                            <div className="flex items-center gap-2">
+                                <span className={cn("h-3 w-3 rounded-full", statusConfig[request.status].color)}></span>
+                                <span className="font-medium">{statusConfig[request.status].label}</span>
+                            </div>
+                        </div>
+
+                         <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Prioridad</p>
+                            <span className={cn("font-medium", priorityConfig[request.priority]?.className)}>{priorityConfig[request.priority]?.label || request.priority}</span>
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Fecha Requerida</p>
+                            <p>{format(parseISO(request.requiredDate), 'dd/MM/yyyy')}</p>
+                        </div>
+
+                        {request.receivedDate && 
+                             <div className="space-y-1">
+                                <p className="font-semibold text-muted-foreground">Fecha Recibida</p>
+                                <p>{format(parseISO(request.receivedDate), 'dd/MM/yyyy HH:mm')}</p>
+                            </div>
+                        }
+
                          <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Cant. Solicitada</p>
                             <p className="font-bold text-lg">{request.quantity.toLocaleString()}</p>
@@ -501,17 +532,6 @@ export default function PurchaseRequestPage() {
                          <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Precio Venta (s/IVA)</p>
                             <p>{request.unitSalePrice ? `₡${request.unitSalePrice.toLocaleString()}` : 'N/A'}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="font-semibold text-muted-foreground">Fecha Requerida</p>
-                            <p>{format(parseISO(request.requiredDate), 'dd/MM/yyyy')}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="font-semibold text-muted-foreground">Estado Actual</p>
-                            <div className="flex items-center gap-2">
-                                <span className={cn("h-3 w-3 rounded-full", statusConfig[request.status].color)}></span>
-                                <span className="font-medium">{statusConfig[request.status].label}</span>
-                            </div>
                         </div>
                         {request.purchaseOrder &&
                             <div className="space-y-1">
@@ -543,6 +563,13 @@ export default function PurchaseRequestPage() {
                                 <p>{request.shippingMethod}</p>
                             </div>
                         }
+                        <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Tipo de Compra</p>
+                             <div className="flex items-center gap-2">
+                                {request.purchaseType === 'multiple' ? <Users className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                <span>{request.purchaseType === 'multiple' ? 'Múltiples Proveedores' : 'Proveedor Único'}</span>
+                            </div>
+                        </div>
                     </div>
                      {request.notes && (
                         <div className="mt-4 text-xs bg-muted p-2 rounded-md">
@@ -701,7 +728,7 @@ export default function PurchaseRequestPage() {
                                             <Label htmlFor="new-request-inventory-erp">Inventario Actual (ERP)</Label>
                                             <Input 
                                                 id="new-request-inventory-erp"
-                                                placeholder="0.00"
+                                                value={(stockLevels.find(s => s.itemId === newRequest.itemId)?.totalStock ?? 0).toLocaleString()}
                                                 disabled
                                             />
                                         </div>
@@ -731,6 +758,32 @@ export default function PurchaseRequestPage() {
                                                     ))}
                                                 </SelectContent>
                                             </Select>
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="new-request-priority">Prioridad</Label>
+                                            <Select value={newRequest.priority} onValueChange={(value: PurchaseRequestPriority) => setNewRequest(prev => ({...prev, priority: value}))}>
+                                                <SelectTrigger id="new-request-priority"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {Object.entries(priorityConfig).map(([key, {label}]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Tipo de Compra</Label>
+                                            <RadioGroup
+                                                value={newRequest.purchaseType}
+                                                onValueChange={(value: 'single' | 'multiple') => setNewRequest(prev => ({ ...prev, purchaseType: value }))}
+                                                className="flex items-center gap-4 pt-2"
+                                            >
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="single" id="r-single" />
+                                                    <Label htmlFor="r-single">Proveedor Único</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="multiple" id="r-multiple" />
+                                                    <Label htmlFor="r-multiple">Múltiples Proveedores</Label>
+                                                </div>
+                                            </RadioGroup>
                                         </div>
                                        
                                         <div className="space-y-2 col-span-1 md:col-span-2">
@@ -861,6 +914,32 @@ export default function PurchaseRequestPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="edit-request-required-date">Fecha Requerida</Label>
                                 <Input id="edit-request-required-date" type="date" value={requestToEdit?.requiredDate || ''} onChange={e => setRequestToEdit(prev => prev ? { ...prev, requiredDate: e.target.value } : null)} required />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-request-priority">Prioridad</Label>
+                                <Select value={requestToEdit?.priority} onValueChange={(value: PurchaseRequestPriority) => setRequestToEdit(prev => prev ? {...prev, priority: value} : null)}>
+                                    <SelectTrigger id="edit-request-priority"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {Object.entries(priorityConfig).map(([key, {label}]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Tipo de Compra</Label>
+                                <RadioGroup
+                                    value={requestToEdit?.purchaseType}
+                                    onValueChange={(value: 'single' | 'multiple') => setRequestToEdit(prev => prev ? { ...prev, purchaseType: value } : null)}
+                                    className="flex items-center gap-4 pt-2"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="single" id="r-edit-single" />
+                                        <Label htmlFor="r-edit-single">Proveedor Único</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="multiple" id="r-edit-multiple" />
+                                        <Label htmlFor="r-edit-multiple">Múltiples Proveedores</Label>
+                                    </div>
+                                </RadioGroup>
                             </div>
                             <div className="space-y-2 col-span-1 md:col-span-2">
                                 <Label htmlFor="edit-request-notes">Notas</Label>

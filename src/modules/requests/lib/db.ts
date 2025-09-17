@@ -29,6 +29,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
             deliveredQuantity REAL,
             inventory REAL,
             priority TEXT DEFAULT 'medium',
+            purchaseType TEXT DEFAULT 'single',
             unitSalePrice REAL,
             erpOrderNumber TEXT,
             manualSupplier TEXT,
@@ -103,6 +104,10 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
      if (!columns.has('previousStatus')) {
         console.log("MIGRATION (requests.db): Adding previousStatus column to purchase_requests.");
         db.exec(`ALTER TABLE purchase_requests ADD COLUMN previousStatus TEXT`);
+    }
+    if (!columns.has('purchaseType')) {
+        console.log("MIGRATION (requests.db): Adding purchaseType column to purchase_requests.");
+        db.exec(`ALTER TABLE purchase_requests ADD COLUMN purchaseType TEXT DEFAULT 'single'`);
     }
 }
 
@@ -185,11 +190,11 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         INSERT INTO purchase_requests (
             consecutive, requestDate, requiredDate, clientId, clientName,
             itemId, itemDescription, quantity, unitSalePrice, erpOrderNumber, manualSupplier, route, shippingMethod, purchaseOrder,
-            status, notes, requestedBy, reopened, inventory, priority
+            status, notes, requestedBy, reopened, inventory, priority, purchaseType
         ) VALUES (
             @consecutive, @requestDate, @requiredDate, @clientId, @clientName,
             @itemId, @itemDescription, @quantity, @unitSalePrice, @erpOrderNumber, @manualSupplier, @route, @shippingMethod, @purchaseOrder,
-            @status, @notes, @requestedBy, @reopened, @inventory, @priority
+            @status, @notes, @requestedBy, @reopened, @inventory, @priority, @purchaseType
         )
     `);
 
@@ -203,7 +208,8 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         purchaseOrder: newRequest.purchaseOrder || null,
         notes: newRequest.notes || null,
         inventory: newRequest.inventory ?? null,
-        reopened: newRequest.reopened ? 1 : 0
+        reopened: newRequest.reopened ? 1 : 0,
+        purchaseType: newRequest.purchaseType || 'single',
     };
 
     const info = stmt.run(preparedRequest);
@@ -244,7 +250,8 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
                 purchaseOrder = @purchaseOrder,
                 notes = @notes,
                 inventory = @inventory,
-                priority = @priority
+                priority = @priority,
+                purchaseType = @purchaseType
             WHERE id = @requestId
         `).run({ requestId, ...dataToUpdate });
 

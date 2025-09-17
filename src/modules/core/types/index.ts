@@ -303,6 +303,7 @@ export type RejectCancellationPayload = {
 
 export type PurchaseRequestStatus = 'pending' | 'approved' | 'ordered' | 'received' | 'received-in-warehouse' | 'canceled';
 export type PurchaseRequestPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type PurchaseType = 'single' | 'multiple';
 
 export type PurchaseRequest = {
   id: number;
@@ -319,6 +320,7 @@ export type PurchaseRequest = {
   deliveredQuantity?: number;
   inventory?: number;
   priority: PurchaseRequestPriority;
+  purchaseType: PurchaseType;
   unitSalePrice?: number; // Precio de venta unitario sin IVA
   erpOrderNumber?: string; // Número de pedido ERP
   manualSupplier?: string; // Proveedor (manual)
@@ -335,7 +337,7 @@ export type PurchaseRequest = {
   previousStatus?: PurchaseRequestStatus | null;
 };
 
-export type UpdatePurchaseRequestPayload = Pick<PurchaseRequest, 'requiredDate' | 'clientId' | 'clientName' | 'itemId' | 'itemDescription' | 'quantity' | 'unitSalePrice' | 'erpOrderNumber' | 'manualSupplier' | 'route' | 'shippingMethod' | 'purchaseOrder' | 'notes' | 'inventory' | 'priority'> & {
+export type UpdatePurchaseRequestPayload = Pick<PurchaseRequest, 'requiredDate' | 'clientId' | 'clientName' | 'itemId' | 'itemDescription' | 'quantity' | 'unitSalePrice' | 'erpOrderNumber' | 'manualSupplier' | 'route' | 'shippingMethod' | 'purchaseOrder' | 'notes' | 'inventory' | 'priority' | 'purchaseType'> & {
     requestId: number;
     updatedBy: string;
 };
