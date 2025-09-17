@@ -14,7 +14,6 @@ import { AuthProvider, useAuth } from "../../modules/core/hooks/useAuth"; // Imp
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Skeleton } from "../../components/ui/skeleton";
-import { Toaster } from "../../components/ui/toaster";
 import { usePageTitle, PageTitleProvider } from "../../modules/core/hooks/usePageTitle";
 
 
@@ -83,7 +82,6 @@ export default function DashboardLayout({
                 <DashboardContent>{children}</DashboardContent>
                 </SidebarInset>
             </SidebarProvider>
-            <Toaster />
             </PageTitleProvider>
         </AuthWrapper>
     </AuthProvider>
