@@ -1,4 +1,8 @@
 
+/**
+ * @fileoverview The main dashboard page for the admin section.
+ * It dynamically displays a grid of available administration tools.
+ */
 'use client';
 import { adminTools } from "../../../modules/core/lib/data";
 import { ToolCard } from "../../../components/dashboard/tool-card";
@@ -28,3 +32,5 @@ export default function AdminDashboardPage() {
       </main>
   );
 }
+
+    

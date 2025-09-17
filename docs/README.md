@@ -1,3 +1,4 @@
+
 # Clic-Tools: Documentación Técnica y Manual de Usuario
 
 **Clic-Tools** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
@@ -44,7 +45,8 @@
 ### 3.1. Cotizador (`/dashboard/quoter`)
 ### 3.2. Planificador (`/dashboard/planner`)
 ### 3.3. Solicitud de Compra (`/dashboard/requests`)
-### 3.4. Consultas Hacienda (`/dashboard/hacienda`)
+### 3.4. Almacenes (`/dashboard/warehouse`)
+### 3.5. Consultas Hacienda (`/dashboard/hacienda`)
 
 ---
 
@@ -109,3 +111,5 @@ Esta es una de las funcionalidades más críticas y flexibles, gestionada desde 
 ## 6. Créditos y Licencia
 
 Este proyecto se distribuye bajo la **Licencia MIT**.
+
+    

@@ -1,4 +1,9 @@
 
+/**
+ * @fileoverview Admin page for managing data imports from external sources (files or SQL DB).
+ * This component allows administrators to configure import paths, connection strings,
+ * and SQL queries, and to trigger the import processes.
+ */
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -38,6 +43,11 @@ const importTypeFieldMapping: { [key in ImportType]: keyof Company } = {
     cabys: 'cabysFilePath',
 };
 
+/**
+ * Renders the data import management page.
+ * It provides UI for switching between import modes (file vs. SQL), configuring settings
+ * for each mode, and executing import jobs.
+ */
 export default function ImportDataPage() {
     const { hasPermission } = useAuthorization(['admin:import:files', 'admin:import:sql', 'admin:import:sql-config']);
     const { toast } = useToast();
@@ -64,6 +74,10 @@ export default function ImportDataPage() {
         loadConfig();
     }, [setTitle]);
 
+    /**
+     * Handles the import of a single data type (e.g., customers).
+     * @param {ImportType} type The type of data to import.
+     */
     const handleImport = async (type: ImportType) => {
         setProcessingType(type);
         setIsProcessing(true);
@@ -95,6 +109,9 @@ export default function ImportDataPage() {
         }
     };
     
+    /**
+     * Triggers a full data synchronization from the configured source (file or SQL).
+     */
     const handleFullSqlImport = async () => {
         setProcessingType('full-sql-import');
         setIsProcessing(true);
@@ -137,6 +154,9 @@ export default function ImportDataPage() {
         }
     };
     
+    /**
+     * Saves all configuration changes made on the page to the database.
+     */
     const handleSaveAllConfigs = async () => {
         setIsSaving(true);
         try {
@@ -155,6 +175,9 @@ export default function ImportDataPage() {
         }
     };
 
+    /**
+     * Tests the connection to the SQL Server database with the provided credentials.
+     */
     const handleTestConnection = async () => {
         setIsSaving(true);
         try {
@@ -167,6 +190,11 @@ export default function ImportDataPage() {
         }
     };
 
+    /**
+     * Renders a card for a single file import type.
+     * @param {ImportType} type The type of data this card is for.
+     * @returns {JSX.Element} A card component for file import.
+     */
     const renderFileImportCard = (type: ImportType) => {
         const fieldName = importTypeFieldMapping[type];
         return (
