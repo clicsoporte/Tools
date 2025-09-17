@@ -892,41 +892,37 @@ export default function PlannerPage() {
 
                              <div className="space-y-1 col-span-2">
                                 <Label>Fecha Programada</Label>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-grow">
-                                    {order.scheduledStartDate ? (
-                                        <p className="font-medium text-orange-600 h-8 flex items-center">
-                                            {format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - {order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}
-                                        </p>
-                                    ) : (
-                                        <p className="text-muted-foreground h-8 flex items-center">No programada</p>
-                                    )}
-                                    </div>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant={"outline"}
-                                                size="sm"
-                                                className="h-8"
-                                                disabled={!canAssignMachine}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                Programar
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar
-                                                mode="range"
-                                                selected={{
-                                                    from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined,
-                                                    to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined,
-                                                }}
-                                                onSelect={(range) => handleDetailUpdate(order.id, { scheduledDateRange: range })}
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn("w-full justify-start text-left font-normal h-8",
+                                                !order.scheduledStartDate && "text-muted-foreground"
+                                            )}
+                                            disabled={!canAssignMachine}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {order.scheduledStartDate ? (
+                                                order.scheduledEndDate ? 
+                                                `${format(parseISO(order.scheduledStartDate), "dd/MM/yy")} - ${format(parseISO(order.scheduledEndDate), "dd/MM/yy")}`
+                                                : format(parseISO(order.scheduledStartDate), "dd/MM/yy")
+                                            ) : (
+                                                <span>Programar fecha</span>
+                                            )}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar
+                                            mode="range"
+                                            selected={{
+                                                from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined,
+                                                to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined,
+                                            }}
+                                            onSelect={(range) => handleDetailUpdate(order.id, { scheduledDateRange: range })}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                             
                             {order.erpPackageNumber && (
