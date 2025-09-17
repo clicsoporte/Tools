@@ -34,9 +34,9 @@ import {
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
 import { useToast } from "../../../../modules/core/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { ApiSettings, ExemptionLaw } from "../../../../modules/core/types";
-import { logInfo } from "../../../../modules/core/lib/logger";
+import { logInfo, logError } from "../../../../modules/core/lib/logger";
 import { getApiSettings, saveApiSettings, getExemptionLaws, saveExemptionLaws } from "../../../../modules/core/lib/db-client";
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
@@ -95,13 +95,18 @@ export default function ApiSettingsPage() {
 
   const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
-    await saveApiSettings(apiSettings);
-    await saveExemptionLaws(exemptionLaws);
-    toast({
-      title: "Configuración Guardada",
-      description: "Los cambios en las APIs y leyes han sido guardados.",
-    });
-    await logInfo("Configuración de API y Leyes guardada", { settings: apiSettings, laws: exemptionLaws });
+    try {
+        await saveApiSettings(apiSettings);
+        await saveExemptionLaws(exemptionLaws);
+        toast({
+        title: "Configuración Guardada",
+        description: "Los cambios en las APIs y leyes han sido guardados.",
+        });
+        await logInfo("Configuración de API y Leyes guardada", { settings: apiSettings, laws: exemptionLaws });
+    } catch(error: any) {
+        logError("Failed to save API settings", { error: error.message });
+        toast({ title: "Error", description: "No se pudieron guardar los ajustes.", variant: "destructive"});
+    }
   };
   
   const handleOpenLawDialog = (law?: ExemptionLaw) => {
@@ -136,11 +141,13 @@ export default function ApiSettingsPage() {
       setCurrentLaw(null);
   };
   
-  const handleDeleteLaw = () => {
+  const handleDeleteLaw = useCallback(() => {
       if (!lawToDelete) return;
-      setExemptionLaws(exemptionLaws.filter(law => law.docType !== lawToDelete.docType));
+      setExemptionLaws(prevLaws => prevLaws.filter(law => law.docType !== lawToDelete.docType));
+      logWarn("Exemption law deleted", { docType: lawToDelete.docType });
+      toast({ title: "Ley Eliminada", description: "La ley de exoneración ha sido eliminada. Guarda los cambios para confirmar.", variant: "destructive"});
       setLawToDelete(null);
-  };
+  }, [lawToDelete, toast]);
 
 
   if (!isMounted) {

@@ -72,26 +72,9 @@ function LocationTree({ locations, onEdit, onDelete }: { locations: WarehouseLoc
                     </div>
                     <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(location)}><Edit2 className="h-4 w-4" /></Button>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                            </AlertDialogTrigger>
-                             <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Eliminar "{location.name}"?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Esta acción no se puede deshacer. Se eliminará la ubicación y TODAS las ubicaciones hijas que contenga. 
-                                        El inventario asociado no se eliminará, pero quedará sin ubicación.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onDelete(location)}>Sí, Eliminar</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(location)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                     </div>
                 </div>
                 {isOpen && hasChildren && (
@@ -181,12 +164,13 @@ export default function WarehouseSettingsPage() {
         try {
             if (isEditingLocation && currentLocation.id) {
                 await updateLocation(currentLocation as WarehouseLocation);
+                setLocations(prev => prev.map(l => l.id === currentLocation.id ? (currentLocation as WarehouseLocation) : l));
                 toast({ title: "Ubicación Actualizada" });
             } else {
-                await addLocation(currentLocation as Omit<WarehouseLocation, 'id'>);
+                const newLoc = await addLocation(currentLocation as Omit<WarehouseLocation, 'id'>);
+                setLocations(prev => [...prev, newLoc]);
                 toast({ title: "Ubicación Creada" });
             }
-            await fetchAllData();
             setLocationFormOpen(false);
         } catch (error: any) {
             logError("Failed to save location", { error: error.message });
@@ -194,16 +178,18 @@ export default function WarehouseSettingsPage() {
         }
     };
     
-    const handleDeleteLocationAction = useCallback(async (location: WarehouseLocation) => {
+    const handleDeleteLocationAction = useCallback(async () => {
+        if (!locationToDelete) return;
         try {
-            await deleteLocation(location.id);
+            await deleteLocation(locationToDelete.id);
+            setLocations(prev => prev.filter(l => l.id !== locationToDelete.id));
             toast({ title: "Ubicación Eliminada" });
-            await fetchAllData();
+            setLocationToDelete(null);
         } catch (error: any) {
              logError("Failed to delete location", { error: error.message });
             toast({ title: "Error", description: error.message, variant: "destructive" });
         }
-    }, [fetchAllData, toast]);
+    }, [locationToDelete, toast]);
     
     const openLocationForm = (loc?: WarehouseLocation) => {
         if (loc) {
@@ -314,7 +300,7 @@ export default function WarehouseSettingsPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <LocationTree locations={locations} onEdit={openLocationForm} onDelete={handleDeleteLocationAction} />
+                                    <LocationTree locations={locations} onEdit={openLocationForm} onDelete={setLocationToDelete} />
                                 </CardContent>
                             </Card>
                         </AccordionContent>
@@ -378,7 +364,7 @@ export default function WarehouseSettingsPage() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel onClick={() => setLocationToDelete(null)}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteLocationAction(locationToDelete!)}>Sí, Eliminar</AlertDialogAction>
+                            <AlertDialogAction onClick={handleDeleteLocationAction}>Sí, Eliminar</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -64,10 +64,11 @@ export default function PlannerSettingsPage() {
         setNewMachine({ id: "", name: "" });
     };
 
-    const handleDeleteMachine = (id: string) => {
+    const handleDeleteMachine = useCallback((id: string) => {
         if (!settings) return;
         setSettings(prev => prev ? { ...prev, machines: prev.machines.filter(m => m.id !== id) } : null);
-    };
+        toast({ title: "Asignación Eliminada", description: "La asignación ha sido eliminada. Guarda los cambios para confirmar.", variant: "destructive"});
+    }, [settings, toast]);
 
     const handleCustomStatusChange = (id: CustomStatus['id'], field: keyof CustomStatus, value: any) => {
         if (!settings) return;
@@ -260,5 +261,3 @@ export default function PlannerSettingsPage() {
         </main>
     );
 }
-
-    

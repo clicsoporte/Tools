@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -62,14 +62,15 @@ export default function RequestSettingsPage() {
         setNewRoute("");
     };
 
-    const handleDeleteRoute = (routeToDelete: string) => {
+    const handleDeleteRoute = useCallback((routeToDelete: string) => {
         if (!settings) return;
         setSettings(prev => {
             if (!prev) return null;
             const updatedRoutes = prev.routes.filter(r => r !== routeToDelete);
             return { ...prev, routes: updatedRoutes };
         });
-    };
+        toast({ title: "Ruta Eliminada", description: "La ruta ha sido eliminada. Guarda los cambios para confirmar.", variant: "destructive"});
+    }, [settings, toast]);
 
     const handleAddShippingMethod = () => {
         if (!settings || !newShippingMethod.trim()) {
@@ -88,14 +89,15 @@ export default function RequestSettingsPage() {
         setNewShippingMethod("");
     };
 
-    const handleDeleteShippingMethod = (methodToDelete: string) => {
+    const handleDeleteShippingMethod = useCallback((methodToDelete: string) => {
         if (!settings) return;
         setSettings(prev => {
             if (!prev) return null;
             const updatedMethods = prev.shippingMethods.filter(s => s !== methodToDelete);
             return { ...prev, shippingMethods: updatedMethods };
         });
-    };
+        toast({ title: "Método de Envío Eliminado", description: "El método ha sido eliminado. Guarda los cambios para confirmar.", variant: "destructive"});
+    }, [settings, toast]);
 
 
     const handleSave = async () => {
