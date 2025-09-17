@@ -277,7 +277,7 @@ export const adminTools: Tool[] = [
         description: "Gestionar prefijos y consecutivos del cotizador.",
         href: "/dashboard/admin/general", // Points to the same page
         icon: BookMarked,
-        bgColor: "bg-green-600",
+        bgColor: "bg-emerald-600",
         textColor: "text-white",
       },
       {

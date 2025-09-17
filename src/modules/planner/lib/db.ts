@@ -452,7 +452,7 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
             orderId: orderId,
         });
 
-        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        const historyStmt = db.prepare('INSERT INTO production_order_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
         historyStmt.run(orderId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
     });
 
