@@ -519,3 +519,5 @@ export type ImportQuery = {
     type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys';
     query: string;
 }
+
+export type { DateRange };
