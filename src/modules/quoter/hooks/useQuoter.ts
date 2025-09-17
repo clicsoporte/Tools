@@ -829,7 +829,7 @@ export const useQuoter = () => {
       currency, lines, selectedCustomer, customerDetails, deliveryAddress, exchangeRate, exchangeRateDate, exchangeRateLoaded,
       quoteNumber, deliveryDate, sellerName, quoteDate, companyData, currentUser, sellerType,
       paymentTerms, creditDays, validUntilDate, notes, products, customers, showInactiveCustomers,
-      showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, productSearchInput, purchaseOrderNumber,
+      showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, productSearchTerm, purchaseOrderNumber,
       exemptionInfo, isRefreshing, customerSearchTerm, isProductSearchOpen, isCustomerSearchOpen
     },
     actions: {
