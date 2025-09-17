@@ -64,12 +64,13 @@ export const initialCompany: Company = {
     nextQuoteNumber: 1,
     decimalPlaces: 2,
     searchDebounceTime: 500,
+    importMode: 'file',
     customerFilePath: "",
     productFilePath: "",
     exemptionFilePath: "",
     stockFilePath: "",
     locationFilePath: "",
-    importMode: "file",
+    cabysFilePath: "",
 };
 
 /**
@@ -115,7 +116,7 @@ export const mainTools: Tool[] = [
   {
     id: "warehouse-assign",
     name: "Asignar Inventario",
-    description: "Mover y asignar artículos a ubicaciones físicas.",
+    description: "Mover inventario entre ubicaciones físicas.",
     href: "/dashboard/warehouse/assign",
     icon: PackagePlus,
     bgColor: "bg-teal-600",
@@ -278,7 +279,7 @@ export const adminTools: Tool[] = [
         description: "Gestionar prefijos y consecutivos del cotizador.",
         href: "/dashboard/admin/general", // Points to the same page
         icon: BookMarked,
-        bgColor: "bg-green-700",
+        bgColor: "bg-emerald-600",
         textColor: "text-white",
       },
       {
@@ -360,5 +361,3 @@ export const adminTools: Tool[] = [
  * A combined list of all tools for easy access.
  */
 export const allTools: Tool[] = [...mainTools, ...adminTools];
-
-    

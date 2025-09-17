@@ -1,5 +1,3 @@
-
-
 // FINAL VALIDATION CHECK
 'use client';
 
@@ -360,7 +358,7 @@ export default function PlannerPage() {
         
         setIsSubmitting(true);
         try {
-            await updateProductionOrderStatus({
+            const updatedOrder = await updateProductionOrderStatus({
                 orderId: orderToUpdate.id,
                 status: newStatus,
                 notes: statusUpdateNotes,
@@ -371,14 +369,15 @@ export default function PlannerPage() {
                 reopen: false,
             });
             
+            setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+            setArchivedOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+
             toast({ title: "Estado Actualizado", description: `La orden ${orderToUpdate.consecutive} ahora está ${dynamicStatusConfig[newStatus]?.label}.` });
             await logInfo("Production order status updated", { order: orderToUpdate.consecutive, newStatus: newStatus });
             setStatusDialogOpen(false);
-            await loadPlannerData(viewingArchived ? archivedPage : 0);
         } catch (error: any) {
             logError("Failed to update order status", { error: error.message });
             toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
-            await loadPlannerData(viewingArchived ? archivedPage : 0); // Fallback to full reload on error
         } finally {
             setIsSubmitting(false);
         }
@@ -711,7 +710,7 @@ export default function PlannerPage() {
         const canHold = hasPermission('planner:status:on-hold') && ['in-progress', 'approved'].includes(order.status);
         const canComplete = hasPermission('planner:status:completed') && order.status === 'in-progress';
         const canReceive = hasPermission('planner:receive') && order.status === 'completed' && plannerSettings?.useWarehouseReception;
-        const canUpdatePriority = hasPermission('planner:priority:update');
+        const canUpdateDetails = hasPermission('planner:priority:update') || hasPermission('planner:machine:assign');
         const canAssignMachine = hasPermission('planner:machine:assign') && !['pending', 'completed', 'received-in-warehouse', 'canceled'].includes(order.status);
         
         const canEditPending = hasPermission('planner:edit:pending') && order.status === 'pending';
@@ -797,7 +796,6 @@ export default function PlannerPage() {
                 </CardHeader>
                 <CardContent className="p-4 pt-0">
                      <div className="space-y-4">
-                        {/* Section for inventory and quantities */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm border-b pb-4">
                             <div className="space-y-1">
                                 <p className="font-semibold text-muted-foreground">Inventario ERP ({defaultWarehouseName})</p>
@@ -830,7 +828,6 @@ export default function PlannerPage() {
                             )}
                         </div>
 
-                        {/* Section for status and planning */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 text-sm pt-4">
                             <div className="space-y-1">
                                 <p className="font-semibold text-muted-foreground">Estado Actual</p>
@@ -847,38 +844,20 @@ export default function PlannerPage() {
 
                             <div className="space-y-1">
                                 <Label>Fecha Programada</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn("h-8 w-full justify-start text-left font-normal", !order.scheduledStartDate && "text-muted-foreground", (order.scheduledStartDate || order.scheduledEndDate) && "border-orange-500")}
-                                            disabled={!canUpdatePriority}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {order.scheduledStartDate ? 
-                                                order.scheduledEndDate ? `${format(parseISO(order.scheduledStartDate), "dd/MM/yy")} - ${format(parseISO(order.scheduledEndDate), "dd/MM/yy")}` : format(parseISO(order.scheduledStartDate), "dd/MM/yyyy")
-                                            : <span>No programada</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar
-                                            mode="range"
-                                            selected={{
-                                                from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined,
-                                                to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined,
-                                            }}
-                                            onSelect={(range) => handleDetailUpdate(order.id, { scheduledDateRange: range })}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
+                                {order.scheduledStartDate ? (
+                                    <p className="font-medium text-orange-600">
+                                        {format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - {order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}
+                                    </p>
+                                ) : (
+                                    <p className="text-muted-foreground">No programada</p>
+                                )}
                             </div>
                             <div className="space-y-1">
                                 <Label>Prioridad</Label>
                                 <Select
                                     value={order.priority}
                                     onValueChange={(value: ProductionOrderPriority) => handleDetailUpdate(order.id, { priority: value })}
-                                    disabled={!canUpdatePriority}
+                                    disabled={!canUpdateDetails}
                                 >
                                     <SelectTrigger className={cn("h-8", priorityConfig[order.priority].className)}>
                                         <SelectValue />
@@ -920,7 +899,31 @@ export default function PlannerPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            
+                            <div className="space-y-1">
+                                 <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className="h-8 w-full"
+                                            disabled={!canAssignMachine}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            Programar Fecha
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar
+                                            mode="range"
+                                            selected={{
+                                                from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined,
+                                                to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined,
+                                            }}
+                                            onSelect={(range) => handleDetailUpdate(order.id, { scheduledDateRange: range })}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
                             {order.erpPackageNumber && (
                                 <div className="space-y-1">
                                     <p className="font-semibold">Nº Paquete ERP</p>
@@ -1246,12 +1249,12 @@ export default function PlannerPage() {
                         <ScrollArea className="h-[60vh] md:h-auto">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-customer-search">Cliente</Label>
+                                    <Label>Cliente</Label>
                                     <Input value={orderToEdit?.customerName} disabled />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-product-search">Producto</Label>
+                                    <Label>Producto</Label>
                                     <Input value={`[${orderToEdit?.productId}] ${orderToEdit?.productDescription}`} disabled />
                                 </div>
 
@@ -1544,4 +1547,3 @@ export default function PlannerPage() {
         </main>
     );
 }
-
