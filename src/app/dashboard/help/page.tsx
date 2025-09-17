@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertCircle, Database, ToggleRight, FilePlus, BookMarked } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertCircle, Database, ToggleRight, FilePlus, BookMarked, Save, Copy, Folder } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
 import { getCompanySettings } from "../../../modules/core/lib/db-client";
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -142,7 +142,7 @@ export default function HelpPage() {
                         <strong>Crear Órdenes:</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
                     </li>
                     <li>
-                        <strong>Programación por Rango de Fechas:</strong> Una orden de producción a menudo abarca varios días. Para reflejar esto, haz clic en el área de "Fecha Programada" de una orden para abrir un calendario y seleccionar un rango de fechas de inicio y fin.
+                        <strong>Programación por Rango de Fechas:</strong> Una orden de producción puede abarcar varios días. Para reflejar esto, haz clic directamente en el área de "Fecha Programada" de una orden. Esto abrirá un calendario donde puedes seleccionar un rango de fechas de inicio y fin.
                     </li>
                     <li>
                         <strong>Gestión de Estados y Asignaciones:</strong>
@@ -285,6 +285,39 @@ export default function HelpPage() {
                     </div>
                 </div>
               </AccordionContent>
+            </AccordionItem>
+            
+            <AccordionItem value="item-update">
+                <AccordionTrigger className="text-lg font-semibold">
+                  <Wrench className="mr-4 h-6 w-6 text-slate-600" />
+                  ¿Cómo se actualiza la aplicación?
+                </AccordionTrigger>
+                <AccordionContent className="prose max-w-none text-base space-y-4">
+                    <p>Actualizar la aplicación a una nueva versión sin perder tus datos es un proceso seguro gracias al sistema de **migraciones automáticas**. Sigue estos pasos cuidadosamente en tu servidor de producción.</p>
+                    
+                    <h4 className="font-semibold">Proceso de Actualización Seguro</h4>
+                    <ol className="list-decimal space-y-3 pl-6">
+                        <li>
+                            <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve al directorio de la aplicación en tu servidor y haz una copia de seguridad completa de la carpeta `dbs/`. Esta carpeta contiene todas tus bases de datos (usuarios, órdenes, solicitudes, etc.).
+                        </li>
+                        <li>
+                            <strong>Paso 2: Reemplazar Archivos.</strong> Detén la aplicación (por ejemplo, usando `pm2 stop clic-tools`). Luego, borra todos los archivos y carpetas de la versión anterior **excepto** la carpeta `dbs/` y, si existe, el archivo `.env.local`. Después, copia todos los archivos de la nueva versión en su lugar.
+                        </li>
+                        <li>
+                            <strong>Paso 3: Actualizar y Reconstruir.</strong> Abre una terminal en la carpeta del proyecto, ejecuta `npm install --omit=dev` para instalar cualquier nueva dependencia y luego `npm run build` para compilar la nueva versión.
+                        </li>
+                        <li>
+                            <strong>Paso 4: Reiniciar.</strong> Vuelve a iniciar la aplicación (ej: `pm2 start clic-tools`). Al arrancar, el sistema detectará que las bases de datos en la carpeta `dbs/` no tienen las últimas columnas o tablas y las añadirá automáticamente sin borrar los datos existentes.
+                        </li>
+                    </ol>
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>¡Atención!</AlertTitle>
+                        <AlertDescription>
+                            Nunca reemplaces la carpeta `dbs/` del servidor con la de la nueva versión, ya que esto borraría todos tus datos de producción.
+                        </AlertDescription>
+                    </Alert>
+                </AccordionContent>
             </AccordionItem>
           </Accordion>
         </CardContent>

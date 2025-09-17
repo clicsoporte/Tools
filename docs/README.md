@@ -112,8 +112,38 @@ Esta es una de las funcionalidades más críticas y flexibles, gestionada desde 
 
 ---
 
-## 6. Créditos y Licencia
+## 6. Proceso de Actualización de Versiones
+
+Actualizar la aplicación a una nueva versión sin perder datos es un proceso crítico. Sigue estos pasos cuidadosamente.
+
+**Filosofía de Actualización:** La aplicación está diseñada para manejar cambios en la base de datos de forma automática. Al iniciar, el sistema verifica si faltan tablas o columnas y las añade sin borrar los datos existentes. Este proceso se conoce como **migración**.
+
+### Proceso de Actualización Seguro:
+
+1.  **Paso 1: Realizar una Copia de Seguridad (¡CRÍTICO!)**
+    -   Antes de hacer cualquier cambio, haz una copia de seguridad completa de la carpeta `dbs/`. Esta carpeta contiene todos los datos de tu aplicación (usuarios, órdenes, solicitudes, etc.). Simplemente copia y pega esta carpeta en un lugar seguro.
+    -   Haz también una copia del archivo `.env.local` si lo estás usando para la conexión SQL.
+
+2.  **Paso 2: Reemplazar los Archivos de la Aplicación**
+    -   Detén la aplicación en el servidor (ej: `pm2 stop clic-tools` o deteniendo el sitio en IIS).
+    -   Elimina todos los archivos y carpetas de la versión anterior **EXCEPTO** la carpeta `dbs/` y el archivo `.env.local`.
+    -   Copia todos los archivos y carpetas de la **nueva versión** en el directorio de la aplicación.
+
+3.  **Paso 3: Actualizar Dependencias y Reconstruir**
+    -   Abre una terminal en la carpeta del proyecto en el servidor.
+    -   Ejecuta `npm install --omit=dev` para instalar cualquier nueva dependencia que la actualización pueda requerir.
+    -   Ejecuta `npm run build` para compilar la nueva versión de la aplicación.
+
+4.  **Paso 4: Reiniciar la Aplicación**
+    -   Inicia la aplicación nuevamente (ej: `pm2 start clic-tools` o iniciando el sitio en IIS).
+    -   Al primer inicio, la aplicación detectará las diferencias en la base de datos y aplicará las migraciones necesarias automáticamente. Podrás ver mensajes sobre esto en los logs (ej: `MIGRATION: Adding new_column to some_table.`).
+
+5.  **Paso 5: Verificar**
+    -   Accede a la aplicación y verifica que tus datos sigan ahí y que las nuevas funcionalidades operen correctamente.
+    -   Si algo sale catastróficamente mal, puedes restaurar tu copia de seguridad de la carpeta `dbs/` y el código de la versión anterior para volver al estado previo.
+
+---
+
+## 7. Créditos y Licencia
 
 Este proyecto se distribuye bajo la **Licencia MIT**.
-
-    
