@@ -55,6 +55,9 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     `;
     db.exec(schema);
 
+    // Apply migrations right after initialization to ensure schema is up-to-date
+    runPlannerMigrations(db);
+
     const defaultCustomStatuses: CustomStatus[] = [
         { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
         { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
@@ -523,7 +526,7 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
             orderId: orderId,
         });
 
-        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
         historyStmt.run(orderId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
     });
 
