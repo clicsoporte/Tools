@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertTriangle, Database, ToggleRight, FilePlus, BookMarked, Save, Copy, Folder } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
 import { getCompanySettings } from "../../../modules/core/lib/db-client";
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -142,7 +142,7 @@ export default function HelpPage() {
                         <strong>Crear Órdenes:</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
                     </li>
                     <li>
-                        <strong>Programación por Rango de Fechas:</strong> Una orden puede abarcar varios días. Para reflejar esto, haz clic directamente en el área de "Fecha Programada" de una orden. Esto abrirá un calendario donde puedes seleccionar un rango de fechas de inicio y fin. Si no hay fecha, el botón dirá "Programar Fecha".
+                        <strong>Programación por Rango de Fechas:</strong> Una orden de producción a menudo abarca varios días. Para reflejar esto, haz clic directamente en el área de "Fecha Programada" de una orden. Esto abrirá un calendario donde puedes seleccionar un rango de fechas de inicio y fin. Si no hay fecha, el botón dirá "Programar Fecha".
                     </li>
                     <li>
                         <strong>Gestión de Estados y Asignaciones:</strong>
@@ -163,35 +163,78 @@ export default function HelpPage() {
             </AccordionItem>
             
             <AccordionItem value="item-warehouse">
-              <AccordionTrigger className="text-lg font-semibold">
-                <Warehouse className="mr-4 h-6 w-6 text-cyan-600" />
-                Módulo de Almacenes
-              </AccordionTrigger>
-              <AccordionContent className="prose max-w-none text-base space-y-4">
-                 <p>Este módulo te da control sobre la ubicación de tu inventario físico. Se divide en dos herramientas principales.</p>
-                <ul className="list-disc space-y-4 pl-6">
-                    <li>
-                        <strong>Consulta de Almacén (<Search className="inline h-4 w-4"/>):</strong> 
-                        <p className="mt-2">En esta pantalla, puedes buscar un artículo y el sistema te mostrará instantáneamente las ubicaciones físicas donde se encuentra y, si el modo avanzado está activo, la cantidad exacta en cada una. También puedes ver el stock total del ERP para comparar.</p>
-                    </li>
-                     <li>
-                        <strong>Asignar Inventario (<PackagePlus className="inline h-4 w-4"/>):</strong> 
-                        <p className="mt-2">Esta es la herramienta para organizar tu almacén. Dependiendo de la configuración, funciona de dos maneras:</p>
-                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                             <li><strong>Modo Simple (Control de inventario desactivado):</strong> Solo puedes asignar un artículo a una o más ubicaciones (ej. `Bolsa P011` está en `Rack 01-A`). Es un modo puramente informativo.</li>
-                             <li><strong>Modo Avanzado (Control de inventario activado):</strong> Te permite mover cantidades específicas de un artículo entre ubicaciones, llevando un registro de cada movimiento.</li>
-                        </ul>
-                    </li>
-                     <li>
-                        <strong>Configuración Clave (<Wrench className="inline h-4 w-4"/>):</strong>
-                        <p className="mt-2">Todo se configura en **Administración &gt; Config. Almacenes**. Este es el paso más importante:</p>
-                        <ol className="list-decimal space-y-2 pl-5 mt-2 text-sm">
-                            <li><strong>Paso 1: Define tu Jerarquía.</strong> En la sección "Definir Jerarquía del Almacén", establece los nombres de tus niveles (ej: Bodega, Pasillo, Rack, Nivel, Casilla). Esto es solo la plantilla.</li>
-                            <li><strong>Paso 2: Crea las Ubicaciones Reales.</strong> En "Gestionar Ubicaciones Físicas", usa los niveles que creaste para construir tu almacén real. Por ejemplo, creas una `Bodega` llamada `BOD-01`, luego un `Pasillo` llamado `PAS-A` y lo asignas como hijo de `BOD-01`.</li>
-                        </ol>
-                    </li>
-                </ul>
-              </AccordionContent>
+                <AccordionTrigger className="text-lg font-semibold">
+                    <Warehouse className="mr-4 h-6 w-6 text-cyan-600" />
+                    Módulo de Almacenes
+                </AccordionTrigger>
+                <AccordionContent className="prose max-w-none text-base space-y-4">
+                    <p>Este módulo te da control sobre la ubicación de tu inventario. Su configuración, aunque potente, puede ser confusa al principio. Se basa en un concepto de dos pasos: el **Molde** y el **Árbol**.</p>
+                    
+                    <ul className="list-none space-y-3 pl-0">
+                        <li>
+                            <strong className="text-base">1. El Molde (Definir Jerarquía):</strong> Aquí le dices al sistema cómo organizas tu almacén, pero sin crear nada real todavía. Es solo la plantilla. Por ejemplo: le dices que usas "Bodegas", que dentro de ellas hay "Pasillos", y que en los pasillos hay "Racks".
+                        </li>
+                        <li>
+                            <strong className="text-base">2. El Árbol (Crear Ubicaciones Reales):</strong> Una vez que tienes el molde, usas esos niveles para construir tu almacén real. Creas una ubicación de tipo "Bodega" y le pones el nombre `Bodega 04`. Luego, creas otra de tipo "Pasillo" llamada `Pasillo Principal` y le dices que está *dentro de* `Bodega 04`.
+                        </li>
+                    </ul>
+
+                    <h4 className="font-semibold text-lg pt-4 border-t">Tutorial Práctico: Configurando tu Almacén</h4>
+                    <p>Usemos un ejemplo real: tienes una bodega (`04`), con un pasillo (`01`) entre dos racks (`01` y `02`). Los productos se guardan en tarimas (`pallets`) que tienen una posición horizontal y vertical.</p>
+
+                    <h5 className="font-semibold">Paso 1: Crear el "Molde" (La Jerarquía)</h5>
+                    <ol className="list-decimal space-y-2 pl-6">
+                        <li>Ve a <strong>Administración {'>'} Config. Almacenes</strong>.</li>
+                        <li>En la sección <strong>"Paso 1: Definir Jerarquía del Almacén"</strong>, borra los niveles que existan.</li>
+                        <li>Añade, en orden, los siguientes niveles:
+                            <ul className="list-[circle] space-y-1 pl-5 mt-2">
+                                <li>Bodega</li>
+                                <li>Pasillo</li>
+                                <li>Rack</li>
+                                <li>Posición Horizontal</li>
+                                <li>Posición Vertical</li>
+                            </ul>
+                        </li>
+                        <li>Haz clic en <strong>Guardar Niveles</strong>.</li>
+                    </ol>
+
+                    <h5 className="font-semibold">Paso 2: Construir el "Árbol" (Las Ubicaciones Reales)</h5>
+                    <p>Ahora, en la sección **"Paso 2: Crear Ubicaciones Reales"**, vamos a construir el almacén pieza por pieza:</p>
+                    <ol className="list-decimal space-y-3 pl-6">
+                        <li>
+                            <strong>Crear la Bodega:</strong>
+                            <ul className="list-[circle] space-y-1 pl-5 mt-2 text-sm">
+                                <li>Haz clic en <strong>"Añadir Ubicación"</strong>.</li>
+                                <li><strong>Nombre:</strong> `Bodega 04`, <strong>Código:</strong> `B04`.</li>
+                                <li><strong>Tipo de Ubicación:</strong> `Nivel 1: Bodega`.</li>
+                                <li><strong>Ubicación Padre:</strong> Déjalo en `Sin padre`.</li>
+                                <li>Guarda. Ya tienes la raíz de tu árbol.</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Crear el Pasillo:</strong>
+                             <ul className="list-[circle] space-y-1 pl-5 mt-2 text-sm">
+                                <li>Haz clic de nuevo en <strong>"Añadir Ubicación"</strong>.</li>
+                                <li><strong>Nombre:</strong> `Pasillo 01`, <strong>Código:</strong> `P01`.</li>
+                                <li><strong>Tipo de Ubicación:</strong> `Nivel 2: Pasillo`.</li>
+                                <li><strong>Ubicación Padre:</strong> Selecciona `Bodega 04`.</li>
+                                <li>Guarda. Verás que `Pasillo 01` aparece anidado debajo de `Bodega 04`.</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Crear los Racks:</strong> Repite el proceso para crear `Rack 01` (Código `R01`) y `Rack 02` (Código `R02`), ambos de tipo `Nivel 3: Rack` y ambos con `Pasillo 01` como padre.
+                        </li>
+                         <li>
+                            <strong>Crear las Posiciones:</strong> Finalmente, puedes crear las posiciones dentro de cada rack. Por ejemplo, para crear la primera posición del Rack 01:
+                             <ul className="list-[circle] space-y-1 pl-5 mt-2 text-sm">
+                                <li>Añade `Posición Horizontal 1` (Código `H1`), tipo `Nivel 4`, padre `Rack 01`.</li>
+                                <li>Añade `Posición Vertical 1` (Código `V1`), tipo `Nivel 5`, padre `Posición Horizontal 1`.</li>
+                            </ul>
+                            Tu ubicación final para un producto sería `B04 > P01 > R01 > H1 > V1`.
+                        </li>
+                    </ol>
+                    <p className="pt-2">Una vez configurado, puedes ir al módulo <strong>Asignar Inventario</strong> para empezar a colocar tus artículos, como el `P011 BOLSA 20 X 30 X 2.5`, en estas nuevas ubicaciones.</p>
+                </AccordionContent>
             </AccordionItem>
             
             <AccordionItem value="item-admin">
