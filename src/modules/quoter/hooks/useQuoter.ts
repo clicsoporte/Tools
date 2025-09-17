@@ -130,8 +130,8 @@ export const useQuoter = () => {
   const [isProductSearchOpen, setProductSearchOpen] = useState(false);
   const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
 
-  const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, 300);
-  const [debouncedProductSearch] = useDebounce(productSearchTerm, 300);
+  const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, companyData?.searchDebounceTime ?? 500);
+  const [debouncedProductSearch] = useDebounce(productSearchTerm, companyData?.searchDebounceTime ?? 500);
 
 
   // --- REFS FOR KEYBOARD NAVIGATION ---

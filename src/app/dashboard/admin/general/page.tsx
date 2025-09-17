@@ -192,11 +192,12 @@ export default function GeneralSettingsPage() {
 
             <Card className="mt-6">
                 <CardHeader>
-                    <CardTitle>Configuración de Cotizaciones</CardTitle>
-                    <CardDescription>Ajustes específicos para el módulo de cotizador.</CardDescription>
+                    <CardTitle>Ajustes de Módulos</CardTitle>
+                    <CardDescription>Configuración específica para los módulos de la aplicación.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                      <h3 className="font-semibold text-lg">Cotizador</h3>
                       <div className="space-y-2">
                           <Label htmlFor="quotePrefix">Prefijo de Cotización</Label>
                           <Input 
@@ -215,7 +216,7 @@ export default function GeneralSettingsPage() {
                           />
                       </div>
                       <div className="space-y-2">
-                          <Label htmlFor="decimalPlaces">Decimales</Label>
+                          <Label htmlFor="decimalPlaces">Decimales en Precios</Label>
                           <Input 
                               id="decimalPlaces"
                               type="number"
@@ -224,6 +225,21 @@ export default function GeneralSettingsPage() {
                           />
                       </div>
                   </div>
+                   <div className="space-y-4">
+                      <h3 className="font-semibold text-lg">Interfaz y Rendimiento</h3>
+                       <div className="space-y-2">
+                          <Label htmlFor="searchDebounceTime">Retraso de Búsqueda (ms)</Label>
+                          <Input 
+                              id="searchDebounceTime"
+                              type="number"
+                              value={companyData.searchDebounceTime ?? 500}
+                              onChange={handleChange}
+                          />
+                           <p className="text-xs text-muted-foreground pt-1">
+                              Tiempo en milisegundos que el sistema espera antes de buscar (ej: 500 = 0.5s).
+                           </p>
+                      </div>
+                   </div>
                 </CardContent>
             </Card>
 

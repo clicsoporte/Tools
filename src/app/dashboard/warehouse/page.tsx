@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getInventory as getWarehouseData, getStockSettings } from '@/modules/warehouse/lib/db-client';
-import { getAllProducts, importAllDataFromFiles, getAllCustomers } from '@/modules/core/lib/db-client';
-import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer } from '@/modules/core/types';
+import { getAllProducts, importAllDataFromFiles, getAllCustomers, getCompanySettings } from '@/modules/core/lib/db-client';
+import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer, Company } from '@/modules/core/types';
 import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, RefreshCw, Loader2, Info, User } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,8 @@ export default function WarehousePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [debouncedSearchTerm] = useDebounce(searchTerm, 1500);
+    const [companySettings, setCompanySettings] = useState<Company | null>(null);
+    const [debouncedSearchTerm] = useDebounce(searchTerm, companySettings?.searchDebounceTime ?? 1500);
     
     const [locations, setLocations] = useState<WarehouseLocation[]>([]);
     const [inventory, setInventory] = useState<WarehouseInventoryItem[]>([]);
@@ -50,12 +51,13 @@ export default function WarehousePage() {
     const loadData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [wData, prods, sSettings, whSettings, custs] = await Promise.all([
+            const [wData, prods, sSettings, whSettings, custs, company] = await Promise.all([
                 getWarehouseData(),
                 getAllProducts(),
                 getStockSettings(),
                 getWarehouseSettings(),
                 getAllCustomers(),
+                getCompanySettings(),
             ]);
             setLocations(wData.locations);
             setInventory(wData.inventory);
@@ -65,6 +67,7 @@ export default function WarehousePage() {
             setStock(wData.stock);
             setStockSettings(sSettings);
             setWarehouseSettings(whSettings);
+            setCompanySettings(company);
         } catch (error) {
             console.error("Failed to load warehouse data", error);
             logError("Failed to load warehouse data", { error });

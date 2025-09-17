@@ -37,6 +37,7 @@ export type Company = {
     quotePrefix: string;
     nextQuoteNumber: number;
     decimalPlaces: number;
+    searchDebounceTime?: number;
     importMode: 'file' | 'sql';
     customerFilePath?: string;
     productFilePath?: string;

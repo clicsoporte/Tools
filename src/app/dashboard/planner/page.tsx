@@ -98,14 +98,14 @@ export default function PlannerPage() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [classificationFilter, setClassificationFilter] = useState("all");
     const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
-    const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
+    const [debouncedSearchTerm] = useDebounce(searchTerm, companyData?.searchDebounceTime ?? 500);
 
     const [customerSearchTerm, setCustomerSearchTerm] = useState("");
     const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
     const [productSearchTerm, setProductSearchTerm] = useState("");
     const [isProductSearchOpen, setProductSearchOpen] = useState(false);
-    const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, 300);
-    const [debouncedProductSearch] = useDebounce(productSearchTerm, 300);
+    const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, companyData?.searchDebounceTime ?? 500);
+    const [debouncedProductSearch] = useDebounce(productSearchTerm, companyData?.searchDebounceTime ?? 500);
     
     const [isStatusDialogOpen, setStatusDialogOpen] = useState(false);
     const [orderToUpdate, setOrderToUpdate] = useState<ProductionOrder | null>(null);

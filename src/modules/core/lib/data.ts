@@ -63,6 +63,7 @@ export const initialCompany: Company = {
     quotePrefix: "COT-",
     nextQuoteNumber: 1,
     decimalPlaces: 2,
+    searchDebounceTime: 500,
     customerFilePath: "",
     productFilePath: "",
     exemptionFilePath: "",
