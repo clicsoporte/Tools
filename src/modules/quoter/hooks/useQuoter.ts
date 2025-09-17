@@ -829,8 +829,8 @@ export const useQuoter = () => {
       currency, lines, selectedCustomer, customerDetails, deliveryAddress, exchangeRate, exchangeRateDate, exchangeRateLoaded,
       quoteNumber, deliveryDate, sellerName, quoteDate, companyData, currentUser, sellerType,
       paymentTerms, creditDays, validUntilDate, notes, products, customers, showInactiveCustomers,
-      showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, purchaseOrderNumber,
-      exemptionInfo, isRefreshing, customerSearchTerm, productSearchTerm, isProductSearchOpen, isCustomerSearchOpen
+      showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, productSearchInput, purchaseOrderNumber,
+      exemptionInfo, isRefreshing, customerSearchTerm, isProductSearchOpen, isCustomerSearchOpen
     },
     actions: {
       setCurrency, setLines, setSelectedCustomer, setCustomerDetails, setDeliveryAddress, setExchangeRate,
