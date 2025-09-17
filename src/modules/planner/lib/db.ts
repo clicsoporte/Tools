@@ -189,9 +189,42 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
     transaction(settings);
 }
 
-export async function getOrders(): Promise<ProductionOrder[]> {
+export async function getOrders(options: { page?: number, pageSize?: number }): Promise<{ orders: ProductionOrder[], totalArchivedCount: number }> {
     const db = await connectDb(PLANNER_DB_FILE);
-    return db.prepare('SELECT * FROM production_orders ORDER BY requestDate DESC').all() as ProductionOrder[];
+    const { page = 0, pageSize = 50 } = options;
+
+    const settings = await getSettings();
+    const archivedStatuses = settings.useWarehouseReception
+        ? ['received-in-warehouse', 'canceled']
+        : ['completed', 'canceled'];
+
+    const archivedWhereClause = `status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`;
+    
+    // Get paginated archived orders
+    const archivedOrders = db.prepare(`
+        SELECT * FROM production_orders 
+        WHERE ${archivedWhereClause}
+        ORDER BY requestDate DESC
+        LIMIT ? OFFSET ?
+    `).all(pageSize, page * pageSize) as ProductionOrder[];
+
+    // Get all active orders
+    const activeOrders = db.prepare(`
+        SELECT * FROM production_orders 
+        WHERE NOT ${archivedWhereClause}
+        ORDER BY requestDate DESC
+    `).all() as ProductionOrder[];
+
+    // Get total count of archived orders for pagination info
+    const totalArchivedCount = (db.prepare(`
+        SELECT COUNT(*) as count FROM production_orders 
+        WHERE ${archivedWhereClause}
+    `).get() as { count: number }).count;
+    
+    // Combine active and the current page of archived orders
+    const allOrders = [...activeOrders, ...archivedOrders];
+    
+    return { orders: allOrders, totalArchivedCount };
 }
 
 export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'>, requestedBy: string): Promise<ProductionOrder> {
@@ -452,7 +485,7 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
             orderId: orderId,
         });
 
-        const historyStmt = db.prepare('INSERT INTO production_order_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
         historyStmt.run(orderId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
     });
 

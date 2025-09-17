@@ -16,8 +16,8 @@ import {
     rejectCancellation as rejectCancellationServer,
 } from './db';
 
-export async function getProductionOrders(): Promise<ProductionOrder[]> {
-    return getOrders();
+export async function getProductionOrders(options: { page?: number, pageSize?: number }): Promise<{ orders: ProductionOrder[], totalArchivedCount: number }> {
+    return getOrders(options);
 }
 
 export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'>, requestedBy: string): Promise<ProductionOrder> {

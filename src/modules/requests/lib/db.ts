@@ -166,9 +166,38 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     transaction(settings);
 }
 
-export async function getRequests(): Promise<PurchaseRequest[]> {
+export async function getRequests(options: { page?: number, pageSize?: number }): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
     const db = await connectDb(REQUESTS_DB_FILE);
-    return db.prepare('SELECT * FROM purchase_requests ORDER BY requestDate DESC').all() as PurchaseRequest[];
+    const { page = 0, pageSize = 50 } = options;
+
+    const settings = await getSettings();
+    const archivedStatuses = settings.useWarehouseReception
+        ? ['received-in-warehouse', 'canceled']
+        : ['received', 'canceled'];
+
+    const archivedWhereClause = `status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`;
+    
+    const archivedRequests = db.prepare(`
+        SELECT * FROM purchase_requests 
+        WHERE ${archivedWhereClause}
+        ORDER BY requestDate DESC
+        LIMIT ? OFFSET ?
+    `).all(pageSize, page * pageSize) as PurchaseRequest[];
+
+    const activeRequests = db.prepare(`
+        SELECT * FROM purchase_requests 
+        WHERE NOT ${archivedWhereClause}
+        ORDER BY requestDate DESC
+    `).all() as PurchaseRequest[];
+
+    const totalArchivedCount = (db.prepare(`
+        SELECT COUNT(*) as count FROM purchase_requests 
+        WHERE ${archivedWhereClause}
+    `).get() as { count: number }).count;
+    
+    const allRequests = [...activeRequests, ...archivedRequests];
+    
+    return { requests: allRequests, totalArchivedCount };
 }
 
 export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {

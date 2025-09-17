@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, PackageCheck, Factory, ShieldAlert, XCircle, Undo2, Boxes, FileDown, Pencil, CalendarIcon, FilterX } from 'lucide-react';
+import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, PackageCheck, Factory, ShieldAlert, XCircle, Undo2, Boxes, FileDown, Pencil, CalendarIcon, FilterX, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -69,6 +69,8 @@ const statusConfig: { [key in ProductionOrderStatus]?: { label: string; color: s
     canceled: { label: "Cancelada", color: "bg-red-700" },
 };
 
+const ARCHIVED_PAGE_SIZE = 50;
+
 export default function PlannerPage() {
     const { isAuthorized, hasPermission } = useAuthorization(['planner:read']);
     const { setTitle } = usePageTitle();
@@ -83,6 +85,8 @@ export default function PlannerPage() {
     const [activeOrders, setActiveOrders] = useState<ProductionOrder[]>([]);
     const [archivedOrders, setArchivedOrders] = useState<ProductionOrder[]>([]);
     const [viewingArchived, setViewingArchived] = useState(false);
+    const [archivedPage, setArchivedPage] = useState(0);
+    const [totalArchived, setTotalArchived] = useState(0);
     const [plannerSettings, setPlannerSettings] = useState<PlannerSettings | null>(null);
     const [stockSettings, setStockSettings] = useState<StockSettings | null>(null);
     
@@ -147,18 +151,16 @@ export default function PlannerPage() {
         setTitle("Planificador OP");
     }, [setTitle]);
 
-    const loadPlannerData = useCallback(async () => {
+    const loadPlannerData = useCallback(async (page = 0) => {
         setIsLoading(true);
         try {
-            const [allOrders, settings, stockSettingsData] = await Promise.all([
-                getProductionOrders(),
-                getPlannerSettings(),
-                getStockSettings()
-            ]);
+            const { orders, totalArchivedCount } = await getProductionOrders({
+                page: viewingArchived ? page : 0,
+                pageSize: ARCHIVED_PAGE_SIZE,
+            });
             
-            if (!allOrders || !settings) {
-                throw new Error('Failed to load data');
-            }
+            const settings = await getPlannerSettings();
+            const stockSettingsData = await getStockSettings();
             
             const useWarehouse = settings.useWarehouseReception;
             
@@ -170,8 +172,9 @@ export default function PlannerPage() {
                 ? o.status === 'received-in-warehouse' || o.status === 'canceled'
                 : o.status === 'completed' || o.status === 'canceled';
 
-            setActiveOrders(allOrders.filter(activeFilter));
-            setArchivedOrders(allOrders.filter(archivedFilter));
+            setActiveOrders(orders.filter(activeFilter));
+            setArchivedOrders(orders.filter(archivedFilter));
+            setTotalArchived(totalArchivedCount);
             setPlannerSettings(settings);
             setStockSettings(stockSettingsData);
         } catch (error) {
@@ -180,12 +183,18 @@ export default function PlannerPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [toast]);
+    }, [toast, viewingArchived]);
+    
+    useEffect(() => {
+        if (isAuthorized) {
+            loadPlannerData(archivedPage);
+        }
+    }, [isAuthorized, loadPlannerData, archivedPage, viewingArchived]);
     
     useEffect(() => {
         if (isAuthorized === null) return;
         
-        const loadInitialData = async () => {
+        const loadSupportingData = async () => {
             setIsLoading(true);
             try {
                 const [customersData, productsData, stockData] = await Promise.all([
@@ -196,7 +205,6 @@ export default function PlannerPage() {
                 setCustomers(customersData);
                 setProducts(productsData);
                 setStockLevels(stockData);
-                await loadPlannerData();
             } catch (error) {
                 logError("Failed to load planner initial data", { error });
                 toast({ title: "Error", description: "No se pudieron cargar los datos de clientes y productos.", variant: "destructive" });
@@ -206,9 +214,9 @@ export default function PlannerPage() {
         };
 
         if (isAuthorized) {
-            loadInitialData();
+            loadSupportingData();
         }
-    }, [isAuthorized, toast, loadPlannerData]);
+    }, [isAuthorized, toast]);
 
     const customerOptions = useMemo(() => {
         if (debouncedCustomerSearch.length < 2) return [];
@@ -340,7 +348,7 @@ export default function PlannerPage() {
         
         setIsSubmitting(true);
         try {
-            const updatedOrder = await updateProductionOrderStatus({
+            await updateProductionOrderStatus({
                 orderId: orderToUpdate.id,
                 status: newStatus,
                 notes: statusUpdateNotes,
@@ -351,26 +359,14 @@ export default function PlannerPage() {
                 reopen: false,
             });
             
-             const useWarehouse = plannerSettings?.useWarehouseReception;
-             const shouldBeActive = useWarehouse
-                ? updatedOrder.status !== 'received-in-warehouse' && updatedOrder.status !== 'canceled'
-                : updatedOrder.status !== 'completed' && updatedOrder.status !== 'canceled';
-
-            if(shouldBeActive) {
-                setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-                setArchivedOrders(prev => prev.filter(o => o.id !== updatedOrder.id));
-            } else {
-                setArchivedOrders(prev => [updatedOrder, ...prev.filter(o => o.id !== updatedOrder.id)]);
-                setActiveOrders(prev => prev.filter(o => o.id !== updatedOrder.id));
-            }
-
             toast({ title: "Estado Actualizado", description: `La orden ${orderToUpdate.consecutive} ahora está ${dynamicStatusConfig[newStatus]?.label}.` });
             await logInfo("Production order status updated", { order: orderToUpdate.consecutive, newStatus: newStatus });
             setStatusDialogOpen(false);
+            await loadPlannerData(viewingArchived ? archivedPage : 0);
         } catch (error: any) {
             logError("Failed to update order status", { error: error.message });
             toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
-            await loadPlannerData(); // Fallback to full reload on error
+            await loadPlannerData(viewingArchived ? archivedPage : 0); // Fallback to full reload on error
         } finally {
             setIsSubmitting(false);
         }
@@ -416,21 +412,20 @@ export default function PlannerPage() {
 
         setIsSubmitting(true);
         try {
-            const updatedOrder = await updateProductionOrderStatus({
+            await updateProductionOrderStatus({
                 orderId: orderToUpdate.id,
                 status: 'pending',
                 notes: 'Orden reabierta por el administrador.',
                 updatedBy: currentUser.name,
                 reopen: true,
             });
-            setActiveOrders(prev => [updatedOrder, ...prev]);
-            setArchivedOrders(prev => prev.filter(o => o.id !== orderToUpdate.id));
-
+            
             toast({ title: "Orden Reabierta", description: `La orden ${orderToUpdate.consecutive} ha sido movida a pendientes.` });
             await logInfo("Production order reopened", { order: orderToUpdate.consecutive });
             setReopenDialogOpen(false);
             setReopenStep(0);
             setReopenConfirmationText('');
+            await loadPlannerData();
         } catch (error: any) {
             logError("Failed to reopen order", { error: error.message });
             toast({ title: "Error al Reabrir", description: error.message, variant: "destructive" });
@@ -1182,6 +1177,32 @@ export default function PlannerPage() {
                     </div>
                 )}
             </div>
+
+            {viewingArchived && totalArchived > ARCHIVED_PAGE_SIZE && (
+                 <div className="flex items-center justify-center space-x-2 py-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setArchivedPage(p => p - 1)}
+                        disabled={archivedPage === 0}
+                    >
+                        <ChevronLeft className="mr-2 h-4 w-4" />
+                        Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                        Página {archivedPage + 1} de {Math.ceil(totalArchived / ARCHIVED_PAGE_SIZE)}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setArchivedPage(p => p + 1)}
+                        disabled={(archivedPage + 1) * ARCHIVED_PAGE_SIZE >= totalArchived}
+                    >
+                        Siguiente
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                </div>
+            )}
             
             {/* EDIT ORDER DIALOG */}
             <Dialog open={isEditOrderDialogOpen} onOpenChange={setEditOrderDialogOpen}>

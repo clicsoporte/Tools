@@ -14,8 +14,8 @@ import {
     saveSettings,
 } from './db';
 
-export async function getPurchaseRequests(): Promise<PurchaseRequest[]> {
-    return getRequests();
+export async function getPurchaseRequests(options: { page?: number, pageSize?: number }): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
+    return getRequests(options);
 }
 
 export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {

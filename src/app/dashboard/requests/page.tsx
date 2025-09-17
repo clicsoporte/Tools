@@ -13,14 +13,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User } from 'lucide-react';
+import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getAllCustomers, getAllProducts, getAllStock } from '@/modules/core/lib/db-client';
 import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings } from '@/modules/requests/lib/db-client';
-import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestHistoryEntry, User, RequestSettings, PurchaseRequestPriority, StockInfo } from '@/modules/core/types';
+import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestHistoryEntry, User, RequestSettings, PurchaseRequestPriority, StockInfo, Company } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -71,11 +71,13 @@ const priorityConfig: { [key in PurchaseRequestPriority]: { label: string; class
     urgent: { label: "Urgente", className: "text-red-600" },
 };
 
+const ARCHIVED_PAGE_SIZE = 50;
+
 export default function PurchaseRequestPage() {
     const { isAuthorized, hasPermission } = useAuthorization(['requests:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, companyData } = useAuth();
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,6 +87,8 @@ export default function PurchaseRequestPage() {
     const [activeRequests, setActiveRequests] = useState<PurchaseRequest[]>([]);
     const [archivedRequests, setArchivedRequests] = useState<PurchaseRequest[]>([]);
     const [viewingArchived, setViewingArchived] = useState(false);
+    const [archivedPage, setArchivedPage] = useState(0);
+    const [totalArchived, setTotalArchived] = useState(0);
     
     const [clients, setClients] = useState<Customer[]>([]);
     const [items, setItems] = useState<Product[]>([]);
@@ -99,14 +103,14 @@ export default function PurchaseRequestPage() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [classificationFilter, setClassificationFilter] = useState("all");
     const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
-    const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
+    const [debouncedSearchTerm] = useDebounce(searchTerm, companyData?.searchDebounceTime ?? 500);
 
     const [clientSearchTerm, setClientSearchTerm] = useState("");
     const [isClientSearchOpen, setClientSearchOpen] = useState(false);
     const [itemSearchTerm, setItemSearchTerm] = useState("");
     const [isItemSearchOpen, setItemSearchOpen] = useState(false);
-    const [debouncedClientSearch] = useDebounce(clientSearchTerm, 300);
-    const [debouncedItemSearch] = useDebounce(itemSearchTerm, 300);
+    const [debouncedClientSearch] = useDebounce(clientSearchTerm, companyData?.searchDebounceTime ?? 500);
+    const [debouncedItemSearch] = useDebounce(itemSearchTerm, companyData?.searchDebounceTime ?? 500);
     
     const [isStatusDialogOpen, setStatusDialogOpen] = useState(false);
     const [requestToUpdate, setRequestToUpdate] = useState<PurchaseRequest | null>(null);
@@ -127,17 +131,14 @@ export default function PurchaseRequestPage() {
         setTitle("Solicitud de Compra");
     }, [setTitle]);
 
-    const loadRequestData = useCallback(async () => {
+    const loadRequestData = useCallback(async (page = 0) => {
         setIsLoading(true);
         try {
-            const [allRequests, settings] = await Promise.all([
-                getPurchaseRequests(),
-                getRequestSettings()
-            ]);
-            
-            if (!allRequests || !settings) {
-                throw new Error('Failed to load data');
-            }
+            const { requests, totalArchivedCount } = await getPurchaseRequests({
+                page: viewingArchived ? page : 0,
+                pageSize: ARCHIVED_PAGE_SIZE
+            });
+            const settings = await getRequestSettings();
             
             const useWarehouse = settings.useWarehouseReception;
             
@@ -149,8 +150,9 @@ export default function PurchaseRequestPage() {
                 ? o.status === 'received-in-warehouse' || o.status === 'canceled'
                 : o.status === 'received' || o.status === 'canceled';
 
-            setActiveRequests(allRequests.filter(activeFilter));
-            setArchivedRequests(allRequests.filter(archivedFilter));
+            setActiveRequests(requests.filter(activeFilter));
+            setArchivedRequests(requests.filter(archivedFilter));
+            setTotalArchived(totalArchivedCount);
             setRequestSettings(settings);
         } catch (error) {
             logError("Failed to load purchase requests", { error });
@@ -158,12 +160,18 @@ export default function PurchaseRequestPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [toast]);
+    }, [toast, viewingArchived]);
     
+     useEffect(() => {
+        if (isAuthorized) {
+            loadRequestData(archivedPage);
+        }
+    }, [isAuthorized, loadRequestData, archivedPage, viewingArchived]);
+
     useEffect(() => {
         if (isAuthorized === null) return;
         
-        const loadInitialData = async () => {
+        const loadSupportingData = async () => {
             setIsLoading(true);
             try {
                 const [clientsData, itemsData, stockData] = await Promise.all([
@@ -174,7 +182,6 @@ export default function PurchaseRequestPage() {
                 setClients(clientsData);
                 setItems(itemsData);
                 setStockLevels(stockData);
-                await loadRequestData();
             } catch (error) {
                 logError("Failed to load request initial data", { error });
                 toast({ title: "Error", description: "No se pudieron cargar los datos de clientes y artículos.", variant: "destructive" });
@@ -184,9 +191,9 @@ export default function PurchaseRequestPage() {
         };
 
         if (isAuthorized) {
-            loadInitialData();
+            loadSupportingData();
         }
-    }, [isAuthorized, toast, loadRequestData]);
+    }, [isAuthorized, toast]);
 
     const clientOptions = useMemo(() => {
         if (debouncedClientSearch.length < 2) return [];
@@ -287,7 +294,7 @@ export default function PurchaseRequestPage() {
         
         setIsSubmitting(true);
         try {
-            const updatedRequest = await updatePurchaseRequestStatus({
+            await updatePurchaseRequestStatus({
                 requestId: requestToUpdate.id,
                 status: newStatus,
                 notes: statusUpdateNotes,
@@ -296,26 +303,14 @@ export default function PurchaseRequestPage() {
                 deliveredQuantity: finalDeliveredQuantity,
             });
             
-            const useWarehouse = requestSettings?.useWarehouseReception;
-            const shouldBeActive = useWarehouse
-                ? updatedRequest.status !== 'received-in-warehouse' && updatedRequest.status !== 'canceled'
-                : updatedRequest.status !== 'received' && updatedRequest.status !== 'canceled';
-
-            if(shouldBeActive) {
-                setActiveRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r).filter(r => r.id !== updatedRequest.id || shouldBeActive));
-                setArchivedRequests(prev => prev.filter(r => r.id !== updatedRequest.id));
-            } else {
-                 setArchivedRequests(prev => [updatedRequest, ...prev.filter(r => r.id !== updatedRequest.id)]);
-                setActiveRequests(prev => prev.filter(r => r.id !== updatedRequest.id));
-            }
-
             toast({ title: "Estado Actualizado", description: `La solicitud ${requestToUpdate.consecutive} ahora está ${statusConfig[newStatus].label}.` });
             await logInfo("Purchase request status updated", { request: requestToUpdate.consecutive, newStatus: newStatus });
             setStatusDialogOpen(false);
+            await loadRequestData(viewingArchived ? archivedPage : 0);
         } catch (error: any) {
             logError("Failed to update request status", { error: error.message });
             toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
-            await loadRequestData();
+            await loadRequestData(viewingArchived ? archivedPage : 0);
         } finally {
             setIsSubmitting(false);
         }
@@ -341,7 +336,7 @@ export default function PurchaseRequestPage() {
 
         setIsSubmitting(true);
         try {
-            const updatedRequest = await updatePurchaseRequestStatus({
+            await updatePurchaseRequestStatus({
                 requestId: requestToUpdate.id,
                 status: 'pending',
                 notes: 'Solicitud reabierta por el administrador.',
@@ -349,14 +344,12 @@ export default function PurchaseRequestPage() {
                 reopen: true
             });
             
-            setActiveRequests(prev => [updatedRequest, ...prev]);
-            setArchivedRequests(prev => prev.filter(o => o.id !== requestToUpdate.id));
-
             toast({ title: "Solicitud Reabierta", description: `La solicitud ${requestToUpdate.consecutive} ha sido movida a pendientes.` });
             await logInfo("Purchase request reopened", { request: requestToUpdate.consecutive });
             setReopenDialogOpen(false);
             setReopenStep(0);
             setReopenConfirmationText('');
+            await loadRequestData();
         } catch (error: any) {
             logError("Failed to reopen request", { error: error.message });
             toast({ title: "Error al Reabrir", description: error.message, variant: "destructive" });
@@ -888,6 +881,32 @@ export default function PurchaseRequestPage() {
                     </div>
                 )}
             </div>
+
+             {viewingArchived && totalArchived > ARCHIVED_PAGE_SIZE && (
+                 <div className="flex items-center justify-center space-x-2 py-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setArchivedPage(p => p - 1)}
+                        disabled={archivedPage === 0}
+                    >
+                        <ChevronLeft className="mr-2 h-4 w-4" />
+                        Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                        Página {archivedPage + 1} de {Math.ceil(totalArchived / ARCHIVED_PAGE_SIZE)}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setArchivedPage(p => p + 1)}
+                        disabled={(archivedPage + 1) * ARCHIVED_PAGE_SIZE >= totalArchived}
+                    >
+                        Siguiente
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                </div>
+            )}
 
             {/* Edit Request Dialog */}
             <Dialog open={isEditRequestDialogOpen} onOpenChange={setEditRequestDialogOpen}>
