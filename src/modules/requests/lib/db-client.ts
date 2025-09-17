@@ -3,7 +3,7 @@
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload } from '../../core/types';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, DateRange } from '../../core/types';
 import { 
     getRequests, 
     addRequest,
@@ -14,7 +14,17 @@ import {
     saveSettings,
 } from './db';
 
-export async function getPurchaseRequests(options: { page?: number, pageSize?: number }): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
+export async function getPurchaseRequests(options: { 
+    page?: number; 
+    pageSize?: number;
+    filters?: {
+        searchTerm?: string;
+        status?: string;
+        classification?: string;
+        dateRange?: DateRange;
+        productIds?: string[];
+    };
+}): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
     return getRequests(options);
 }
 
@@ -41,3 +51,4 @@ export async function getRequestSettings(): Promise<RequestSettings> {
 export async function saveRequestSettings(settings: RequestSettings): Promise<void> {
     return saveSettings(settings);
 }
+

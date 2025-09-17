@@ -4,7 +4,8 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus } from '../../core/types';
+import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange } from '../../core/types';
+import { format } from 'date-fns';
 
 const REQUESTS_DB_FILE = 'requests.db';
 
@@ -166,36 +167,69 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     transaction(settings);
 }
 
-export async function getRequests(options: { page?: number, pageSize?: number }): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
+export async function getRequests(options: { 
+    page?: number; 
+    pageSize?: number;
+    filters?: {
+        searchTerm?: string;
+        status?: string;
+        classification?: string;
+        dateRange?: DateRange;
+        productIds?: string[];
+    };
+}): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
     const db = await connectDb(REQUESTS_DB_FILE);
-    const { page = 0, pageSize = 50 } = options;
-
     const settings = await getSettings();
     const archivedStatuses = settings.useWarehouseReception
         ? ['received-in-warehouse', 'canceled']
         : ['received', 'canceled'];
 
     const archivedWhereClause = `status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`;
-    
-    const archivedRequests = db.prepare(`
-        SELECT * FROM purchase_requests 
-        WHERE ${archivedWhereClause}
-        ORDER BY requestDate DESC
-        LIMIT ? OFFSET ?
-    `).all(pageSize, page * pageSize) as PurchaseRequest[];
+    let allRequests: PurchaseRequest[] = [];
+    let totalArchivedCount = 0;
 
-    const activeRequests = db.prepare(`
-        SELECT * FROM purchase_requests 
-        WHERE NOT ${archivedWhereClause}
-        ORDER BY requestDate DESC
-    `).all() as PurchaseRequest[];
+    if (options.filters && options.page !== undefined && options.pageSize !== undefined) {
+        // Paginated and filtered query for archived view
+        const { page, pageSize, filters } = options;
+        const { searchTerm, status, dateRange, productIds } = filters;
 
-    const totalArchivedCount = (db.prepare(`
-        SELECT COUNT(*) as count FROM purchase_requests 
-        WHERE ${archivedWhereClause}
-    `).get() as { count: number }).count;
-    
-    const allRequests = [...activeRequests, ...archivedRequests];
+        let whereClauses = [archivedWhereClause];
+        const params: any[] = [];
+
+        if (searchTerm) {
+            whereClauses.push(`(consecutive LIKE ? OR clientName LIKE ? OR itemDescription LIKE ?)`);
+            const likeTerm = `%${searchTerm}%`;
+            params.push(likeTerm, likeTerm, likeTerm);
+        }
+        if (status && status !== 'all') {
+            whereClauses.push(`status = ?`);
+            params.push(status);
+        }
+        if (productIds && productIds.length > 0) {
+            whereClauses.push(`itemId IN (${productIds.map(() => '?').join(',')})`);
+            params.push(...productIds);
+        }
+        if (dateRange?.from) {
+            whereClauses.push(`requiredDate >= ?`);
+            params.push(dateRange.from.toISOString().split('T')[0]);
+        }
+        if (dateRange?.to) {
+            whereClauses.push(`requiredDate <= ?`);
+            params.push(dateRange.to.toISOString().split('T')[0]);
+        }
+
+        const finalWhere = whereClauses.join(' AND ');
+        const query = `SELECT * FROM purchase_requests WHERE ${finalWhere} ORDER BY requestDate DESC LIMIT ? OFFSET ?`;
+        allRequests = db.prepare(query).all(...params, pageSize, page * pageSize) as PurchaseRequest[];
+        
+        const countQuery = `SELECT COUNT(*) as count FROM purchase_requests WHERE ${finalWhere}`;
+        totalArchivedCount = (db.prepare(countQuery).get(...params) as { count: number }).count;
+        
+    } else {
+        // Default behavior: fetch all requests
+        allRequests = db.prepare(`SELECT * FROM purchase_requests ORDER BY requestDate DESC`).all() as PurchaseRequest[];
+        totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM purchase_requests WHERE ${archivedWhereClause}`).get() as { count: number }).count;
+    }
     
     return { requests: allRequests, totalArchivedCount };
 }

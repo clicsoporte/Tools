@@ -20,7 +20,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getAllCustomers, getAllProducts, getAllStock } from '@/modules/core/lib/db-client';
 import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings } from '@/modules/requests/lib/db-client';
-import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestHistoryEntry, User, RequestSettings, PurchaseRequestPriority, StockInfo, Company } from '@/modules/core/types';
+import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -1166,3 +1166,4 @@ export default function PurchaseRequestPage() {
         </main>
     );
 }
+
