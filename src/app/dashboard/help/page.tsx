@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertCircle, Database, ToggleRight, FilePlus, BookMarked, Save, Copy, Folder, AlertTriangle } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, Warehouse, AlertTriangle, Database, ToggleRight, FilePlus, BookMarked, Save, Copy, Folder } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
 import { getCompanySettings } from "../../../modules/core/lib/db-client";
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -142,7 +142,7 @@ export default function HelpPage() {
                         <strong>Crear Órdenes:</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
                     </li>
                     <li>
-                        <strong>Programación por Rango de Fechas:</strong> Una orden de producción puede abarcar varios días. Para reflejar esto, haz clic directamente en el área de "Fecha Programada" de una orden. Esto abrirá un calendario donde puedes seleccionar un rango de fechas de inicio y fin.
+                        <strong>Programación por Rango de Fechas:</strong> Una orden puede abarcar varios días. Para reflejar esto, haz clic directamente en el área de "Fecha Programada" de una orden. Esto abrirá un calendario donde puedes seleccionar un rango de fechas de inicio y fin. Si no hay fecha, el botón dirá "Programar Fecha".
                     </li>
                     <li>
                         <strong>Gestión de Estados y Asignaciones:</strong>
@@ -168,21 +168,27 @@ export default function HelpPage() {
                 Módulo de Almacenes
               </AccordionTrigger>
               <AccordionContent className="prose max-w-none text-base space-y-4">
-                 <p>Este módulo te da control total sobre la ubicación de tu inventario físico.</p>
-                <ul className="list-disc space-y-3 pl-6">
+                 <p>Este módulo te da control sobre la ubicación de tu inventario físico. Se divide en dos herramientas principales.</p>
+                <ul className="list-disc space-y-4 pl-6">
                     <li>
-                        <strong>Consulta de Almacén (<Search className="inline h-4 w-4"/>):</strong> En esta pantalla, puedes buscar un artículo y el sistema te mostrará instantáneamente en qué ubicaciones físicas se encuentra y, si está activado, la cantidad exacta en cada una. También puedes ver el stock total del ERP.
+                        <strong>Consulta de Almacén (<Search className="inline h-4 w-4"/>):</strong> 
+                        <p className="mt-2">En esta pantalla, puedes buscar un artículo y el sistema te mostrará instantáneamente las ubicaciones físicas donde se encuentra y, si el modo avanzado está activo, la cantidad exacta en cada una. También puedes ver el stock total del ERP para comparar.</p>
                     </li>
                      <li>
-                        <strong>Asignar Inventario (<PackagePlus className="inline h-4 w-4"/>):</strong> Esta es la herramienta para organizar tu almacén. Aquí puedes:
+                        <strong>Asignar Inventario (<PackagePlus className="inline h-4 w-4"/>):</strong> 
+                        <p className="mt-2">Esta es la herramienta para organizar tu almacén. Dependiendo de la configuración, funciona de dos maneras:</p>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                             <li>Seleccionar un artículo.</li>
-                             <li>Asignarle una o más ubicaciones (ej: Rack 01, Estante A).</li>
-                             <li>Si el modo avanzado está activo en la configuración, puedes <strong>mover cantidades específicas</strong> de una ubicación a otra.</li>
+                             <li><strong>Modo Simple (Control de inventario desactivado):</strong> Solo puedes asignar un artículo a una o más ubicaciones (ej. `Bolsa P011` está en `Rack 01-A`). Es un modo puramente informativo.</li>
+                             <li><strong>Modo Avanzado (Control de inventario activado):</strong> Te permite mover cantidades específicas de un artículo entre ubicaciones, llevando un registro de cada movimiento.</li>
                         </ul>
                     </li>
                      <li>
-                        <strong>Configuración (<Map className="inline h-4 w-4"/>):</strong> En <strong>Administración &gt; Config. Almacenes</strong>, puedes definir la estructura de tu almacén (los "niveles", como Edificio, Pasillo, Rack, etc.) y luego crear cada ubicación física específica.
+                        <strong>Configuración Clave (<Wrench className="inline h-4 w-4"/>):</strong>
+                        <p className="mt-2">Todo se configura en **Administración &gt; Config. Almacenes**. Este es el paso más importante:</p>
+                        <ol className="list-decimal space-y-2 pl-5 mt-2 text-sm">
+                            <li><strong>Paso 1: Define tu Jerarquía.</strong> En la sección "Definir Jerarquía del Almacén", establece los nombres de tus niveles (ej: Bodega, Pasillo, Rack, Nivel, Casilla). Esto es solo la plantilla.</li>
+                            <li><strong>Paso 2: Crea las Ubicaciones Reales.</strong> En "Gestionar Ubicaciones Físicas", usa los niveles que creaste para construir tu almacén real. Por ejemplo, creas una `Bodega` llamada `BOD-01`, luego un `Pasillo` llamado `PAS-A` y lo asignas como hijo de `BOD-01`.</li>
+                        </ol>
                     </li>
                 </ul>
               </AccordionContent>

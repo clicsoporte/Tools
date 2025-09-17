@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,23 +15,8 @@ import { PlusCircle, Trash2, Edit2, Save, ChevronDown, ChevronRight } from 'luci
 import { Skeleton } from '@/components/ui/skeleton';
 import { WarehouseSettings, WarehouseLocation, LocationType } from '@/modules/core/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "../../../../components/ui/accordion";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "../../../../components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../../../../components/ui/accordion";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../../components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
@@ -39,7 +24,12 @@ import { Separator } from '@/components/ui/separator';
 const emptyLocation: Omit<WarehouseLocation, 'id'> = { name: '', code: '', type: 'building', parentId: null };
 
 function LocationTree({ locations, onEdit, onDelete }: { locations: WarehouseLocation[], onEdit: (loc: WarehouseLocation) => void, onDelete: (loc: WarehouseLocation) => void }) {
-    const [openNodes, setOpenNodes] = useState<Set<number>>(new Set());
+    const [openNodes, setOpenNodes] = useState<Set<number>>(() => {
+        // Automatically open the first two levels by default
+        const rootIds = locations.filter(l => !l.parentId).map(l => l.id);
+        const secondLevelIds = locations.filter(l => l.parentId && rootIds.includes(l.parentId)).map(l => l.id);
+        return new Set([...rootIds, ...secondLevelIds]);
+    });
 
     const toggleNode = (id: number) => {
         setOpenNodes(prev => {
@@ -59,16 +49,21 @@ function LocationTree({ locations, onEdit, onDelete }: { locations: WarehouseLoc
         const isOpen = openNodes.has(location.id);
 
         return (
-            <div key={location.id}>
-                <div className={`flex items-center justify-between p-2 rounded-md hover:bg-muted/50`} style={{ paddingLeft: `${level * 20 + 8}px` }}>
+            <div key={location.id} className="relative">
+                 {level > 0 && <span className="absolute -left-2 top-1/2 w-4 h-px bg-muted-foreground/30"></span>}
+                <div className={`flex items-center justify-between p-2 rounded-md hover:bg-muted/50`}>
                     <div className="flex items-center gap-2">
-                        {hasChildren && (
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleNode(location.id)}>
-                                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            </Button>
-                        )}
-                        <span className="font-medium">{location.name}</span>
-                        <span className="text-xs text-muted-foreground font-mono">({location.code})</span>
+                        <div style={{ paddingLeft: `${level * 24}px` }} className="flex items-center gap-2">
+                            {hasChildren ? (
+                                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => toggleNode(location.id)}>
+                                    {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                </Button>
+                            ) : (
+                                <span className="w-6 shrink-0"></span> // Placeholder to align items
+                            )}
+                            <span className="font-medium">{location.name}</span>
+                            <span className="text-xs text-muted-foreground font-mono">({location.code})</span>
+                        </div>
                     </div>
                     <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(location)}><Edit2 className="h-4 w-4" /></Button>
@@ -78,7 +73,7 @@ function LocationTree({ locations, onEdit, onDelete }: { locations: WarehouseLoc
                     </div>
                 </div>
                 {isOpen && hasChildren && (
-                    <div>{children.map(child => renderNode(child, level + 1))}</div>
+                    <div className="relative pl-6 border-l-2 border-muted-foreground/10 ml-5">{children.map(child => renderNode(child, level + 1))}</div>
                 )}
             </div>
         );
@@ -137,11 +132,11 @@ export default function WarehouseSettingsPage() {
         setNewLevelName('');
     };
     
-    const handleDeleteLevel = (index: number) => {
+    const handleDeleteLevel = useCallback((index: number) => {
         if (!settings) return;
         const newLevels = settings.locationLevels?.filter((_, i) => i !== index);
         setSettings({ ...settings, locationLevels: newLevels });
-    };
+    }, [settings]);
 
     const handleSaveSettings = async () => {
         if (!settings) return;
@@ -202,11 +197,9 @@ export default function WarehouseSettingsPage() {
         setLocationFormOpen(true);
     }
     
-    const parentLocationOptions = useMemo(() => {
-        return locations
-            .filter(l => l.id !== currentLocation?.id) // Prevent self-parenting
-            .map(l => ({ value: String(l.id), label: `${l.name} (${l.code})` }));
-    }, [locations, currentLocation]);
+    const parentLocationOptions = locations
+        .filter(l => l.id !== currentLocation?.id) // Prevent self-parenting
+        .map(l => ({ value: String(l.id), label: `${l.name} (${l.code})` }));
 
     if (isLoading || !settings) {
         return (
@@ -245,16 +238,16 @@ export default function WarehouseSettingsPage() {
                     </CardFooter>
                 </Card>
 
-                 <Accordion type="multiple" className="w-full">
+                 <Accordion type="multiple" className="w-full" defaultValue={['item-1', 'item-2']}>
                     <AccordionItem value="item-1">
                         <AccordionTrigger>
-                            <CardTitle>Definir Niveles de Ubicación</CardTitle>
+                            <CardTitle>Paso 1: Definir Jerarquía del Almacén (El Molde)</CardTitle>
                         </AccordionTrigger>
                         <AccordionContent>
                              <Card className="border-none shadow-none">
                                 <CardHeader className="pt-0">
                                     <CardDescription>
-                                        Define los nombres para cada nivel jerárquico de tus almacenes (ej: Edificio, Pasillo, Rack, Nivel, Casilla).
+                                        Aquí defines los **nombres** para cada nivel de tu organización. Esto es como crear una plantilla. Por ejemplo: Bodega, Pasillo, Rack, Estante, Casilla.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
@@ -285,14 +278,14 @@ export default function WarehouseSettingsPage() {
                     </AccordionItem>
                     <AccordionItem value="item-2">
                         <AccordionTrigger>
-                           <CardTitle>Gestionar Ubicaciones Físicas</CardTitle>
+                           <CardTitle>Paso 2: Crear Ubicaciones Reales (El Árbol)</CardTitle>
                         </AccordionTrigger>
                         <AccordionContent>
                              <Card className="border-none shadow-none">
                                 <CardHeader className="pt-0">
                                      <div className="flex items-center justify-between">
                                         <CardDescription>
-                                            Crea la estructura de tu almacén (el "árbol" de ubicaciones) usando los niveles que definiste.
+                                            Usa los niveles que definiste en el Paso 1 para construir la estructura real de tu almacén. Por ejemplo, crea una `Bodega` llamada "Bodega Principal", luego un `Pasillo` dentro de ella.
                                         </CardDescription>
                                          <Button onClick={() => openLocationForm()}>
                                             <PlusCircle className="mr-2"/> Añadir Ubicación

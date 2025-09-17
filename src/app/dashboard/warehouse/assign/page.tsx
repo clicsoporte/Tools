@@ -12,7 +12,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getAllProducts } from '@/modules/core/lib/db-client';
 import { getLocations, getInventoryForItem, logMovement, updateInventory, getWarehouseSettings, getItemLocations, assignItemToLocation, unassignItemFromLocation } from '@/modules/warehouse/lib/actions';
-import type { Product, WarehouseLocation, WarehouseInventoryItem, ItemLocation } from '@/modules/core/types';
+import type { Product, WarehouseLocation, WarehouseInventoryItem, ItemLocation, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { SearchInput } from '@/components/ui/search-input';
 import { PackageSearch, Loader2, ArrowRight, Info, Trash2 } from 'lucide-react';
@@ -23,7 +23,7 @@ export default function AssignInventoryPage() {
     useAuthorization(['warehouse:inventory:assign']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, companyData } = useAuth();
 
     const [isLoading, setIsLoading] = useState(true);
     const [products, setProducts] = useState<Product[]>([]);
@@ -52,10 +52,10 @@ export default function AssignInventoryPage() {
     const [newLocationSearchTerm, setNewLocationSearchTerm] = useState('');
     const [isNewLocationSearchOpen, setNewLocationSearchOpen] = useState(false);
 
-    const [debouncedProductSearch] = useDebounce(productSearchTerm, 500);
-    const [debouncedFromLocationSearch] = useDebounce(fromLocationSearchTerm, 500);
-    const [debouncedToLocationSearch] = useDebounce(toLocationSearchTerm, 500);
-    const [debouncedNewLocationSearch] = useDebounce(newLocationSearchTerm, 500);
+    const [debouncedProductSearch] = useDebounce(productSearchTerm, companyData?.searchDebounceTime ?? 500);
+    const [debouncedFromLocationSearch] = useDebounce(fromLocationSearchTerm, 300);
+    const [debouncedToLocationSearch] = useDebounce(toLocationSearchTerm, 300);
+    const [debouncedNewLocationSearch] = useDebounce(newLocationSearchTerm, 300);
 
 
     const loadInitialData = useCallback(async () => {
@@ -155,7 +155,7 @@ export default function AssignInventoryPage() {
                 quantity: quantity,
                 fromLocationId: fromId,
                 toLocationId: toId,
-                userId: user.id,
+                userId: (user as User).id,
                 notes: 'Asignación manual de inventario'
             });
 
@@ -309,7 +309,7 @@ export default function AssignInventoryPage() {
                 </CardContent>
                 <CardFooter>
                     <Button type="submit" disabled={isSubmitting || !selectedProductId}>
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageSearch />}
+                        {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <PackageSearch className="mr-2" />}
                         Confirmar Movimiento
                     </Button>
                 </CardFooter>
@@ -340,13 +340,29 @@ export default function AssignInventoryPage() {
                 </CardContent>
                 <CardFooter>
                     <Button type="submit" disabled={isSubmitting || !selectedProductId}>
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : <PackageSearch />}
+                        {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <PackageSearch className="mr-2" />}
                         Asignar Ubicación
                     </Button>
                 </CardFooter>
             </form>
         </Card>
     );
+
+    if (isLoading) {
+        return (
+            <main className="flex-1 p-4 md:p-6 lg:p-8">
+                 <div className="grid gap-8 md:grid-cols-3">
+                    <div className="md:col-span-1 space-y-6">
+                        <Skeleton className="h-40 w-full" />
+                        <Skeleton className="h-64 w-full" />
+                    </div>
+                    <div className="md:col-span-2">
+                        <Skeleton className="h-80 w-full" />
+                    </div>
+                </div>
+            </main>
+        )
+    }
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
