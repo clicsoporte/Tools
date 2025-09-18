@@ -11,12 +11,6 @@ import {
   CardTitle,
   CardFooter
 } from "../../../../components/ui/card";
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "../../../../components/ui/accordion";
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
 import { Textarea } from "../../../../components/ui/textarea";
@@ -30,7 +24,7 @@ import { useAuthorization } from "../../../../modules/core/hooks/useAuthorizatio
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useDropzone } from "react-dropzone";
 import { Camera } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/modules/core/hooks/useAuth";
 
 const getInitials = (name: string) => {
     if (!name) return "CL";
@@ -41,6 +35,7 @@ const getInitials = (name: string) => {
 export default function GeneralSettingsPage() {
   useAuthorization(['admin:settings:general']);
   const { toast } = useToast();
+  const { refreshAuth } = useAuth();
   const [companyData, setCompanyData] = useState<Company | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { setTitle } = usePageTitle();
@@ -93,8 +88,8 @@ export default function GeneralSettingsPage() {
       title: "Configuración Guardada",
       description: "Los datos de la empresa han sido actualizados.",
     });
-    // This is a workaround to force a re-render of components using the company data
-    window.dispatchEvent(new Event("storage"));
+    // Refresh the auth context to update UI elements like the sidebar
+    await refreshAuth();
     await logInfo("Configuración general guardada", { companyName: companyData.name });
   };
 
