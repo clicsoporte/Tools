@@ -414,7 +414,7 @@ export async function getRequestHistory(requestId: number): Promise<PurchaseRequ
 
 export async function rejectCancellation(payload: RejectCancellationPayload): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
-    const { requestId, notes, updatedBy } = payload;
+    const { entityId: requestId, notes, updatedBy } = payload;
 
     const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest | undefined;
     if (!currentRequest || currentRequest.status !== 'canceled') { // Assuming 'canceled' is the state to revert from

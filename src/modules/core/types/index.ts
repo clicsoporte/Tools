@@ -294,12 +294,6 @@ export type UpdateOrderDetailsPayload = {
   updatedBy: string;
 };
 
-export type RejectCancellationPayload = {
-    orderId: number;
-    notes: string;
-    updatedBy: string;
-}
-
 
 // --- Purchase Request Types ---
 
@@ -370,6 +364,13 @@ export type UpdateRequestStatusPayload = {
     erpOrderNumber?: string;
     deliveredQuantity?: number;
 };
+
+export type RejectCancellationPayload = {
+    entityId: number;
+    notes: string;
+    updatedBy: string;
+}
+
 
 // --- Warehouse Management Types ---
 

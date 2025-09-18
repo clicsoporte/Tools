@@ -9,7 +9,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getAllCustomers, getAllProducts, getAllStock, getCompanySettings } from '@/modules/core/lib/db-client';
 import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder } from '@/modules/planner/lib/db-client';
-import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload } from '@/modules/core/types';
+import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload, RejectCancellationPayload } from '@/modules/core/types';
 import { isToday, differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -114,7 +114,6 @@ export const usePlanner = () => {
              const ordersData = await getProductionOrders({
                 page: viewingArchived ? page : undefined,
                 pageSize: viewingArchived ? pageSize : undefined,
-                filters: { searchTerm: debouncedSearchTerm, status: statusFilter, classification: classificationFilter, dateRange: dateFilter }
             });
 
             const finalStatus = plannerSettingsData?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
@@ -131,14 +130,14 @@ export const usePlanner = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [toast, viewingArchived, pageSize, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [toast, viewingArchived, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
     
     useEffect(() => {
         setTitle("Planificador OP");
         if (isAuthorized) {
             loadInitialData(archivedPage);
         }
-    }, [setTitle, isAuthorized, loadInitialData, archivedPage]);
+    }, [setTitle, isAuthorized, loadInitialData, archivedPage, viewingArchived]);
 
     const handleCreateOrder = async () => {
         if (!newOrder.customerId || !newOrder.productId || !newOrder.quantity || !newOrder.deliveryDate || !currentUser) return;
@@ -246,7 +245,7 @@ export const usePlanner = () => {
         if (!currentUser) return;
         setIsSubmitting(true);
         try {
-            await rejectCancellationRequest({ orderId: order.id, notes: 'Solicitud de cancelación rechazada.', updatedBy: currentUser.name });
+            await rejectCancellationRequest({ entityId: order.id, notes: 'Solicitud de cancelación rechazada.', updatedBy: currentUser.name });
             await loadInitialData();
             toast({ title: 'Solicitud Rechazada' });
         } catch (error: any) {
@@ -376,7 +375,7 @@ export const usePlanner = () => {
         productOptions,
         classifications,
         filteredOrders,
-        stockLevels
+        stockLevels,
     };
 
     return {

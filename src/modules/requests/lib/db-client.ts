@@ -3,7 +3,7 @@
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, DateRange } from '../../core/types';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, DateRange, RejectCancellationPayload } from '../../core/types';
 import { 
     getRequests, 
     addRequest,
@@ -12,6 +12,7 @@ import {
     getRequestHistory as getRequestHistoryServer,
     getSettings,
     saveSettings,
+    rejectCancellation as rejectCancellationServer
 } from './db';
 
 export async function getPurchaseRequests(options: { 
@@ -49,4 +50,8 @@ export async function getRequestSettings(): Promise<RequestSettings> {
 
 export async function saveRequestSettings(settings: RequestSettings): Promise<void> {
     return saveSettings(settings);
+}
+
+export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<void> {
+    return rejectCancellationServer(payload);
 }
