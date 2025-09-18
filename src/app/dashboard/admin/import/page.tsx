@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Admin page for managing data imports from external sources (files or SQL DB).
  * This component allows administrators to configure import paths, connection strings,
@@ -14,7 +13,7 @@ import { logError, logInfo } from "../../../../modules/core/lib/logger";
 import { Loader2, FileUp, Database, Save } from "lucide-react";
 import type { Company, SqlConfig, ImportQuery } from '../../../../modules/core/types';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
-import { importData, getCompanySettings, saveCompanySettings, testSqlConnection, saveSqlConfig, getSqlConfig, saveImportQueries, getImportQueries, importAllDataFromFiles } from '../../../../modules/core/lib/db-client';
+import { importData, getCompanySettings, saveCompanySettings, testSqlConnection, saveSqlConfig, getSqlConfig, saveImportQueries, getImportQueries, importAllDataFromFiles } from '../../../../modules/core/lib/db';
 import { useAuthorization } from '../../../../modules/core/hooks/useAuthorization';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
@@ -360,5 +359,3 @@ export default function ImportDataPage() {
         </main>
     );
 }
-
-    

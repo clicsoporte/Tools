@@ -31,7 +31,7 @@ import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Label } from '../../../../components/ui/label';
 import { Input } from '../../../../components/ui/input';
-import { getDbModules, backupDatabase, restoreDatabase, resetDatabase } from '../../../../modules/core/lib/db-client';
+import { getDbModules, backupDatabase, restoreDatabase, resetDatabase } from '../../../../modules/core/lib/db';
 import type { DatabaseModule } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 
@@ -39,7 +39,7 @@ import { useAuthorization } from "../../../../modules/core/hooks/useAuthorizatio
 export default function MaintenancePage() {
     useAuthorization(['admin:maintenance:backup', 'admin:maintenance:restore', 'admin:maintenance:reset']);
     const { toast } = useToast();
-    const [dbModules, setDbModules] = useState<DatabaseModule[]>([]);
+    const [dbModules, setDbModules] = useState<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]>([]);
     const [selectedModule, setSelectedModule] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
     const { setTitle } = usePageTitle();

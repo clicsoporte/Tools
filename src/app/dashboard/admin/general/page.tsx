@@ -18,7 +18,7 @@ import { useToast } from "../../../../modules/core/hooks/use-toast";
 import type { Company } from "../../../../modules/core/types";
 import { Skeleton } from "../../../../components/ui/skeleton";
 import { logInfo } from "../../../../modules/core/lib/logger";
-import { getCompanySettings, saveCompanySettings } from "../../../../modules/core/lib/db-client";
+import { getCompanySettings, saveCompanySettings } from "../../../../modules/core/lib/db";
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

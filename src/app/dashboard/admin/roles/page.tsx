@@ -40,7 +40,7 @@ import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logInfo, logWarn } from "../../../../modules/core/lib/logger";
 import type { Role } from "../../../../modules/core/types";
 import { PlusCircle, Trash2, RefreshCw } from "lucide-react";
-import { getAllRoles, saveAllRoles, resetDefaultRoles } from "../../../../modules/core/lib/db-client";
+import { getAllRoles, saveAllRoles, resetDefaultRoles } from "../../../../modules/core/lib/db";
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Skeleton } from "../../../../components/ui/skeleton";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";

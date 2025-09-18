@@ -37,7 +37,7 @@ import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { useState, useEffect, useCallback } from "react";
 import type { ApiSettings, ExemptionLaw } from "../../../../modules/core/types";
 import { logInfo, logError, logWarn } from "../../../../modules/core/lib/logger";
-import { getApiSettings, saveApiSettings, getExemptionLaws, saveExemptionLaws } from "../../../../modules/core/lib/db-client";
+import { getApiSettings, saveApiSettings, getExemptionLaws, saveExemptionLaws } from "../../../../modules/core/lib/db";
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { PlusCircle, Trash2 } from "lucide-react";
