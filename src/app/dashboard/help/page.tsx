@@ -115,11 +115,17 @@ export default function HelpPage() {
                     <li>
                         <strong>Paso 1: Elige al Cliente.</strong> Empieza a escribir el nombre o código del cliente. El sistema te mostrará una lista de sugerencias. Cuando lo veas, haz clic para seleccionarlo y todos sus datos se llenarán automáticamente (dirección, condición de pago, etc.).
                     </li>
+                     <li>
+                        <strong>Verificar Exoneración (<ShieldQuestion className="inline h-4 w-4" />):</strong> Si el cliente tiene una exoneración registrada en el ERP, el sistema la mostrará y verificará su estado automáticamente con Hacienda, indicando si está vigente o vencida. Si el artículo que agregas es de canasta básica, el impuesto se ajustará a 1% automáticamente.
+                    </li>
                     <li>
                         <strong>Paso 2: Agrega Productos.</strong> En el buscador de productos, escribe el código o la descripción. Verás una lista de sugerencias con la cantidad que hay en el inventario del ERP. Presiona `Enter` o haz clic para añadirlo a la cotización.
                     </li>
                     <li>
                         <strong>Atajos de Teclado (<Keyboard className="inline h-4 w-4" />):</strong> Para ir más rápido, usa la tecla `Enter` en los campos de "Cantidad" y "Precio". Te llevará al siguiente campo y luego de vuelta al buscador de productos. ¡Es súper eficiente!
+                    </li>
+                    <li>
+                        <strong>Borradores (<Folder className="inline h-4 w-4" />):</strong> ¿No terminaste una cotización? Guárdala como borrador y cárgala más tarde desde el botón "Ver Borradores".
                     </li>
                     <li>
                         <strong>Paso 3: Generar PDF (<FileDown className="inline h-4 w-4" />):</strong> Cuando todo esté listo, genera un PDF profesional. El número de cotización se actualizará solo para la próxima vez.
@@ -148,6 +154,7 @@ export default function HelpPage() {
                             <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> Un usuario con permisos ha aprobado la compra.</li>
                             <li><strong>Ordenada (<Truck className="inline h-4 w-4 text-blue-600"/>):</strong> Ya se realizó el pedido al proveedor.</li>
                             <li><strong>Recibida (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> El producto ha llegado. Aquí puedes registrar la cantidad real que se recibió.</li>
+                             <li><strong>En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):</strong> (Opcional) Un paso final para confirmar que el producto ya está en el almacén físico.</li>
                             <li><strong>Cancelada (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> La solicitud ha sido cancelada.</li>
                         </ul>
                     </li>
@@ -182,7 +189,7 @@ export default function HelpPage() {
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                                 <li>Asigna cada orden a una máquina o proceso específico desde un menú desplegable. Puedes configurar estas máquinas en el panel de administración.</li>
                                 <li>Cambia el estado de la orden (Aprobada, En Progreso, En Espera, Completada) para reflejar su avance en tiempo real.</li>
-                                <li>**Estados Personalizados:** Define hasta 4 estados adicionales en la configuración para adaptar el flujo a tu proceso exacto (ej: "En Diseño", "Esperando Material").</li>
+                                <li><strong>Estados Personalizados:</strong> Define hasta 4 estados adicionales en la configuración para adaptar el flujo a tu proceso exacto (ej: "En Diseño", "Esperando Material").</li>
                             </ul>
                         </li>
                         <li>
@@ -191,7 +198,7 @@ export default function HelpPage() {
                     </ul>
                 </AccordionContent>
                 </AccordionItem>
-                
+
                 <AccordionItem value="item-warehouse">
                     <AccordionTrigger className="text-lg font-semibold">
                         <Warehouse className="mr-4 h-6 w-6 text-cyan-600" />
@@ -260,10 +267,36 @@ export default function HelpPage() {
                                     <li>Añade `Posición Horizontal 1` (Código `H1`), tipo `Nivel 4`, padre `Rack 01`.</li>
                                     <li>Añade `Posición Vertical 1` (Código `V1`), tipo `Nivel 5`, padre `Posición Horizontal 1`.</li>
                                 </ul>
-                                Tu ubicación final para un producto sería `B04 &gt; P01 &gt; R01 &gt; H1 &gt; V1`.
+                                Tu ubicación final para un producto sería `B04 > P01 > R01 > H1 > V1`.
                             </li>
                         </ol>
                         <p className="pt-2">Una vez configurado, puedes ir al módulo <strong>Asignar Inventario</strong> para empezar a colocar tus artículos, como el `P011 BOLSA 20 X 30 X 2.5 TRANSPARENTE`, en estas nuevas ubicaciones.</p>
+                    </AccordionContent>
+                </AccordionItem>
+
+                 <AccordionItem value="item-hacienda">
+                    <AccordionTrigger className="text-lg font-semibold">
+                        <Search className="mr-4 h-6 w-6 text-indigo-500" />
+                        Tutorial: Consultas a Hacienda
+                    </AccordionTrigger>
+                    <AccordionContent className="prose max-w-none text-base space-y-4">
+                        <p>
+                        Esta herramienta te permite consultar información directamente de las APIs del Ministerio de Hacienda de Costa Rica de forma centralizada.
+                        </p>
+                        <ul className="list-disc space-y-3 pl-6">
+                            <li>
+                                <strong>Búsqueda Unificada:</strong> Es la forma más potente de usar el módulo. Busca un cliente del ERP y el sistema hará todo el trabajo:
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Consultará la <strong>Situación Tributaria</strong> del cliente usando su cédula.</li>
+                                    <li>Buscará si tiene una <strong>exoneración asociada en el ERP</strong>.</li>
+                                    <li>Si la encuentra, consultará esa exoneración en Hacienda para ver su <strong>estado y los códigos CABYS</strong> que cubre.</li>
+                                    <li>Te presentará toda la información consolidada en una sola pantalla.</li>
+                                </ul>
+                            </li>
+                             <li>
+                                <strong>Búsquedas Individuales:</strong> También puedes usar las pestañas "Situación Tributaria" y "Exoneraciones" para hacer consultas directas a Hacienda ingresando una cédula o un número de autorización, respectivamente.
+                            </li>
+                        </ul>
                     </AccordionContent>
                 </AccordionItem>
                 
