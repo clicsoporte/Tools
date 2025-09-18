@@ -11,7 +11,7 @@ import { logError, logInfo } from "@/modules/core/lib/logger";
 import type { PlannerMachine, PlannerSettings, CustomStatus } from "@/modules/core/types";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
-import { getPlannerSettings, savePlannerSettings } from "@/modules/planner/lib/db-client";
+import { getPlannerSettings, savePlannerSettings } from "@/modules/planner/lib/actions";
 import { PlusCircle, Trash2, Palette } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";

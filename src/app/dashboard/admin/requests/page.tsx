@@ -11,7 +11,7 @@ import { logError, logInfo } from "@/modules/core/lib/logger";
 import type { RequestSettings } from "@/modules/core/types";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
-import { getRequestSettings, saveRequestSettings } from "@/modules/requests/lib/db-client";
+import { getRequestSettings, saveRequestSettings } from "@/modules/requests/lib/actions";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
