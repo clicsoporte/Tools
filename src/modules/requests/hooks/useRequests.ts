@@ -32,13 +32,20 @@ const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' |
     purchaseType: 'single',
 };
 
-const statusConfig = {
+const statusConfig: { [key: string]: { label: string, color: string } } = {
     pending: { label: "Pendiente", color: "bg-yellow-500" },
     approved: { label: "Aprobada", color: "bg-green-500" },
     ordered: { label: "Ordenada", color: "bg-blue-500" },
     received: { label: "Recibida", color: "bg-teal-500" },
     'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
     canceled: { label: "Cancelada", color: "bg-red-700" }
+};
+
+const priorityConfig = { 
+    low: { label: "Baja", className: "text-gray-500" }, 
+    medium: { label: "Media", className: "text-blue-500" }, 
+    high: { label: "Alta", className: "text-yellow-600" }, 
+    urgent: { label: "Urgente", className: "text-red-600" }
 };
 
 
@@ -283,7 +290,7 @@ export const useRequests = () => {
 
     const selectors = {
         hasPermission,
-        priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
+        priorityConfig,
         statusConfig,
         getDaysRemaining: (dateStr: string) => {
             const today = new Date(); today.setHours(0, 0, 0, 0);

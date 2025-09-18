@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon } from 'lucide-react';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, PlusCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,6 +21,8 @@ import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ProductionOrder } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Popover as PopoverAddNote } from "@/components/ui/popover"
 
 /**
  * @fileoverview This is the main UI component for the Production Planner page.
@@ -36,7 +38,7 @@ export default function PlannerPage() {
     } = usePlanner();
 
     const {
-        isSubmitting, isNewOrderDialogOpen, isEditOrderDialogOpen, viewingArchived,
+        isLoading, isSubmitting, isNewOrderDialogOpen, isEditOrderDialogOpen, viewingArchived,
         archivedPage, pageSize, totalArchived, newOrder, orderToEdit,
         searchTerm, statusFilter, classificationFilter, dateFilter,
         customerSearchTerm, isCustomerSearchOpen, productSearchTerm, isProductSearchOpen,

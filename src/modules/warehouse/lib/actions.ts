@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import {
@@ -15,7 +16,6 @@ import {
     assignItemToLocation as assignItemToLocationServer,
     unassignItemFromLocation as unassignItemFromLocationServer,
     getWarehouseData as getWarehouseDataServer,
-    getStockSettings as getStockSettingsServer,
     getMovements as getMovementsServer,
 } from './db';
 import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, StockSettings } from '../../core/types';
@@ -37,5 +37,5 @@ export const unassignItemFromLocation = async (itemLocationId: number): Promise<
 
 // --- Page-specific data loaders ---
 export const getWarehouseData = async () => getWarehouseDataServer();
-export const getStockSettings = async (): Promise<StockSettings> => getStockSettingsServer();
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);
+

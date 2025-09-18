@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -85,7 +86,7 @@ export default function AssignInventoryPage() {
     useEffect(() => {
         setTitle("Asignar Inventario a Ubicación");
         loadInitialData();
-    }, [setTitle, loadInitialData]);
+    }, [setTitle]);
 
     const fetchItemData = useCallback(async (itemId: string) => {
         if (!warehouseSettings) return;

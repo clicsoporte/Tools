@@ -26,7 +26,7 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     purchaseOrder: '',
 };
 
-const baseStatusConfig = {
+const baseStatusConfig: { [key: string]: { label: string, color: string } } = {
     pending: { label: "Pendiente", color: "bg-yellow-500" },
     approved: { label: "Aprobada", color: "bg-green-500" },
     'in-progress': { label: "En Progreso", color: "bg-blue-500" },
@@ -379,16 +379,49 @@ export const usePlanner = () => {
     };
 
     const actions = {
-        setNewOrderDialogOpen, setEditOrderDialogOpen, setViewingArchived, setArchivedPage,
-        setPageSize, setNewOrder, setOrderToEdit, setOrderToUpdate, setSearchTerm, setStatusFilter,
-        setClassificationFilter, setDateFilter, setCustomerSearchTerm, setCustomerSearchOpen,
-        setProductSearchTerm, setProductSearchOpen, setStatusDialogOpen, setNewStatus,
-        setStatusUpdateNotes, setDeliveredQuantity, setErpPackageNumber, setErpTicketNumber,
-        setHistoryDialogOpen, setReopenDialogOpen, setReopenStep,
-        setReopenConfirmationText, setAddNoteDialogOpen, setNotePayload,
-        loadInitialData, handleCreateOrder, handleEditOrder, handleSelectProduct, handleSelectCustomer,
-        handleProductInputKeyDown, handleCustomerInputKeyDown, handleAddNote,
-        openStatusDialog, handleStatusUpdate, handleDetailUpdate, handleOpenHistory, handleReopenOrder, handleRejectCancellation
+        loadInitialData,
+        handleCreateOrder,
+        handleEditOrder,
+        handleSelectProduct,
+        handleSelectCustomer,
+        handleProductInputKeyDown,
+        handleCustomerInputKeyDown,
+        openStatusDialog,
+        handleStatusUpdate,
+        handleDetailUpdate,
+        handleOpenHistory,
+        handleReopenOrder,
+        handleRejectCancellation,
+        openAddNoteDialog,
+        handleAddNote,
+        setNewOrderDialogOpen,
+        setEditOrderDialogOpen,
+        setViewingArchived,
+        setArchivedPage,
+        setPageSize,
+        setNewOrder,
+        setOrderToEdit,
+        setOrderToUpdate,
+        setSearchTerm,
+        setStatusFilter,
+        setClassificationFilter,
+        setDateFilter,
+        setCustomerSearchTerm,
+        setCustomerSearchOpen,
+        setProductSearchTerm,
+        setProductSearchOpen,
+        setStatusDialogOpen,
+        setNewStatus,
+        setStatusUpdateNotes,
+        setDeliveredQuantity,
+        setErpPackageNumber,
+        setErpTicketNumber,
+        setHistoryDialogOpen,
+        setReopenDialogOpen,
+        setReopenStep,
+        setReopenConfirmationText,
+        setAddNoteDialogOpen,
+        setNotePayload,
     };
 
     return {
