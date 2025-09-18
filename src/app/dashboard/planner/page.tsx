@@ -4,7 +4,7 @@
 import React from 'react';
 import { usePlanner } from '@/modules/planner/hooks/usePlanner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,12 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw } from 'lucide-react';
-import { format } from 'date-fns';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ProductionOrder } from '@/modules/core/types';
 
 /**
  * @fileoverview This is the main UI component for the Production Planner page.
@@ -71,6 +72,65 @@ export default function PlannerPage() {
                 </div>
             </main>
         )
+    }
+
+    const renderOrderCard = (order: ProductionOrder) => {
+        const canEdit = selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold'].includes(order.status) || selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress'].includes(order.status);
+        const canApprove = selectors.hasPermission('planner:status:approve') && order.status === 'pending';
+        const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'approved';
+        const canHold = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
+        const canResume = selectors.hasPermission('planner:status:in-progress') && order.status === 'on-hold';
+        const canComplete = selectors.hasPermission('planner:status:completed') && order.status === 'in-progress';
+        const canRequestCancel = selectors.hasPermission('planner:status:cancel') && order.status === 'pending';
+        const canApproveCancel = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold'].includes(order.status);
+        const canReceive = selectors.hasPermission('planner:receive') && order.status === 'completed';
+        const finalState = state.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
+        const canReopen = selectors.hasPermission('planner:reopen') && (order.status === finalState || order.status === 'canceled');
+        const canRejectCancellation = order.status === 'cancellation-request' && (selectors.hasPermission('planner:status:cancel-approved') || selectors.hasPermission('planner:status:cancel'));
+        
+        const daysRemaining = selectors.getDaysRemaining(order);
+        
+        return (
+            <Card key={order.id} className="w-full">
+                <CardHeader className="p-4">
+                    <div className="flex justify-between items-start gap-2">
+                        <div>
+                            <CardTitle className="text-lg">{`[${order.productId}] ${order.productDescription}`}</CardTitle>
+                            <CardDescription>Cliente: {order.customerName} - Orden: {order.consecutive}</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                            {order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
+                             <Button variant="ghost" size="icon" onClick={() => handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-1">
+                                    <div className="grid grid-cols-1">
+                                        {canEdit && <Button variant="ghost" className="justify-start" onClick={() => { actions.setOrderToEdit(order); setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</Button>}
+                                        {canReopen && <Button variant="ghost" className="justify-start text-orange-600" onClick={() => { setOrderToUpdate(order); setReopenDialogOpen(true); }}><Undo2 className="mr-2"/> Reabrir</Button>}
+                                        {canApprove && <Button variant="ghost" className="justify-start text-green-600" onClick={() => actions.openStatusDialog(order, 'approved')}><Check className="mr-2"/> Aprobar</Button>}
+                                        {canStart && <Button variant="ghost" className="justify-start text-blue-600" onClick={() => actions.openStatusDialog(order, 'in-progress')}><Truck className="mr-2"/> Iniciar Progreso</Button>}
+                                        {canComplete && <Button variant="ghost" className="justify-start text-indigo-600" onClick={() => actions.openStatusDialog(order, 'completed')}><PackageCheck className="mr-2"/> Marcar como Completada</Button>}
+                                        {canReceive && <Button variant="ghost" className="justify-start text-gray-700" onClick={() => actions.openStatusDialog(order, 'received-in-warehouse')}><PackageCheck className="mr-2"/> Recibir en Bodega</Button>}
+                                        {canRequestCancel && <Button variant="ghost" className="justify-start text-red-600" onClick={() => actions.openStatusDialog(order, 'cancellation-request')}><XCircle className="mr-2"/> Solicitar Cancelación</Button>}
+                                        {canApproveCancel && <Button variant="ghost" className="justify-start text-red-600" onClick={() => actions.openStatusDialog(order, 'canceled')}><XCircle className="mr-2"/> Cancelar Orden</Button>}
+                                        {canRejectCancellation && <Button variant="ghost" className="justify-start" onClick={() => actions.handleRejectCancellation(order)}><AlertTriangle className="mr-2"/> Rechazar Cancelación</Button>}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                    {/* ... content for the order card */}
+                </CardContent>
+                <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
+                    <span>Solicitado por: {order.requestedBy} el {format(parseISO(order.requestDate), 'dd/MM/yyyy')}</span>
+                    {order.approvedBy && <span>Aprobado por: {order.approvedBy}</span>}
+                </CardFooter>
+            </Card>
+        );
     }
     
     return (
@@ -207,7 +267,7 @@ export default function PlannerPage() {
                 {state.isLoading ? (
                     <div className="space-y-4"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>
                 ) : selectors.filteredOrders.length > 0 ? (
-                    selectors.filteredOrders.map(actions.renderOrderCard)
+                    selectors.filteredOrders.map(renderOrderCard)
                 ) : (<div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><div className="flex flex-col items-center gap-2 text-center"><h3 className="text-2xl font-bold tracking-tight">No se encontraron órdenes.</h3><p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda o crea una nueva orden.</p></div></div>)}
             </div>
              {viewingArchived && totalArchived > pageSize && (
@@ -217,7 +277,6 @@ export default function PlannerPage() {
                     <Button variant="outline" size="sm" onClick={() => setArchivedPage(p => p + 1)} disabled={(archivedPage + 1) * pageSize >= totalArchived}>Siguiente<ChevronRight className="ml-2 h-4 w-4" /></Button>
                 </div>
             )}
-            {actions.renderDialogs()}
         </main>
     );
 }
