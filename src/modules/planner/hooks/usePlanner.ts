@@ -7,7 +7,6 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getAllCustomers, getAllProducts, getAllStock, getCompanySettings } from '@/modules/core/lib/db';
 import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder } from '@/modules/planner/lib/actions';
 import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload, RejectCancellationPayload } from '@/modules/core/types';
 import { isToday, differenceInCalendarDays, parseISO, format } from 'date-fns';
@@ -26,6 +25,18 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     inventory: 0,
     purchaseOrder: '',
 };
+
+const baseStatusConfig = {
+    pending: { label: "Pendiente", color: "bg-yellow-500" },
+    approved: { label: "Aprobada", color: "bg-green-500" },
+    'in-progress': { label: "En Progreso", color: "bg-blue-500" },
+    'on-hold': { label: "En Espera", color: "bg-gray-500" },
+    'cancellation-request': { label: "Sol. Cancelación", color: "bg-orange-500" },
+    completed: { label: "Completada", color: "bg-teal-500" },
+    'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
+    canceled: { label: "Cancelada", color: "bg-red-700" },
+};
+
 
 export const usePlanner = () => {
     const { isAuthorized, hasPermission } = useAuthorization(['planner:read']);
@@ -80,7 +91,7 @@ export const usePlanner = () => {
     const [reopenStep, setReopenStep] = useState(0);
     const [reopenConfirmationText, setReopenConfirmationText] = useState('');
     
-    const [dynamicStatusConfig, setDynamicStatusConfig] = useState<{[key: string]: {label: string, color: string}}>({});
+    const [dynamicStatusConfig, setDynamicStatusConfig] = useState<{ [key: string]: { label: string, color: string } }>(baseStatusConfig);
     
     const [isAddNoteDialogOpen, setAddNoteDialogOpen] = useState(false);
     const [notePayload, setNotePayload] = useState<{ orderId: number; notes: string } | null>(null);
@@ -100,13 +111,13 @@ export const usePlanner = () => {
             setStockLevels(initialStockLevels);
 
             if (settingsData?.customStatuses) {
-                const newConfig = { ...statusConfig };
+                const newConfig: { [key: string]: { label: string, color: string } } = { ...baseStatusConfig };
                 settingsData.customStatuses.forEach(cs => {
                     if (cs.isActive && cs.label) {
                         newConfig[cs.id as ProductionOrderStatus] = { label: cs.label, color: cs.color };
                     }
                 });
-                setDynamicStatusConfig(newConfig as any);
+                setDynamicStatusConfig(newConfig);
             }
             
             const finalStatus = settingsData?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
@@ -297,18 +308,6 @@ export const usePlanner = () => {
         }
     };
 
-    const statusConfig = {
-        pending: { label: "Pendiente", color: "bg-yellow-500" },
-        approved: { label: "Aprobada", color: "bg-green-500" },
-        'in-progress': { label: "En Progreso", color: "bg-blue-500" },
-        'on-hold': { label: "En Espera", color: "bg-gray-500" },
-        'cancellation-request': { label: "Sol. Cancelación", color: "bg-orange-500" },
-        completed: { label: "Completada", color: "bg-teal-500" },
-        'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
-        canceled: { label: "Cancelada", color: "bg-red-700" },
-        ...(dynamicStatusConfig || {}),
-    };
-
     const customerOptions = useMemo(() => {
         if (debouncedCustomerSearch.length < 2) return [];
         const searchLower = debouncedCustomerSearch.toLowerCase();
@@ -353,7 +352,7 @@ export const usePlanner = () => {
     const selectors = {
         hasPermission,
         priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
-        statusConfig,
+        statusConfig: dynamicStatusConfig,
         getDaysRemaining: (order: ProductionOrder) => {
             const today = new Date(); today.setHours(0, 0, 0, 0);
             if (order.scheduledStartDate && order.scheduledEndDate) {
@@ -379,6 +378,19 @@ export const usePlanner = () => {
         stockLevels,
     };
 
+    const actions = {
+        setNewOrderDialogOpen, setEditOrderDialogOpen, setViewingArchived, setArchivedPage,
+        setPageSize, setNewOrder, setOrderToEdit, setOrderToUpdate, setSearchTerm, setStatusFilter,
+        setClassificationFilter, setDateFilter, setCustomerSearchTerm, setCustomerSearchOpen,
+        setProductSearchTerm, setProductSearchOpen, setStatusDialogOpen, setNewStatus,
+        setStatusUpdateNotes, setDeliveredQuantity, setErpPackageNumber, setErpTicketNumber,
+        setHistoryDialogOpen, setReopenDialogOpen, setReopenStep,
+        setReopenConfirmationText, setAddNoteDialogOpen, setNotePayload,
+        loadInitialData, handleCreateOrder, handleEditOrder, handleSelectProduct, handleSelectCustomer,
+        handleProductInputKeyDown, handleCustomerInputKeyDown, handleAddNote,
+        openStatusDialog, handleStatusUpdate, handleDetailUpdate, handleOpenHistory, handleReopenOrder, handleRejectCancellation
+    };
+
     return {
         state: {
             isLoading, isSubmitting, isNewOrderDialogOpen, isEditOrderDialogOpen, activeOrders,
@@ -390,22 +402,9 @@ export const usePlanner = () => {
             isHistoryDialogOpen, historyOrder, history, isHistoryLoading, isReopenDialogOpen,
             reopenStep, reopenConfirmationText, isAddNoteDialogOpen, notePayload,
         },
-        actions: {
-            setNewOrderDialogOpen, setEditOrderDialogOpen, setViewingArchived, setArchivedPage,
-            setPageSize, setNewOrder, setOrderToEdit, setOrderToUpdate, setSearchTerm, setStatusFilter,
-            setClassificationFilter, setDateFilter, setCustomerSearchTerm, setCustomerSearchOpen,
-            setProductSearchTerm, setProductSearchOpen, setStatusDialogOpen, setNewStatus,
-            setStatusUpdateNotes, setDeliveredQuantity, setErpPackageNumber, setErpTicketNumber,
-            setHistoryDialogOpen, setReopenDialogOpen, setReopenStep, setReopenConfirmationText,
-            setAddNoteDialogOpen, setNotePayload, loadInitialData, handleCreateOrder, handleEditOrder, handleSelectProduct, handleSelectCustomer,
-            handleProductInputKeyDown, handleCustomerInputKeyDown, openAddNoteDialog, handleAddNote,
-            openStatusDialog, handleStatusUpdate, handleDetailUpdate, handleOpenHistory, handleReopenOrder, handleRejectCancellation
-        },
+        actions,
         refs: {},
         selectors,
         isAuthorized,
     };
 };
-
-
-  

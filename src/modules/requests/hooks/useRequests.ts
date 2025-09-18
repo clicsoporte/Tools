@@ -7,7 +7,6 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getAllCustomers, getAllProducts, getAllStock, getCompanySettings } from '@/modules/core/lib/db';
 import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, rejectCancellationRequest } from '@/modules/requests/lib/actions';
 import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company, DateRange } from '@/modules/core/types';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
@@ -31,6 +30,15 @@ const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' |
     inventory: 0,
     priority: 'medium',
     purchaseType: 'single',
+};
+
+const statusConfig = {
+    pending: { label: "Pendiente", color: "bg-yellow-500" },
+    approved: { label: "Aprobada", color: "bg-green-500" },
+    ordered: { label: "Ordenada", color: "bg-blue-500" },
+    received: { label: "Recibida", color: "bg-teal-500" },
+    'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
+    canceled: { label: "Cancelada", color: "bg-red-700" }
 };
 
 
@@ -276,7 +284,7 @@ export const useRequests = () => {
     const selectors = {
         hasPermission,
         priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
-        statusConfig: { pending: { label: "Pendiente", color: "bg-yellow-500" }, approved: { label: "Aprobada", color: "bg-green-500" }, ordered: { label: "Ordenada", color: "bg-blue-500" }, received: { label: "Recibida", color: "bg-teal-500" }, 'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" }, canceled: { label: "Cancelada", color: "bg-red-700" }},
+        statusConfig,
         getDaysRemaining: (dateStr: string) => {
             const today = new Date(); today.setHours(0, 0, 0, 0);
             const requiredDate = parseISO(dateStr); requiredDate.setHours(0, 0, 0, 0);
@@ -299,6 +307,18 @@ export const useRequests = () => {
         stockLevels
     };
 
+    const actions = {
+        setNewRequestDialogOpen, setEditRequestDialogOpen, setViewingArchived, setArchivedPage,
+        setPageSize, setNewRequest, setRequestToEdit, setSearchTerm, setStatusFilter,
+        setClassificationFilter, setDateFilter, setClientSearchTerm, setClientSearchOpen,
+        setItemSearchTerm, setItemSearchOpen, setStatusDialogOpen, setNewStatus,
+        setStatusUpdateNotes, setDeliveredQuantity, setHistoryDialogOpen,
+        setReopenDialogOpen, setReopenStep, setReopenConfirmationText, loadInitialData,
+        handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
+        handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
+        setRequestToUpdate, handleRejectCancellation
+    };
+
     return {
         state: {
             isLoading, isSubmitting, isNewRequestDialogOpen, isEditRequestDialogOpen, activeRequests,
@@ -310,17 +330,7 @@ export const useRequests = () => {
             history, isHistoryLoading, isReopenDialogOpen, reopenStep, reopenConfirmationText,
             companyData,
         },
-        actions: {
-            setNewRequestDialogOpen, setEditRequestDialogOpen, setViewingArchived, setArchivedPage,
-            setPageSize, setNewRequest, setRequestToEdit, setSearchTerm, setStatusFilter,
-            setClassificationFilter, setDateFilter, setClientSearchTerm, setClientSearchOpen,
-            setItemSearchTerm, setItemSearchOpen, setStatusDialogOpen, setNewStatus,
-            setStatusUpdateNotes, setDeliveredQuantity, setHistoryDialogOpen,
-            setReopenDialogOpen, setReopenStep, setReopenConfirmationText, loadInitialData,
-            handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
-            handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
-            setRequestToUpdate, handleRejectCancellation
-        },
+        actions,
         selectors,
         isLoading,
         isAuthorized
