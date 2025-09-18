@@ -22,7 +22,6 @@ export async function getPurchaseRequests(options: {
         status?: string;
         classification?: string;
         dateRange?: DateRange;
-        productIds?: string[];
     };
 }): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
     return getRequests(options);
@@ -51,5 +50,3 @@ export async function getRequestSettings(): Promise<RequestSettings> {
 export async function saveRequestSettings(settings: RequestSettings): Promise<void> {
     return saveSettings(settings);
 }
-
-

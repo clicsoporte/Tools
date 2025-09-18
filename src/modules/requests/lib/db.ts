@@ -177,26 +177,29 @@ export async function getRequests(options: {
         status?: string;
         classification?: string;
         dateRange?: DateRange;
-        productIds?: string[];
     };
 }): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
     const db = await connectDb(REQUESTS_DB_FILE);
-    const settings = await getSettings();
-    const archivedStatuses = settings.useWarehouseReception
-        ? ['received-in-warehouse', 'canceled']
-        : ['received', 'canceled'];
-
-    const archivedWhereClause = `status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`;
+    
     let allRequests: PurchaseRequest[] = [];
     let totalArchivedCount = 0;
+    
+    const { page, pageSize, filters } = options;
 
-    if (options.filters && options.page !== undefined && options.pageSize !== undefined) {
-        // Paginated and filtered query for archived view
-        const { page, pageSize, filters } = options;
-        const { searchTerm, status, dateRange, productIds } = filters;
+    if (filters && page !== undefined && pageSize !== undefined) {
+        const { searchTerm, status, dateRange } = filters;
 
-        let whereClauses = [archivedWhereClause];
+        // Build the WHERE clause dynamically
+        const whereClauses: string[] = [];
         const params: any[] = [];
+        
+        // This query will only target archived items
+        const settings = await getSettings();
+        const archivedStatuses = settings.useWarehouseReception
+            ? ['received-in-warehouse', 'canceled']
+            : ['received', 'canceled'];
+        whereClauses.push(`status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`);
+
 
         if (searchTerm) {
             whereClauses.push(`(consecutive LIKE ? OR clientName LIKE ? OR itemDescription LIKE ?)`);
@@ -207,10 +210,6 @@ export async function getRequests(options: {
             whereClauses.push(`status = ?`);
             params.push(status);
         }
-        if (productIds && productIds.length > 0) {
-            whereClauses.push(`itemId IN (${productIds.map(() => '?').join(',')})`);
-            params.push(...productIds);
-        }
         if (dateRange?.from) {
             whereClauses.push(`requiredDate >= ?`);
             params.push(dateRange.from.toISOString().split('T')[0]);
@@ -220,16 +219,22 @@ export async function getRequests(options: {
             params.push(dateRange.to.toISOString().split('T')[0]);
         }
 
-        const finalWhere = whereClauses.join(' AND ');
-        const query = `SELECT * FROM purchase_requests WHERE ${finalWhere} ORDER BY requestDate DESC LIMIT ? OFFSET ?`;
-        allRequests = db.prepare(query).all(...params, pageSize, page * pageSize) as PurchaseRequest[];
+        const finalWhere = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
         
-        const countQuery = `SELECT COUNT(*) as count FROM purchase_requests WHERE ${finalWhere}`;
+        const countQuery = `SELECT COUNT(*) as count FROM purchase_requests ${finalWhere}`;
         totalArchivedCount = (db.prepare(countQuery).get(...params) as { count: number }).count;
         
+        const query = `SELECT * FROM purchase_requests ${finalWhere} ORDER BY requestDate DESC LIMIT ? OFFSET ?`;
+        allRequests = db.prepare(query).all(...params, pageSize, page * pageSize) as PurchaseRequest[];
+
     } else {
-        // Default behavior: fetch all requests (both active and archived)
+        // Default behavior: fetch all requests
         allRequests = db.prepare(`SELECT * FROM purchase_requests ORDER BY requestDate DESC`).all() as PurchaseRequest[];
+        const settings = await getSettings();
+        const archivedStatuses = settings.useWarehouseReception
+            ? ['received-in-warehouse', 'canceled']
+            : ['received', 'canceled'];
+        const archivedWhereClause = `status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`;
         totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM purchase_requests WHERE ${archivedWhereClause}`).get() as { count: number }).count;
     }
     

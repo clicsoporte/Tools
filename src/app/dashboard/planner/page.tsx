@@ -20,9 +20,9 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getAllCustomers, getAllProducts, getAllStock, getStockSettings } from '@/modules/core/lib/db-client';
-import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest } from '@/modules/planner/lib/db-client';
-import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Warehouse, StockSettings, Company, CustomStatus, DateRange } from '@/modules/core/types';
-import { format, parseISO } from 'date-fns';
+import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder } from '@/modules/planner/lib/db-client';
+import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Warehouse, StockSettings, Company, CustomStatus, DateRange, NotePayload } from '@/modules/core/types';
+import { format, parseISO, isToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -130,6 +130,9 @@ export default function PlannerPage() {
 
     // Dynamic status configuration
     const [dynamicStatusConfig, setDynamicStatusConfig] = useState<{[key: string]: {label: string, color: string}}>(statusConfig as any);
+    
+    const [isAddNoteDialogOpen, setAddNoteDialogOpen] = useState(false);
+    const [notePayload, setNotePayload] = useState<{ orderId: number; notes: string } | null>(null);
 
     useEffect(() => {
         setTitle("Planificador OP");
@@ -169,14 +172,6 @@ export default function PlannerPage() {
             setPlannerSettings(plannerSettingsData);
             setStockSettings(stockSettingsData);
 
-            if (viewingArchived) {
-                setArchivedOrders(ordersData.archivedOrders);
-            } else {
-                setActiveOrders(ordersData.activeOrders);
-            }
-            setTotalArchived(ordersData.totalArchivedCount);
-            
-            // Update dynamic status config based on freshly loaded settings
             if (plannerSettingsData?.customStatuses) {
                 const newConfig = { ...statusConfig };
                 plannerSettingsData.customStatuses.forEach(cs => {
@@ -186,6 +181,17 @@ export default function PlannerPage() {
                 });
                 setDynamicStatusConfig(newConfig as any);
             }
+
+            const activeFilter = (o: ProductionOrder) => {
+                 const finalStatus = plannerSettingsData?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
+                return o.status !== finalStatus && o.status !== 'canceled';
+            };
+
+            const allOrders = ordersData.activeOrders.concat(ordersData.archivedOrders);
+
+            setActiveOrders(allOrders.filter(activeFilter));
+            setArchivedOrders(allOrders.filter(req => !activeFilter(req)));
+            setTotalArchived(ordersData.totalArchivedCount);
 
         } catch (error) {
             logError("Failed to load planner data", { error });
@@ -199,7 +205,7 @@ export default function PlannerPage() {
         if (isAuthorized) {
             loadInitialData(archivedPage);
         }
-    }, [isAuthorized, loadInitialData, archivedPage]);
+    }, [isAuthorized, loadInitialData, archivedPage, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
     
     const customerOptions = useMemo(() => {
         if (debouncedCustomerSearch.length < 2) return [];
@@ -644,7 +650,6 @@ export default function PlannerPage() {
     const filteredOrders = useMemo(() => {
         let ordersToFilter = viewingArchived ? archivedOrders : activeOrders;
         
-        // When not viewing archived, we filter on client
         if (!viewingArchived) {
             ordersToFilter = ordersToFilter.filter(order => {
                 const product = products.find(p => p.id === order.productId);
@@ -670,9 +675,199 @@ export default function PlannerPage() {
         return ordersToFilter;
     }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products, dateFilter]);
     
-    // ...
-    // Resto del código sin cambios...
-    // ...
+    const openAddNoteDialog = (order: ProductionOrder) => {
+        setNotePayload({ orderId: order.id, notes: '' });
+        setAddNoteDialogOpen(true);
+    };
+
+    const handleAddNote = async () => {
+        if (!notePayload || !notePayload.notes.trim() || !currentUser) {
+            toast({ title: "Nota vacía", description: "Debe escribir una nota para poder guardarla.", variant: "destructive" });
+            return;
+        }
+        
+        setIsSubmitting(true);
+        try {
+            await addNoteToOrder({ ...notePayload, updatedBy: currentUser.name });
+            toast({ title: "Nota Añadida", description: "La nota ha sido guardada en el historial de la orden." });
+            setAddNoteDialogOpen(false);
+            setNotePayload(null);
+            // No need to reload all data, the history will show it next time it's opened.
+        } catch(error: any) {
+            logError("Failed to add note to order", { error: error.message });
+            toast({ title: "Error", description: "No se pudo guardar la nota.", variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    
+    const renderOrderCard = (order: ProductionOrder) => {
+        const settings = plannerSettings;
+        if (!settings) return null;
+
+        const finalStatus = settings.useWarehouseReception ? 'received-in-warehouse' : 'completed';
+        const canBeReopened = hasPermission('planner:reopen') && (order.status === finalStatus || order.status === 'canceled');
+        const canApprove = hasPermission('planner:status:approve') && order.status === 'pending';
+        const canStart = hasPermission('planner:status:in-progress') && ['approved', 'on-hold'].includes(order.status);
+        const canHold = hasPermission('planner:status:on-hold') && order.status === 'in-progress';
+        const canComplete = hasPermission('planner:status:completed') && order.status === 'in-progress';
+        const canReceiveInWarehouse = hasPermission('planner:receive') && order.status === 'completed' && settings.useWarehouseReception;
+        const canRequestCancel = order.status !== 'cancellation-request' && order.status !== 'completed' && order.status !== 'received-in-warehouse' && order.status !== 'canceled';
+        const canApproveCancel = hasPermission('planner:status:cancel-approved') && order.status === 'cancellation-request';
+        const canRejectCancel = hasPermission('planner:status:cancel-approved') && order.status === 'cancellation-request';
+
+        const canEditPending = hasPermission('planner:edit:pending') && order.status === 'pending';
+        const canEditApproved = hasPermission('planner:edit:approved') && ['approved', 'in-progress', 'on-hold'].includes(order.status);
+        const canEdit = canEditPending || canEditApproved;
+
+        const startsToday = order.scheduledStartDate && isToday(parseISO(order.scheduledStartDate));
+        const endsToday = order.scheduledEndDate && isToday(parseISO(order.scheduledEndDate));
+
+        return (
+            <Card key={order.id} className="w-full">
+                {/* ... CardHeader, CardContent, CardFooter with all the logic ... */}
+                 <CardHeader className="p-4">
+                    <div className="flex justify-between items-start gap-2">
+                        <div>
+                            <CardTitle className="text-lg">{`[${order.productId}] ${order.productDescription}`}</CardTitle>
+                            <CardDescription>Cliente: {order.customerName} - Orden: {order.consecutive}</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                             {order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
+                             <Button variant="ghost" size="icon" onClick={() => handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-1">
+                                    <div className="grid grid-cols-1">
+                                        <Button variant="ghost" className="justify-start" onClick={() => openAddNoteDialog(order)}><Pencil className="mr-2"/> Añadir Nota</Button>
+                                        <Button variant="ghost" className="justify-start" onClick={() => handleExportSingleOrderPDF(order)}><FileDown className="mr-2"/> Exportar a PDF</Button>
+                                        {canEdit && <Button variant="ghost" className="justify-start" onClick={() => { setOrderToEdit(order); setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</Button>}
+                                        {canBeReopened && <Button variant="ghost" className="justify-start text-orange-600" onClick={() => { setOrderToUpdate(order); setReopenDialogOpen(true); }}><Undo2 className="mr-2"/> Reabrir</Button>}
+                                        <Separator className="my-1"/>
+                                        {canApprove && <Button variant="ghost" className="justify-start text-green-600" onClick={() => openStatusDialog(order, 'approved')}><Check className="mr-2"/> Aprobar</Button>}
+                                        {canStart && <Button variant="ghost" className="justify-start text-blue-600" onClick={() => openStatusDialog(order, 'in-progress')}><Factory className="mr-2"/> Iniciar Producción</Button>}
+                                        {canHold && <Button variant="ghost" className="justify-start" onClick={() => openStatusDialog(order, 'on-hold')}>En Espera</Button>}
+                                        {canComplete && <Button variant="ghost" className="justify-start text-teal-600" onClick={() => openStatusDialog(order, 'completed')}><Check className="mr-2"/> Completar</Button>}
+                                        {canReceiveInWarehouse && <Button variant="ghost" className="justify-start text-gray-700" onClick={() => openStatusDialog(order, 'received-in-warehouse')}><Boxes className="mr-2"/> Recibir en Bodega</Button>}
+                                        <Separator className="my-1"/>
+                                        {canRequestCancel && <Button variant="ghost" className="justify-start text-orange-600" onClick={() => openStatusDialog(order, 'cancellation-request')}><ShieldAlert className="mr-2"/> Sol. Cancelación</Button>}
+                                        {canApproveCancel && <Button variant="ghost" className="justify-start text-red-600" onClick={() => openStatusDialog(order, 'canceled')}><XCircle className="mr-2"/> Aprobar Cancelación</Button>}
+                                        {canRejectCancel && <Button variant="ghost" className="justify-start" onClick={() => handleRejectCancellation(order)}>Rechazar Cancelación</Button>}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6 text-sm">
+                        <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Estado Actual</p>
+                            <div className="flex items-center gap-2">
+                                <span className={cn("h-3 w-3 rounded-full", dynamicStatusConfig[order.status]?.color)}></span>
+                                <span className="font-medium">{dynamicStatusConfig[order.status]?.label}</span>
+                            </div>
+                        </div>
+
+                         <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Prioridad</p>
+                            <span className={cn("font-medium", priorityConfig[order.priority]?.className)}>{priorityConfig[order.priority]?.label || order.priority}</span>
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Fecha de Entrega</p>
+                            <p>{format(parseISO(order.deliveryDate), 'dd/MM/yyyy')}</p>
+                        </div>
+                        
+                         <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Fecha Programada</p>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-auto px-2 py-1 text-xs">
+                                        {(order.scheduledStartDate && order.scheduledEndDate) ? 
+                                        `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${format(parseISO(order.scheduledEndDate), 'dd/MM/yy')}`
+                                        : "Sin programar"}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="range"
+                                        defaultMonth={order.scheduledStartDate ? parseISO(order.scheduledStartDate) : new Date()}
+                                        selected={{ from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined, to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined }}
+                                        onSelect={(range) => handleDetailUpdate(order.id, { scheduledDateRange: range })}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+
+                         <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Cant. Solicitada</p>
+                            <p className="font-bold text-lg">{order.quantity.toLocaleString()}</p>
+                        </div>
+                         {order.deliveredQuantity !== null && order.deliveredQuantity !== undefined && (
+                            <>
+                                 <div className="space-y-1">
+                                    <p className="font-semibold text-muted-foreground">Cant. Entregada</p>
+                                    <p className="font-bold text-lg text-green-600">{order.deliveredQuantity.toLocaleString()}</p>
+                                </div>
+                            </>
+                         )}
+                         <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">{plannerSettings?.assignmentLabel || "Asignación"}</p>
+                             <Select value={order.machineId || ''} onValueChange={(value) => handleDetailUpdate(order.id, { machineId: value || null })}>
+                                <SelectTrigger className="h-8">
+                                    <SelectValue placeholder="Sin asignar"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">Sin asignar</SelectItem>
+                                    {plannerSettings?.machines.map(m => (
+                                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {order.purchaseOrder &&
+                            <div className="space-y-1">
+                                <p className="font-semibold text-muted-foreground">Nº OC Cliente</p>
+                                <p>{order.purchaseOrder}</p>
+                            </div>
+                        }
+                    </div>
+                     <div className="flex flex-wrap items-center gap-2 mt-4">
+                        {startsToday && <Badge variant="outline" className="border-green-600 text-green-700">▶️ Inicia Hoy</Badge>}
+                        {endsToday && <Badge variant="destructive">🏁 Finaliza Hoy</Badge>}
+                     </div>
+                     {order.notes && (
+                        <div className="mt-4 text-xs bg-muted p-2 rounded-md">
+                            <p className="font-semibold">Notas de la Orden:</p>
+                            <p className="text-muted-foreground">"{order.notes}"</p>
+                        </div>
+                     )}
+                </CardContent>
+                <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
+                    <span>Solicitado por: {order.requestedBy} el {format(parseISO(order.requestDate), 'dd/MM/yyyy')}</span>
+                    {order.approvedBy && <span>Aprobado por: {order.approvedBy}</span>}
+                </CardFooter>
+            </Card>
+        );
+    };
+
+    if (isAuthorized === null || (isAuthorized && isLoading)) {
+        return (
+            <main className="flex-1 p-4 md:p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-2xl font-bold">Órdenes de Producción</h1>
+                    <Button disabled><Loader2 className="mr-2 animate-spin" /> Cargando...</Button>
+                </div>
+                 <div className="space-y-4">
+                    <Skeleton className="h-40 w-full" />
+                    <Skeleton className="h-40 w-full" />
+                </div>
+            </main>
+        )
+    }
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -902,7 +1097,7 @@ export default function PlannerPage() {
                         <Skeleton className="h-40 w-full" />
                     </div>
                 ) : filteredOrders.length > 0 ? (
-                    filteredOrders.map(renderOrderCard)
+                    filteredOrders.map(order => renderOrderCard(order))
                 ) : (
                      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                         <div className="flex flex-col items-center gap-2 text-center">
@@ -943,7 +1138,9 @@ export default function PlannerPage() {
                 </div>
             )}
             
-            {/* EDIT ORDER DIALOG */}
+            {/* DIALOGS */}
+            
+             {/* EDIT ORDER DIALOG */}
             <Dialog open={isEditOrderDialogOpen} onOpenChange={setEditOrderDialogOpen}>
                  <DialogContent className="sm:max-w-3xl">
                     <form onSubmit={handleEditOrder}>
@@ -1027,6 +1224,34 @@ export default function PlannerPage() {
                             <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Guardar Cambios</Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+            
+            <Dialog open={isAddNoteDialogOpen} onOpenChange={setAddNoteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Añadir Nota a la Orden</DialogTitle>
+                        <DialogDescription>
+                            La nota se añadirá al historial de la orden sin cambiar su estado actual.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-4">
+                        <Label htmlFor="note-content">Nota</Label>
+                        <Textarea
+                            id="note-content"
+                            value={notePayload?.notes || ''}
+                            onChange={(e) => setNotePayload(prev => prev ? { ...prev, notes: e.target.value } : null)}
+                            placeholder="Escribe tu nota aquí..."
+                            rows={4}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                        <Button onClick={handleAddNote} disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="mr-2 animate-spin"/> : null}
+                            Guardar Nota
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
