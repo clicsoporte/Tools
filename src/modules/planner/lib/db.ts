@@ -205,9 +205,6 @@ export async function getOrders(options: {
 }): Promise<{ activeOrders: ProductionOrder[], archivedOrders: ProductionOrder[], totalArchivedCount: number }> {
     const db = await connectDb(PLANNER_DB_FILE);
     
-    // Always fetch all orders, filtering will happen in memory for active, and DB for archived
-    const allOrders: ProductionOrder[] = db.prepare(`SELECT * FROM production_orders ORDER BY requestDate DESC`).all() as ProductionOrder[];
-    
     const settings = await getSettings();
     const archivedStatuses = settings.useWarehouseReception
         ? ['received-in-warehouse', 'canceled']
@@ -215,18 +212,21 @@ export async function getOrders(options: {
     
     const activeFilter = (o: ProductionOrder) => !archivedStatuses.includes(o.status);
 
+    // Fetch all orders once.
+    const allOrders: ProductionOrder[] = db.prepare(`SELECT * FROM production_orders ORDER BY requestDate DESC`).all() as ProductionOrder[];
+    
     const activeOrders = allOrders.filter(activeFilter);
+    let allArchived = allOrders.filter(o => !activeFilter(o));
     
     let archivedOrders: ProductionOrder[] = [];
     let totalArchivedCount = 0;
-    
+
     const { page, pageSize, filters } = options;
-
+    
     if (filters && page !== undefined && pageSize !== undefined) {
-        const { searchTerm, status, dateRange, productIds, classification } = filters;
-        
-        let allArchived = allOrders.filter(o => !activeFilter(o));
+        const { searchTerm, status, dateRange, classification } = filters;
 
+        // Apply filters to archived orders in memory
         if (classification && classification !== 'all') {
             const allProducts = await getAllProducts();
             const productMap = new Map(allProducts.map(p => [p.id, p]));
@@ -236,50 +236,30 @@ export async function getOrders(options: {
             });
         }
         
-        const whereClauses: string[] = [];
-        const params: any[] = [];
+        let filteredArchived = allArchived.filter(order => {
+            const searchMatch = searchTerm
+                ? order.consecutive.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                  order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                  order.productDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  order.purchaseOrder?.toLowerCase().includes(searchTerm.toLowerCase())
+                : true;
+            const statusMatch = status && status !== 'all' ? order.status === status : true;
+            const dateMatch = dateRange?.from
+                ? new Date(order.deliveryDate) >= dateRange.from && new Date(order.deliveryDate) <= (dateRange.to || dateRange.from)
+                : true;
+            
+            return searchMatch && statusMatch && dateMatch;
+        });
 
-        if (searchTerm) {
-            whereClauses.push(`(consecutive LIKE ? OR customerName LIKE ? OR productDescription LIKE ?)`);
-            const likeTerm = `%${searchTerm}%`;
-            params.push(likeTerm, likeTerm, likeTerm);
-        }
-        if (status && status !== 'all') {
-            whereClauses.push(`status = ?`);
-            params.push(status);
-        }
-        if (dateRange?.from) {
-            whereClauses.push(`deliveryDate >= ?`);
-            params.push(dateRange.from.toISOString().split('T')[0]);
-        }
-        if (dateRange?.to) {
-            whereClauses.push(`deliveryDate <= ?`);
-            params.push(dateRange.to.toISOString().split('T')[0]);
-        }
-
-        const filteredIds = allArchived.map(o => o.id);
-        if (filteredIds.length > 0) {
-            whereClauses.push(`id IN (${filteredIds.map(() => '?').join(',')})`);
-            params.push(...filteredIds);
-        } else {
-             // If filters result in no possible orders, don't query the DB
-            return { activeOrders, archivedOrders: [], totalArchivedCount: 0 };
-        }
-        
-        const finalWhere = whereClauses.join(' AND ');
-        
-        const countQuery = `SELECT COUNT(*) as count FROM production_orders WHERE ${finalWhere}`;
-        totalArchivedCount = (db.prepare(countQuery).get(...params) as { count: number }).count;
-        
-        const filteredArchivedQuery = `SELECT * FROM production_orders WHERE ${finalWhere} ORDER BY requestDate DESC LIMIT ? OFFSET ?`;
-        archivedOrders = db.prepare(filteredArchivedQuery).all(...params, pageSize, page * pageSize) as ProductionOrder[];
+        totalArchivedCount = filteredArchived.length;
+        archivedOrders = filteredArchived.slice(page * pageSize, (page + 1) * pageSize);
     } else {
-        totalArchivedCount = allOrders.length - activeOrders.length;
+        totalArchivedCount = allArchived.length;
     }
-
 
     return { activeOrders, archivedOrders, totalArchivedCount };
 }
+
 
 export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'>, requestedBy: string): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
