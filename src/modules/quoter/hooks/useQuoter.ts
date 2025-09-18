@@ -40,10 +40,10 @@ const initialQuoteState = {
   selectedCustomer: null as Customer | null,
   customerDetails: "",
   deliveryAddress: "",
-  deliveryDate: new Date().toISOString().substring(0, 16),
+  deliveryDate: "", // Set in useEffect to avoid hydration errors
   sellerName: "",
-  quoteDate: new Date().toISOString().substring(0, 10),
-  validUntilDate: new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10),
+  quoteDate: "", // Set in useEffect
+  validUntilDate: "", // Set in useEffect
   paymentTerms: "contado",
   creditDays: 0,
   notes: "Precios sujetos a cambio sin previo aviso.",
@@ -261,6 +261,10 @@ export const useQuoter = () => {
     
     if (!isMounted) {
       loadInitialData(false);
+      // Set default dates on client side to avoid hydration mismatch
+      setQuoteDate(new Date().toISOString().substring(0, 10));
+      setDeliveryDate(new Date().toISOString().substring(0, 16));
+      setValidUntilDate(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
       setIsMounted(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -664,15 +668,15 @@ export const useQuoter = () => {
     setSelectedCustomer(initialQuoteState.selectedCustomer);
     setCustomerDetails(initialQuoteState.customerDetails);
     setDeliveryAddress(initialQuoteState.deliveryAddress);
-    setDeliveryDate(initialQuoteState.deliveryDate);
+    setDeliveryDate(new Date().toISOString().substring(0, 16));
     setSellerName(currentUser?.name || initialQuoteState.sellerName);
-    setQuoteDate(initialQuoteState.quoteDate);
+    setQuoteDate(new Date().toISOString().substring(0, 10));
     setPurchaseOrderNumber(initialQuoteState.purchaseOrderNumber);
     setExchangeRate(apiExchangeRate); // Reset to the fetched API rate
     setSellerType("user");
     setPaymentTerms(initialQuoteState.paymentTerms);
     setCreditDays(initialQuoteState.creditDays);
-    setValidUntilDate(initialQuoteState.validUntilDate);
+    setValidUntilDate(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
     setNotes(initialQuoteState.notes);
     setProductSearchTerm("");
     setCustomerSearchTerm("");
@@ -837,7 +841,7 @@ export const useQuoter = () => {
       addLine, removeLine, updateLine, updateLineProductDetail, handleCurrencyToggle, formatCurrency,
       handleSelectCustomer, handleSelectProduct, incrementAndSaveQuoteNumber, handleSaveDecimalPlaces,
       generatePDF, resetQuote, saveDraft, loadDrafts, handleLoadDraft, handleDeleteDraft, handleNumericInputBlur,
-      handleCustomerDetailsChange, fetchRate, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown,
+      handleCustomerDetailsChange, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown,
     },
     refs: { productInputRef, customerInputRef, lineInputRefs },
     selectors: { totals, customerOptions, productOptions },
