@@ -7,7 +7,7 @@
 import { mainTools } from "../../modules/core/lib/data";
 import { ToolCard } from "../../components/dashboard/tool-card";
 import { useEffect, useState } from "react";
-import type { User, Tool, Company } from "../../modules/core/types";
+import type { Tool } from "../../modules/core/types";
 import { Skeleton } from "../../components/ui/skeleton";
 import { usePageTitle } from "../../modules/core/hooks/usePageTitle";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,10 @@ import { Loader2, RefreshCw, Wrench, Clock } from "lucide-react";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import { importAllDataFromFiles, saveCompanySettings } from "@/modules/core/lib/db";
+import { importAllDataFromFiles } from "@/modules/core/lib/db";
+import { saveCompanySettings } from "@/modules/core/lib/db-client";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,42 +27,35 @@ import { cn } from "@/lib/utils";
  * based on user permissions.
  */
 export default function DashboardPage() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user, companyData, isLoading: isAuthLoading, refreshAuth } = useAuth();
   const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const { setTitle } = usePageTitle();
   const { hasPermission } = useAuthorization(['admin:import:run']);
-  const { companyData, refreshAuth } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     setTitle("Panel Principal");
     
-    const initializeDashboard = async () => {
-      const { user } = useAuth.getState();
-      setCurrentUser(user);
-      if (user) {
-        // Start with the main tools
-        let tools = [...mainTools];
-        
-        // Add the admin tool if the user is an admin
-        if (user.role === 'admin') {
-          tools.push({
-            id: "admin",
-            name: "Configuración",
-            description: "Gestionar usuarios, roles y sistema.",
-            href: "/dashboard/admin",
-            icon: Wrench,
-            bgColor: "bg-slate-600",
-            textColor: "text-white",
-          });
-        }
-        setVisibleTools(tools);
+    if (user) {
+      // Start with the main tools
+      let tools = [...mainTools];
+      
+      // Add the admin tool if the user is an admin
+      if (user.role === 'admin') {
+        tools.push({
+          id: "admin",
+          name: "Configuración",
+          description: "Gestionar usuarios, roles y sistema.",
+          href: "/dashboard/admin",
+          icon: Wrench,
+          bgColor: "bg-slate-600",
+          textColor: "text-white",
+        });
       }
-    };
-
-    initializeDashboard();
-  }, [setTitle]);
+      setVisibleTools(tools);
+    }
+  }, [setTitle, user]);
 
   const handleFullSync = async () => {
     setIsSyncing(true);
@@ -93,7 +87,7 @@ export default function DashboardPage() {
   }
 
   // Display a skeleton loader while the user data is being fetched.
-  if (!currentUser) {
+  if (isAuthLoading) {
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <Skeleton className="h-8 w-64 mb-4" />
