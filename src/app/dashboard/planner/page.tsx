@@ -31,7 +31,6 @@ export default function PlannerPage() {
         actions,
         selectors,
         isAuthorized,
-        isLoading
     } = usePlanner();
 
     const {
@@ -59,7 +58,7 @@ export default function PlannerPage() {
 
     const { priorityConfig } = selectors;
 
-    if (isAuthorized === null || (isAuthorized && isLoading)) {
+    if (isAuthorized === null || (isAuthorized && state.isLoading)) {
         return (
             <main className="flex-1 p-4 md:p-6">
                 <div className="flex justify-between items-center mb-6">
@@ -202,7 +201,7 @@ export default function PlannerPage() {
                 </CardContent>
             </Card>
             <div className="space-y-4">
-                {isLoading ? (
+                {state.isLoading ? (
                     <div className="space-y-4"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>
                 ) : selectors.filteredOrders.length > 0 ? (
                     selectors.filteredOrders.map(selectors.renderOrderCard)
