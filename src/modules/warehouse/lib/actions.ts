@@ -13,7 +13,7 @@ import {
     getItemLocations as getItemLocationsServer,
     assignItemToLocation as assignItemToLocationServer,
     unassignItemFromLocation as unassignItemFromLocationServer,
-    getInventory as getInventoryServer,
+    getWarehouseData as getWarehouseDataServer,
     getStockSettings as getStockSettingsServer,
     getMovements as getMovementsServer,
 } from './db';
@@ -35,6 +35,6 @@ export const assignItemToLocation = async (itemId: string, locationId: number): 
 export const unassignItemFromLocation = async (itemLocationId: number): Promise<void> => unassignItemFromLocationServer(itemLocationId);
 
 // --- Page-specific data loaders ---
-export const getWarehouseData = async () => getInventoryServer();
+export const getWarehouseData = async () => getWarehouseDataServer();
 export const getStockSettings = async (): Promise<StockSettings> => getStockSettingsServer();
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);
