@@ -80,6 +80,25 @@ const normalizeNumber = (value: string): number => {
     return isNaN(parsed) ? 0 : parsed;
 };
 
+const fetchRate = async () => {
+    try {
+        const data = await getExchangeRate();
+        if (!data || data.error) {
+            throw new Error(data?.message || 'La respuesta de la API de tipo de cambio no es válida.');
+        }
+        const sellRate = data.venta?.valor;
+        const rateDate = data.venta?.fecha;
+        if (typeof sellRate !== 'number' || typeof rateDate !== 'string') {
+            throw new Error('Estructura de datos inválida desde la API de tipo de cambio.');
+        }
+        return { rate: sellRate, date: new Date(rateDate).toLocaleDateString('es-CR') };
+    } catch (error: any) {
+        await logError("Error fetching exchange rate", { error: error.message });
+        return null;
+    }
+};
+
+
 /**
  * Main hook for the Quoter component.
  * @returns An object containing the quoter's state, actions, refs, and memoized selectors.
@@ -175,44 +194,12 @@ export const useQuoter = () => {
   }, [toast]);
   
 
-  const fetchRate = useCallback(async () => {
-      setExchangeRateLoaded(false);
-      try {
-        const data = await getExchangeRate();
-        
-        if (!data || data.error) {
-            throw new Error(data?.message || 'La respuesta de la API de tipo de cambio no es válida.');
-        }
-
-        const sellRate = data.venta?.valor;
-        const rateDate = data.venta?.fecha;
-
-        if (typeof sellRate !== 'number' || typeof rateDate !== 'string') {
-            throw new Error('Estructura de datos inválida desde la API de tipo de cambio.');
-        }
-
-        setExchangeRate(sellRate);
-        setApiExchangeRate(sellRate);
-        setExchangeRateDate(new Date(rateDate).toLocaleDateString('es-CR'));
-
-      } catch (error: any) {
-        logError("Error fetching exchange rate", { error: error.message });
-        toast({
-          title: "Error de Tipo de Cambio",
-          description: "No se pudo obtener el tipo de cambio. Se usará un valor manual.",
-          variant: "destructive",
-        });
-      } finally {
-        setExchangeRateLoaded(true);
-      }
-    }, [toast]);
-
   const loadInitialData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
         setIsRefreshing(true);
     }
     try {
-      const [company, user, dbCustomers, dbProducts, dbExemptions, dbLaws, dbStock] = await Promise.all([
+      const [company, user, dbCustomers, dbProducts, dbExemptions, dbLaws, dbStock, rateData] = await Promise.all([
         getCompanySettings(),
         getCurrentUser(),
         getAllCustomers(),
@@ -220,7 +207,21 @@ export const useQuoter = () => {
         getAllExemptions(),
         getExemptionLaws(),
         getAllStock(),
+        fetchRate()
       ]);
+
+      if (rateData) {
+          setExchangeRate(rateData.rate);
+          setApiExchangeRate(rateData.rate);
+          setExchangeRateDate(rateData.date);
+      } else {
+           toast({
+          title: "Error de Tipo de Cambio",
+          description: "No se pudo obtener el tipo de cambio. Se usará un valor manual.",
+          variant: "destructive",
+        });
+      }
+      setExchangeRateLoaded(true);
 
       if (company) {
         setCompanyData(company);
@@ -258,14 +259,9 @@ export const useQuoter = () => {
   useEffect(() => {
     setTitle("Cotizador");
     
-    const initialLoad = async () => {
-        await fetchRate();
-        await loadInitialData(false); // Pass false to indicate initial load
-        setIsMounted(true);
-    };
-    
     if (!isMounted) {
-      initialLoad();
+      loadInitialData(false);
+      setIsMounted(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted]);
