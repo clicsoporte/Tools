@@ -267,7 +267,126 @@ async function checkAndApplyMigrations(db: Database.Database) {
     }
 }
 async function initializeMainDatabase(db: import('better-sqlite3').Database) {
-    throw new Error('Function not implemented.');
+    const mainSchema = `
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            phone TEXT,
+            whatsapp TEXT,
+            avatar TEXT,
+            role TEXT NOT NULL,
+            recentActivity TEXT,
+            securityQuestion TEXT,
+            securityAnswer TEXT
+        );
+
+        CREATE TABLE company_settings (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
+            logoUrl TEXT, systemName TEXT,
+            quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER,
+            searchDebounceTime INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
+            customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
+            stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT
+        );
+        
+        CREATE TABLE api_settings (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            exchangeRateApi TEXT,
+            haciendaExemptionApi TEXT,
+            haciendaTributariaApi TEXT
+        );
+
+        CREATE TABLE exemption_laws (
+            docType TEXT PRIMARY KEY,
+            institutionName TEXT NOT NULL,
+            authNumber TEXT
+        );
+        
+        CREATE TABLE logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            type TEXT NOT NULL,
+            message TEXT NOT NULL,
+            details TEXT
+        );
+
+        CREATE TABLE customers (
+            id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT,
+            creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT
+        );
+
+        CREATE TABLE products (
+            id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT,
+            notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT
+        );
+
+        CREATE TABLE exemptions (
+            code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT,
+            endDate TEXT, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT
+        );
+
+        CREATE TABLE stock (
+            itemId TEXT PRIMARY KEY,
+            stockByWarehouse TEXT NOT NULL,
+            totalStock REAL NOT NULL
+        );
+        
+        CREATE TABLE stock_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
+
+        CREATE TABLE roles (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, permissions TEXT NOT NULL
+        );
+
+        CREATE TABLE quote_drafts (
+            id TEXT PRIMARY KEY, createdAt TEXT NOT NULL, userId INTEGER, customerId TEXT,
+            lines TEXT, totals TEXT, notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT
+        );
+
+        CREATE TABLE sql_config (
+            key TEXT PRIMARY KEY, value TEXT
+        );
+
+        CREATE TABLE import_queries (
+            type TEXT PRIMARY KEY, query TEXT
+        );
+        
+        CREATE TABLE cabys_catalog (
+            code TEXT PRIMARY KEY,
+            description TEXT NOT NULL,
+            taxRate REAL
+        );
+    `;
+
+    db.exec(mainSchema);
+
+    const userInsert = db.prepare('INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)');
+    initialUsers.forEach(user => {
+        const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
+        userInsert.run({ ...user, password: hashedPassword });
+    });
+
+    db.prepare(`INSERT INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, importMode) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
+        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.searchDebounceTime, initialCompany.importMode
+    );
+    
+    db.prepare(`INSERT INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)`).run(
+        'https://api.hacienda.go.cr/indicadores/tc/dolar', 
+        'https://api.hacienda.go.cr/fe/ex?autorizacion=',
+        'https://api.hacienda.go.cr/fe/ae?identificacion='
+    );
+
+    const roleInsert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
+    initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
+
+    console.log(`Database ${DB_FILE} initialized with default users, company settings, and roles.`);
+    await checkAndApplyMigrations(db);
 }
 
 export async function getCompanySettings(): Promise<Company | null> {
@@ -1005,7 +1124,6 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
 }
 
 export async function importAllDataFromFiles(): Promise<{ type: string; count: number; }[]> {
-    const db = await connectDb();
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
     
@@ -1035,6 +1153,7 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
         }
     }
 
+    const db = await connectDb();
     db.prepare('UPDATE company_settings SET lastSyncTimestamp = ? WHERE id = 1')
       .run(new Date().toISOString());
     
