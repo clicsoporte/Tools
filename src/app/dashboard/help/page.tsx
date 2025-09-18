@@ -193,7 +193,7 @@ export default function HelpPage() {
                             </ul>
                         </li>
                         <li>
-                            <strong>Paso 4: Usar Prioridades y Cuenta Regresiva.</strong> Utiliza el selector de prioridad (Urgente, Alta, etc.) y fíjate en el indicador de días restantes para organizar el trabajo. El indicador de días se basa en el tiempo programado, cambiando de color (verde {'>'} naranja {'>'} rojo) a medida que se acerca la fecha límite de producción.
+                            <strong>Paso 4: Usar Prioridades y Cuenta Regresiva.</strong> Utiliza el selector de prioridad (Urgente, Alta, etc.) y fíjate en el indicador de días restantes para organizar el trabajo. El indicador de días se basa en el tiempo programado, cambiando de color (verde &gt; naranja &gt; rojo) a medida que se acerca la fecha límite de producción.
                         </li>
                     </ul>
                 </AccordionContent>
@@ -205,7 +205,7 @@ export default function HelpPage() {
                         Tutorial: Módulo de Almacenes
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <p>Este módulo te da control sobre la ubicación de tu inventario. Su configuración, aunque potente, puede ser confusa al principio. Se basa en un concepto de dos pasos: el **Molde** y el **Árbol**.</p>
+                        <p>Este módulo te da control sobre la ubicación de tu inventario. Su configuración, aunque potente, puede ser confusa al principio. Se basa en un concepto de dos pasos: el <strong>Molde</strong> y el <strong>Árbol</strong>.</p>
                         
                         <ul className="list-none space-y-3 pl-0">
                             <li>
@@ -221,7 +221,7 @@ export default function HelpPage() {
 
                         <h5 className="font-semibold">Paso 1: Crear el "Molde" (La Jerarquía)</h5>
                         <ol className="list-decimal space-y-2 pl-6">
-                            <li>Ve a <strong>Administración {'>'} Config. Almacenes</strong>.</li>
+                            <li>Ve a <strong>Administración &gt; Config. Almacenes</strong>.</li>
                             <li>En la sección <strong>"Paso 1: Definir Jerarquía del Almacén"</strong>, borra los niveles que existan.</li>
                             <li>Añade, en orden, los siguientes niveles:
                                 <ul className="list-[circle] space-y-1 pl-5 mt-2">
@@ -236,7 +236,7 @@ export default function HelpPage() {
                         </ol>
 
                         <h5 className="font-semibold">Paso 2: Construir el "Árbol" (Las Ubicaciones Reales)</h5>
-                        <p>Ahora, en la sección **"Paso 2: Crear Ubicaciones Reales"**, vamos a construir el almacén pieza por pieza:</p>
+                        <p>Ahora, en la sección <strong>"Paso 2: Crear Ubicaciones Reales"</strong>, vamos a construir el almacén pieza por pieza:</p>
                         <ol className="list-decimal space-y-3 pl-6">
                             <li>
                                 <strong>Crear la Bodega:</strong>
@@ -267,7 +267,7 @@ export default function HelpPage() {
                                     <li>Añade `Posición Horizontal 1` (Código `H1`), tipo `Nivel 4`, padre `Rack 01`.</li>
                                     <li>Añade `Posición Vertical 1` (Código `V1`), tipo `Nivel 5`, padre `Posición Horizontal 1`.</li>
                                 </ul>
-                                Tu ubicación final para un producto sería `B04 > P01 > R01 > H1 > V1`.
+                                Tu ubicación final para un producto sería `B04 &gt; P01 &gt; R01 &gt; H1 &gt; V1`.
                             </li>
                         </ol>
                         <p className="pt-2">Una vez configurado, puedes ir al módulo <strong>Asignar Inventario</strong> para empezar a colocar tus artículos, como el `P011 BOLSA 20 X 30 X 2.5 TRANSPARENTE`, en estas nuevas ubicaciones.</p>
