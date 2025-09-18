@@ -3,7 +3,7 @@
  */
 'use client';
 
-import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, RejectCancellationPayload, UpdateProductionOrderPayload, DateRange } from '../../core/types';
+import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, RejectCancellationPayload, UpdateProductionOrderPayload, DateRange, NotePayload } from '../../core/types';
 import { 
     getOrders, 
     addOrder, 
@@ -14,6 +14,7 @@ import {
     getSettings,
     saveSettings,
     rejectCancellation as rejectCancellationServer,
+    addNote as addNoteServer,
 } from './db';
 
 export async function getProductionOrders(options: { 
@@ -60,4 +61,8 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 
 export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<void> {
     return rejectCancellationServer(payload);
+}
+
+export async function addNoteToOrder(payload: NotePayload): Promise<void> {
+    return addNoteServer(payload);
 }

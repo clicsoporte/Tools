@@ -4,7 +4,7 @@
 "use server";
 
 import { connectDb, getAllProducts } from '../../core/lib/db';
-import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, Warehouse, UpdateProductionOrderPayload, CustomStatus, DateRange } from '../../core/types';
+import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, Warehouse, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
@@ -289,13 +289,13 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
 
     const stmt = db.prepare(`
         INSERT INTO production_orders (
-            consecutive, purchaseOrder, requestDate, deliveryDate, customerId, customerName,
-            productId, productDescription, quantity, inventory, priority,
-            status, notes, requestedBy, reopened, machineId, previousStatus, scheduledStartDate, scheduledEndDate
+            consecutive, purchaseOrder, requestDate, deliveryDate, scheduledStartDate, scheduledEndDate,
+            customerId, customerName, productId, productDescription, quantity, inventory, priority,
+            status, notes, requestedBy, reopened, machineId, previousStatus
         ) VALUES (
-            @consecutive, @purchaseOrder, @requestDate, @deliveryDate, @customerId, @customerName,
-            @productId, @productDescription, @quantity, @inventory, @priority,
-            @status, @notes, @requestedBy, @reopened, @machineId, @previousStatus, @scheduledStartDate, @scheduledEndDate
+            @consecutive, @purchaseOrder, @requestDate, @deliveryDate, @scheduledStartDate, @scheduledEndDate,
+            @customerId, @customerName, @productId, @productDescription, @quantity, @inventory, @priority,
+            @status, @notes, @requestedBy, @reopened, @machineId, @previousStatus
         )
     `);
 
@@ -516,18 +516,38 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
                 lastStatusUpdateNotes = @notes,
                 lastStatusUpdateBy = @updatedBy,
                 previousStatus = NULL
-            WHERE id = @orderId
+            WHERE id = @requestId
         `);
 
         stmt.run({
             status: statusToRevertTo,
             notes: notes || null,
             updatedBy: updatedBy,
-            orderId: orderId,
+            requestId: orderId,
         });
 
         const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
         historyStmt.run(orderId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
+    });
+
+    transaction();
+}
+
+export async function addNote(payload: NotePayload): Promise<void> {
+    const db = await connectDb(PLANNER_DB_FILE);
+    const { orderId, notes, updatedBy } = payload;
+
+    const currentOrder = db.prepare('SELECT status FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
+    if (!currentOrder) {
+        throw new Error("Order not found.");
+    }
+
+    const transaction = db.transaction(() => {
+        db.prepare('UPDATE production_orders SET lastStatusUpdateNotes = ?, lastStatusUpdateBy = ? WHERE id = ?')
+          .run(notes, updatedBy, orderId);
+        
+        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, notes);
     });
 
     transaction();
