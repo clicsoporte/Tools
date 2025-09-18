@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlus as FilePlusIcon } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlus as FilePlusIcon, Warehouse } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
 import { getCompanySettings } from "../../../modules/core/lib/db-client";
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -172,7 +172,7 @@ export default function HelpPage() {
                             <strong className="text-base">1. El Molde (Definir Jerarquía):</strong> Aquí le dices al sistema cómo organizas tu almacén, pero sin crear nada real todavía. Es solo la plantilla. Por ejemplo: le dices que usas "Bodegas", que dentro de ellas hay "Pasillos", y que en los pasillos hay "Racks".
                         </li>
                         <li>
-                            <strong className="text-base">2. El Árbol (Crear Ubicaciones Reales):</strong> Una vez que tienes el molde, aquí es donde creas el árbol real de tu almacén. Aquí es donde dices: "Ok, voy a crear una ubicación de tipo `Bodega` y se va a llamar `Bodega 04`". Luego, "dentro de Bodega 04, voy a crear una ubicación de tipo `Pasillo` y se va a llamar `Pasillo Bolsas 01`", y así sucesivamente.
+                            <strong className="text-base">2. El Árbol (Crear Ubicaciones Reales):</strong> Una vez que tienes el "molde", aquí es donde creas el árbol real de tu almacén. Aquí es donde dices: "Ok, voy a crear una ubicación de tipo `Bodega` y se va a llamar `Bodega 04`". Luego, "dentro de Bodega 04, voy a crear una ubicación de tipo `Pasillo` y se va a llamar `Pasillo Bolsas 01`", y así sucesivamente.
                         </li>
                     </ul>
 
@@ -371,3 +371,5 @@ export default function HelpPage() {
     </main>
   );
 }
+
+    
