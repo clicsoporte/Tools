@@ -109,7 +109,7 @@ export default function PlannerPage() {
                                 <PopoverContent className="w-56 p-1">
                                     <div className="grid grid-cols-1">
                                         {canEdit && <Button variant="ghost" className="justify-start" onClick={() => { actions.setOrderToEdit(order); setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</Button>}
-                                        {canReopen && <Button variant="ghost" className="justify-start text-orange-600" onClick={() => { setOrderToUpdate(order); setReopenDialogOpen(true); }}><Undo2 className="mr-2"/> Reabrir</Button>}
+                                        {canReopen && <Button variant="ghost" className="justify-start text-orange-600" onClick={() => { actions.setOrderToUpdate(order); setReopenDialogOpen(true); }}><Undo2 className="mr-2"/> Reabrir</Button>}
                                         {canApprove && <Button variant="ghost" className="justify-start text-green-600" onClick={() => actions.openStatusDialog(order, 'approved')}><Check className="mr-2"/> Aprobar</Button>}
                                         {canStart && <Button variant="ghost" className="justify-start text-blue-600" onClick={() => actions.openStatusDialog(order, 'in-progress')}><Truck className="mr-2"/> Iniciar Progreso</Button>}
                                         {canComplete && <Button variant="ghost" className="justify-start text-indigo-600" onClick={() => actions.openStatusDialog(order, 'completed')}><PackageCheck className="mr-2"/> Marcar como Completada</Button>}
