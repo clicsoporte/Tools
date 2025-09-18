@@ -414,9 +414,9 @@ export async function getRequestHistory(requestId: number): Promise<PurchaseRequ
 
 export async function rejectCancellation(payload: RejectCancellationPayload): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
-    const { orderId, notes, updatedBy } = payload;
+    const { requestId, notes, updatedBy } = payload;
 
-    const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(orderId) as PurchaseRequest | undefined;
+    const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest | undefined;
     if (!currentRequest || currentRequest.status !== 'canceled') { // Assuming 'canceled' is the state to revert from
         throw new Error("La solicitud no está en un estado que se pueda revertir.");
     }
@@ -437,11 +437,11 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
             status: statusToRevertTo,
             notes: notes || null,
             updatedBy: updatedBy,
-            requestId: orderId,
+            requestId: requestId,
         });
 
         const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(orderId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
+        historyStmt.run(requestId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
     });
 
     transaction();
