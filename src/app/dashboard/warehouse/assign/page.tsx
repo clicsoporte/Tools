@@ -18,6 +18,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { PackageSearch, Loader2, ArrowRight, Info, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDebounce } from 'use-debounce';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AssignInventoryPage() {
     useAuthorization(['warehouse:inventory:assign']);
