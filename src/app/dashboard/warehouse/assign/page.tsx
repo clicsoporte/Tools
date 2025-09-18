@@ -10,7 +10,6 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getAllProducts } from '@/modules/core/lib/db';
 import { getWarehouseData, logMovement, updateInventory, assignItemToLocation, unassignItemFromLocation } from '@/modules/warehouse/lib/actions';
 import type { Product, WarehouseLocation, WarehouseInventoryItem, ItemLocation, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -62,9 +61,7 @@ export default function AssignInventoryPage() {
     const loadInitialData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [wData] = await Promise.all([
-                getWarehouseData()
-            ]);
+            const wData = await getWarehouseData();
             setProducts(authProducts.filter(p => p.active === 'S'));
             setLocations(wData.locations);
             setWarehouseSettings(wData.warehouseSettings);
@@ -115,28 +112,28 @@ export default function AssignInventoryPage() {
     const productOptions = useMemo(() =>
         debouncedProductSearch.length < 2 ? [] : products
             .filter(p => p.id.toLowerCase().includes(debouncedProductSearch.toLowerCase()) || p.description.toLowerCase().includes(debouncedProductSearch.toLowerCase()))
-            .map(p => ({ value: p.id, label: `${'p.id'} - ${p.description}` })),
+            .map(p => ({ value: p.id, label: `${p.id} - ${p.description}` })),
         [products, debouncedProductSearch]
     );
     
     const fromLocationOptions = useMemo(() =>
         debouncedFromLocationSearch.length < 1 ? [] : locations
             .filter(l => l.name.toLowerCase().includes(debouncedFromLocationSearch.toLowerCase()) || l.code.toLowerCase().includes(debouncedFromLocationSearch.toLowerCase()))
-            .map(l => ({ value: String(l.id), label: `${'l.code'} (${l.name})` })),
+            .map(l => ({ value: String(l.id), label: `${l.code} (${l.name})` })),
         [locations, debouncedFromLocationSearch]
     );
     
     const toLocationOptions = useMemo(() =>
         debouncedToLocationSearch.length < 1 ? [] : locations
             .filter(l => l.name.toLowerCase().includes(debouncedToLocationSearch.toLowerCase()) || l.code.toLowerCase().includes(debouncedToLocationSearch.toLowerCase()))
-            .map(l => ({ value: String(l.id), label: `${'l.code'} (${l.name})` })),
+            .map(l => ({ value: String(l.id), label: `${l.code} (${l.name})` })),
         [locations, debouncedToLocationSearch]
     );
 
      const newLocationOptions = useMemo(() =>
         debouncedNewLocationSearch.length < 1 ? [] : locations
             .filter(l => l.name.toLowerCase().includes(debouncedNewLocationSearch.toLowerCase()) || l.code.toLowerCase().includes(debouncedNewLocationSearch.toLowerCase()))
-            .map(l => ({ value: String(l.id), label: `${'l.code'} (${l.name})` })),
+            .map(l => ({ value: String(l.id), label: `${l.code} (${l.name})` })),
         [locations, debouncedNewLocationSearch]
     );
 
@@ -145,7 +142,7 @@ export default function AssignInventoryPage() {
         const product = products.find(p => p.id === value);
         if (product) {
             setSelectedProductId(value);
-            setProductSearchTerm(`${'product.id'} - ${product.description}`);
+            setProductSearchTerm(`${product.id} - ${product.description}`);
         }
     };
     

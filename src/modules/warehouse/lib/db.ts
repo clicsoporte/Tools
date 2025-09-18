@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the warehouse database.
  */
@@ -198,12 +199,13 @@ export async function logMovement(movement: Omit<MovementLog, 'id' | 'timestamp'
     ).run(newMovement);
 }
 
-export async function getWarehouseData(): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], stock: StockInfo[], itemLocations: ItemLocation[] }> {
+export async function getWarehouseData(): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], stock: StockInfo[], itemLocations: ItemLocation[], warehouseSettings: WarehouseSettings }> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const locations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
     const inventory = db.prepare('SELECT * FROM inventory').all() as WarehouseInventoryItem[];
     const itemLocations = db.prepare('SELECT * FROM item_locations').all() as ItemLocation[];
     const stock = await getAllStock();
+    const warehouseSettings = await getWarehouseSettings();
 
     // Sanitize data to ensure they are plain objects for serialization
     return {
@@ -231,7 +233,8 @@ export async function getWarehouseData(): Promise<{ locations: WarehouseLocation
             itemId: String(il.itemId),
             locationId: Number(il.locationId),
             clientId: il.clientId ? String(il.clientId) : null
-        }))
+        })),
+        warehouseSettings
     };
 }
 
