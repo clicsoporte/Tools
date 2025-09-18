@@ -321,7 +321,9 @@ export const usePlanner = () => {
         return products.filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower)).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
     }, [products, debouncedProductSearch]);
     
-    const classifications = useMemo(() => Array.from(new Set(products.map(p => p.classification).filter(Boolean))), [products]);
+    const classifications = useMemo<string[]>(() => 
+        Array.from(new Set(products.map(p => p.classification).filter(Boolean)))
+    , [products]);
 
     const filteredOrders = useMemo(() => {
         let ordersToFilter = viewingArchived ? archivedOrders : activeOrders;
