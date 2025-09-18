@@ -39,6 +39,7 @@ export type Company = {
     decimalPlaces: number;
     searchDebounceTime?: number;
     importMode: 'file' | 'sql';
+    lastSyncTimestamp?: string | null;
     customerFilePath?: string;
     productFilePath?: string;
     exemptionFilePath?: string;
@@ -521,3 +522,9 @@ export type ImportQuery = {
 }
 
 export type { DateRange };
+
+export type NotePayload = {
+    orderId: number;
+    notes: string;
+    updatedBy: string;
+};

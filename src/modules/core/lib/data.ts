@@ -65,6 +65,7 @@ export const initialCompany: Company = {
     decimalPlaces: 2,
     searchDebounceTime: 500,
     importMode: 'file',
+    lastSyncTimestamp: null,
     customerFilePath: "",
     productFilePath: "",
     exemptionFilePath: "",

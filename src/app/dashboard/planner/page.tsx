@@ -92,7 +92,6 @@ export default function PlannerPage() {
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [isNewOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
     const [isEditOrderDialogOpen, setEditOrderDialogOpen] = useState(false);
     const [activeOrders, setActiveOrders] = useState<ProductionOrder[]>([]);
@@ -102,8 +101,6 @@ export default function PlannerPage() {
     const [pageSize, setPageSize] = useState(50);
     const [totalArchived, setTotalArchived] = useState(0);
     const [plannerSettings, setPlannerSettings] = useState<PlannerSettings | null>(null);
-    const [stockSettings, setStockSettings] = useState<StockSettings | null>(null);
-    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
@@ -157,10 +154,8 @@ export default function PlannerPage() {
         setTitle("Planificador OP");
     }, [setTitle]);
 
-    const loadInitialData = useCallback(async (page = 0, keepFilters = false) => {
-        if(!keepFilters) {
-            setIsLoading(true);
-        }
+    const loadInitialData = useCallback(async (page = 0) => {
+        setIsLoading(true);
         try {
             const [
                 ordersData,
@@ -168,7 +163,6 @@ export default function PlannerPage() {
                 productsData,
                 stockData,
                 plannerSettingsData,
-                stockSettingsData
             ] = await Promise.all([
                 getProductionOrders({
                     page: viewingArchived ? page : undefined,
@@ -184,14 +178,12 @@ export default function PlannerPage() {
                 getAllProducts(),
                 getAllStock(),
                 getPlannerSettings(),
-                getStockSettings(),
             ]);
 
             setCustomers(customersData);
             setProducts(productsData);
             setStockLevels(stockData);
             setPlannerSettings(plannerSettingsData);
-            setStockSettings(stockSettingsData);
 
             if (plannerSettingsData?.customStatuses) {
                 const newConfig = { ...statusConfig };
@@ -213,15 +205,12 @@ export default function PlannerPage() {
             setActiveOrders(allOrders.filter(activeFilter));
             setArchivedOrders(allOrders.filter(req => !activeFilter(req)));
             setTotalArchived(ordersData.totalArchivedCount);
-            setLastUpdated(new Date());
 
         } catch (error) {
             logError("Failed to load planner data", { error });
             toast({ title: "Error", description: "No se pudieron cargar los datos del planificador.", variant: "destructive" });
         } finally {
-            if (!keepFilters) {
-                setIsLoading(false);
-            }
+            setIsLoading(false);
         }
     }, [toast, viewingArchived, pageSize, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
     
@@ -230,14 +219,6 @@ export default function PlannerPage() {
             loadInitialData(archivedPage);
         }
     }, [isAuthorized, loadInitialData, archivedPage]);
-
-    const handleFilterChange = () => {
-        loadInitialData(0, true);
-    }
-
-    useEffect(() => {
-        handleFilterChange();
-    }, [debouncedSearchTerm, statusFilter, classificationFilter, dateFilter, pageSize]);
     
     const customerOptions = useMemo(() => {
         if (debouncedCustomerSearch.length < 2) return [];
@@ -533,159 +514,6 @@ export default function PlannerPage() {
         }
     };
 
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        toast({ title: "Actualizando datos..." });
-        await loadInitialData();
-        toast({ title: "Datos actualizados", description: "Se han cargado las órdenes más recientes." });
-        setIsRefreshing(false);
-    }
-
-    const openStockDetail = (itemId: string) => {
-        const stockInfo = stockLevels.find(s => s.itemId === itemId);
-        if (stockInfo) {
-            setStockDetailItem(stockInfo);
-            setIsStockDetailOpen(true);
-        } else {
-            toast({ title: "Sin desglose", description: "No se encontró desglose de inventario para este artículo." });
-        }
-    }
-
-    const handleExportListPDF = () => {
-        if (!companyData) {
-            toast({ title: "Error", description: "Datos de la empresa no cargados.", variant: "destructive" });
-            return;
-        }
-
-        const doc = new jsPDF({ orientation: 'landscape' });
-        const addHeader = (doc: jsPDF) => {
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 14;
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text("Lista de Órdenes de Producción Activas", pageWidth / 2, 22, { align: 'center' });
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            doc.text(companyData.name, margin, 22);
-            doc.text(`Fecha de Exportación: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 22, { align: 'right' });
-        };
-
-        const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 14;
-            doc.setFontSize(8);
-            doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-        };
-
-        const tableColumn = ["Nº Orden", "Nº OC", "Cliente", "Producto", "Cant.", "F. Entrega", "Prioridad", "Estado", plannerSettings?.assignmentLabel || 'Máquina'];
-        const tableRows: any[][] = [];
-
-        filteredOrders.forEach(order => {
-            const machineName = order.machineId ? plannerSettings?.machines.find(m => m.id === order.machineId)?.name || order.machineId : 'N/A';
-            const orderData = [
-                order.consecutive,
-                order.purchaseOrder || 'N/A',
-                order.customerName,
-                `[${order.productId}] ${order.productDescription}`,
-                order.quantity.toLocaleString(),
-                format(parseISO(order.deliveryDate), 'dd/MM/yyyy'),
-                priorityConfig[order.priority].label,
-                dynamicStatusConfig[order.status]?.label,
-                machineName,
-            ];
-            tableRows.push(orderData);
-        });
-
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            startY: 30,
-            theme: 'striped',
-            headStyles: { fillColor: [59, 130, 246] },
-             didDrawPage: (data) => {
-                 if (data.pageNumber > 1) addHeader(doc);
-                 addFooter(doc, data.pageNumber, (doc as any).internal.getNumberOfPages());
-            },
-        });
-
-        doc.save('ordenes_produccion_activas.pdf');
-        logInfo("Active production order list exported to PDF");
-    };
-
-    const handleExportSingleOrderPDF = async (order: ProductionOrder) => {
-        const doc = new jsPDF();
-        const margin = 14;
-        const pageWidth = doc.internal.pageSize.getWidth();
-
-        // Header
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text("Orden de Producción", pageWidth / 2, 22, { align: 'center' });
-        doc.setFontSize(12);
-        doc.text(order.consecutive, pageWidth - margin, 22, { align: 'right' });
-
-        // Details
-        let startY = 40;
-        const addDetail = (label: string, value?: string | number | null) => {
-            if (value || value === 0) { // Check for 0 as well
-                doc.setFontSize(11);
-                doc.setFont('helvetica', 'bold');
-                doc.text(`${label}:`, margin, startY);
-                doc.setFont('helvetica', 'normal');
-                doc.text(String(value), margin + 45, startY);
-                startY += 7;
-            }
-        }
-        
-        addDetail("Cliente", order.customerName);
-        addDetail("Producto", `[${order.productId}] ${order.productDescription}`);
-        addDetail("Nº OC Cliente", order.purchaseOrder);
-        addDetail("Cantidad Solicitada", order.quantity.toLocaleString());
-        
-        if (order.deliveredQuantity !== null && order.deliveredQuantity !== undefined) {
-            addDetail("Cantidad Entregada", order.deliveredQuantity.toLocaleString());
-            addDetail("Diferencia", (order.deliveredQuantity - order.quantity).toLocaleString());
-        }
-
-        addDetail("Fecha de Entrega", format(parseISO(order.deliveryDate), 'dd/MM/yyyy'));
-        addDetail("Estado Actual", dynamicStatusConfig[order.status]?.label);
-        addDetail("Prioridad", priorityConfig[order.priority].label);
-        if (order.machineId) {
-            const machine = plannerSettings?.machines.find(m => m.id === order.machineId);
-            addDetail(plannerSettings?.assignmentLabel || "Máquina", machine?.name || order.machineId);
-        }
-        addDetail("Notas", order.notes);
-
-        // History
-        if (startY > 180) doc.addPage();
-        startY += 10;
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text("Historial de Cambios", margin, startY);
-        startY += 8;
-
-        const historyData = await getOrderHistory(order.id);
-        const tableColumn = ["Fecha", "Estado", "Usuario", "Notas"];
-        const tableRows: any[][] = historyData.map(entry => [
-            format(parseISO(entry.timestamp), 'dd/MM/yy HH:mm'),
-            dynamicStatusConfig[entry.status]?.label || entry.status,
-            entry.updatedBy,
-            entry.notes || ""
-        ]);
-        
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            startY: startY,
-            theme: 'grid',
-        });
-
-
-        doc.save(`OP-${order.consecutive}.pdf`);
-        logInfo(`Production order ${order.consecutive} exported to PDF`);
-    };
-
     const handleProductInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && productOptions.length > 0) {
             e.preventDefault();
@@ -910,15 +738,10 @@ export default function PlannerPage() {
                 <h1 className="text-lg font-semibold md:text-2xl">Órdenes de Producción</h1>
                  <div className="flex items-center gap-2 md:gap-4 flex-wrap">
                      <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
-                            {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+                     <Button variant="outline" onClick={loadInitialData} disabled={isLoading}>
+                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
                             Refrescar
                         </Button>
-                        {lastUpdated && (
-                            <span className={cn("text-xs text-muted-foreground", (new Date().getTime() - lastUpdated.getTime()) > 12 * 60 * 60 * 1000 && "text-red-500 font-medium")}>
-                                <Clock className="inline h-3 w-3 mr-1" />{format(lastUpdated, 'dd/MM HH:mm')}
-                            </span>
-                        )}
                     </div>
                      <Button variant="outline" onClick={handleExportListPDF} disabled={filteredOrders.length === 0}>
                         <FileDown className="mr-2 h-4 w-4" />
@@ -1191,75 +1014,75 @@ export default function PlannerPage() {
                             <DialogDescription>Modifique los detalles de la orden de producción.</DialogDescription>
                         </DialogHeader>
                         <ScrollArea className="h-[60vh] md:h-auto">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-                                <div className="space-y-2">
-                                    <Label>Cliente</Label>
-                                    <Input value={orderToEdit?.customerName} disabled />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Producto</Label>
-                                    <Input value={`[${orderToEdit?.productId}] ${orderToEdit?.productDescription}`} disabled />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-order-purchase-order">Nº Orden de Compra (Opcional)</Label>
-                                    <Input 
-                                        id="edit-order-purchase-order" 
-                                        placeholder="Ej: OC-12345" 
-                                        value={orderToEdit?.purchaseOrder || ''} 
-                                        onChange={(e) => setOrderToEdit(prev => prev ? { ...prev, purchaseOrder: e.target.value } : null)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-order-quantity">Cantidad Solicitada</Label>
-                                    <Input 
-                                        id="edit-order-quantity" 
-                                        type="number" 
-                                        placeholder="0.00" 
-                                        value={orderToEdit?.quantity || ''} 
-                                        onChange={e => setOrderToEdit(prev => prev ? { ...prev, quantity: Number(e.target.value) } : null)}
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-order-inventory">Inventario Actual (Manual)</Label>
-                                    <Input 
-                                        id="edit-order-inventory" 
-                                        type="number" 
-                                        placeholder="0.00" 
-                                        value={orderToEdit?.inventory || ''} 
-                                        onChange={e => setOrderToEdit(prev => prev ? { ...prev, inventory: Number(e.target.value) } : null)} 
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-order-inventory-erp">Inventario Actual (ERP)</Label>
-                                    <Input 
-                                        id="edit-order-inventory-erp"
-                                        value={(stockLevels.find(s => s.itemId === orderToEdit?.productId)?.totalStock ?? 0).toLocaleString()}
-                                        disabled
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-order-delivery-date">Fecha de Entrega Requerida</Label>
-                                    <Input 
-                                        id="edit-order-delivery-date" 
-                                        type="date" 
-                                        value={orderToEdit?.deliveryDate || ''} 
-                                        onChange={e => setOrderToEdit(prev => prev ? { ...prev, deliveryDate: e.target.value } : null)}
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2 col-span-1 md:col-span-2">
-                                    <Label htmlFor="edit-order-notes">Notas Adicionales</Label>
-                                    <Textarea 
-                                        id="edit-order-notes" 
-                                        placeholder="Instrucciones especiales, detalles del pedido, etc." 
-                                        value={orderToEdit?.notes || ''} 
-                                        onChange={e => setOrderToEdit(prev => prev ? { ...prev, notes: e.target.value } : null)}
-                                    />
-                                </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                            <div className="space-y-2">
+                                <Label>Cliente</Label>
+                                <Input value={orderToEdit?.customerName} disabled />
                             </div>
+
+                            <div className="space-y-2">
+                                <Label>Producto</Label>
+                                <Input value={`[${orderToEdit?.productId}] ${orderToEdit?.productDescription}`} disabled />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-order-purchase-order">Nº Orden de Compra (Opcional)</Label>
+                                <Input 
+                                    id="edit-order-purchase-order" 
+                                    placeholder="Ej: OC-12345" 
+                                    value={orderToEdit?.purchaseOrder || ''} 
+                                    onChange={(e) => setOrderToEdit(prev => prev ? { ...prev, purchaseOrder: e.target.value } : null)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-order-quantity">Cantidad Solicitada</Label>
+                                <Input 
+                                    id="edit-order-quantity" 
+                                    type="number" 
+                                    placeholder="0.00" 
+                                    value={orderToEdit?.quantity || ''} 
+                                    onChange={e => setOrderToEdit(prev => prev ? { ...prev, quantity: Number(e.target.value) } : null)}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-order-inventory">Inventario Actual (Manual)</Label>
+                                <Input 
+                                    id="edit-order-inventory" 
+                                    type="number" 
+                                    placeholder="0.00" 
+                                    value={orderToEdit?.inventory || ''} 
+                                    onChange={e => setOrderToEdit(prev => prev ? { ...prev, inventory: Number(e.target.value) } : null)} 
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-order-inventory-erp">Inventario Actual (ERP)</Label>
+                                <Input 
+                                    id="edit-order-inventory-erp"
+                                    value={(stockLevels.find(s => s.itemId === orderToEdit?.productId)?.totalStock ?? 0).toLocaleString()}
+                                    disabled
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-order-delivery-date">Fecha de Entrega Requerida</Label>
+                                <Input 
+                                    id="edit-order-delivery-date" 
+                                    type="date" 
+                                    value={orderToEdit?.deliveryDate || ''} 
+                                    onChange={e => setOrderToEdit(prev => prev ? { ...prev, deliveryDate: e.target.value } : null)}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2 col-span-1 md:col-span-2">
+                                <Label htmlFor="edit-order-notes">Notas Adicionales</Label>
+                                <Textarea 
+                                    id="edit-order-notes" 
+                                    placeholder="Instrucciones especiales, detalles del pedido, etc." 
+                                    value={orderToEdit?.notes || ''} 
+                                    onChange={e => setOrderToEdit(prev => prev ? { ...prev, notes: e.target.value } : null)}
+                                />
+                            </div>
+                        </div>
                         </ScrollArea>
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
@@ -1495,10 +1318,10 @@ export default function PlannerPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {stockDetailItem && stockSettings && Object.entries(stockDetailItem.stockByWarehouse)
+                                {stockDetailItem && plannerSettings && Object.entries(stockDetailItem.stockByWarehouse)
                                     .map(([warehouseId, stock]) => {
-                                        const warehouse = stockSettings.warehouses.find(w => w.id === warehouseId);
-                                        return warehouse?.isVisible ? (
+                                        const warehouse = plannerSettings.machines.find(w => w.id === warehouseId);
+                                        return warehouse ? (
                                             <TableRow key={warehouseId}>
                                                 <TableCell>{warehouse.name} ({warehouseId})</TableCell>
                                                 <TableCell className="text-right font-medium">{stock.toLocaleString()}</TableCell>

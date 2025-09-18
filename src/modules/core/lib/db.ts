@@ -127,6 +127,7 @@ function checkAndApplyMigrations(db: Database.Database) {
         if (!companyColumns.has('importMode')) db.exec(`ALTER TABLE company_settings ADD COLUMN importMode TEXT DEFAULT 'file'`);
         if (!companyColumns.has('logoUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN logoUrl TEXT`);
         if (!companyColumns.has('searchDebounceTime')) db.exec(`ALTER TABLE company_settings ADD COLUMN searchDebounceTime INTEGER DEFAULT 500`);
+        if (!companyColumns.has('lastSyncTimestamp')) db.exec(`ALTER TABLE company_settings ADD COLUMN lastSyncTimestamp TEXT`);
 
 
         const adminUser = db.prepare('SELECT role FROM users WHERE id = 1').get() as { role: string } | undefined;
@@ -286,7 +287,7 @@ async function initializeMainDatabase(db: Database.Database) {
         logoUrl TEXT, systemName TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER DEFAULT 2,
         searchDebounceTime INTEGER DEFAULT 500, 
         customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT, stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT,
-        importMode TEXT DEFAULT 'file'
+        importMode TEXT DEFAULT 'file', lastSyncTimestamp TEXT
     );
     CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);
     CREATE TABLE IF NOT EXISTS api_settings (id INTEGER PRIMARY KEY DEFAULT 1, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
@@ -341,11 +342,11 @@ async function initializeMainDatabase(db: Database.Database) {
     for (const role of initialRoles) {
         insertRole.run({ ...role, permissions: JSON.stringify(role.permissions) });
     }
-    db.prepare('INSERT OR REPLACE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, importMode, logoUrl) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    db.prepare('INSERT OR REPLACE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, importMode, logoUrl, lastSyncTimestamp) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(
           initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email,
           initialCompany.systemName, initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, 
-          initialCompany.searchDebounceTime, initialCompany.importMode, initialCompany.logoUrl || null
+          initialCompany.searchDebounceTime, initialCompany.importMode, initialCompany.logoUrl || null, initialCompany.lastSyncTimestamp
       );
     db.prepare(`INSERT OR IGNORE INTO stock_settings (key, value) VALUES ('warehouses', '[]')`).run();
     db.prepare('INSERT OR REPLACE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)').run('https://api.hacienda.go.cr/indicadores/tc/dolar', 'https://api.hacienda.go.cr/fe/ex?autorizacion=', 'https://api.hacienda.go.cr/fe/ae?identificacion=');
@@ -386,7 +387,8 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
                 decimalPlaces = @decimalPlaces, searchDebounceTime = @searchDebounceTime,
                 customerFilePath = @customerFilePath, 
                 productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath, stockFilePath = @stockFilePath,
-                locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath, importMode = @importMode
+                locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath, importMode = @importMode,
+                lastSyncTimestamp = @lastSyncTimestamp
             WHERE id = 1
         `).run(settings);
     } catch (error) {
@@ -992,15 +994,15 @@ export async function saveAllLocations(locationData: ItemLocation[]): Promise<vo
 }
 
 export async function getStockSettings(): Promise<StockSettings> {
-    const db = await connectDb(DB_FILE); // Stock settings are in the main DB
+    const mainDb = await connectDb('intratool.db');
     try {
-        const result = db.prepare("SELECT value FROM stock_settings WHERE key = 'warehouses'").get() as { value: string } | undefined;
+        const result = mainDb.prepare("SELECT value FROM stock_settings WHERE key = 'warehouses'").get() as { value: string } | undefined;
         if (result) {
             return { warehouses: JSON.parse(result.value) };
         }
-        return { warehouses: [] }; // Default value
+        return { warehouses: [] };
     } catch (error) {
-        console.error("Failed to get stock settings:", error);
+        console.error("Failed to get stock settings from main DB:", error);
         return { warehouses: [] };
     }
 }
@@ -1128,6 +1130,9 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
             // We can decide whether to throw or just log and continue
         }
     }
+
+    db.prepare('UPDATE company_settings SET lastSyncTimestamp = ? WHERE id = 1')
+      .run(new Date().toISOString());
     
     return results;
 }

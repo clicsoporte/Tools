@@ -1,6 +1,3 @@
-
-
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -98,7 +95,6 @@ export default function PurchaseRequestPage() {
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [isNewRequestDialogOpen, setNewRequestDialogOpen] = useState(false);
     const [isEditRequestDialogOpen, setEditRequestDialogOpen] = useState(false);
     const [activeRequests, setActiveRequests] = useState<PurchaseRequest[]>([]);
@@ -112,7 +108,6 @@ export default function PurchaseRequestPage() {
     const [items, setItems] = useState<Product[]>([]);
     const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
     const [requestSettings, setRequestSettings] = useState<RequestSettings | null>(null);
-    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     
     const [newRequest, setNewRequest] = useState(emptyRequest);
     const [requestToEdit, setRequestToEdit] = useState<PurchaseRequest | null>(null);
@@ -189,7 +184,6 @@ export default function PurchaseRequestPage() {
             setActiveRequests(requestsData.requests.filter(activeFilter));
             setArchivedRequests(requestsData.requests.filter(req => !activeFilter(req)));
             setTotalArchived(requestsData.totalArchivedCount);
-            setLastUpdated(new Date());
 
         } catch (error) {
             logError("Failed to load purchase requests data", { error });
@@ -400,14 +394,6 @@ export default function PurchaseRequestPage() {
             setClientSearchTerm('');
         }
     };
-
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        toast({ title: "Actualizando datos..." });
-        await loadInitialData();
-        toast({ title: "Datos actualizados", description: "Se han cargado las solicitudes más recientes." });
-        setIsRefreshing(false);
-    }
     
     const classifications = useMemo(() => {
         const classSet = new Set(items.map(p => p.classification).filter(Boolean));
@@ -624,17 +610,6 @@ export default function PurchaseRequestPage() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <h1 className="text-lg font-semibold md:text-2xl">Solicitudes de Compra</h1>
                  <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-                     <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
-                            {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
-                            Refrescar
-                        </Button>
-                         {lastUpdated && (
-                            <span className={cn("text-xs text-muted-foreground", (new Date().getTime() - lastUpdated.getTime()) > 12 * 60 * 60 * 1000 && "text-red-500 font-medium")}>
-                                {format(lastUpdated, 'dd/MM HH:mm')}
-                            </span>
-                        )}
-                    </div>
                      <Button variant={viewingArchived ? "outline" : "secondary"} onClick={() => setViewingArchived(false)}>Activas</Button>
                      <Button variant={viewingArchived ? "secondary" : "outline"} onClick={() => setViewingArchived(true)}>Archivadas</Button>
                      {hasPermission('requests:create') && (

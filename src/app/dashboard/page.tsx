@@ -6,18 +6,19 @@
 
 import { mainTools } from "../../modules/core/lib/data";
 import { ToolCard } from "../../components/dashboard/tool-card";
-import { getCurrentUser } from "../../modules/core/lib/auth-client";
 import { useEffect, useState } from "react";
-import type { User, Tool } from "../../modules/core/types";
+import type { User, Tool, Company } from "../../modules/core/types";
 import { Skeleton } from "../../components/ui/skeleton";
 import { usePageTitle } from "../../modules/core/hooks/usePageTitle";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Wrench } from "lucide-react";
+import { Loader2, RefreshCw, Wrench, Clock } from "lucide-react";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import { importAllDataFromFiles } from "@/modules/core/lib/db-client";
-
+import { importAllDataFromFiles, getCompanySettings, saveCompanySettings } from "@/modules/core/lib/db-client";
+import { useAuth } from "@/modules/core/hooks/useAuth";
+import { format, parseISO } from 'date-fns';
+import { cn } from "@/lib/utils";
 
 /**
  * Renders the main dashboard page.
@@ -29,6 +30,7 @@ export default function DashboardPage() {
   const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const { setTitle } = usePageTitle();
   const { hasPermission } = useAuthorization(['admin:import:run']);
+  const { companyData, refreshAuth } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
 
@@ -36,7 +38,7 @@ export default function DashboardPage() {
     setTitle("Panel Principal");
     
     const initializeDashboard = async () => {
-      const user = await getCurrentUser();
+      const { user } = useAuth.getState();
       setCurrentUser(user);
       if (user) {
         // Start with the main tools
@@ -66,6 +68,13 @@ export default function DashboardPage() {
     toast({ title: "Iniciando Sincronización Completa", description: "Importando todos los datos desde el ERP..." });
     try {
         const results = await importAllDataFromFiles();
+        
+        if (companyData) {
+            const newCompanyData = { ...companyData, lastSyncTimestamp: new Date().toISOString() };
+            await saveCompanySettings(newCompanyData);
+            await refreshAuth(); // Refresh the auth context to get the new timestamp
+        }
+
         toast({
             title: "Sincronización Completa Exitosa",
             description: `Se han procesado ${results.length} tipos de datos desde el ERP.`,
@@ -106,10 +115,21 @@ export default function DashboardPage() {
                 Todas las Herramientas
               </h2>
               {hasPermission('admin:import:run') && (
-                <Button onClick={handleFullSync} disabled={isSyncing}>
-                  {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  Sincronizar Datos del ERP
-                </Button>
+                <div className="flex items-center gap-2">
+                    {companyData?.lastSyncTimestamp && (
+                        <span className={cn(
+                            "text-xs text-muted-foreground", 
+                            (new Date().getTime() - new Date(companyData.lastSyncTimestamp).getTime()) > 12 * 60 * 60 * 1000 && "text-red-500 font-medium"
+                        )}>
+                            <Clock className="inline h-3 w-3 mr-1" />
+                            Última Sinc: {format(new Date(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}
+                        </span>
+                    )}
+                    <Button onClick={handleFullSync} disabled={isSyncing}>
+                        {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        Sincronizar Datos del ERP
+                    </Button>
+                </div>
               )}
             </div>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
