@@ -218,6 +218,21 @@ export const useRequests = () => {
             setIsSubmitting(false);
         }
     };
+
+    const handleRejectCancellation = async (request: PurchaseRequest) => {
+        if (!currentUser) return;
+        setIsSubmitting(true);
+        try {
+            await rejectCancellationRequest({ entityId: request.id, notes: 'Solicitud de cancelación rechazada.', updatedBy: currentUser.name });
+            await loadInitialData();
+            toast({ title: 'Solicitud Rechazada' });
+        } catch (error: any) {
+             logError("Failed to reject cancellation", { error });
+            toast({ title: "Error", variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
     
     const handleSelectItem = (value: string) => {
         setItemSearchOpen(false);
@@ -304,6 +319,7 @@ export const useRequests = () => {
             setReopenDialogOpen, setReopenStep, setReopenConfirmationText, loadInitialData,
             handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
             handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
+            setRequestToUpdate, handleRejectCancellation
         },
         selectors,
         isLoading,
