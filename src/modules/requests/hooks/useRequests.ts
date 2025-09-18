@@ -306,6 +306,7 @@ export const useRequests = () => {
             handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
         },
         selectors,
+        isLoading,
         isAuthorized
     };
 };

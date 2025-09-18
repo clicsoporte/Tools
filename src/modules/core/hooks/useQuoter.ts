@@ -7,13 +7,13 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { useToast } from "../../../modules/core/hooks/use-toast";
+import { useToast } from "@/modules/core/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { usePageTitle } from "../../../modules/core/hooks/usePageTitle";
-import type { Customer, Product, Company, User, QuoteDraft, QuoteLine, Exemption, HaciendaExemptionApiResponse, ExemptionLaw, StockInfo, ApiSettings } from "../../../modules/core/types";
-import { logError, logInfo, logWarn } from "../../../modules/core/lib/logger";
-import { getCurrentUser } from "../../../modules/core/lib/auth-client";
+import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
+import type { Customer, Product, Company, User, QuoteDraft, QuoteLine, Exemption, HaciendaExemptionApiResponse, ExemptionLaw, StockInfo, ApiSettings } from "@/modules/core/types";
+import { logError, logInfo, logWarn } from "@/modules/core/lib/logger";
+import { getCurrentUser } from "@/modules/core/lib/auth-client";
 import {
   getCompanySettings,
   getAllCustomers,
@@ -26,8 +26,8 @@ import {
   getExemptionLaws,
   getAllStock,
   getApiSettings,
-} from "../../../modules/core/lib/db-client";
-import { getExchangeRate, getExemptionStatus } from "../../../modules/core/lib/api-actions";
+} from "@/modules/core/lib/db";
+import { getExchangeRate, getExemptionStatus } from "@/modules/core/lib/api-actions";
 import { format, parseISO } from 'date-fns';
 import { useDebounce } from "use-debounce";
 
@@ -40,10 +40,10 @@ const initialQuoteState = {
   selectedCustomer: null as Customer | null,
   customerDetails: "",
   deliveryAddress: "",
-  deliveryDate: new Date().toISOString().substring(0, 16),
+  deliveryDate: "", // Set in useEffect to avoid hydration errors
   sellerName: "",
-  quoteDate: new Date().toISOString().substring(0, 10),
-  validUntilDate: new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10),
+  quoteDate: "", // Set in useEffect
+  validUntilDate: "", // Set in useEffect
   paymentTerms: "contado",
   creditDays: 0,
   notes: "Precios sujetos a cambio sin previo aviso.",
@@ -79,6 +79,25 @@ const normalizeNumber = (value: string): number => {
     const parsed = parseFloat(validNumberString);
     return isNaN(parsed) ? 0 : parsed;
 };
+
+const fetchRate = async () => {
+    try {
+        const data = await getExchangeRate();
+        if (!data || data.error) {
+            throw new Error(data?.message || 'La respuesta de la API de tipo de cambio no es válida.');
+        }
+        const sellRate = data.venta?.valor;
+        const rateDate = data.venta?.fecha;
+        if (typeof sellRate !== 'number' || typeof rateDate !== 'string') {
+            throw new Error('Estructura de datos inválida desde la API de tipo de cambio.');
+        }
+        return { rate: sellRate, date: new Date(rateDate).toLocaleDateString('es-CR') };
+    } catch (error: any) {
+        await logError("Error fetching exchange rate", { error: error.message });
+        return null;
+    }
+};
+
 
 /**
  * Main hook for the Quoter component.
@@ -120,19 +139,23 @@ export const useQuoter = () => {
   const [showInactiveCustomers, setShowInactiveCustomers] = useState(false);
   const [showInactiveProducts, setShowInactiveProducts] = useState(false);
   const [selectedLineForInfo, setSelectedLineForInfo] = useState<QuoteLine | null>(null);
-  const [savedDrafts, setSavedDrafts] = useState<QuoteDraft[]>([]);
+  const [savedDrafts, setSavedDrafts] = useState<(QuoteDraft & { customer: Customer | null})[]>([]);
   const [decimalPlaces, setDecimalPlaces] = useState(initialQuoteState.decimalPlaces);
   const [exemptionInfo, setExemptionInfo] = useState<ExemptionInfo | null>(null);
   
-  // State for search
-  const [productSearchInput, setProductSearchInput] = useState("");
-  const [customerSearchInput, setCustomerSearchInput] = useState("");
-  const [debouncedCustomerSearch] = useDebounce(customerSearchInput, 500);
-  const [debouncedProductSearch] = useDebounce(productSearchInput, 500);
+  // State for search popovers
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [isProductSearchOpen, setProductSearchOpen] = useState(false);
+  const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
+
+  const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, companyData?.searchDebounceTime ?? 500);
+  const [debouncedProductSearch] = useDebounce(productSearchTerm, companyData?.searchDebounceTime ?? 500);
 
 
   // --- REFS FOR KEYBOARD NAVIGATION ---
   const productInputRef = useRef<HTMLInputElement>(null);
+  const customerInputRef = useRef<HTMLInputElement>(null);
   const lineInputRefs = useRef<Map<string, LineInputRefs>>(new Map());
 
 
@@ -171,44 +194,12 @@ export const useQuoter = () => {
   }, [toast]);
   
 
-  const fetchRate = useCallback(async () => {
-      setExchangeRateLoaded(false);
-      try {
-        const data = await getExchangeRate();
-        
-        if (!data || data.error) {
-            throw new Error(data?.message || 'La respuesta de la API de tipo de cambio no es válida.');
-        }
-
-        const sellRate = data.venta?.valor;
-        const rateDate = data.venta?.fecha;
-
-        if (typeof sellRate !== 'number' || typeof rateDate !== 'string') {
-            throw new Error('Estructura de datos inválida desde la API de tipo de cambio.');
-        }
-
-        setExchangeRate(sellRate);
-        setApiExchangeRate(sellRate);
-        setExchangeRateDate(new Date(rateDate).toLocaleDateString('es-CR'));
-
-      } catch (error: any) {
-        logError("Error fetching exchange rate", { error: error.message });
-        toast({
-          title: "Error de Tipo de Cambio",
-          description: "No se pudo obtener el tipo de cambio. Se usará un valor manual.",
-          variant: "destructive",
-        });
-      } finally {
-        setExchangeRateLoaded(true);
-      }
-    }, [toast]);
-
   const loadInitialData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
         setIsRefreshing(true);
     }
     try {
-      const [company, user, dbCustomers, dbProducts, dbExemptions, dbLaws, dbStock] = await Promise.all([
+      const [company, user, dbCustomers, dbProducts, dbExemptions, dbLaws, dbStock, rateData] = await Promise.all([
         getCompanySettings(),
         getCurrentUser(),
         getAllCustomers(),
@@ -216,7 +207,21 @@ export const useQuoter = () => {
         getAllExemptions(),
         getExemptionLaws(),
         getAllStock(),
+        fetchRate()
       ]);
+
+      if (rateData) {
+          setExchangeRate(rateData.rate);
+          setApiExchangeRate(rateData.rate);
+          setExchangeRateDate(rateData.date);
+      } else {
+           toast({
+          title: "Error de Tipo de Cambio",
+          description: "No se pudo obtener el tipo de cambio. Se usará un valor manual.",
+          variant: "destructive",
+        });
+      }
+      setExchangeRateLoaded(true);
 
       if (company) {
         setCompanyData(company);
@@ -254,14 +259,13 @@ export const useQuoter = () => {
   useEffect(() => {
     setTitle("Cotizador");
     
-    const initialLoad = async () => {
-        await fetchRate();
-        await loadInitialData(false); // Pass false to indicate initial load
-        setIsMounted(true);
-    };
-    
     if (!isMounted) {
-      initialLoad();
+      loadInitialData(false);
+      // Set default dates on client side to avoid hydration mismatch
+      setQuoteDate(new Date().toISOString().substring(0, 10));
+      setDeliveryDate(new Date().toISOString().substring(0, 16));
+      setValidUntilDate(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
+      setIsMounted(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted]);
@@ -350,10 +354,11 @@ export const useQuoter = () => {
   };
 
   const handleSelectCustomer = (customerId: string) => {
+    setCustomerSearchOpen(false);
     if (!customerId) {
         setSelectedCustomer(null);
         setCustomerDetails("");
-        setCustomerSearchInput("");
+        setCustomerSearchTerm("");
         setExemptionInfo(null);
         return;
     }
@@ -361,7 +366,7 @@ export const useQuoter = () => {
     if (customer) {
       setSelectedCustomer(customer);
       setCustomerDetails(`ID: ${customer.id}\nNombre: ${customer.name}\nTel: ${customer.phone}\nEmail: ${customer.email || customer.electronicDocEmail}`);
-      setCustomerSearchInput(`${customer.id} - ${customer.name}`);
+      setCustomerSearchTerm(`${customer.id} - ${customer.name}`);
       setDeliveryAddress(customer.address);
       const paymentConditionDays = parseInt(customer.paymentCondition, 10);
       if (!isNaN(paymentConditionDays) && paymentConditionDays > 1) {
@@ -407,12 +412,16 @@ export const useQuoter = () => {
   };
 
   const handleSelectProduct = (productId: string) => {
-    if (!productId) return;
+    setProductSearchOpen(false);
+    if (!productId) {
+      setProductSearchTerm("");
+      return;
+    }
     const product = products.find((p) => p.id === productId);
     if (product) {
       addLine(product);
+      setProductSearchTerm("");
     }
-    setProductSearchInput("");
   };
 
   const incrementAndSaveQuoteNumber = async () => {
@@ -659,18 +668,18 @@ export const useQuoter = () => {
     setSelectedCustomer(initialQuoteState.selectedCustomer);
     setCustomerDetails(initialQuoteState.customerDetails);
     setDeliveryAddress(initialQuoteState.deliveryAddress);
-    setDeliveryDate(initialQuoteState.deliveryDate);
+    setDeliveryDate(new Date().toISOString().substring(0, 16));
     setSellerName(currentUser?.name || initialQuoteState.sellerName);
-    setQuoteDate(initialQuoteState.quoteDate);
+    setQuoteDate(new Date().toISOString().substring(0, 10));
     setPurchaseOrderNumber(initialQuoteState.purchaseOrderNumber);
     setExchangeRate(apiExchangeRate); // Reset to the fetched API rate
     setSellerType("user");
     setPaymentTerms(initialQuoteState.paymentTerms);
     setCreditDays(initialQuoteState.creditDays);
-    setValidUntilDate(initialQuoteState.validUntilDate);
+    setValidUntilDate(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
     setNotes(initialQuoteState.notes);
-    setProductSearchInput("");
-    setCustomerSearchInput("");
+    setProductSearchTerm("");
+    setCustomerSearchTerm("");
     setExemptionInfo(null);
     if (companyData) {
         setQuoteNumber(`${companyData.quotePrefix || "COT-"}${(companyData.nextQuoteNumber || 1).toString().padStart(4, "0")}`);
@@ -786,7 +795,7 @@ export const useQuoter = () => {
   }, [lines, decimalPlaces]);
 
   const customerOptions = useMemo(() => {
-    if (!debouncedCustomerSearch) return [];
+    if (debouncedCustomerSearch.length < 2) return [];
     return (customers || [])
       .filter((c) => 
         (showInactiveCustomers || c.active === "S") &&
@@ -796,7 +805,7 @@ export const useQuoter = () => {
   }, [customers, showInactiveCustomers, debouncedCustomerSearch]);
 
   const productOptions = useMemo(() => {
-    if (!debouncedProductSearch) return [];
+    if (debouncedProductSearch.length < 2) return [];
     const searchLower = debouncedProductSearch.toLowerCase();
     return (products || [])
       .filter((p) => {
@@ -820,21 +829,21 @@ export const useQuoter = () => {
       currency, lines, selectedCustomer, customerDetails, deliveryAddress, exchangeRate, exchangeRateDate, exchangeRateLoaded,
       quoteNumber, deliveryDate, sellerName, quoteDate, companyData, currentUser, sellerType,
       paymentTerms, creditDays, validUntilDate, notes, products, customers, showInactiveCustomers,
-      showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, productSearchInput, purchaseOrderNumber,
-      exemptionInfo, isRefreshing, customerSearchInput,
+      showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, productSearchTerm, purchaseOrderNumber,
+      exemptionInfo, isRefreshing, customerSearchTerm, isProductSearchOpen, isCustomerSearchOpen
     },
     actions: {
       setCurrency, setLines, setSelectedCustomer, setCustomerDetails, setDeliveryAddress, setExchangeRate,
       setQuoteNumber, setDeliveryDate, setSellerName, setQuoteDate, setSellerType, setPaymentTerms,
       setCreditDays, setValidUntilDate, setNotes, setShowInactiveCustomers,
       setShowInactiveProducts, setSelectedLineForInfo, setDecimalPlaces, setPurchaseOrderNumber,
-      setProductSearchInput, setCustomerSearchInput,
+      setProductSearchTerm, setCustomerSearchTerm, setProductSearchOpen, setCustomerSearchOpen,
       addLine, removeLine, updateLine, updateLineProductDetail, handleCurrencyToggle, formatCurrency,
       handleSelectCustomer, handleSelectProduct, incrementAndSaveQuoteNumber, handleSaveDecimalPlaces,
       generatePDF, resetQuote, saveDraft, loadDrafts, handleLoadDraft, handleDeleteDraft, handleNumericInputBlur,
-      handleCustomerDetailsChange, fetchRate, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown,
+      handleCustomerDetailsChange, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown,
     },
-    refs: { productInputRef, lineInputRefs },
+    refs: { productInputRef, customerInputRef, lineInputRefs },
     selectors: { totals, customerOptions, productOptions },
     isMounted,
   };

@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ProductionOrder } from '@/modules/core/types';
+import { Badge } from '@/components/ui/badge';
 
 /**
  * @fileoverview This is the main UI component for the Production Planner page.
@@ -100,7 +101,7 @@ export default function PlannerPage() {
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
-                             <Button variant="ghost" size="icon" onClick={() => handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
+                             <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
