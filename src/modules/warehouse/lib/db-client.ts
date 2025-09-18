@@ -6,7 +6,7 @@
 import type { WarehouseLocation, WarehouseInventoryItem, MovementLog, StockInfo, StockSettings, ItemLocation, Product } from '../../core/types';
 import { 
     getLocations as getLocationsServer,
-    getInventory as getInventoryServer,
+    getWarehouseData as getInventoryServer,
     getStockSettings as getStockSettingsServer,
 } from './actions';
 

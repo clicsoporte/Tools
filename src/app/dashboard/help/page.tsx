@@ -260,7 +260,7 @@ export default function HelpPage() {
                                     <li>Añade `Posición Horizontal 1` (Código `H1`), tipo `Nivel 4`, padre `Rack 01`.</li>
                                     <li>Añade `Posición Vertical 1` (Código `V1`), tipo `Nivel 5`, padre `Posición Horizontal 1`.</li>
                                 </ul>
-                                Tu ubicación final para un producto sería `B04 > P01 > R01 > H1 > V1`.
+                                Tu ubicación final para un producto sería `B04 &gt; P01 &gt; R01 &gt; H1 &gt; V1`.
                             </li>
                         </ol>
                         <p className="pt-2">Una vez configurado, puedes ir al módulo <strong>Asignar Inventario</strong> para empezar a colocar tus artículos, como el `P011 BOLSA 20 X 30 X 2.5 TRANSPARENTE`, en estas nuevas ubicaciones.</p>
@@ -310,7 +310,7 @@ export default function HelpPage() {
                     Tutorial: Importación de Datos (Archivos y SQL)
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <p>La importación se gestiona desde <strong>Administración {'>'} Importar Datos</strong>. Aquí puedes elegir el método que mejor se adapte a tus necesidades.</p>
+                        <p>La importación se gestiona desde <strong>Administración &gt; Importar Datos</strong>. Aquí puedes elegir el método que mejor se adapte a tus necesidades.</p>
                         
                         <h4 className="font-semibold">Modo 1: Desde Archivos (.txt / .csv)</h4>
                         <ol className="list-decimal space-y-2 pl-6">
@@ -328,7 +328,7 @@ export default function HelpPage() {
                             <li>Rellena los datos de tu servidor ERP. <strong>Importante:</strong> Por seguridad, se recomienda crear un usuario de SQL que solo tenga permisos de <strong>lectura (`SELECT`)</strong> sobre las tablas o vistas necesarias.</li>
                             <li>Guarda la configuración. Estos datos se almacenarán de forma segura en un archivo `.env` en el servidor.</li>
                             <li>Despliega la sección <strong>"Gestión de Consultas SQL"</strong>.</li>
-                            <li>Para cada tipo de dato (Clientes, Artículos, etc.), pega la consulta `SELECT` que extrae la información de tu ERP. Asegúrate de que los nombres de las columnas en tu `SELECT` coincidan con los esperados por el sistema (ej. `SELECT ID_Cliente AS CLIENTE, NombreCliente AS NOMBRE, ... FROM VistaClientes`).</li>
+                            <li>Para cada tipo de dato (Clientes, Artículos, etc.), pega la consulta `SELECT` completa que extrae la información de tu ERP. Asegúrate de que los nombres de las columnas en tu `SELECT` coincidan con los esperados por el sistema (ej. `SELECT ID_Cliente AS CLIENTE, NombreCliente AS NOMBRE, ... FROM VistaClientes`).</li>
                             <li>Guarda las consultas.</li>
                             <li>Una vez configurado, solo tienes que hacer clic en el botón grande <strong>"Importar Todos los Datos desde ERP"</strong> para ejecutar todas las consultas y actualizar la base de datos local.</li>
                         </ol>
