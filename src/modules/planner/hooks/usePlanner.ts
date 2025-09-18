@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,7 +10,7 @@ import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getAllCustomers, getAllProducts, getAllStock, getCompanySettings } from '@/modules/core/lib/db-client';
 import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder } from '@/modules/planner/lib/db-client';
 import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload } from '@/modules/core/types';
-import { isToday, differenceInCalendarDays, parseISO } from 'date-fns';
+import { isToday, differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 
@@ -45,7 +46,7 @@ export const usePlanner = () => {
     const [plannerSettings, setPlannerSettings] = useState<PlannerSettings | null>(null);
     
     const [customers, setCustomers] = useState<Customer[]>([]);
-    const [products, setProducts] = useState<Product[]>([];
+    const [products, setProducts] = useState<Product[]>([]);
     const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
     
     const [newOrder, setNewOrder] = useState(emptyOrder);
@@ -101,7 +102,7 @@ export const usePlanner = () => {
             setPlannerSettings(plannerSettingsData);
 
             if (plannerSettingsData?.customStatuses) {
-                const newConfig = { ...selectors.statusConfig };
+                const newConfig = { ...statusConfig };
                 plannerSettingsData.customStatuses.forEach(cs => {
                     if (cs.isActive && cs.label) {
                         newConfig[cs.id as ProductionOrderStatus] = { label: cs.label, color: cs.color };
@@ -257,7 +258,7 @@ export const usePlanner = () => {
     }
     
     const handleSelectProduct = (value: string) => {
-        setItemSearchOpen(false);
+        setProductSearchOpen(false);
         const product = products.find(p => p.id === value);
         if (product) {
             const stock = stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
@@ -278,10 +279,10 @@ export const usePlanner = () => {
     };
 
     const handleProductInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && selectors.productOptions.length > 0) { e.preventDefault(); handleSelectProduct(selectors.productOptions[0].value); }
+        if (e.key === 'Enter' && customerOptions.length > 0) { e.preventDefault(); handleSelectProduct(productOptions[0].value); }
     };
     const handleCustomerInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && selectors.customerOptions.length > 0) { e.preventDefault(); handleSelectCustomer(selectors.customerOptions[0].value); }
+        if (e.key === 'Enter' && productOptions.length > 0) { e.preventDefault(); handleSelectCustomer(customerOptions[0].value); }
     };
 
     const openAddNoteDialog = (order: ProductionOrder) => {
@@ -304,10 +305,55 @@ export const usePlanner = () => {
         }
     };
 
+    const statusConfig = {
+        pending: { label: "Pendiente", color: "bg-yellow-500" },
+        approved: { label: "Aprobada", color: "bg-green-500" },
+        'in-progress': { label: "En Progreso", color: "bg-blue-500" },
+        'on-hold': { label: "En Espera", color: "bg-gray-500" },
+        'cancellation-request': { label: "Sol. Cancelación", color: "bg-orange-500" },
+        completed: { label: "Completada", color: "bg-teal-500" },
+        'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
+        canceled: { label: "Cancelada", color: "bg-red-700" },
+        ...(dynamicStatusConfig || {}),
+    };
+
+    const customerOptions = useMemo(() => {
+        if (debouncedCustomerSearch.length < 2) return [];
+        const searchLower = debouncedCustomerSearch.toLowerCase();
+        return customers.filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower)).map(c => ({ value: c.id, label: `${c.id} - ${c.name}` }));
+    }, [customers, debouncedCustomerSearch]);
+    
+    const productOptions = useMemo(() => {
+        if (debouncedProductSearch.length < 2) return [];
+        const searchLower = debouncedProductSearch.toLowerCase();
+        return products.filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower)).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
+    }, [products, debouncedProductSearch]);
+    
+    const classifications = useMemo(() => Array.from(new Set(products.map(p => p.classification).filter(Boolean))), [products]);
+
+    const filteredOrders = useMemo(() => {
+        const ordersToFilter = viewingArchived ? archivedOrders : activeOrders;
+        
+        return ordersToFilter.filter(order => {
+            const product = products.find(p => p.id === order.productId);
+            const searchMatch = debouncedSearchTerm ? 
+                order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                order.purchaseOrder?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                : true;
+            const statusMatch = statusFilter === 'all' || order.status === statusFilter;
+            const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
+            const dateMatch = !dateFilter || !dateFilter.from || (new Date(order.deliveryDate) >= dateFilter.from && new Date(order.deliveryDate) <= (dateFilter.to || dateFilter.from));
+            
+            return searchMatch && statusMatch && classificationMatch && dateMatch;
+        });
+    }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products, dateFilter]);
+
     const selectors = {
         hasPermission,
         priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
-        statusConfig: dynamicStatusConfig,
+        statusConfig,
         getDaysRemaining: (order: ProductionOrder) => {
             const today = new Date(); today.setHours(0, 0, 0, 0);
             if (order.scheduledStartDate && order.scheduledEndDate) {
@@ -323,34 +369,13 @@ export const usePlanner = () => {
             }
             const deliveryDate = parseISO(order.deliveryDate); deliveryDate.setHours(0, 0, 0, 0);
             const days = differenceInCalendarDays(deliveryDate, today);
-            let color = 'text-green-600'; if (days <= 0) color = 'text-red-600'; else if (days <= 2) color = 'text-orange-500';
+            let color = 'text-green-600'; if (days <= 2) color = 'text-orange-500'; if (days <= 0) color = 'text-red-600';
             return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
         },
-        customerOptions: useMemo(() => {
-            if (debouncedCustomerSearch.length < 2) return [];
-            const searchLower = debouncedCustomerSearch.toLowerCase();
-            return customers.filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower)).map(c => ({ value: c.id, label: `${c.id} - ${c.name}` }));
-        }, [customers, debouncedCustomerSearch]),
-        productOptions: useMemo(() => {
-            if (debouncedProductSearch.length < 2) return [];
-            const searchLower = debouncedProductSearch.toLowerCase();
-            return products.filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower)).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
-        }, [products, debouncedProductSearch]),
-        classifications: useMemo(() => Array.from(new Set(products.map(p => p.classification).filter(Boolean))), [products]),
-        filteredOrders: useMemo(() => {
-            let ordersToFilter = viewingArchived ? archivedOrders : activeOrders;
-            if (!viewingArchived) {
-                ordersToFilter = ordersToFilter.filter(order => {
-                    const product = products.find(p => p.id === order.productId);
-                    const searchMatch = debouncedSearchTerm ? order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) : true;
-                    const statusMatch = statusFilter === 'all' || order.status === statusFilter;
-                    const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
-                    const dateMatch = !dateFilter || !dateFilter.from || (new Date(order.deliveryDate) >= dateFilter.from && new Date(order.deliveryDate) <= (dateFilter.to || dateFilter.from));
-                    return searchMatch && statusMatch && classificationMatch && dateMatch;
-                });
-            }
-            return ordersToFilter;
-        }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products, dateFilter]),
+        customerOptions,
+        productOptions,
+        classifications,
+        filteredOrders,
         stockLevels
     };
 
@@ -382,6 +407,3 @@ export const usePlanner = () => {
         isAuthorized,
     };
 };
-
-
-    

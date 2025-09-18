@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -121,7 +122,7 @@ export const useRequests = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [toast, viewingArchived, pageSize, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [toast, viewingArchived, pageSize, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
     
     useEffect(() => {
         setTitle("Solicitud de Compra");
@@ -241,6 +242,25 @@ export const useRequests = () => {
         }
     };
 
+    const filteredRequests = useMemo(() => {
+        let requestsToFilter = viewingArchived ? archivedRequests : activeRequests;
+        
+        return requestsToFilter.filter(request => {
+            const product = items.find(p => p.id === request.itemId);
+            const searchMatch = debouncedSearchTerm ? 
+                request.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                request.clientName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                request.itemDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                request.purchaseOrder?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                : true;
+            const statusMatch = statusFilter === 'all' || request.status === statusFilter;
+            const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
+            const dateMatch = !dateFilter || !dateFilter.from || (new Date(request.requiredDate) >= dateFilter.from && new Date(request.requiredDate) <= (dateFilter.to || dateFilter.from));
+            
+            return searchMatch && statusMatch && classificationMatch && dateMatch;
+        });
+    }, [viewingArchived, activeRequests, archivedRequests, debouncedSearchTerm, statusFilter, classificationFilter, items, dateFilter]);
+
     const selectors = {
         hasPermission,
         priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
@@ -249,7 +269,7 @@ export const useRequests = () => {
             const today = new Date(); today.setHours(0, 0, 0, 0);
             const requiredDate = parseISO(dateStr); requiredDate.setHours(0, 0, 0, 0);
             const days = differenceInCalendarDays(requiredDate, today);
-            let color = 'text-green-600'; if (days <= 0) color = 'text-red-600'; else if (days <= 2) color = 'text-orange-500';
+            let color = 'text-green-600'; if (days <= 2) color = 'text-orange-500'; if (days <= 0) color = 'text-red-600';
             return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
         },
         clientOptions: useMemo(() => {
@@ -263,20 +283,7 @@ export const useRequests = () => {
             return items.filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower)).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
         }, [items, debouncedItemSearch]),
         classifications: useMemo(() => Array.from(new Set(items.map(p => p.classification).filter(Boolean))), [items]),
-        filteredRequests: useMemo(() => {
-            let requestsToFilter = viewingArchived ? archivedRequests : activeRequests;
-            if (!viewingArchived) {
-                requestsToFilter = requestsToFilter.filter(request => {
-                    const product = items.find(p => p.id === request.itemId);
-                    const searchMatch = debouncedSearchTerm ? request.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || request.clientName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || request.itemDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) : true;
-                    const statusMatch = statusFilter === 'all' || request.status === statusFilter;
-                    const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
-                    const dateMatch = !dateFilter || !dateFilter.from || (new Date(request.requiredDate) >= dateFilter.from && new Date(request.requiredDate) <= (dateFilter.to || dateFilter.from));
-                    return searchMatch && statusMatch && classificationMatch && dateMatch;
-                });
-            }
-            return requestsToFilter;
-        }, [viewingArchived, activeRequests, archivedRequests, debouncedSearchTerm, statusFilter, classificationFilter, items, dateFilter]),
+        filteredRequests,
         stockLevels
     };
 
@@ -305,6 +312,3 @@ export const useRequests = () => {
         isAuthorized
     };
 };
-
-
-    
