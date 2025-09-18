@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -18,6 +19,7 @@ import { logError } from '@/modules/core/lib/logger';
 import { SearchInput } from '@/components/ui/search-input';
 import { cn } from '@/lib/utils';
 import { useDebounce } from 'use-debounce';
+import { Separator } from '@/components/ui/separator';
 
 const ContributorInfoCard = ({ data }: { data: HaciendaContributorInfo | null }) => {
     if (!data) {
@@ -379,7 +381,7 @@ export default function HaciendaQueryPage() {
                                 />
                             </div>
                             {isUnifiedLoading && <div className="flex justify-center py-4"><Loader2 className="animate-spin" /></div>}
-                            {!isUnifiedLoading && (
+                            {!isUnifiedLoading && (unifiedContributorData || unifiedErpExemption || unifiedExemptionData) && (
                                 <div className="grid md:grid-cols-2 gap-8 pt-4 border-t">
                                     <ContributorInfoCard data={unifiedContributorData} />
                                     <div className="space-y-6">
@@ -435,7 +437,7 @@ export default function HaciendaQueryPage() {
                                      {isExemptionLoading ? <Loader2 className="animate-spin" /> : <Search />}
                                 </Button>
                             </div>
-                            <HaciendaExemptionCard data={exemptionData} />
+                            {exemptionData && <HaciendaExemptionCard data={exemptionData} />}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -443,3 +445,5 @@ export default function HaciendaQueryPage() {
         </main>
     );
 }
+
+    
