@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { logError, logInfo } from "@/modules/core/lib/logger";
 import type { Warehouse, StockSettings } from "@/modules/core/types";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
-import { getStockSettings, saveStockSettings } from "@/modules/core/lib/db-client";
+import { getStockSettings, saveStockSettings } from "@/modules/core/lib/db";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";

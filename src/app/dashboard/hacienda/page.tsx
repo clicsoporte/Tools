@@ -9,7 +9,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { getContributorInfo, getEnrichedExemptionStatus } from '@/modules/hacienda/lib/actions';
-import { getAllCustomers, getAllExemptions } from '@/modules/core/lib/db-client';
+import { getAllCustomers, getAllExemptions } from '@/modules/core/lib/db';
 import type { Customer, Exemption, HaciendaContributorInfo, EnrichedExemptionInfo } from '@/modules/core/types';
 import { Loader2, Search, ShieldCheck, ShieldX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';

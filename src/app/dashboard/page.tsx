@@ -15,7 +15,7 @@ import { Loader2, RefreshCw, Wrench, Clock } from "lucide-react";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import { importAllDataFromFiles, getCompanySettings, saveCompanySettings } from "@/modules/core/lib/db-client";
+import { importAllDataFromFiles, saveCompanySettings } from "@/modules/core/lib/db";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { format, parseISO } from 'date-fns';
 import { cn } from "@/lib/utils";

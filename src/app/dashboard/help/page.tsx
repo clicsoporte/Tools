@@ -19,7 +19,7 @@ import {
 } from "../../../components/ui/accordion";
 import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2 } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
-import { getCompanySettings } from "../../../modules/core/lib/db-client";
+import { getCompanyData } from "../../../modules/core/lib/company-client";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,7 +39,7 @@ export default function HelpPage() {
 
   useEffect(() => {
     setTitle("Centro de Ayuda");
-    getCompanySettings().then(setCompany);
+    getCompanyData().then(setCompany);
   }, [setTitle]);
 
   const handleSuggestionSubmit = async () => {

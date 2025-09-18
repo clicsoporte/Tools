@@ -3,7 +3,7 @@
  */
 'use client';
 
-import type { WarehouseLocation, WarehouseInventoryItem, MovementLog, StockInfo, StockSettings, ItemLocation, Product } from '../../core/types';
+import type { WarehouseLocation, WarehouseInventoryItem, StockInfo, StockSettings, ItemLocation } from '../../core/types';
 import { 
     getLocations as getLocationsServer,
     getWarehouseData,

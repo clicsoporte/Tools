@@ -17,7 +17,7 @@ import {
     getStockSettings as getStockSettingsServer,
     getMovements as getMovementsServer,
 } from './db';
-import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, StockSettings, StockInfo, Product } from '../../core/types';
+import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, StockSettings } from '../../core/types';
 
 export const getWarehouseSettings = async (): Promise<WarehouseSettings> => getWarehouseSettingsServer();
 export const saveWarehouseSettings = async (settings: WarehouseSettings): Promise<void> => saveWarehouseSettingsServer(settings);
@@ -35,6 +35,6 @@ export const assignItemToLocation = async (itemId: string, locationId: number): 
 export const unassignItemFromLocation = async (itemLocationId: number): Promise<void> => unassignItemFromLocationServer(itemLocationId);
 
 // --- Page-specific data loaders ---
-export const getWarehouseData = async (): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], stock: StockInfo[], itemLocations: ItemLocation[] }> => getInventoryServer();
+export const getWarehouseData = async () => getInventoryServer();
 export const getStockSettings = async (): Promise<StockSettings> => getStockSettingsServer();
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);

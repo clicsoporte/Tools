@@ -10,7 +10,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getAllProducts } from '@/modules/core/lib/db-client';
+import { getAllProducts } from '@/modules/core/lib/db';
 import { getLocations, getInventoryForItem, logMovement, updateInventory, getWarehouseSettings, getItemLocations, assignItemToLocation, unassignItemFromLocation } from '@/modules/warehouse/lib/actions';
 import type { Product, WarehouseLocation, WarehouseInventoryItem, ItemLocation, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
