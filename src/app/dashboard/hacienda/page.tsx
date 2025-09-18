@@ -199,7 +199,7 @@ const HaciendaExemptionCard = ({ data }: { data: EnrichedExemptionInfo | null })
                     </div>
                     <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
                         {filteredCabys.map((item, index) => (
-                            <div key={`${item.code}-${index}`} className="p-2 bg-muted/50 rounded-md text-xs">
+                            <div key={`${'item.code'}-${index}`} className="p-2 bg-muted/50 rounded-md text-xs">
                                 <p className="font-semibold">{item.description}</p>
                                 <p className="text-muted-foreground">Código: {item.code}</p>
                             </div>

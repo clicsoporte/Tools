@@ -6,9 +6,9 @@
 'use client';
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
-import type { User, Role, Company } from "../types";
+import type { User, Role, Company, Product, StockInfo, Customer } from "../types";
 import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
-import { getAllRoles, getCompanySettings } from '../lib/db';
+import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock } from '../lib/db';
 
 /**
  * Defines the shape of the authentication context's value.
@@ -17,6 +17,9 @@ interface AuthContextType {
   user: User | null;
   userRole: Role | null;
   companyData: Company | null;
+  customers: Customer[];
+  products: Product[];
+  stockLevels: StockInfo[];
   isLoading: boolean;
   refreshAuth: () => Promise<void>;
 }
@@ -33,19 +36,28 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [companyData, setCompanyData] = useState<Company | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadAuthData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [currentUser, allRoles, companySettings] = await Promise.all([
+      const [currentUser, allRoles, companySettings, dbCustomers, dbProducts, dbStock] = await Promise.all([
         getCurrentUserClient(),
         getAllRoles(),
         getCompanySettings(),
+        getAllCustomers(),
+        getAllProducts(),
+        getAllStock(),
       ]);
 
       setUser(currentUser);
       setCompanyData(companySettings);
+      setCustomers(dbCustomers);
+      setProducts(dbProducts);
+      setStockLevels(dbStock);
 
       if (currentUser && allRoles.length > 0) {
         const role = allRoles.find(r => r.id === currentUser.role);
@@ -58,6 +70,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setUser(null);
       setUserRole(null);
       setCompanyData(null);
+      setCustomers([]);
+      setProducts([]);
+      setStockLevels([]);
     } finally {
       setIsLoading(false);
     }
@@ -77,6 +92,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     user,
     userRole,
     companyData,
+    customers,
+    products,
+    stockLevels,
     isLoading,
     refreshAuth: loadAuthData,
   };
