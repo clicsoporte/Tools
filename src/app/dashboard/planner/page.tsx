@@ -254,6 +254,33 @@ export default function PlannerPage() {
             .filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower))
             .map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
     }, [products, debouncedProductSearch]);
+    
+     const filteredOrders = useMemo(() => {
+        let ordersToFilter = viewingArchived ? archivedOrders : activeOrders;
+        
+        if (!viewingArchived) {
+            ordersToFilter = ordersToFilter.filter(order => {
+                const product = products.find(p => p.id === order.productId);
+                const searchMatch = debouncedSearchTerm 
+                    ? order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                      order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                      order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                    : true;
+                
+                const statusMatch = statusFilter === 'all' || order.status === statusFilter;
+                
+                const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
+
+                const dateMatch = !dateFilter || !dateFilter.from || (
+                    new Date(order.deliveryDate) >= dateFilter.from &&
+                    new Date(order.deliveryDate) <= (dateFilter.to || dateFilter.from)
+                );
+
+                return searchMatch && statusMatch && classificationMatch && dateMatch;
+            });
+        }
+        return ordersToFilter;
+    }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products, dateFilter]);
 
     const handleCreateOrder = async () => {
         if (!newOrder.customerId || !newOrder.productId || !newOrder.quantity || !newOrder.deliveryDate) {
@@ -550,8 +577,6 @@ export default function PlannerPage() {
             doc.setFontSize(8);
             doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
         };
-
-        addHeader(doc);
 
         const tableColumn = ["Nº Orden", "Nº OC", "Cliente", "Producto", "Cant.", "F. Entrega", "Prioridad", "Estado", plannerSettings?.assignmentLabel || 'Máquina'];
         const tableRows: any[][] = [];
@@ -891,7 +916,7 @@ export default function PlannerPage() {
                         </Button>
                         {lastUpdated && (
                             <span className={cn("text-xs text-muted-foreground", (new Date().getTime() - lastUpdated.getTime()) > 12 * 60 * 60 * 1000 && "text-red-500 font-medium")}>
-                                {format(lastUpdated, 'dd/MM HH:mm')}
+                                <Clock className="inline h-3 w-3 mr-1" />{format(lastUpdated, 'dd/MM HH:mm')}
                             </span>
                         )}
                     </div>
