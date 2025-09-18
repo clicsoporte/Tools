@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, PackageCheck, Factory, ShieldAlert, XCircle, Undo2, Boxes, FileDown, Pencil, CalendarIcon, FilterX, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, PackageCheck, Factory, ShieldAlert, XCircle, Undo2, Boxes, FileDown, Pencil, CalendarIcon, FilterX, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -22,7 +22,7 @@ import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getAllCustomers, getAllProducts, getAllStock, getStockSettings } from '@/modules/core/lib/db-client';
 import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder } from '@/modules/planner/lib/db-client';
 import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Warehouse, StockSettings, Company, CustomStatus, DateRange, NotePayload } from '@/modules/core/types';
-import { format, parseISO, isToday } from 'date-fns';
+import { format, parseISO, isToday, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -66,6 +66,24 @@ const statusConfig: { [key in ProductionOrderStatus]?: { label: string; color: s
     canceled: { label: "Cancelada", color: "bg-red-700" },
 };
 
+const getDaysRemaining = (dateStr: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deliveryDate = parseISO(dateStr);
+    deliveryDate.setHours(0, 0, 0, 0);
+    const days = differenceInDays(deliveryDate, today);
+
+    let color = 'text-green-600';
+    if (days <= 0) color = 'text-red-600';
+    else if (days <= 3) color = 'text-orange-500';
+
+    return {
+        days,
+        color,
+        label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`,
+    };
+};
+
 export default function PlannerPage() {
     const { isAuthorized, hasPermission } = useAuthorization(['planner:read']);
     const { setTitle } = usePageTitle();
@@ -85,6 +103,7 @@ export default function PlannerPage() {
     const [totalArchived, setTotalArchived] = useState(0);
     const [plannerSettings, setPlannerSettings] = useState<PlannerSettings | null>(null);
     const [stockSettings, setStockSettings] = useState<StockSettings | null>(null);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
@@ -138,8 +157,10 @@ export default function PlannerPage() {
         setTitle("Planificador OP");
     }, [setTitle]);
 
-    const loadInitialData = useCallback(async (page = 0) => {
-        setIsLoading(true);
+    const loadInitialData = useCallback(async (page = 0, keepFilters = false) => {
+        if(!keepFilters) {
+            setIsLoading(true);
+        }
         try {
             const [
                 ordersData,
@@ -192,12 +213,15 @@ export default function PlannerPage() {
             setActiveOrders(allOrders.filter(activeFilter));
             setArchivedOrders(allOrders.filter(req => !activeFilter(req)));
             setTotalArchived(ordersData.totalArchivedCount);
+            setLastUpdated(new Date());
 
         } catch (error) {
             logError("Failed to load planner data", { error });
             toast({ title: "Error", description: "No se pudieron cargar los datos del planificador.", variant: "destructive" });
         } finally {
-            setIsLoading(false);
+            if (!keepFilters) {
+                setIsLoading(false);
+            }
         }
     }, [toast, viewingArchived, pageSize, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
     
@@ -205,7 +229,15 @@ export default function PlannerPage() {
         if (isAuthorized) {
             loadInitialData(archivedPage);
         }
-    }, [isAuthorized, loadInitialData, archivedPage, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
+    }, [isAuthorized, loadInitialData, archivedPage]);
+
+    const handleFilterChange = () => {
+        loadInitialData(0, true);
+    }
+
+    useEffect(() => {
+        handleFilterChange();
+    }, [debouncedSearchTerm, statusFilter, classificationFilter, dateFilter, pageSize]);
     
     const customerOptions = useMemo(() => {
         if (debouncedCustomerSearch.length < 2) return [];
@@ -646,34 +678,6 @@ export default function PlannerPage() {
         const classSet = new Set(products.map(p => p.classification).filter(Boolean));
         return Array.from(classSet);
     }, [products]);
-
-    const filteredOrders = useMemo(() => {
-        let ordersToFilter = viewingArchived ? archivedOrders : activeOrders;
-        
-        if (!viewingArchived) {
-            ordersToFilter = ordersToFilter.filter(order => {
-                const product = products.find(p => p.id === order.productId);
-                const searchMatch = debouncedSearchTerm 
-                    ? order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                      order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                      order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                    : true;
-                
-                const statusMatch = statusFilter === 'all' || order.status === statusFilter;
-                
-                const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
-
-                const dateMatch = !dateFilter || !dateFilter.from || (
-                    new Date(order.deliveryDate) >= dateFilter.from &&
-                    new Date(order.deliveryDate) <= (dateFilter.to || dateFilter.from)
-                );
-
-                return searchMatch && statusMatch && classificationMatch && dateMatch;
-            });
-        }
-
-        return ordersToFilter;
-    }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products, dateFilter]);
     
     const openAddNoteDialog = (order: ProductionOrder) => {
         setNotePayload({ orderId: order.id, notes: '' });
@@ -722,6 +726,7 @@ export default function PlannerPage() {
 
         const startsToday = order.scheduledStartDate && isToday(parseISO(order.scheduledStartDate));
         const endsToday = order.scheduledEndDate && isToday(parseISO(order.scheduledEndDate));
+        const daysRemaining = getDaysRemaining(order.deliveryDate);
 
         return (
             <Card key={order.id} className="w-full">
@@ -778,7 +783,12 @@ export default function PlannerPage() {
                         
                         <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Fecha de Entrega</p>
-                            <p>{format(parseISO(order.deliveryDate), 'dd/MM/yyyy')}</p>
+                             <div className="flex items-center gap-2">
+                                <span>{format(parseISO(order.deliveryDate), 'dd/MM/yyyy')}</span>
+                                <span className={cn('text-xs font-semibold', daysRemaining.color)}>
+                                    ({daysRemaining.label})
+                                </span>
+                            </div>
                         </div>
                         
                          <div className="space-y-1">
@@ -874,13 +884,20 @@ export default function PlannerPage() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
                 <h1 className="text-lg font-semibold md:text-2xl">Órdenes de Producción</h1>
                  <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-                     <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
-                        {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
-                        Refrescar Datos
-                     </Button>
+                     <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+                            {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+                            Refrescar
+                        </Button>
+                        {lastUpdated && (
+                            <span className={cn("text-xs text-muted-foreground", (new Date().getTime() - lastUpdated.getTime()) > 12 * 60 * 60 * 1000 && "text-red-500 font-medium")}>
+                                {format(lastUpdated, 'dd/MM HH:mm')}
+                            </span>
+                        )}
+                    </div>
                      <Button variant="outline" onClick={handleExportListPDF} disabled={filteredOrders.length === 0}>
                         <FileDown className="mr-2 h-4 w-4" />
-                        Exportar Lista a PDF
+                        Exportar Lista
                      </Button>
                      <div className="flex items-center gap-1">
                         <Button variant={viewingArchived ? "outline" : "secondary"} onClick={() => setViewingArchived(false)}>Activas</Button>
@@ -1097,7 +1114,7 @@ export default function PlannerPage() {
                         <Skeleton className="h-40 w-full" />
                     </div>
                 ) : filteredOrders.length > 0 ? (
-                    filteredOrders.map(order => renderOrderCard(order))
+                    filteredOrders.map(renderOrderCard)
                 ) : (
                      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                         <div className="flex flex-col items-center gap-2 text-center">

@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -13,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User as UserIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User as UserIcon, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -21,7 +22,7 @@ import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getAllCustomers, getAllProducts, getAllStock } from '@/modules/core/lib/db-client';
 import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings } from '@/modules/requests/lib/db-client';
 import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company } from '@/modules/core/types';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,7 +37,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 
-const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'requestedBy' | 'receivedDate' | 'previousStatus'> = {
+const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'> = {
     requiredDate: '',
     clientId: '',
     clientName: '',
@@ -71,6 +72,24 @@ const priorityConfig: { [key in PurchaseRequestPriority]: { label: string; class
     urgent: { label: "Urgente", className: "text-red-600" },
 };
 
+const getDaysRemaining = (dateStr: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const requiredDate = parseISO(dateStr);
+    requiredDate.setHours(0, 0, 0, 0);
+    const days = differenceInDays(requiredDate, today);
+
+    let color = 'text-green-600';
+    if (days <= 0) color = 'text-red-600';
+    else if (days <= 3) color = 'text-orange-500';
+
+    return {
+        days,
+        color,
+        label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`,
+    };
+};
+
 export default function PurchaseRequestPage() {
     const { isAuthorized, hasPermission } = useAuthorization(['requests:read']);
     const { setTitle } = usePageTitle();
@@ -93,6 +112,7 @@ export default function PurchaseRequestPage() {
     const [items, setItems] = useState<Product[]>([]);
     const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
     const [requestSettings, setRequestSettings] = useState<RequestSettings | null>(null);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     
     const [newRequest, setNewRequest] = useState(emptyRequest);
     const [requestToEdit, setRequestToEdit] = useState<PurchaseRequest | null>(null);
@@ -169,6 +189,7 @@ export default function PurchaseRequestPage() {
             setActiveRequests(requestsData.requests.filter(activeFilter));
             setArchivedRequests(requestsData.requests.filter(req => !activeFilter(req)));
             setTotalArchived(requestsData.totalArchivedCount);
+            setLastUpdated(new Date());
 
         } catch (error) {
             logError("Failed to load purchase requests data", { error });
@@ -182,8 +203,8 @@ export default function PurchaseRequestPage() {
         if (isAuthorized) {
             loadInitialData(archivedPage);
         }
-    }, [isAuthorized, loadInitialData, archivedPage]);
-
+    }, [isAuthorized, loadInitialData, archivedPage, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter, pageSize]);
+    
     const clientOptions = useMemo(() => {
         if (debouncedClientSearch.length < 2) return [];
         const searchLower = debouncedClientSearch.toLowerCase();
@@ -433,6 +454,7 @@ export default function PurchaseRequestPage() {
         const canEditPending = hasPermission('requests:edit:pending') && request.status === 'pending';
         const canEditApproved = hasPermission('requests:edit:approved') && ['approved', 'ordered'].includes(request.status);
         const canEdit = canEditPending || canEditApproved;
+        const daysRemaining = getDaysRemaining(request.requiredDate);
         
         return (
             <Card key={request.id} className="w-full">
@@ -482,7 +504,12 @@ export default function PurchaseRequestPage() {
                         
                         <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Fecha Requerida</p>
-                            <p>{format(parseISO(request.requiredDate), 'dd/MM/yyyy')}</p>
+                            <div className="flex items-center gap-2">
+                                <span>{format(parseISO(request.requiredDate), 'dd/MM/yyyy')}</span>
+                                <span className={cn('text-xs font-semibold', daysRemaining.color)}>
+                                    ({daysRemaining.label})
+                                </span>
+                            </div>
                         </div>
 
                         {request.receivedDate && 
@@ -596,11 +623,18 @@ export default function PurchaseRequestPage() {
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <h1 className="text-lg font-semibold md:text-2xl">Solicitudes de Compra</h1>
-                 <div className="flex items-center gap-2 md:gap-4">
-                     <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
-                        {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
-                        Refrescar Datos
-                     </Button>
+                 <div className="flex items-center gap-2 md:gap-4 flex-wrap">
+                     <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+                            {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+                            Refrescar
+                        </Button>
+                         {lastUpdated && (
+                            <span className={cn("text-xs text-muted-foreground", (new Date().getTime() - lastUpdated.getTime()) > 12 * 60 * 60 * 1000 && "text-red-500 font-medium")}>
+                                {format(lastUpdated, 'dd/MM HH:mm')}
+                            </span>
+                        )}
+                    </div>
                      <Button variant={viewingArchived ? "outline" : "secondary"} onClick={() => setViewingArchived(false)}>Activas</Button>
                      <Button variant={viewingArchived ? "secondary" : "outline"} onClick={() => setViewingArchived(true)}>Archivadas</Button>
                      {hasPermission('requests:create') && (
