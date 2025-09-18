@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlus as FilePlusIcon } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
 import { getCompanySettings } from "../../../modules/core/lib/db-client";
 import { Skeleton } from "../../../components/ui/skeleton";
@@ -53,7 +53,7 @@ export default function HelpPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
             <AccordionItem value="item-1">
               <AccordionTrigger className="text-lg font-semibold">
                 <Rocket className="mr-4 h-6 w-6 text-blue-500" />
@@ -72,7 +72,7 @@ export default function HelpPage() {
             <AccordionItem value="item-quoter">
               <AccordionTrigger className="text-lg font-semibold">
                 <DollarSign className="mr-4 h-6 w-6 text-green-500" />
-                Módulo Cotizador
+                Tutorial: Módulo Cotizador
               </AccordionTrigger>
               <AccordionContent className="prose max-w-none text-base space-y-4">
                 <p>
@@ -98,7 +98,7 @@ export default function HelpPage() {
              <AccordionItem value="item-requests">
               <AccordionTrigger className="text-lg font-semibold">
                 <ShoppingCart className="mr-4 h-6 w-6 text-yellow-500" />
-                Módulo Solicitud de Compra
+                Tutorial: Módulo Solicitud de Compra
               </AccordionTrigger>
               <AccordionContent className="prose max-w-none text-base space-y-4">
                 <p>
@@ -106,10 +106,10 @@ export default function HelpPage() {
                 </p>
                 <ul className="list-disc space-y-3 pl-6">
                   <li>
-                    <strong>Crear Solicitud (<FilePlus className="inline h-4 w-4" />):</strong> Haz clic en "Nueva Solicitud" para abrir el formulario. Busca al cliente y el artículo de la misma forma que en el cotizador. Completa los campos como la cantidad requerida, la fecha en que lo necesitas y el proveedor (si lo conoces).
+                    <strong>Paso 1: Crear Solicitud (<FilePlusIcon className="inline h-4 w-4" />):</strong> Haz clic en "Nueva Solicitud" para abrir el formulario. Busca al cliente y el artículo de la misma forma que en el cotizador. Completa los campos como la cantidad requerida, la fecha en que lo necesitas y el proveedor (si lo conoces).
                   </li>
                    <li>
-                    <strong>Flujo de Estados:</strong> Las solicitudes pasan por varios estados para un seguimiento claro:
+                    <strong>Paso 2: Entender el Flujo de Estados.</strong> Las solicitudes pasan por varios estados para un seguimiento claro:
                      <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                         <li><strong>Pendiente:</strong> La solicitud ha sido creada y está esperando aprobación.</li>
                         <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> Un usuario con permisos ha aprobado la compra.</li>
@@ -119,10 +119,10 @@ export default function HelpPage() {
                     </ul>
                   </li>
                   <li>
-                    <strong>Prioridad y Cantidad Recibida:</strong> Puedes establecer una prioridad a la solicitud para indicar su urgencia. Al recibir el producto, puedes indicar si la cantidad recibida es diferente a la solicitada, y el sistema te mostrará la diferencia.
+                    <strong>Paso 3: Usar Prioridad y Cantidad Recibida.</strong> Puedes establecer una prioridad a la solicitud para indicar su urgencia. Al recibir el producto, puedes indicar si la cantidad recibida es diferente a la solicitada, y el sistema te mostrará la diferencia.
                   </li>
                    <li>
-                    <strong>Vista de Archivados:</strong> Para mantener la velocidad, la vista de "Archivados" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
+                    <strong>Paso 4: Navegar en el Historial.</strong> Para mantener la velocidad, la vista de "Archivadas" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
                   </li>
                 </ul>
               </AccordionContent>
@@ -131,7 +131,7 @@ export default function HelpPage() {
             <AccordionItem value="item-planner">
               <AccordionTrigger className="text-lg font-semibold">
                 <CalendarCheck className="mr-4 h-6 w-6 text-purple-500" />
-                Módulo Planificador OP
+                Tutorial: Módulo Planificador OP
               </AccordionTrigger>
               <AccordionContent className="prose max-w-none text-base space-y-4">
                  <p>
@@ -139,13 +139,13 @@ export default function HelpPage() {
                 </p>
                 <ul className="list-disc space-y-3 pl-6">
                     <li>
-                        <strong>Crear Órdenes:</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
+                        <strong>Paso 1: Crear Órdenes.</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
                     </li>
                     <li>
-                        <strong>Programación por Rango de Fechas:</strong> Una orden de producción a menudo abarca varios días. Para reflejar esto, haz clic directamente en el área de "Fecha Programada" de una orden. Esto abrirá un calendario donde puedes seleccionar un rango de fechas de inicio y fin. Si no hay fecha, el botón dirá "Programar Fecha".
+                        <strong>Paso 2: Programar por Rango de Fechas.</strong> Una orden de producción a menudo abarca varios días. Para reflejar esto, haz clic directamente en el área de "Fecha Programada" de una orden. Esto abrirá un calendario donde puedes seleccionar un rango de fechas de inicio y fin.
                     </li>
                     <li>
-                        <strong>Gestión de Estados y Asignaciones:</strong>
+                        <strong>Paso 3: Gestionar Estados y Asignaciones.</strong>
                          <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>Asigna cada orden a una máquina o proceso específico desde un menú desplegable. Puedes configurar estas máquinas en el panel de administración.</li>
                             <li>Cambia el estado de la orden (Aprobada, En Progreso, En Espera, Completada) para reflejar su avance en tiempo real.</li>
@@ -153,10 +153,7 @@ export default function HelpPage() {
                         </ul>
                     </li>
                      <li>
-                        <strong>Prioridad:</strong> Utiliza el selector de prioridad (Urgente, Alta, Media, Baja) para organizar el trabajo y asegurar que las órdenes más importantes se atiendan primero.
-                    </li>
-                     <li>
-                        <strong>Vista de Archivados:</strong> Para mantener la velocidad, la vista de "Archivados" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
+                        <strong>Paso 4: Usar Prioridades.</strong> Utiliza el selector de prioridad (Urgente, Alta, Media, Baja) para organizar el trabajo y asegurar que las órdenes más importantes se atiendan primero.
                     </li>
                 </ul>
               </AccordionContent>
@@ -165,7 +162,7 @@ export default function HelpPage() {
             <AccordionItem value="item-warehouse">
                 <AccordionTrigger className="text-lg font-semibold">
                     <Warehouse className="mr-4 h-6 w-6 text-cyan-600" />
-                    Módulo de Almacenes
+                    Tutorial: Módulo de Almacenes
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base space-y-4">
                     <p>Este módulo te da control sobre la ubicación de tu inventario. Su configuración, aunque potente, puede ser confusa al principio. Se basa en un concepto de dos pasos: el **Molde** y el **Árbol**.</p>
@@ -175,11 +172,11 @@ export default function HelpPage() {
                             <strong className="text-base">1. El Molde (Definir Jerarquía):</strong> Aquí le dices al sistema cómo organizas tu almacén, pero sin crear nada real todavía. Es solo la plantilla. Por ejemplo: le dices que usas "Bodegas", que dentro de ellas hay "Pasillos", y que en los pasillos hay "Racks".
                         </li>
                         <li>
-                            <strong className="text-base">2. El Árbol (Crear Ubicaciones Reales):</strong> Una vez que tienes el molde, usas esos niveles para construir tu almacén real. Creas una ubicación de tipo "Bodega" y le pones el nombre `Bodega 04`. Luego, creas otra de tipo "Pasillo" llamada `Pasillo Principal` y le dices que está *dentro de* `Bodega 04`.
+                            <strong className="text-base">2. El Árbol (Crear Ubicaciones Reales):</strong> Una vez que tienes el molde, aquí es donde creas el árbol real de tu almacén. Aquí es donde dices: "Ok, voy a crear una ubicación de tipo `Bodega` y se va a llamar `Bodega 04`". Luego, "dentro de Bodega 04, voy a crear una ubicación de tipo `Pasillo` y se va a llamar `Pasillo Bolsas 01`", y así sucesivamente.
                         </li>
                     </ul>
 
-                    <h4 className="font-semibold text-lg pt-4 border-t">Tutorial Práctico: Configurando tu Almacén</h4>
+                    <h4 className="font-semibold text-lg pt-4 border-t">Tutorial Práctico: Configurando tu Almacén desde Cero</h4>
                     <p>Usemos un ejemplo real: tienes una bodega (`04`), con un pasillo (`01`) entre dos racks (`01` y `02`). Los productos se guardan en tarimas (`pallets`) que tienen una posición horizontal y vertical.</p>
 
                     <h5 className="font-semibold">Paso 1: Crear el "Molde" (La Jerarquía)</h5>
@@ -233,14 +230,14 @@ export default function HelpPage() {
                             Tu ubicación final para un producto sería `B04 > P01 > R01 > H1 > V1`.
                         </li>
                     </ol>
-                    <p className="pt-2">Una vez configurado, puedes ir al módulo <strong>Asignar Inventario</strong> para empezar a colocar tus artículos, como el `P011 BOLSA 20 X 30 X 2.5`, en estas nuevas ubicaciones.</p>
+                    <p className="pt-2">Una vez configurado, puedes ir al módulo <strong>Asignar Inventario</strong> para empezar a colocar tus artículos, como el `P011 BOLSA 20 X 30 X 2.5 TRANSPARENTE`, en estas nuevas ubicaciones.</p>
                 </AccordionContent>
             </AccordionItem>
             
             <AccordionItem value="item-admin">
               <AccordionTrigger className="text-lg font-semibold">
                 <Wrench className="mr-4 h-6 w-6 text-slate-600" />
-                Panel de Administración
+                Tutorial: Panel de Administración
               </AccordionTrigger>
               <AccordionContent className="prose max-w-none text-base space-y-4">
                 <p>
@@ -267,7 +264,7 @@ export default function HelpPage() {
                         </div>
                     </div>
                      <div className="flex items-start gap-4">
-                        <Database className="mt-1 h-6 w-6 text-red-500 shrink-0" />
+                        <DatabaseZap className="mt-1 h-6 w-6 text-red-500 shrink-0" />
                         <div><h4 className="font-semibold">Mantenimiento</h4><p>Realiza copias de seguridad (backup) de la base de datos de cada módulo, restáuralas, o reinicia un módulo a su estado de fábrica si algo sale mal.</p></div>
                     </div>
                 </div>
@@ -277,7 +274,7 @@ export default function HelpPage() {
             <AccordionItem value="item-import">
                 <AccordionTrigger className="text-lg font-semibold">
                   <DatabaseZap className="mr-4 h-6 w-6 text-red-500" />
-                  Guía Detallada de Importación de Datos
+                  Tutorial: Importación de Datos (Archivos y SQL)
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base space-y-4">
                     <p>La importación se gestiona desde <strong>Administración {'>'} Importar Datos</strong>. Aquí puedes elegir el método que mejor se adapte a tus necesidades.</p>
@@ -316,7 +313,7 @@ export default function HelpPage() {
              <AccordionItem value="item-user-profile">
               <AccordionTrigger className="text-lg font-semibold">
                 <UserCog className="mr-4 h-6 w-6 text-blue-500" />
-                Mi Perfil
+                Tutorial: Mi Perfil
               </AccordionTrigger>
               <AccordionContent className="prose max-w-none text-base">
                  <div className="flex items-start gap-4">
@@ -339,12 +336,12 @@ export default function HelpPage() {
             <AccordionItem value="item-update">
                 <AccordionTrigger className="text-lg font-semibold">
                   <Wrench className="mr-4 h-6 w-6 text-slate-600" />
-                  ¿Cómo se actualiza la aplicación?
+                  Guía: ¿Cómo se actualiza la aplicación?
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base space-y-4">
-                    <p>Actualizar la aplicación a una nueva versión sin perder tus datos es un proceso seguro gracias al sistema de **migraciones automáticas**. Sigue estos pasos cuidadosamente en tu servidor de producción.</p>
+                    <p>Actualizar la aplicación a una nueva versión sin perder tus datos es un proceso crítico. El sistema está diseñado para manejar esto de forma segura gracias a las **migraciones automáticas**.</p>
                     
-                    <h4 className="font-semibold">Proceso de Actualización Seguro</h4>
+                    <h4 className="font-semibold">Proceso de Actualización Seguro:</h4>
                     <ol className="list-decimal space-y-3 pl-6">
                         <li>
                             <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve al directorio de la aplicación en tu servidor y haz una copia de seguridad completa de la carpeta `dbs/`. Esta carpeta contiene todas tus bases de datos (usuarios, órdenes, solicitudes, etc.).

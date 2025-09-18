@@ -43,14 +43,25 @@
 ## 3. Guía de Módulos (Funcionalidades sin cambios)
 
 ### 3.1. Cotizador (`/dashboard/quoter`)
+- **Creación Rápida:** Permite buscar y añadir clientes y productos de forma ágil, con autocompletado y atajos de teclado.
+- **Generación de PDF:** Crea documentos de cotización profesionales con la información de la empresa.
+
 ### 3.2. Planificador (`/dashboard/planner`)
--   **Paginación de Archivados**: Para manejar un gran volumen de datos, las órdenes archivadas se cargan por páginas. Puedes usar los botones de "Anterior" y "Siguiente" para navegar. Los filtros de búsqueda se aplican a todo el conjunto de datos archivados.
+- **Gestión de Órdenes:** Permite crear, editar y visualizar órdenes de producción.
+- **Programación por Rango:** Se pueden asignar rangos de fechas (inicio y fin) para la producción.
+- **Paginación de Archivados**: Para manejar un gran volumen de datos, las órdenes archivadas se cargan por páginas. La búsqueda y el filtrado se aplican de forma eficiente sobre todo el conjunto de datos archivados del lado del servidor.
 
 ### 3.3. Solicitud de Compra (`/dashboard/requests`)
--   **Paginación de Archivados**: Al igual que en el planificador, las solicitudes archivadas se cargan por páginas, y la búsqueda es eficiente sobre todo el historial.
+- **Flujo de Aprobación:** Gestiona el ciclo de vida de una solicitud, desde "Pendiente" hasta "Recibida".
+- **Paginación de Archivados**: Al igual que en el planificador, las solicitudes archivadas se cargan por páginas, y la búsqueda es eficiente sobre todo el historial.
 
 ### 3.4. Almacenes (`/dashboard/warehouse`)
+- **Consulta de Inventario:** Permite buscar artículos y ver sus ubicaciones y existencias en tiempo real.
+- **Asignación de Ubicaciones:** Herramienta para mover inventario o asignar artículos a ubicaciones físicas en el almacén.
+- **Configuración Flexible:** Soporta un modo "informativo" (solo asignación) y un modo "avanzado" (conteo de existencias físicas).
+
 ### 3.5. Consultas Hacienda (`/dashboard/hacienda`)
+- **Búsqueda Unificada:** Centraliza la consulta de situación tributaria y exoneraciones de un cliente.
 
 ---
 
