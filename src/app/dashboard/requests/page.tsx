@@ -130,84 +130,59 @@ export default function PurchaseRequestPage() {
         setTitle("Solicitud de Compra");
     }, [setTitle]);
 
-    const loadRequestData = useCallback(async (page = 0) => {
+    const loadInitialData = useCallback(async (page = 0) => {
         setIsLoading(true);
         try {
-             const filters = {
-                searchTerm: debouncedSearchTerm,
-                status: statusFilter,
-                classification: classificationFilter,
-                dateRange: dateFilter,
-                productIds: (classificationFilter !== 'all' && items.length > 0)
-                    ? items.filter(p => p.classification === classificationFilter).map(p => p.id)
-                    : undefined
-            };
+             const [
+                requestsData,
+                clientsData,
+                itemsData,
+                stockData,
+                settingsData
+            ] = await Promise.all([
+                getPurchaseRequests({
+                    page: viewingArchived ? page : undefined,
+                    pageSize: viewingArchived ? pageSize : undefined,
+                    filters: {
+                        searchTerm: debouncedSearchTerm,
+                        status: statusFilter,
+                        classification: classificationFilter,
+                        dateRange: dateFilter,
+                    }
+                }),
+                getAllCustomers(),
+                getAllProducts(),
+                getAllStock(),
+                getRequestSettings()
+            ]);
 
-            const { requests, totalArchivedCount } = await getPurchaseRequests({
-                page: viewingArchived ? page : undefined,
-                pageSize: viewingArchived ? pageSize : undefined,
-                filters: viewingArchived ? filters : undefined
-            });
-            const settings = await getRequestSettings();
+            setClients(clientsData);
+            setItems(itemsData);
+            setStockLevels(stockData);
+            setRequestSettings(settingsData);
             
-            const useWarehouse = settings.useWarehouseReception;
-            
+            const useWarehouse = settingsData.useWarehouseReception;
             const activeFilter = (o: PurchaseRequest) => useWarehouse
                 ? o.status !== 'received-in-warehouse' && o.status !== 'canceled'
                 : o.status !== 'received' && o.status !== 'canceled';
             
-            const archivedFilter = (o: PurchaseRequest) => useWarehouse
-                ? o.status === 'received-in-warehouse' || o.status === 'canceled'
-                : o.status === 'received' || o.status === 'canceled';
+            setActiveRequests(requestsData.requests.filter(activeFilter));
+            setArchivedRequests(requestsData.requests.filter(req => !activeFilter(req)));
+            setTotalArchived(requestsData.totalArchivedCount);
 
-            if (!viewingArchived) {
-                setActiveRequests(requests.filter(activeFilter));
-            } else {
-                setArchivedRequests(requests); // Data is already filtered by server
-            }
-            
-            setTotalArchived(totalArchivedCount);
-            setRequestSettings(settings);
         } catch (error) {
-            logError("Failed to load purchase requests", { error });
+            logError("Failed to load purchase requests data", { error });
             toast({ title: "Error", description: "No se pudieron cargar las solicitudes de compra.", variant: "destructive" });
         } finally {
             setIsLoading(false);
         }
-    }, [toast, viewingArchived, pageSize, items, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
+    }, [toast, viewingArchived, pageSize, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
     
-     useEffect(() => {
-        if (isAuthorized) {
-            loadRequestData(archivedPage);
-        }
-    }, [isAuthorized, loadRequestData, archivedPage, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
-
     useEffect(() => {
-        if (isAuthorized === null) return;
-        
-        const loadSupportingData = async () => {
-            setIsLoading(true);
-            try {
-                const [clientsData, itemsData, stockData] = await Promise.all([
-                    getAllCustomers(),
-                    getAllProducts(),
-                    getAllStock(),
-                ]);
-                setClients(clientsData);
-                setItems(itemsData);
-                setStockLevels(stockData);
-            } catch (error) {
-                logError("Failed to load request initial data", { error });
-                toast({ title: "Error", description: "No se pudieron cargar los datos de clientes y artículos.", variant: "destructive" });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         if (isAuthorized) {
-            loadSupportingData();
+            loadInitialData(archivedPage);
         }
-    }, [isAuthorized, toast]);
+    }, [isAuthorized, loadInitialData, archivedPage]);
 
     const clientOptions = useMemo(() => {
         if (debouncedClientSearch.length < 2) return [];
@@ -245,7 +220,7 @@ export default function PurchaseRequestPage() {
             setNewRequest(emptyRequest);
             setItemSearchTerm("");
             setClientSearchTerm("");
-            await loadRequestData();
+            await loadInitialData();
         } catch (error: any) {
             logError("Failed to create purchase request", { error: error.message });
             toast({ title: "Error al Crear", description: error.message, variant: "destructive" });
@@ -320,11 +295,11 @@ export default function PurchaseRequestPage() {
             toast({ title: "Estado Actualizado", description: `La solicitud ${requestToUpdate.consecutive} ahora está ${statusConfig[newStatus].label}.` });
             await logInfo("Purchase request status updated", { request: requestToUpdate.consecutive, newStatus: newStatus });
             setStatusDialogOpen(false);
-            await loadRequestData(viewingArchived ? archivedPage : 0);
+            await loadInitialData(viewingArchived ? archivedPage : 0);
         } catch (error: any) {
             logError("Failed to update request status", { error: error.message });
             toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
-            await loadRequestData(viewingArchived ? archivedPage : 0);
+            await loadInitialData(viewingArchived ? archivedPage : 0);
         } finally {
             setIsSubmitting(false);
         }
@@ -363,11 +338,11 @@ export default function PurchaseRequestPage() {
             setReopenDialogOpen(false);
             setReopenStep(0);
             setReopenConfirmationText('');
-            await loadRequestData();
+            await loadInitialData();
         } catch (error: any) {
             logError("Failed to reopen request", { error: error.message });
             toast({ title: "Error al Reabrir", description: error.message, variant: "destructive" });
-            await loadRequestData();
+            await loadInitialData();
         } finally {
             setIsSubmitting(false);
         }
@@ -408,7 +383,7 @@ export default function PurchaseRequestPage() {
     const handleRefresh = async () => {
         setIsRefreshing(true);
         toast({ title: "Actualizando datos..." });
-        await loadRequestData();
+        await loadInitialData();
         toast({ title: "Datos actualizados", description: "Se han cargado las solicitudes más recientes." });
         setIsRefreshing(false);
     }
@@ -419,29 +394,30 @@ export default function PurchaseRequestPage() {
     }, [items]);
 
     const filteredRequests = useMemo(() => {
-        if (viewingArchived) {
-            return archivedRequests;
+        let requestsToFilter = viewingArchived ? archivedRequests : activeRequests;
+        
+        if (!viewingArchived) {
+            requestsToFilter = requestsToFilter.filter(request => {
+                const product = items.find(p => p.id === request.itemId);
+                const searchMatch = debouncedSearchTerm 
+                    ? request.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                      request.clientName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                      request.itemDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                    : true;
+                
+                const statusMatch = statusFilter === 'all' || request.status === statusFilter;
+                
+                const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
+
+                const dateMatch = !dateFilter || !dateFilter.from || (
+                    new Date(request.requiredDate) >= dateFilter.from &&
+                    new Date(request.requiredDate) <= (dateFilter.to || dateFilter.from)
+                );
+
+                return searchMatch && statusMatch && classificationMatch && dateMatch;
+            });
         }
-
-        return activeRequests.filter(request => {
-            const product = items.find(p => p.id === request.itemId);
-            const searchMatch = debouncedSearchTerm 
-                ? request.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                  request.clientName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                  request.itemDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                : true;
-            
-            const statusMatch = statusFilter === 'all' || request.status === statusFilter;
-            
-            const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
-
-            const dateMatch = !dateFilter || !dateFilter.from || (
-                new Date(request.requiredDate) >= dateFilter.from &&
-                new Date(request.requiredDate) <= (dateFilter.to || dateFilter.from)
-            );
-
-            return searchMatch && statusMatch && classificationMatch && dateMatch;
-        });
+        return requestsToFilter;
     }, [viewingArchived, activeRequests, archivedRequests, debouncedSearchTerm, statusFilter, classificationFilter, items, dateFilter]);
 
 
@@ -897,7 +873,12 @@ export default function PurchaseRequestPage() {
             </Card>
             
             <div className="space-y-4">
-                {filteredRequests.length > 0 ? (
+                {isLoading ? (
+                     <div className="space-y-4">
+                        <Skeleton className="h-40 w-full" />
+                        <Skeleton className="h-40 w-full" />
+                    </div>
+                ) : filteredRequests.length > 0 ? (
                     filteredRequests.map(renderRequestCard)
                 ) : (
                      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
@@ -1166,4 +1147,3 @@ export default function PurchaseRequestPage() {
         </main>
     );
 }
-
