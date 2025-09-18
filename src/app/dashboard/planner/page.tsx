@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -78,7 +78,10 @@ export default function PlannerPage() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
                 <h1 className="text-lg font-semibold md:text-2xl">Órdenes de Producción</h1>
                  <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-                     {actions.renderRefreshButton()}
+                    <Button variant="outline" onClick={() => loadInitialData(0)} disabled={state.isLoading}>
+                        {state.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+                        Refrescar
+                    </Button>
                      <div className="flex items-center gap-1">
                         <Button variant={viewingArchived ? "outline" : "secondary"} onClick={() => setViewingArchived(false)}>Activas</Button>
                         <Button variant={viewingArchived ? "secondary" : "outline"} onClick={() => setViewingArchived(true)}>Archivadas</Button>
@@ -204,7 +207,7 @@ export default function PlannerPage() {
                 {state.isLoading ? (
                     <div className="space-y-4"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>
                 ) : selectors.filteredOrders.length > 0 ? (
-                    selectors.filteredOrders.map(selectors.renderOrderCard)
+                    selectors.filteredOrders.map(actions.renderOrderCard)
                 ) : (<div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><div className="flex flex-col items-center gap-2 text-center"><h3 className="text-2xl font-bold tracking-tight">No se encontraron órdenes.</h3><p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda o crea una nueva orden.</p></div></div>)}
             </div>
              {viewingArchived && totalArchived > pageSize && (
