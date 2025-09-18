@@ -198,7 +198,7 @@ export async function logMovement(movement: Omit<MovementLog, 'id' | 'timestamp'
     ).run(newMovement);
 }
 
-export async function getInventory(): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], stock: StockInfo[], itemLocations: ItemLocation[] }> {
+export async function getWarehouseData(): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], stock: StockInfo[], itemLocations: ItemLocation[] }> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const locations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
     const inventory = db.prepare('SELECT * FROM inventory').all() as WarehouseInventoryItem[];

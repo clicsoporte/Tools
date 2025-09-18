@@ -5,7 +5,7 @@
 
 import { connectDb } from '../../core/lib/db';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange } from '../../core/types';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 const REQUESTS_DB_FILE = 'requests.db';
 

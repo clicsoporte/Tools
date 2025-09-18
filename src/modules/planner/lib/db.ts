@@ -210,53 +210,31 @@ export async function getOrders(options: {
         ? ['received-in-warehouse', 'canceled']
         : ['completed', 'canceled'];
     
-    const activeFilter = (o: ProductionOrder) => !archivedStatuses.includes(o.status);
-
     // Fetch all orders once.
     const allOrders: ProductionOrder[] = db.prepare(`SELECT * FROM production_orders ORDER BY requestDate DESC`).all() as ProductionOrder[];
     
-    const activeOrders = allOrders.filter(activeFilter);
-    let allArchived = allOrders.filter(o => !activeFilter(o));
+    const activeOrders = allOrders.filter(o => !archivedStatuses.includes(o.status));
+    const allArchived = allOrders.filter(o => archivedStatuses.includes(o.status));
     
-    let archivedOrders: ProductionOrder[] = [];
-    let totalArchivedCount = 0;
+    let archivedOrders: ProductionOrder[] = allArchived;
+    let totalArchivedCount = allArchived.length;
 
     const { page, pageSize, filters } = options;
     
     if (filters && page !== undefined && pageSize !== undefined) {
-        const { searchTerm, status, dateRange, classification } = filters;
-
-        // Apply filters to archived orders in memory
-        if (classification && classification !== 'all') {
+        if (filters.classification && filters.classification !== 'all') {
             const allProducts = await getAllProducts();
             const productMap = new Map(allProducts.map(p => [p.id, p]));
-            allArchived = allArchived.filter(order => {
+            archivedOrders = archivedOrders.filter(order => {
                 const product = productMap.get(order.productId);
-                return product?.classification === classification;
+                return product?.classification === filters.classification;
             });
         }
         
-        let filteredArchived = allArchived.filter(order => {
-            const searchMatch = searchTerm
-                ? order.consecutive.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                  order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                  order.productDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  order.purchaseOrder?.toLowerCase().includes(searchTerm.toLowerCase())
-                : true;
-            const statusMatch = status && status !== 'all' ? order.status === status : true;
-            const dateMatch = dateRange?.from
-                ? new Date(order.deliveryDate) >= dateRange.from && new Date(order.deliveryDate) <= (dateRange.to || dateRange.from)
-                : true;
-            
-            return searchMatch && statusMatch && dateMatch;
-        });
-
-        totalArchivedCount = filteredArchived.length;
-        archivedOrders = filteredArchived.slice(page * pageSize, (page + 1) * pageSize);
-    } else {
-        totalArchivedCount = allArchived.length;
+        totalArchivedCount = archivedOrders.length;
+        archivedOrders = archivedOrders.slice(page * pageSize, (page + 1) * pageSize);
     }
-
+    
     return { activeOrders, archivedOrders, totalArchivedCount };
 }
 
@@ -493,7 +471,7 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 
 export async function rejectCancellation(payload: RejectCancellationPayload): Promise<void> {
     const db = await connectDb(PLANNER_DB_FILE);
-    const { orderId, notes, updatedBy } = payload;
+    const { entityId: orderId, notes, updatedBy } = payload;
 
     const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
     if (!currentOrder || currentOrder.status !== 'cancellation-request') {
@@ -509,17 +487,17 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
                 lastStatusUpdateNotes = @notes,
                 lastStatusUpdateBy = @updatedBy,
                 previousStatus = NULL
-            WHERE id = @requestId
+            WHERE id = @orderId
         `);
 
         stmt.run({
             status: statusToRevertTo,
             notes: notes || null,
             updatedBy: updatedBy,
-            requestId: orderId,
+            orderId: orderId,
         });
 
-        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
         historyStmt.run(orderId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
     });
 

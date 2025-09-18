@@ -14,17 +14,20 @@ import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, Quo
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
+import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
+import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
+import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
 
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'public', 'data', 'cabys.csv');
 
-const DB_MODULES: Omit<DatabaseModule, 'initFn'>[] = [
-    { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: DB_FILE },
-    { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db' },
-    { id: 'production-planner', name: 'Planificador de Producción', dbFile: 'planner.db' },
-    { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db' },
+const DB_MODULES: DatabaseModule[] = [
+    { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: DB_FILE, initFn: initializeMainDatabase, migrationFn: checkAndApplyMigrations },
+    { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
+    { id: 'production-planner', name: 'Planificador de Producción', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
+    { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db', initFn: initializeWarehouseDb, migrationFn: runWarehouseMigrations },
 ];
 
 // This path is configured to work correctly within the Next.js build output directory,
@@ -53,37 +56,21 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
     const dbExists = fs.existsSync(dbPath);
     const db = new Database(dbPath);
 
+    const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
+
     if (!dbExists) {
         console.log(`Database ${dbFile} not found, creating and initializing...`);
-        if (dbFile === 'planner.db') {
-            const { initializePlannerDb } = await import('../../planner/lib/db');
-            await initializePlannerDb(db);
-        } else if (dbFile === 'requests.db') {
-            const { initializeRequestsDb } = await import('../../requests/lib/db');
-            await initializeRequestsDb(db);
-        } else if (dbFile === 'warehouse.db') {
-            const { initializeWarehouseDb } = await import('../../warehouse/lib/db');
-            await initializeWarehouseDb(db);
-        } else if (dbFile === DB_FILE) {
-            await initializeMainDatabase(db);
+        if (moduleConfig?.initFn) {
+            await moduleConfig.initFn(db);
         }
     } else {
         console.log(`Database ${dbFile} found. Checking for migrations...`);
-        try {
-            if (dbFile === 'planner.db') {
-                const { runPlannerMigrations } = await import('../../planner/lib/db');
-                await runPlannerMigrations(db);
-            } else if (dbFile === 'requests.db') {
-                const { runRequestMigrations } = await import('../../requests/lib/db');
-                await runRequestMigrations(db);
-            } else if (dbFile === 'warehouse.db') {
-                 const { runWarehouseMigrations } = await import('../../warehouse/lib/db');
-                 await runWarehouseMigrations(db);
-            } else if (dbFile === DB_FILE) {
-                 checkAndApplyMigrations(db);
+        if (moduleConfig?.migrationFn) {
+            try {
+                await moduleConfig.migrationFn(db);
+            } catch (error) {
+                console.error(`Migration failed for ${dbFile}, but continuing. Error:`, error);
             }
-        } catch (error) {
-            console.error(`Migration failed for ${dbFile}, but continuing. Error:`, error);
         }
     }
 
@@ -99,7 +86,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
  * This makes the app more resilient to schema changes over time without data loss.
  * @param {Database.Database} db - The database instance to check.
  */
-function checkAndApplyMigrations(db: Database.Database) {
+async function checkAndApplyMigrations(db: Database.Database) {
     // Main DB Migrations
     try {
         const companyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='company_settings'`).get();
@@ -659,8 +646,8 @@ export async function deleteQuoteDraft(draftId: string): Promise<void> {
     }
 }
 
-export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn'>[]> {
-    return DB_MODULES;
+export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]> {
+    return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
 }
 
 export async function backupDatabase(moduleId: string): Promise<Buffer> {
