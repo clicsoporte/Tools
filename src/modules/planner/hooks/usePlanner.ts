@@ -7,7 +7,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getAllCustomers, getAllProducts, getAllStock, getCompanySettings } from '@/modules/core/lib/db-client';
+import { getAllCustomers, getAllProducts, getAllStock, getCompanySettings } from '@/modules/core/lib/db';
 import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder } from '@/modules/planner/lib/db-client';
 import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload, RejectCancellationPayload } from '@/modules/core/types';
 import { isToday, differenceInCalendarDays, parseISO, format } from 'date-fns';
@@ -31,7 +31,7 @@ export const usePlanner = () => {
     const { isAuthorized, hasPermission } = useAuthorization(['planner:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user: currentUser, companyData: authCompanyData } = useAuth();
+    const { user: currentUser, companyData: authCompanyData, customers, products, stockLevels: initialStockLevels } = useAuth();
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,9 +45,7 @@ export const usePlanner = () => {
     const [totalArchived, setTotalArchived] = useState(0);
     const [plannerSettings, setPlannerSettings] = useState<PlannerSettings | null>(null);
     
-    const [customers, setCustomers] = useState<Customer[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
-    const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
+    const [stockLevels, setStockLevels] = useState<StockInfo[]>(initialStockLevels || []);
     
     const [newOrder, setNewOrder] = useState(emptyOrder);
     const [orderToEdit, setOrderToEdit] = useState<ProductionOrder | null>(null);
@@ -90,20 +88,20 @@ export const usePlanner = () => {
     const loadInitialData = useCallback(async (page = 0) => {
         setIsLoading(true);
         try {
-            const [
-                customersData, productsData, stockData, plannerSettingsData,
-            ] = await Promise.all([
-                getAllCustomers(), getAllProducts(), getAllStock(), getPlannerSettings(),
+             const [ settingsData, ordersData ] = await Promise.all([
+                getPlannerSettings(),
+                getProductionOrders({
+                    page: viewingArchived ? page : undefined,
+                    pageSize: viewingArchived ? pageSize : undefined,
+                })
             ]);
 
-            setCustomers(customersData);
-            setProducts(productsData);
-            setStockLevels(stockData);
-            setPlannerSettings(plannerSettingsData);
+            setPlannerSettings(settingsData);
+            setStockLevels(initialStockLevels);
 
-            if (plannerSettingsData?.customStatuses) {
+            if (settingsData?.customStatuses) {
                 const newConfig = { ...statusConfig };
-                plannerSettingsData.customStatuses.forEach(cs => {
+                settingsData.customStatuses.forEach(cs => {
                     if (cs.isActive && cs.label) {
                         newConfig[cs.id as ProductionOrderStatus] = { label: cs.label, color: cs.color };
                     }
@@ -111,12 +109,7 @@ export const usePlanner = () => {
                 setDynamicStatusConfig(newConfig as any);
             }
             
-             const ordersData = await getProductionOrders({
-                page: viewingArchived ? page : undefined,
-                pageSize: viewingArchived ? pageSize : undefined,
-            });
-
-            const finalStatus = plannerSettingsData?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
+            const finalStatus = settingsData?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
             const activeFilter = (o: ProductionOrder) => o.status !== finalStatus && o.status !== 'canceled';
 
             const allOrders = [...ordersData.activeOrders, ...ordersData.archivedOrders];
@@ -130,7 +123,7 @@ export const usePlanner = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [toast, viewingArchived, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [toast, viewingArchived, pageSize, initialStockLevels]);
     
     useEffect(() => {
         setTitle("Planificador OP");
@@ -331,22 +324,28 @@ export const usePlanner = () => {
     const classifications = useMemo(() => Array.from(new Set(products.map(p => p.classification).filter(Boolean))), [products]);
 
     const filteredOrders = useMemo(() => {
-        const ordersToFilter = viewingArchived ? archivedOrders : activeOrders;
+        let ordersToFilter = viewingArchived ? archivedOrders : activeOrders;
+
+        // Apply filters only if not viewing archived and a filter is set
+        if (!viewingArchived) {
+             ordersToFilter = ordersToFilter.filter(order => {
+                const product = products.find(p => p.id === order.productId);
+                const searchMatch = debouncedSearchTerm ? 
+                    order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                    order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                    order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                    order.purchaseOrder?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                    : true;
+                const statusMatch = statusFilter === 'all' || order.status === statusFilter;
+                const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
+                const dateMatch = !dateFilter || !dateFilter.from || (new Date(order.deliveryDate) >= dateFilter.from && new Date(order.deliveryDate) <= (dateFilter.to || dateFilter.from));
+                
+                return searchMatch && statusMatch && classificationMatch && dateMatch;
+            });
+        }
         
-        return ordersToFilter.filter(order => {
-            const product = products.find(p => p.id === order.productId);
-            const searchMatch = debouncedSearchTerm ? 
-                order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                order.purchaseOrder?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                : true;
-            const statusMatch = statusFilter === 'all' || order.status === statusFilter;
-            const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
-            const dateMatch = !dateFilter || !dateFilter.from || (new Date(order.deliveryDate) >= dateFilter.from && new Date(order.deliveryDate) <= (dateFilter.to || dateFilter.from));
-            
-            return searchMatch && statusMatch && classificationMatch && dateMatch;
-        });
+        return ordersToFilter;
+
     }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products, dateFilter]);
 
     const selectors = {

@@ -7,7 +7,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getAllCustomers, getAllProducts, getAllStock, getCompanySettings } from '@/modules/core/lib/db-client';
+import { getAllCustomers, getAllProducts, getAllStock, getCompanySettings } from '@/modules/core/lib/db';
 import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings } from '@/modules/requests/lib/db-client';
 import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company, DateRange } from '@/modules/core/types';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
@@ -38,7 +38,7 @@ export const useRequests = () => {
     const { isAuthorized, hasPermission } = useAuthorization(['requests:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, customers: authCustomers, products: authProducts, stockLevels: authStockLevels, companyData: authCompanyData } = useAuth();
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,11 +51,11 @@ export const useRequests = () => {
     const [pageSize, setPageSize] = useState(50);
     const [totalArchived, setTotalArchived] = useState(0);
     
-    const [clients, setClients] = useState<Customer[]>([]);
-    const [items, setItems] = useState<Product[]>([]);
-    const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
+    const [clients, setClients] = useState<Customer[]>(authCustomers || []);
+    const [items, setItems] = useState<Product[]>(authProducts || []);
+    const [stockLevels, setStockLevels] = useState<StockInfo[]>(authStockLevels || []);
     const [requestSettings, setRequestSettings] = useState<RequestSettings | null>(null);
-    const [companyData, setCompanyData] = useState<Company | null>(null);
+    const [companyData, setCompanyData] = useState<Company | null>(authCompanyData);
     
     const [newRequest, setNewRequest] = useState(emptyRequest);
     const [requestToEdit, setRequestToEdit] = useState<PurchaseRequest | null>(null);
@@ -91,23 +91,20 @@ export const useRequests = () => {
     const loadInitialData = useCallback(async (page = 0) => {
         setIsLoading(true);
         try {
-             const [
-                clientsData, itemsData, stockData, settingsData, company
-            ] = await Promise.all([
-                getAllCustomers(), getAllProducts(), getAllStock(), getRequestSettings(), getCompanySettings()
+             const [settingsData, requestsData] = await Promise.all([
+                getRequestSettings(),
+                getPurchaseRequests({
+                    page: viewingArchived ? page : undefined,
+                    pageSize: viewingArchived ? pageSize : undefined,
+                    filters: { searchTerm: debouncedSearchTerm, status: statusFilter, classification: classificationFilter, dateRange: dateFilter }
+                })
             ]);
-
-            setClients(clientsData);
-            setItems(itemsData);
-            setStockLevels(stockData);
-            setRequestSettings(settingsData);
-            setCompanyData(company);
             
-             const requestsData = await getPurchaseRequests({
-                page: viewingArchived ? page : undefined,
-                pageSize: viewingArchived ? pageSize : undefined,
-                filters: { searchTerm: debouncedSearchTerm, status: statusFilter, classification: classificationFilter, dateRange: dateFilter }
-            });
+            setRequestSettings(settingsData);
+            setClients(authCustomers || []);
+            setItems(authProducts || []);
+            setStockLevels(authStockLevels || []);
+            setCompanyData(authCompanyData);
             
             const useWarehouse = settingsData.useWarehouseReception;
             const activeFilter = (o: PurchaseRequest) => useWarehouse ? o.status !== 'received-in-warehouse' && o.status !== 'canceled' : o.status !== 'received' && o.status !== 'canceled';
@@ -122,7 +119,7 @@ export const useRequests = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [toast, viewingArchived, pageSize, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
+    }, [toast, viewingArchived, pageSize, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter, authCustomers, authProducts, authStockLevels, authCompanyData]);
     
     useEffect(() => {
         setTitle("Solicitud de Compra");

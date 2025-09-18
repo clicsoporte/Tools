@@ -13,8 +13,9 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getWarehouseData, getStockSettings } from '@/modules/warehouse/lib/actions';
-import { importAllDataFromFiles } from '@/modules/core/lib/db-client';
+import { getWarehouseData } from '@/modules/warehouse/lib/db';
+import { getStockSettings } from '@/modules/warehouse/lib/actions';
+import { importAllDataFromFiles } from '@/modules/core/lib/db';
 import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer } from '@/modules/core/types';
 import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, RefreshCw, Loader2, Info, User } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
@@ -55,17 +56,16 @@ export default function WarehousePage() {
     const loadData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [wData, sSettings, whSettings] = await Promise.all([
+            const [wData, sSettings] = await Promise.all([
                 getWarehouseData(),
                 getStockSettings(),
-                getWarehouseSettings(),
             ]);
             setLocations(wData.locations);
             setInventory(wData.inventory);
             setItemLocations(wData.itemLocations);
             setStock(wData.stock);
             setStockSettings(sSettings);
-            setWarehouseSettings(whSettings);
+            setWarehouseSettings(wData.warehouseSettings);
         } catch (error) {
             console.error("Failed to load warehouse data", error);
             logError("Failed to load warehouse data", { error });
