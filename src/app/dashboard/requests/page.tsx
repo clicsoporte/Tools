@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -16,10 +17,10 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getAllCustomers, getAllProducts, getAllStock } from '@/modules/core/lib/db-client';
+import { getAllCustomers, getAllProducts, getAllStock, getCompanySettings } from '@/modules/core/lib/db-client';
 import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings } from '@/modules/requests/lib/db-client';
 import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company } from '@/modules/core/types';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -74,11 +75,11 @@ const getDaysRemaining = (dateStr: string) => {
     today.setHours(0, 0, 0, 0);
     const requiredDate = parseISO(dateStr);
     requiredDate.setHours(0, 0, 0, 0);
-    const days = differenceInDays(requiredDate, today);
+    const days = differenceInCalendarDays(requiredDate, today);
 
     let color = 'text-green-600';
     if (days <= 0) color = 'text-red-600';
-    else if (days <= 3) color = 'text-orange-500';
+    else if (days <= 2) color = 'text-orange-500';
 
     return {
         days,
@@ -91,7 +92,7 @@ export default function PurchaseRequestPage() {
     const { isAuthorized, hasPermission } = useAuthorization(['requests:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user: currentUser, companyData } = useAuth();
+    const { user: currentUser } = useAuth();
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,6 +109,7 @@ export default function PurchaseRequestPage() {
     const [items, setItems] = useState<Product[]>([]);
     const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
     const [requestSettings, setRequestSettings] = useState<RequestSettings | null>(null);
+    const [companyData, setCompanyData] = useState<Company | null>(null);
     
     const [newRequest, setNewRequest] = useState(emptyRequest);
     const [requestToEdit, setRequestToEdit] = useState<PurchaseRequest | null>(null);
@@ -141,40 +143,39 @@ export default function PurchaseRequestPage() {
     const [reopenStep, setReopenStep] = useState(0);
     const [reopenConfirmationText, setReopenConfirmationText] = useState('');
 
-    useEffect(() => {
-        setTitle("Solicitud de Compra");
-    }, [setTitle]);
-
     const loadInitialData = useCallback(async (page = 0) => {
         setIsLoading(true);
         try {
              const [
-                requestsData,
                 clientsData,
                 itemsData,
                 stockData,
-                settingsData
+                settingsData,
+                company
             ] = await Promise.all([
-                getPurchaseRequests({
-                    page: viewingArchived ? page : undefined,
-                    pageSize: viewingArchived ? pageSize : undefined,
-                    filters: {
-                        searchTerm: debouncedSearchTerm,
-                        status: statusFilter,
-                        classification: classificationFilter,
-                        dateRange: dateFilter,
-                    }
-                }),
                 getAllCustomers(),
                 getAllProducts(),
                 getAllStock(),
-                getRequestSettings()
+                getRequestSettings(),
+                getCompanySettings()
             ]);
 
             setClients(clientsData);
             setItems(itemsData);
             setStockLevels(stockData);
             setRequestSettings(settingsData);
+            setCompanyData(company);
+            
+             const requestsData = await getPurchaseRequests({
+                page: viewingArchived ? page : undefined,
+                pageSize: viewingArchived ? pageSize : undefined,
+                filters: {
+                    searchTerm: debouncedSearchTerm,
+                    status: statusFilter,
+                    classification: classificationFilter,
+                    dateRange: dateFilter,
+                }
+            });
             
             const useWarehouse = settingsData.useWarehouseReception;
             const activeFilter = (o: PurchaseRequest) => useWarehouse
@@ -194,10 +195,11 @@ export default function PurchaseRequestPage() {
     }, [toast, viewingArchived, pageSize, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter]);
     
     useEffect(() => {
+        setTitle("Solicitud de Compra");
         if (isAuthorized) {
             loadInitialData(archivedPage);
         }
-    }, [isAuthorized, loadInitialData, archivedPage, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter, pageSize]);
+    }, [setTitle, isAuthorized, loadInitialData, archivedPage]);
     
     const clientOptions = useMemo(() => {
         if (debouncedClientSearch.length < 2) return [];
@@ -478,8 +480,8 @@ export default function PurchaseRequestPage() {
                          <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Estado Actual</p>
                             <div className="flex items-center gap-2">
-                                <span className={cn("h-3 w-3 rounded-full", statusConfig[request.status].color)}></span>
-                                <span className="font-medium">{statusConfig[request.status].label}</span>
+                                <span className={cn("h-3 w-3 rounded-full", statusConfig[request.status]?.color)}></span>
+                                <span className="font-medium">{statusConfig[request.status]?.label || request.status}</span>
                             </div>
                         </div>
 
