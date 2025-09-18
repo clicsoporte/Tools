@@ -1,4 +1,3 @@
-
 # Clic-Tools: Documentación Técnica y Manual de Usuario
 
 **Clic-Tools** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
