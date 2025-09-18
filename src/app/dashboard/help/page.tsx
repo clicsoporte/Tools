@@ -227,7 +227,7 @@ export default function HelpPage() {
                                 <li>Añade `Posición Horizontal 1` (Código `H1`), tipo `Nivel 4`, padre `Rack 01`.</li>
                                 <li>Añade `Posición Vertical 1` (Código `V1`), tipo `Nivel 5`, padre `Posición Horizontal 1`.</li>
                             </ul>
-                            Tu ubicación final para un producto sería `B04 > P01 > R01 > H1 > V1`.
+                            Tu ubicación final para un producto sería `B04 &gt; P01 &gt; R01 &gt; H1 &gt; V1`.
                         </li>
                     </ol>
                     <p className="pt-2">Una vez configurado, puedes ir al módulo <strong>Asignar Inventario</strong> para empezar a colocar tus artículos, como el `P011 BOLSA 20 X 30 X 2.5 TRANSPARENTE`, en estas nuevas ubicaciones.</p>
@@ -371,5 +371,3 @@ export default function HelpPage() {
     </main>
   );
 }
-
-    
