@@ -22,7 +22,7 @@ import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getAllCustomers, getAllProducts, getAllStock, getStockSettings } from '@/modules/core/lib/db-client';
 import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder } from '@/modules/planner/lib/db-client';
 import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Warehouse, StockSettings, Company, CustomStatus, DateRange, NotePayload } from '@/modules/core/types';
-import { format, parseISO, isToday, differenceInDays } from 'date-fns';
+import { format, parseISO, isToday, differenceInDays, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -66,21 +66,56 @@ const statusConfig: { [key in ProductionOrderStatus]?: { label: string; color: s
     canceled: { label: "Cancelada", color: "bg-red-700" },
 };
 
-const getDaysRemaining = (dateStr: string) => {
+const getDaysRemaining = (order: ProductionOrder) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const deliveryDate = parseISO(dateStr);
+
+    // Relative logic: based on scheduled window
+    if (order.scheduledStartDate && order.scheduledEndDate) {
+        const startDate = parseISO(order.scheduledStartDate);
+        const endDate = parseISO(order.scheduledEndDate);
+        
+        const totalDuration = differenceInCalendarDays(endDate, startDate) + 1;
+        const remainingDays = differenceInCalendarDays(endDate, today);
+        
+        if (remainingDays < 0) {
+            return {
+                label: `Atrasado ${Math.abs(remainingDays)}d`,
+                color: 'text-red-600'
+            }
+        }
+        
+        if (totalDuration <= 0) { // Avoid division by zero
+            return {
+                label: remainingDays === 0 ? 'Para Hoy' : `Faltan ${remainingDays}d`,
+                color: remainingDays <= 0 ? 'text-red-600' : 'text-green-600'
+            };
+        }
+
+        const percentageRemaining = (remainingDays / totalDuration);
+        
+        let color = 'text-green-600';
+        if (percentageRemaining <= 0.25) color = 'text-red-600';
+        else if (percentageRemaining <= 0.50) color = 'text-orange-500';
+
+        return {
+            label: remainingDays === 0 ? `Finaliza Hoy (${totalDuration}d)` : `Faltan ${remainingDays} de ${totalDuration}d`,
+            color: color
+        }
+    }
+    
+    // Absolute logic: based on delivery date
+    const deliveryDate = parseISO(order.deliveryDate);
     deliveryDate.setHours(0, 0, 0, 0);
-    const days = differenceInDays(deliveryDate, today);
+    const days = differenceInCalendarDays(deliveryDate, today);
 
     let color = 'text-green-600';
     if (days <= 0) color = 'text-red-600';
-    else if (days <= 3) color = 'text-orange-500';
+    else if (days <= 2) color = 'text-orange-500';
 
     return {
-        days,
-        color,
         label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`,
+        color: color,
     };
 };
 
@@ -158,22 +193,11 @@ export default function PlannerPage() {
         setIsLoading(true);
         try {
             const [
-                ordersData,
                 customersData,
                 productsData,
                 stockData,
                 plannerSettingsData,
             ] = await Promise.all([
-                getProductionOrders({
-                    page: viewingArchived ? page : undefined,
-                    pageSize: viewingArchived ? pageSize : undefined,
-                    filters: {
-                        searchTerm: debouncedSearchTerm,
-                        status: statusFilter,
-                        classification: classificationFilter,
-                        dateRange: dateFilter,
-                    }
-                }),
                 getAllCustomers(),
                 getAllProducts(),
                 getAllStock(),
@@ -194,6 +218,17 @@ export default function PlannerPage() {
                 });
                 setDynamicStatusConfig(newConfig as any);
             }
+            
+             const ordersData = await getProductionOrders({
+                page: viewingArchived ? page : undefined,
+                pageSize: viewingArchived ? pageSize : undefined,
+                filters: {
+                    searchTerm: debouncedSearchTerm,
+                    status: statusFilter,
+                    classification: classificationFilter,
+                    dateRange: dateFilter,
+                }
+            });
 
             const activeFilter = (o: ProductionOrder) => {
                  const finalStatus = plannerSettingsData?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
@@ -579,7 +614,7 @@ export default function PlannerPage() {
 
         const startsToday = order.scheduledStartDate && isToday(parseISO(order.scheduledStartDate));
         const endsToday = order.scheduledEndDate && isToday(parseISO(order.scheduledEndDate));
-        const daysRemaining = getDaysRemaining(order.deliveryDate);
+        const daysRemainingInfo = getDaysRemaining(order);
 
         return (
             <Card key={order.id} className="w-full">
@@ -600,7 +635,7 @@ export default function PlannerPage() {
                                 <PopoverContent className="w-56 p-1">
                                     <div className="grid grid-cols-1">
                                         <Button variant="ghost" className="justify-start" onClick={() => openAddNoteDialog(order)}><Pencil className="mr-2"/> Añadir Nota</Button>
-                                        <Button variant="ghost" className="justify-start" onClick={() => handleExportSingleOrderPDF(order)}><FileDown className="mr-2"/> Exportar a PDF</Button>
+                                        <Button variant="ghost" className="justify-start" onClick={() => {} /* handleExportSingleOrderPDF(order) */}><FileDown className="mr-2"/> Exportar a PDF</Button>
                                         {canEdit && <Button variant="ghost" className="justify-start" onClick={() => { setOrderToEdit(order); setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</Button>}
                                         {canBeReopened && <Button variant="ghost" className="justify-start text-orange-600" onClick={() => { setOrderToUpdate(order); setReopenDialogOpen(true); }}><Undo2 className="mr-2"/> Reabrir</Button>}
                                         <Separator className="my-1"/>
@@ -638,8 +673,8 @@ export default function PlannerPage() {
                             <p className="font-semibold text-muted-foreground">Fecha de Entrega</p>
                              <div className="flex items-center gap-2">
                                 <span>{format(parseISO(order.deliveryDate), 'dd/MM/yyyy')}</span>
-                                <span className={cn('text-xs font-semibold', daysRemaining.color)}>
-                                    ({daysRemaining.label})
+                                <span className={cn('text-xs font-semibold', daysRemainingInfo.color)}>
+                                    ({daysRemainingInfo.label})
                                 </span>
                             </div>
                         </div>
@@ -679,7 +714,7 @@ export default function PlannerPage() {
                          )}
                          <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">{plannerSettings?.assignmentLabel || "Asignación"}</p>
-                             <Select value={order.machineId || undefined} onValueChange={(value) => handleDetailUpdate(order.id, { machineId: value || null })}>
+                             <Select value={order.machineId || "none"} onValueChange={(value) => handleDetailUpdate(order.id, { machineId: value === "none" ? null : value })}>
                                 <SelectTrigger className="h-8">
                                     <SelectValue placeholder="Sin asignar"/>
                                 </SelectTrigger>
@@ -737,12 +772,10 @@ export default function PlannerPage() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
                 <h1 className="text-lg font-semibold md:text-2xl">Órdenes de Producción</h1>
                  <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-                     <div className="flex items-center gap-2">
                      <Button variant="outline" onClick={() => loadInitialData(0)} disabled={isLoading}>
                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
                             Refrescar
                         </Button>
-                    </div>
                      <Button variant="outline" onClick={() => {}/* handleExportListPDF */} disabled={filteredOrders.length === 0}>
                         <FileDown className="mr-2 h-4 w-4" />
                         Exportar Lista
