@@ -5,7 +5,7 @@
  */
 'use client';
 
-import type { Company, Product, Customer, Role, QuoteDraft, Exemption, ExemptionLaw, ApiSettings, StockInfo, StockSettings, SqlConfig, ImportQuery, DatabaseModule, ItemLocation, NotePayload } from '../types';
+import type { Company, Product, Customer, Role, QuoteDraft, Exemption, ExemptionLaw, ApiSettings, StockInfo, StockSettings, SqlConfig, ImportQuery, DatabaseModule, ItemLocation } from '../types';
 import { 
     getAllProducts as getAllProductsServer,
     getAllCustomers as getAllCustomersServer,
@@ -72,4 +72,3 @@ export const saveImportQueries = async (queries: ImportQuery[]): Promise<void> =
 export const testSqlConnection = async (): Promise<void> => testSqlConnectionServer();
 export const importData = async (type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'): Promise<{ count: number, source: string }> => importDataServer(type);
 export const saveAllLocations = async (locations: ItemLocation[]): Promise<void> => saveAllLocationsServer(locations);
-
