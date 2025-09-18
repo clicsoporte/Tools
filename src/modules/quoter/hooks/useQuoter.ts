@@ -26,7 +26,7 @@ import {
   getExemptionLaws,
   getAllStock,
   getApiSettings,
-} from "@/modules/core/lib/db-client";
+} from "@/modules/core/lib/db";
 import { getExchangeRate, getExemptionStatus } from "@/modules/core/lib/api-actions";
 import { format, parseISO } from 'date-fns';
 import { useDebounce } from "use-debounce";
