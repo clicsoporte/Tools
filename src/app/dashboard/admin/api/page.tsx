@@ -36,7 +36,7 @@ import { Label } from "../../../../components/ui/label";
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { useState, useEffect, useCallback } from "react";
 import type { ApiSettings, ExemptionLaw } from "../../../../modules/core/types";
-import { logInfo, logError } from "../../../../modules/core/lib/logger";
+import { logInfo, logError, logWarn } from "../../../../modules/core/lib/logger";
 import { getApiSettings, saveApiSettings, getExemptionLaws, saveExemptionLaws } from "../../../../modules/core/lib/db-client";
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
