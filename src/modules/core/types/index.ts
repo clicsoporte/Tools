@@ -177,6 +177,7 @@ export type DatabaseModule = {
     name: string; // e.g., 'Clic-Tools (Sistema Principal)'
     dbFile: string; // e.g., 'intratool.db'
     initFn?: (db: any) => void;
+    migrationFn?: (db: any) => void;
 };
 
 /**
