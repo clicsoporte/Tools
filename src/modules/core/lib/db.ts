@@ -1005,6 +1005,7 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
 }
 
 export async function importAllDataFromFiles(): Promise<{ type: string; count: number; }[]> {
+    const db = await connectDb();
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
     
