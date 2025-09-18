@@ -1,22 +1,27 @@
-
+/**
+ * @fileoverview Main warehouse search page.
+ * This component allows users to search for products or customers and see a consolidated
+ * view of their assigned physical locations (from the warehouse module) and their
+ * stock levels from the ERP system.
+ */
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getInventory as getWarehouseData, getStockSettings } from '@/modules/warehouse/lib/db-client';
-import { getAllProducts, importAllDataFromFiles, getAllCustomers, getCompanySettings } from '@/modules/core/lib/db-client';
-import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer, Company } from '@/modules/core/types';
+import { getWarehouseData, getStockSettings } from '@/modules/warehouse/lib/actions';
+import { importAllDataFromFiles } from '@/modules/core/lib/db-client';
+import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer } from '@/modules/core/types';
 import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, RefreshCw, Loader2, Info, User } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { logError } from '@/modules/core/lib/logger';
 import { Separator } from '@/components/ui/separator';
-import { getWarehouseSettings } from '@/modules/warehouse/lib/actions';
 
 type CombinedItem = {
     product: Product | null;
@@ -33,17 +38,16 @@ export default function WarehousePage() {
     useAuthorization(['warehouse:access']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
+    const { companyData, products, customers } = useAuth(); // Get master data from context
+
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [companySettings, setCompanySettings] = useState<Company | null>(null);
-    const [debouncedSearchTerm] = useDebounce(searchTerm, companySettings?.searchDebounceTime ?? 1500);
+    const [debouncedSearchTerm] = useDebounce(searchTerm, companyData?.searchDebounceTime ?? 500);
     
     const [locations, setLocations] = useState<WarehouseLocation[]>([]);
     const [inventory, setInventory] = useState<WarehouseInventoryItem[]>([]);
     const [itemLocations, setItemLocations] = useState<ItemLocation[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
-    const [customers, setCustomers] = useState<Customer[]>([]);
     const [stock, setStock] = useState<StockInfo[]>([]);
     const [stockSettings, setStockSettings] = useState<StockSettings | null>(null);
     const [warehouseSettings, setWarehouseSettings] = useState<{ enablePhysicalInventoryTracking: boolean } | null>(null);
@@ -51,23 +55,17 @@ export default function WarehousePage() {
     const loadData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [wData, prods, sSettings, whSettings, custs, company] = await Promise.all([
+            const [wData, sSettings, whSettings] = await Promise.all([
                 getWarehouseData(),
-                getAllProducts(),
                 getStockSettings(),
                 getWarehouseSettings(),
-                getAllCustomers(),
-                getCompanySettings(),
             ]);
             setLocations(wData.locations);
             setInventory(wData.inventory);
             setItemLocations(wData.itemLocations);
-            setProducts(prods);
-            setCustomers(custs);
             setStock(wData.stock);
             setStockSettings(sSettings);
             setWarehouseSettings(whSettings);
-            setCompanySettings(company);
         } catch (error) {
             console.error("Failed to load warehouse data", error);
             logError("Failed to load warehouse data", { error });
@@ -88,9 +86,10 @@ export default function WarehousePage() {
             const result = await importAllDataFromFiles();
             toast({
                 title: "Datos Actualizados",
-                description: `Se procesaron ${result.length} archivos. Refresca la página o realiza una nueva búsqueda para ver los cambios.`
+                description: `Se procesaron ${result.length} archivos. La página se recargará para reflejar los cambios.`
             });
-            await loadData();
+            // A full reload is simpler here to ensure all contexts and states are updated
+            window.location.reload();
         } catch (error: any) {
             logError("Error during manual data refresh", { error: error.message });
             toast({

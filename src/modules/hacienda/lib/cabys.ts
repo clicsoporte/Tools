@@ -1,9 +1,13 @@
-
+/**
+ * @fileoverview Server-side service for handling the CABYS catalog.
+ * This service is responsible for loading, caching, and querying the local
+ * copy of the CABYS CSV file to provide descriptions for CABYS codes.
+ */
 'use server';
 
 import fs from 'fs';
 import path from 'path';
-import Papa, { type ParseError } from 'papaparse';
+import Papa from 'papaparse';
 
 const CABYS_FILE_PATH = path.join(process.cwd(), 'public', 'data', 'cabys.csv');
 
@@ -14,6 +18,12 @@ interface CabysRow {
     Descripcion: string;
 }
 
+/**
+ * Loads the CABYS data from the CSV file into an in-memory cache (a Map).
+ * If the cache is already populated, it returns it immediately. This ensures
+ * the large CSV file is only read and parsed once per server instance lifetime.
+ * @returns {Promise<Map<string, string>>} A Map where keys are CABYS codes and values are their descriptions.
+ */
 async function loadCabysData(): Promise<Map<string, string>> {
     if (cabysCache) {
         return cabysCache;
@@ -58,10 +68,15 @@ async function loadCabysData(): Promise<Map<string, string>> {
     }
 }
 
+/**
+ * Retrieves the description for a given CABYS code from the cached data.
+ * @param {string} code - The CABYS code to look up.
+ * @returns {Promise<string | null>} The description string or null if not found.
+ */
 export async function getCabysDescription(code: string): Promise<string | null> {
     const cabysMap = await loadCabysData();
     return cabysMap.get(code) || null;
 }
 
-// Pre-load data on server start
+// Pre-load data on server start to make subsequent lookups faster.
 loadCabysData().catch(console.error);

@@ -6,7 +6,7 @@
 import type { WarehouseLocation, WarehouseInventoryItem, MovementLog, StockInfo, StockSettings, ItemLocation, Product } from '../../core/types';
 import { 
     getLocations as getLocationsServer,
-    getWarehouseData as getInventoryServer,
+    getWarehouseData,
     getStockSettings as getStockSettingsServer,
 } from './actions';
 
@@ -16,7 +16,7 @@ export async function getLocations(): Promise<WarehouseLocation[]> {
 }
 
 export async function getInventory(): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], stock: StockInfo[], itemLocations: ItemLocation[] }> {
-    return await getInventoryServer();
+    return await getWarehouseData();
 }
 
 export async function getStockSettings(): Promise<StockSettings> {

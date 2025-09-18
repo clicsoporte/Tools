@@ -1,4 +1,9 @@
-
+/**
+ * @fileoverview Page for managing warehouse structure and settings.
+ * This component allows administrators to define the hierarchical levels of a warehouse
+ * (e.g., Building, Aisle, Rack) and then create the actual physical locations
+ * based on that hierarchy. It also controls global warehouse settings.
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -11,9 +16,9 @@ import { logError, logInfo } from '@/modules/core/lib/logger';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { getWarehouseSettings, saveWarehouseSettings, getLocations, addLocation, deleteLocation, updateLocation } from '@/modules/warehouse/lib/actions';
-import { PlusCircle, Trash2, Edit2, Save, ChevronDown, ChevronRight } from 'lucide-react';
+import { PlusCircle, Trash2, Edit2, Save, ChevronDown, ChevronRight, Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { WarehouseSettings, WarehouseLocation, LocationType } from '@/modules/core/types';
+import { WarehouseSettings, WarehouseLocation } from '@/modules/core/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../../../../components/ui/accordion";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../../../../components/ui/alert-dialog";
@@ -318,7 +323,7 @@ export default function WarehouseSettingsPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="loc-type">Tipo de Ubicación (Nivel)</Label>
-                                <Select value={currentLocation.type || ''} onValueChange={(val) => setCurrentLocation(p => ({...p, type: val as LocationType}))}>
+                                <Select value={currentLocation.type || ''} onValueChange={(val) => setCurrentLocation(p => ({...p, type: val as string}))}>
                                     <SelectTrigger><SelectValue/></SelectTrigger>
                                     <SelectContent>
                                         {settings.locationLevels?.map((level, index) => (

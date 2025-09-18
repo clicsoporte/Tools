@@ -1,7 +1,7 @@
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
- * schema creation, data access, and migration logic for all application models.
+ * schema creation, data access, and migration logic for all application modules.
  * ALL FUNCTIONS IN THIS FILE ARE SERVER-ONLY.
  */
 "use server";
@@ -23,6 +23,11 @@ const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'public', 'data', 'cabys.csv');
 
+/**
+ * Acts as a registry for all database modules in the application.
+ * This structure allows the core `connectDb` function to be completely agnostic
+ * of any specific module, promoting true modularity and decoupling.
+ */
 const DB_MODULES: DatabaseModule[] = [
     { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: DB_FILE, initFn: initializeMainDatabase, migrationFn: checkAndApplyMigrations },
     { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
@@ -261,97 +266,8 @@ async function checkAndApplyMigrations(db: Database.Database) {
         console.error("Failed to apply migrations:", error);
     }
 }
-
-async function initializeMainDatabase(db: Database.Database) {
-    const schema = `
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, phone TEXT,
-        whatsapp TEXT, avatar TEXT, role TEXT, recentActivity TEXT, securityQuestion TEXT, securityAnswer TEXT
-    );
-    CREATE TABLE IF NOT EXISTS roles (id TEXT PRIMARY KEY, name TEXT, permissions TEXT);
-    CREATE TABLE IF NOT EXISTS company_settings (
-        id INTEGER PRIMARY KEY DEFAULT 1, name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
-        logoUrl TEXT, systemName TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER DEFAULT 2,
-        searchDebounceTime INTEGER DEFAULT 500, 
-        customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT, stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT,
-        importMode TEXT DEFAULT 'file', lastSyncTimestamp TEXT
-    );
-    CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);
-    CREATE TABLE IF NOT EXISTS api_settings (id INTEGER PRIMARY KEY DEFAULT 1, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
-    CREATE TABLE IF NOT EXISTS customers (
-        id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT, creditLimit REAL,
-        paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT
-    );
-    CREATE TABLE IF NOT EXISTS products (
-        id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT,
-        notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT
-    );
-    CREATE TABLE IF NOT EXISTS exemptions (
-        code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT,
-        startDate TEXT, endDate TEXT, percentage REAL, docType TEXT,
-        institutionName TEXT, institutionCode TEXT
-    );
-    CREATE TABLE IF NOT EXISTS exemption_laws (
-        docType TEXT PRIMARY KEY,
-        institutionName TEXT,
-        authNumber TEXT
-    );
-    CREATE TABLE IF NOT EXISTS quote_drafts (
-        id TEXT PRIMARY KEY, createdAt TEXT, userId INTEGER, customerId TEXT, lines TEXT, totals TEXT,
-        notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT, FOREIGN KEY (userId) REFERENCES users(id)
-    );
-    CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, type TEXT, message TEXT, details TEXT);
-    CREATE TABLE IF NOT EXISTS stock (itemId TEXT PRIMARY KEY, stockByWarehouse TEXT NOT NULL, totalStock REAL NOT NULL);
-    CREATE TABLE IF NOT EXISTS cabys_catalog (
-        code TEXT PRIMARY KEY,
-        description TEXT NOT NULL,
-        taxRate REAL
-    );
-    CREATE TABLE IF NOT EXISTS sql_config (key TEXT PRIMARY KEY, value TEXT);
-    CREATE TABLE IF NOT EXISTS import_queries (type TEXT PRIMARY KEY, query TEXT);
-  `;
-  db.exec(schema);
-  
-  db.prepare('DELETE FROM users').run();
-  db.prepare('DELETE FROM roles').run();
-
-  const insertUser = db.prepare('INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)');
-  const insertRole = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
-  const insertExemptionLaw = db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName, authNumber) VALUES (?, ?, ?)');
-  const insertImportQuery = db.prepare('INSERT OR REPLACE INTO import_queries (type, query) VALUES (?, ?)');
-
-
-  const transaction = db.transaction(() => {
-    for (const user of initialUsers) {
-        const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
-        insertUser.run({ ...user, password: hashedPassword });
-    }
-    for (const role of initialRoles) {
-        insertRole.run({ ...role, permissions: JSON.stringify(role.permissions) });
-    }
-    db.prepare('INSERT OR REPLACE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, importMode, logoUrl, lastSyncTimestamp) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(
-          initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email,
-          initialCompany.systemName, initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, 
-          initialCompany.searchDebounceTime, initialCompany.importMode, initialCompany.logoUrl || null, initialCompany.lastSyncTimestamp
-      );
-    db.prepare(`INSERT OR IGNORE INTO stock_settings (key, value) VALUES ('warehouses', '[]')`).run();
-    db.prepare('INSERT OR REPLACE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)').run('https://api.hacienda.go.cr/indicadores/tc/dolar', 'https://api.hacienda.go.cr/fe/ex?autorizacion=', 'https://api.hacienda.go.cr/fe/ae?identificacion=');
-    
-    insertExemptionLaw.run('99', 'Régimen de Zona Franca', '9635');
-    db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)')
-      .run('03', 'Exento para Compras Autorizadas', '04', 'Ventas a Diplomáticos', '05', 'Autorizado por Ley Especial', '06', 'Ventas a la CCSS', '07', 'Ventas a Instituciones Públicas');
-
-    insertImportQuery.run('customers', `SELECT TOP 1000000 CLIENTE, NOMBRE, DIRECCION, TELEFONO1, CONTRIBUYENTE, MONEDA, LIMITE_CREDITO, CONDICION_PAGO, VENDEDOR, ACTIVO, E_MAIL, EMAIL_DOC_ELECTRONICO FROM [SOFTLAND].[GAREND].[CLIENTE]`);
-    insertImportQuery.run('products', `SELECT TOP 1000000 ARTICULO, DESCRIPCION, CLASIFICACION_2, ULTIMO_INGRESO, ACTIVO, NOTAS, UNIDAD_VENTA, CANASTA_BASICA, CODIGO_HACIENDA FROM [SOFTLAND].[GAREND].[ARTICULO]`);
-    insertImportQuery.run('exemptions', `SELECT CODIGO, DESCRIPCION, CLIENTE, NUM_AUTOR, FECHA_RIGE, FECHA_VENCE, PORCENTAJE, TIPO_DOC, NOMBRE_INSTITUCION, CODIGO_INSTITUCION FROM [SOFTLAND].[GAREND].[AUTOR_VENTA]`);
-    insertImportQuery.run('stock', `SELECT TOP 1000000 ARTICULO, BODEGA, CANT_DISPONIBLE FROM [SOFTLAND].[GAREND].[EXISTENCIA_BODEGA]`);
-    insertImportQuery.run('locations', ``);
-    insertImportQuery.run('cabys', ``);
-  });
-
-  transaction();
-  console.log("Database initialized with default data and hashed passwords.");
+async function initializeMainDatabase(db: import('better-sqlite3').Database) {
+    throw new Error('Function not implemented.');
 }
 
 export async function getCompanySettings(): Promise<Company | null> {

@@ -25,10 +25,8 @@ export async function getProductionOrders(options: {
         status?: string;
         classification?: string;
         dateRange?: DateRange;
-        productIds?: string[];
     };
 }): Promise<{ activeOrders: ProductionOrder[], archivedOrders: ProductionOrder[], totalArchivedCount: number }> {
-    // Ensure all filters are passed to the server action
     return getOrders(options);
 }
 

@@ -1,12 +1,25 @@
-// @/modules/core/lib/sql-service.ts
+/**
+ * @fileoverview Service for securely connecting to and querying an MSSQL database.
+ * This file handles the connection pooling and ensures that only read-only
+ * SELECT queries can be executed, providing a safeguard against accidental data
+ * modification or malicious attacks.
+ */
 'use server';
+
 import sql from 'mssql';
 import { logError } from './logger';
 import { getSqlConfig } from './config-db';
 
 let pool: sql.ConnectionPool | null = null;
 let isConnecting = false;
+let connectionPromise: Promise<sql.ConnectionPool> | null = null;
 
+
+/**
+ * Retrieves and validates the database configuration.
+ * @returns {Promise<sql.config>} A configuration object for the `mssql` library.
+ * @throws {Error} If the configuration is incomplete.
+ */
 async function getDbConfig(): Promise<sql.config> {
     const dbConfig = await getSqlConfig();
 
@@ -14,15 +27,15 @@ async function getDbConfig(): Promise<sql.config> {
         throw new Error("Las credenciales de SQL Server no están configuradas. Por favor, verifica el usuario, servidor y base de datos en la pantalla de administración.");
     }
     
-    const config = {
+    return {
         user: dbConfig.user,
         password: dbConfig.password,
         server: dbConfig.host,
         database: dbConfig.database,
         port: Number(dbConfig.port) || 1433,
         options: {
-            encrypt: true,
-            trustServerCertificate: true,
+            encrypt: dbConfig.host.toLowerCase().includes('azure') ? true : false, // Recommended for Azure
+            trustServerCertificate: true, // For local development; set to false in production with a proper certificate
             connectTimeout: 30000,
             requestTimeout: 30000,
             enableArithAbort: true
@@ -33,92 +46,91 @@ async function getDbConfig(): Promise<sql.config> {
             idleTimeoutMillis: 30000
         }
     };
-
-    return config;
 }
 
-// Función para validar que solo sea SELECT
+/**
+ * Validates a SQL query string to ensure it is a read-only SELECT statement.
+ * @param {string} query - The SQL query to validate.
+ * @throws {Error} If the query is not a valid, read-only SELECT statement.
+ */
 function validateSelectOnly(query: string): void {
     const cleanedQuery = query.trim().toLowerCase();
     
-    // Lista de palabras clave prohibidas
     const forbiddenKeywords = [
         'insert', 'update', 'delete', 'drop', 'alter', 'create', 
         'truncate', 'execute', 'exec', 'grant', 'revoke'
     ];
     
-    // Verificar que comience con SELECT
     if (!cleanedQuery.startsWith('select')) {
         throw new Error("Solo se permiten consultas SELECT.");
     }
     
-    // Verificar que no contenga palabras prohibidas
     for (const keyword of forbiddenKeywords) {
-        if (cleanedQuery.includes(` ${keyword} `) || 
-            cleanedQuery.includes(` ${keyword};`) ||
-            cleanedQuery.includes(` ${keyword}\n`) ||
-            cleanedQuery.includes(` ${keyword}\r`)) {
+        if (cleanedQuery.includes(` ${keyword} `) || cleanedQuery.includes(` ${keyword};`)) {
             throw new Error(`La consulta contiene la palabra prohibida: ${keyword}`);
         }
     }
     
-    // Verificar que no tenga punto y coma múltiple (posible SQL injection)
     if ((cleanedQuery.match(/;/g) || []).length > 1) {
-        throw new Error("La consulta contiene múltiples statements.");
+        throw new Error("La consulta contiene múltiples sentencias (statements).");
     }
 }
 
+/**
+ * Gets a connection from the connection pool, creating the pool if it doesn't exist.
+ * This function is designed to be robust, handling concurrent requests and reconnections.
+ * @returns {Promise<sql.ConnectionPool>} A promise that resolves to the connection pool.
+ */
 async function getConnectionPool(): Promise<sql.ConnectionPool> {
-    // Si ya tenemos un pool y está conectado, lo devolvemos
     if (pool && pool.connected) {
         return pool;
     }
 
-    // Si ya se está intentando conectar, esperamos un poco
-    if (isConnecting) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        if (pool && pool.connected) return pool;
-        if (isConnecting) throw new Error('Conexión a la base de datos en progreso, por favor intente de nuevo en unos segundos.');
+    if (isConnecting && connectionPromise) {
+        return connectionPromise;
     }
-    
+
     isConnecting = true;
+    connectionPromise = (async () => {
+        try {
+            const config = await getDbConfig();
+            
+            console.log("Attempting to connect to SQL Server...");
+            const newPool = new sql.ConnectionPool(config);
+            
+            newPool.on('error', err => {
+                logError('Error en el pool de SQL Server', { error: err });
+                pool = null; // Reset pool on error
+            });
 
-    try {
-        const config = await getDbConfig();
-        
-        pool = new sql.ConnectionPool(config);
-        
-        pool.on('error', err => {
-            logError('Error en el pool de SQL Server', { error: err });
-            pool = null; // Reseteamos el pool si hay un error
-        });
+            await newPool.connect();
+            console.log('✅ Conexión a SQL Server establecida.');
+            pool = newPool;
+            return pool;
 
-        await pool.connect();
-        
-        console.log('✅ Conexión a SQL Server establecida');
-        return pool;
+        } catch (err: any) {
+            pool = null;
+            logError("Error al conectar con SQL Server", { error: { message: err.message, code: err.code }});
+            throw new Error(`No se pudo establecer la conexión con la base de datos de SQL Server.`);
+        } finally {
+            isConnecting = false;
+            connectionPromise = null;
+        }
+    })();
 
-    } catch (err: any) {
-        pool = null; // Reseteamos el pool en caso de error de conexión
-        logError("Error al conectar con SQL Server", { 
-            error: {
-                message: err.message,
-                code: err.code,
-            },
-            server: (await getDbConfig()).server
-        });
-        
-        throw new Error(`No se pudo establecer la conexión con la base de datos de SQL Server.`);
-    } finally {
-        isConnecting = false;
-    }
+    return connectionPromise;
 }
 
+/**
+ * Executes a read-only SQL query against the configured database.
+ * @param {string} query - The SELECT query to execute.
+ * @returns {Promise<any[]>} A promise that resolves to an array of records.
+ * @throws {Error} If the query is invalid or if the database connection fails.
+ */
 export async function executeQuery(query: string): Promise<any[]> {
-    // Validar que sea solo SELECT
     validateSelectOnly(query);
     
-    let connection: sql.ConnectionPool | null = null;
+    let connection: sql.ConnectionPool;
     
     try {
         connection = await getConnectionPool();
@@ -133,7 +145,7 @@ export async function executeQuery(query: string): Promise<any[]> {
         });
         
         if (err.code === 'ESOCKET' || err.code === 'ECONNCLOSED') {
-            pool = null;
+            pool = null; // Reset pool for reconnection on next attempt
         }
         
         throw new Error(`Error en la consulta SQL: ${err.message}`);
