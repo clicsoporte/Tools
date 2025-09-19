@@ -55,9 +55,6 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     `;
     db.exec(schema);
 
-    // Apply migrations right after initialization to ensure schema is up-to-date
-    await runPlannerMigrations(db);
-
     const defaultCustomStatuses: CustomStatus[] = [
         { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
         { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
@@ -71,7 +68,11 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('requireMachineForStart', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('assignmentLabel', 'Máquina Asignada')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
+    
     console.log(`Database ${PLANNER_DB_FILE} initialized for Production Planner.`);
+    
+    // Apply migrations right after initialization to ensure schema is up-to-date
+    await runPlannerMigrations(db);
 }
 
 export async function runPlannerMigrations(db: import('better-sqlite3').Database) {

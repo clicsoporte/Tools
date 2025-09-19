@@ -58,14 +58,15 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
         );
     `;
     db.exec(schema);
-    
-    await runRequestMigrations(db);
 
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('nextRequestNumber', '1')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('routes', '["Ruta GAM", "Fuera de GAM"]')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('shippingMethods', '["Mensajería", "Encomienda", "Transporte Propio"]')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('useWarehouseReception', 'false')`).run();
+    
     console.log(`Database ${REQUESTS_DB_FILE} initialized for Purchase Requests.`);
+    
+    await runRequestMigrations(db);
 }
 
 
