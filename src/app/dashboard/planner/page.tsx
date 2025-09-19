@@ -106,7 +106,7 @@ export default function PlannerPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-4 pt-0 flex-grow">
-                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-6 text-sm">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-6 text-sm">
                         <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Estado Actual</p>
                             <div className="flex items-center gap-2">
@@ -237,7 +237,7 @@ export default function PlannerPage() {
                                                 <Label htmlFor="new-order-inventory">Inventario Actual (Manual)</Label>
                                                 <Input id="new-order-inventory" type="number" placeholder="0.00" value={state.newOrder.inventory || ''} onChange={e => actions.setNewOrder(prev => ({ ...prev, inventory: Number(e.target.value) }))} />
                                             </div>
-                                            <div className="space-y-2">
+                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-inventory-erp">Inventario Actual (ERP)</Label>
                                                 <Input id="new-order-inventory-erp" value={(selectors.stockLevels.find(s => s.itemId === state.newOrder.productId)?.totalStock ?? 0).toLocaleString()} disabled />
                                             </div>
@@ -483,4 +483,3 @@ export default function PlannerPage() {
         </main>
     );
 }
-
