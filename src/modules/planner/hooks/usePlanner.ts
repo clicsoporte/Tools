@@ -210,7 +210,11 @@ export const usePlanner = () => {
     
     const handleDetailUpdate = async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; scheduledDateRange?: DateRange }) => {
         if (!currentUser) return;
-        const updated = await updateProductionOrderDetails({ orderId, ...details, updatedBy: currentUser.name });
+        const finalDetails = {
+            ...details,
+            machineId: details.machineId === 'none' ? null : details.machineId
+        }
+        const updated = await updateProductionOrderDetails({ orderId, ...finalDetails, updatedBy: currentUser.name });
         setActiveOrders(prev => prev.map(o => o.id === orderId ? updated : o));
         setArchivedOrders(prev => prev.map(o => o.id === orderId ? updated : o));
     };

@@ -138,12 +138,12 @@ export default function PlannerPage() {
                         </div>
                         <div className="space-y-1">
                              <p className="font-semibold text-muted-foreground">{state.plannerSettings?.assignmentLabel || 'Máquina'}</p>
-                            <Select value={order.machineId || ''} onValueChange={(value) => actions.handleDetailUpdate(order.id, { machineId: value })}>
+                            <Select value={order.machineId || 'none'} onValueChange={(value) => actions.handleDetailUpdate(order.id, { machineId: value })}>
                                 <SelectTrigger className="h-8 w-40 border-0 focus:ring-0">
                                     <SelectValue placeholder="Sin Asignar" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Sin Asignar</SelectItem>
+                                    <SelectItem value="none">Sin Asignar</SelectItem>
                                     {state.plannerSettings?.machines.map(machine => (
                                         <SelectItem key={machine.id} value={machine.id} disabled={!selectors.hasPermission('planner:machine:assign')}>{machine.name}</SelectItem>
                                     ))}
