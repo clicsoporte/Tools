@@ -123,15 +123,15 @@ export const useQuoter = () => {
   const [exchangeRateLoaded, setExchangeRateLoaded] = useState(false);
   const [quoteNumber, setQuoteNumber] = useState("");
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(initialQuoteState.purchaseOrderNumber);
-  const [deliveryDate, setDeliveryDate] = useState(initialQuoteState.deliveryDate);
+  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().substring(0, 16));
   const [sellerName, setSellerName] = useState(initialQuoteState.sellerName);
-  const [quoteDate, setQuoteDate] = useState(initialQuoteState.quoteDate);
+  const [quoteDate, setQuoteDate] = useState(new Date().toISOString().substring(0, 10));
   const [companyData, setCompanyData] = useState<Company | null>(authCompanyData);
   const [sellerType, setSellerType] = useState("user");
   const [isMounted, setIsMounted] = useState(false);
   const [paymentTerms, setPaymentTerms] = useState(initialQuoteState.paymentTerms);
   const [creditDays, setCreditDays] = useState(initialQuoteState.creditDays);
-  const [validUntilDate, setValidUntilDate] = useState(initialQuoteState.validUntilDate);
+  const [validUntilDate, setValidUntilDate] = useState(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
   const [notes, setNotes] = useState(initialQuoteState.notes);
   const [products, setProducts] = useState<Product[]>(authProducts || []);
   const [customers, setCustomers] = useState<Customer[]>(authCustomers || []);
@@ -264,11 +264,6 @@ export const useQuoter = () => {
     
     if (!isMounted) {
       loadInitialData(false);
-      // Set default dates on client side to avoid hydration mismatch
-      const today = new Date();
-      setQuoteDate(today.toISOString().substring(0, 10));
-      setDeliveryDate(today.toISOString().substring(0, 16));
-      setValidUntilDate(new Date(new Date().setDate(today.getDate() + 8)).toISOString().substring(0, 10));
       setIsMounted(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
