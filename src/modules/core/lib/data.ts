@@ -64,6 +64,7 @@ export const initialCompany: Company = {
     nextQuoteNumber: 1,
     decimalPlaces: 2,
     searchDebounceTime: 500,
+    syncWarningHours: 12,
     importMode: 'file',
     lastSyncTimestamp: null,
     customerFilePath: "",

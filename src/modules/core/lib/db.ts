@@ -121,6 +121,7 @@ async function checkAndApplyMigrations(db: Database.Database) {
         if (!companyColumns.has('logoUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN logoUrl TEXT`);
         if (!companyColumns.has('searchDebounceTime')) db.exec(`ALTER TABLE company_settings ADD COLUMN searchDebounceTime INTEGER DEFAULT 500`);
         if (!companyColumns.has('lastSyncTimestamp')) db.exec(`ALTER TABLE company_settings ADD COLUMN lastSyncTimestamp TEXT`);
+        if (!companyColumns.has('syncWarningHours')) db.exec(`ALTER TABLE company_settings ADD COLUMN syncWarningHours INTEGER DEFAULT 12`);
 
 
         const adminUser = db.prepare('SELECT role FROM users WHERE id = 1').get() as { role: string } | undefined;
@@ -280,7 +281,7 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
             name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
             logoUrl TEXT, systemName TEXT,
             quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER,
-            searchDebounceTime INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
+            searchDebounceTime INTEGER, syncWarningHours INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
             customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
             stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT
         );
@@ -369,9 +370,9 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
         userInsert.run({ ...user, password: hashedPassword });
     });
 
-    db.prepare(`INSERT INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, importMode) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    db.prepare(`INSERT INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, syncWarningHours, importMode) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
-        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.searchDebounceTime, initialCompany.importMode
+        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode
     );
     
     db.prepare(`INSERT INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)`).run(
@@ -409,7 +410,7 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
             UPDATE company_settings SET 
                 name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email,
                 logoUrl = @logoUrl, systemName = @systemName, quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber, 
-                decimalPlaces = @decimalPlaces, searchDebounceTime = @searchDebounceTime,
+                decimalPlaces = @decimalPlaces, searchDebounceTime = @searchDebounceTime, syncWarningHours = @syncWarningHours,
                 customerFilePath = @customerFilePath, 
                 productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath, stockFilePath = @stockFilePath,
                 locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath, importMode = @importMode,

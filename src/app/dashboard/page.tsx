@@ -15,7 +15,7 @@ import { Loader2, RefreshCw, Wrench, Clock, DollarSign } from "lucide-react";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import { importAllDataFromFiles, saveCompanySettings } from "@/modules/core/lib/db";
+import { importAllDataFromFiles } from "@/modules/core/lib/db";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
@@ -63,11 +63,7 @@ export default function DashboardPage() {
     try {
         const results = await importAllDataFromFiles();
         
-        if (companyData) {
-            const newCompanyData = { ...companyData, lastSyncTimestamp: new Date().toISOString() };
-            await saveCompanySettings(newCompanyData);
-            await refreshAuth(); // Refresh the auth context to get the new timestamp
-        }
+        await refreshAuth(); // This will re-fetch companyData with the new timestamp
 
         toast({
             title: "Sincronización Completa Exitosa",
@@ -107,6 +103,10 @@ export default function DashboardPage() {
     )
   }
   
+  const isSyncOld = companyData?.lastSyncTimestamp && companyData?.syncWarningHours ? 
+    (new Date().getTime() - new Date(companyData.lastSyncTimestamp).getTime()) > (companyData.syncWarningHours * 60 * 60 * 1000)
+    : false;
+
   return (
       <main className="flex-1 p-4 md:p-6 lg:p-8">
         <div className="grid gap-8">
@@ -131,7 +131,7 @@ export default function DashboardPage() {
                         {companyData?.lastSyncTimestamp && (
                             <span className={cn(
                                 "text-xs text-muted-foreground", 
-                                (new Date().getTime() - new Date(companyData.lastSyncTimestamp).getTime()) > 12 * 60 * 60 * 1000 && "text-red-500 font-medium"
+                                isSyncOld && "text-red-500 font-medium"
                             )}>
                                 <Clock className="inline h-3 w-3 mr-1" />
                                 Última Sinc: {format(new Date(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}

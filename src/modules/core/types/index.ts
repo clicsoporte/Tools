@@ -38,6 +38,7 @@ export type Company = {
     nextQuoteNumber: number;
     decimalPlaces: number;
     searchDebounceTime?: number;
+    syncWarningHours?: number;
     importMode: 'file' | 'sql';
     lastSyncTimestamp?: string | null;
     customerFilePath?: string;

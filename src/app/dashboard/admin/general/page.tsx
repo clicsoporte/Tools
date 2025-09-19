@@ -234,6 +234,18 @@ export default function GeneralSettingsPage() {
                               Tiempo en milisegundos que el sistema espera antes de buscar (ej: 500 = 0.5s).
                            </p>
                       </div>
+                       <div className="space-y-2">
+                          <Label htmlFor="syncWarningHours">Horas para Alerta de Sinc.</Label>
+                          <Input 
+                              id="syncWarningHours"
+                              type="number"
+                              value={companyData.syncWarningHours ?? 12}
+                              onChange={handleChange}
+                          />
+                           <p className="text-xs text-muted-foreground pt-1">
+                              Después de cuántas horas sin sincronizar se mostrará la alerta en rojo.
+                           </p>
+                      </div>
                    </div>
                 </CardContent>
             </Card>
