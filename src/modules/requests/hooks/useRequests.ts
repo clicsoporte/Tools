@@ -145,9 +145,15 @@ export const useRequests = () => {
 
     const handleCreateRequest = async () => {
         if (!newRequest.clientId || !newRequest.itemId || !newRequest.quantity || !newRequest.requiredDate || !currentUser) return;
+        
+        const requestWithFormattedDate = {
+            ...newRequest,
+            requiredDate: new Date(newRequest.requiredDate).toISOString().split('T')[0]
+        };
+
         setIsSubmitting(true);
         try {
-            await savePurchaseRequest(newRequest, currentUser.name);
+            await savePurchaseRequest(requestWithFormattedDate, currentUser.name);
             toast({ title: "Solicitud Creada" });
             setNewRequestDialogOpen(false);
             setNewRequest(emptyRequest);

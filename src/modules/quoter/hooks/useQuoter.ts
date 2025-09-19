@@ -665,19 +665,20 @@ export const useQuoter = () => {
   };
 
   const resetQuote = async () => {
+    const today = new Date();
     setLines(initialQuoteState.lines);
     setSelectedCustomer(initialQuoteState.selectedCustomer);
     setCustomerDetails(initialQuoteState.customerDetails);
     setDeliveryAddress(initialQuoteState.deliveryAddress);
-    setDeliveryDate(new Date().toISOString().substring(0, 16));
+    setDeliveryDate(today.toISOString().substring(0, 16));
     setSellerName(currentUser?.name || initialQuoteState.sellerName);
-    setQuoteDate(new Date().toISOString().substring(0, 10));
+    setQuoteDate(today.toISOString().substring(0, 10));
     setPurchaseOrderNumber(initialQuoteState.purchaseOrderNumber);
     setExchangeRate(apiExchangeRate); // Reset to the fetched API rate
     setSellerType("user");
     setPaymentTerms(initialQuoteState.paymentTerms);
     setCreditDays(initialQuoteState.creditDays);
-    setValidUntilDate(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
+    setValidUntilDate(new Date(new Date().setDate(today.getDate() + 8)).toISOString().substring(0, 10));
     setNotes(initialQuoteState.notes);
     setProductSearchTerm("");
     setCustomerSearchTerm("");
