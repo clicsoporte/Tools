@@ -382,19 +382,27 @@ export const useQuoter = () => {
           const isErpValid = new Date(customerExemption.endDate) > new Date();
           const isSpecial = exemptionLaws.some(law => law.authNumber && law.authNumber === customerExemption.authNumber);
           
-          const initialExemptionState: ExemptionInfo = {
-              erpExemption: customerExemption,
-              haciendaExemption: null,
-              isLoading: !isSpecial, // Only load if it's not a special law
-              isErpValid: isErpValid,
-              isHaciendaValid: false,
-              isSpecialLaw: isSpecial,
-              apiError: false,
-          };
-          setExemptionInfo(initialExemptionState);
-
-          if (!isSpecial) {
-              checkExemptionStatus(customerExemption.authNumber);
+          if (isSpecial) {
+            setExemptionInfo({
+                erpExemption: customerExemption,
+                haciendaExemption: null,
+                isLoading: false,
+                isErpValid: isErpValid,
+                isHaciendaValid: true, // Assume special laws are always valid if they exist
+                isSpecialLaw: true,
+                apiError: false,
+            });
+          } else {
+             setExemptionInfo({
+                erpExemption: customerExemption,
+                haciendaExemption: null,
+                isLoading: true,
+                isErpValid: isErpValid,
+                isHaciendaValid: false,
+                isSpecialLaw: false,
+                apiError: false,
+            });
+            checkExemptionStatus(customerExemption.authNumber);
           }
       } else {
           setExemptionInfo(null);
