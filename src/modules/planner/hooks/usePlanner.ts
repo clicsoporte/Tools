@@ -14,7 +14,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 
 const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'requestedBy' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate'> = {
-    deliveryDate: '',
+    deliveryDate: new Date().toISOString().split('T')[0],
     customerId: '',
     customerName: '',
     productId: '',

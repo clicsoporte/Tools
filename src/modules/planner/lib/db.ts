@@ -206,36 +206,18 @@ export async function getOrders(options: {
 }): Promise<{ activeOrders: ProductionOrder[], archivedOrders: ProductionOrder[], totalArchivedCount: number }> {
     const db = await connectDb(PLANNER_DB_FILE);
     
-    const settings = await getSettings();
-    const archivedStatuses = settings.useWarehouseReception
-        ? ['received-in-warehouse', 'canceled']
-        : ['completed', 'canceled'];
-    
     // Fetch all orders once.
     const allOrders: ProductionOrder[] = db.prepare(`SELECT * FROM production_orders ORDER BY requestDate DESC`).all() as ProductionOrder[];
     
-    const activeOrders = allOrders.filter(o => !archivedStatuses.includes(o.status));
-    const allArchived = allOrders.filter(o => archivedStatuses.includes(o.status));
+    const settings = await getSettings();
+    const finalState = settings.useWarehouseReception ? 'received-in-warehouse' : 'completed';
     
-    let archivedOrders: ProductionOrder[] = allArchived;
-    let totalArchivedCount = allArchived.length;
+    const activeOrders = allOrders.filter(o => o.status !== finalState && o.status !== 'canceled');
+    const allArchived = allOrders.filter(o => o.status === finalState || o.status === 'canceled');
+    
+    const archivedOrders = allArchived.slice(options.page! * options.pageSize!, (options.page! + 1) * options.pageSize!);
+    const totalArchivedCount = allArchived.length;
 
-    const { page, pageSize, filters } = options;
-    
-    if (filters && page !== undefined && pageSize !== undefined) {
-        if (filters.classification && filters.classification !== 'all') {
-            const allProducts = await getAllProducts();
-            const productMap = new Map(allProducts.map(p => [p.id, p]));
-            archivedOrders = archivedOrders.filter(order => {
-                const product = productMap.get(order.productId);
-                return product?.classification === filters.classification;
-            });
-        }
-        
-        totalArchivedCount = archivedOrders.length;
-        archivedOrders = archivedOrders.slice(page * pageSize, (page + 1) * pageSize);
-    }
-    
     return { activeOrders, archivedOrders, totalArchivedCount };
 }
 
