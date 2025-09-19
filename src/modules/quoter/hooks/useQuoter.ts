@@ -30,6 +30,7 @@ import {
 import { getExchangeRate, getExemptionStatus } from "@/modules/core/lib/api-actions";
 import { format, parseISO } from 'date-fns';
 import { useDebounce } from "use-debounce";
+import { useAuth } from "@/modules/core/hooks/useAuth";
 
 /**
  * Defines the initial state for a new quote.
@@ -40,10 +41,10 @@ const initialQuoteState = {
   selectedCustomer: null as Customer | null,
   customerDetails: "",
   deliveryAddress: "",
-  deliveryDate: "", // Set in useEffect to avoid hydration errors
+  deliveryDate: "",
   sellerName: "",
-  quoteDate: "", // Set in useEffect
-  validUntilDate: "", // Set in useEffect
+  quoteDate: "",
+  validUntilDate: "",
   paymentTerms: "contado",
   creditDays: 0,
   notes: "Precios sujetos a cambio sin previo aviso.",
@@ -106,6 +107,7 @@ const fetchRate = async () => {
 export const useQuoter = () => {
   const { toast } = useToast();
   const { setTitle } = usePageTitle();
+  const { user: currentUser, customers: authCustomers, products: authProducts, companyData: authCompanyData } = useAuth();
   
   // --- STATE MANAGEMENT ---
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -124,16 +126,15 @@ export const useQuoter = () => {
   const [deliveryDate, setDeliveryDate] = useState(initialQuoteState.deliveryDate);
   const [sellerName, setSellerName] = useState(initialQuoteState.sellerName);
   const [quoteDate, setQuoteDate] = useState(initialQuoteState.quoteDate);
-  const [companyData, setCompanyData] = useState<Company | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [companyData, setCompanyData] = useState<Company | null>(authCompanyData);
   const [sellerType, setSellerType] = useState("user");
   const [isMounted, setIsMounted] = useState(false);
   const [paymentTerms, setPaymentTerms] = useState(initialQuoteState.paymentTerms);
   const [creditDays, setCreditDays] = useState(initialQuoteState.creditDays);
   const [validUntilDate, setValidUntilDate] = useState(initialQuoteState.validUntilDate);
   const [notes, setNotes] = useState(initialQuoteState.notes);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>(authProducts || []);
+  const [customers, setCustomers] = useState<Customer[]>(authCustomers || []);
   const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
   const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
   const [showInactiveCustomers, setShowInactiveCustomers] = useState(false);
@@ -199,7 +200,8 @@ export const useQuoter = () => {
         setIsRefreshing(true);
     }
     try {
-      const [company, user, dbCustomers, dbProducts, dbExemptions, dbLaws, dbStock, rateData] = await Promise.all([
+      // Fetch local data first for immediate UI response
+      const [company, user, dbCustomers, dbProducts, dbExemptions, dbLaws, dbStock] = await Promise.all([
         getCompanySettings(),
         getCurrentUser(),
         getAllCustomers(),
@@ -207,31 +209,16 @@ export const useQuoter = () => {
         getAllExemptions(),
         getExemptionLaws(),
         getAllStock(),
-        fetchRate()
       ]);
-
-      if (rateData) {
-          setExchangeRate(rateData.rate);
-          setApiExchangeRate(rateData.rate);
-          setExchangeRateDate(rateData.date);
-      } else {
-           toast({
-          title: "Error de Tipo de Cambio",
-          description: "No se pudo obtener el tipo de cambio. Se usará un valor manual.",
-          variant: "destructive",
-        });
-      }
-      setExchangeRateLoaded(true);
 
       if (company) {
         setCompanyData(company);
-        if (!isRefresh) { // Only set quote number on initial load, not on refresh
+        if (!isRefresh) {
             setQuoteNumber(`${company.quotePrefix ?? "COT-"}${(company.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
         }
         setDecimalPlaces(company.decimalPlaces ?? 2);
       }
       if (user) {
-        setCurrentUser(user);
         if (!isRefresh) {
             setSellerName(user.name);
         }
@@ -241,6 +228,22 @@ export const useQuoter = () => {
       setAllExemptions(dbExemptions || []);
       setExemptionLaws(dbLaws || []);
       setStockLevels(dbStock || []);
+      
+      // Fetch external data in the background
+      fetchRate().then(rateData => {
+        if (rateData) {
+          setExchangeRate(rateData.rate);
+          setApiExchangeRate(rateData.rate);
+          setExchangeRateDate(rateData.date);
+        } else {
+          toast({
+            title: "Error de Tipo de Cambio",
+            description: "No se pudo obtener el tipo de cambio. Se usará un valor manual.",
+            variant: "destructive",
+          });
+        }
+        setExchangeRateLoaded(true);
+      });
 
       if (isRefresh) {
           toast({ title: "Datos Refrescados", description: "Los clientes, productos y exoneraciones han sido actualizados." });
@@ -261,13 +264,15 @@ export const useQuoter = () => {
     
     if (!isMounted) {
       loadInitialData(false);
+      // Set default dates on client side to avoid hydration mismatch
       const today = new Date();
       setQuoteDate(today.toISOString().substring(0, 10));
       setDeliveryDate(today.toISOString().substring(0, 16));
       setValidUntilDate(new Date(new Date().setDate(today.getDate() + 8)).toISOString().substring(0, 10));
       setIsMounted(true);
     }
-  }, [isMounted, loadInitialData, setTitle]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMounted]);
 
   useEffect(() => {
     if (sellerType === "user" && isMounted && currentUser) {
@@ -385,9 +390,9 @@ export const useQuoter = () => {
           const initialExemptionState: ExemptionInfo = {
               erpExemption: customerExemption,
               haciendaExemption: null,
-              isLoading: !isSpecial,
+              isLoading: !isSpecial, // Only load if it's not a special law
               isErpValid: isErpValid,
-              isHaciendaValid: isSpecial, // Assume special laws are valid if they exist in ERP
+              isHaciendaValid: false,
               isSpecialLaw: isSpecial,
               apiError: false,
           };
