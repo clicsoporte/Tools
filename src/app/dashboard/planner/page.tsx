@@ -23,6 +23,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ProductionOrder, ProductionOrderPriority } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from "@/components/ui/checkbox";
 
 /**
  * @fileoverview This is the main UI component for the Production Planner page.
