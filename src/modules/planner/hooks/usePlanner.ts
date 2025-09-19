@@ -151,6 +151,8 @@ export const usePlanner = () => {
             toast({ title: "Orden Creada" });
             setNewOrderDialogOpen(false);
             setNewOrder(emptyOrder);
+            setCustomerSearchTerm('');
+            setProductSearchTerm('');
             await loadInitialData();
         } catch (error: any) {
             logError("Failed to create order", { error });
@@ -433,5 +435,6 @@ export const usePlanner = () => {
             stockLevels,
         },
         isAuthorized,
+        isLoading,
     };
 };

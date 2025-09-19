@@ -35,20 +35,10 @@ export default function PlannerPage() {
         actions,
         selectors,
         isAuthorized,
+        isLoading,
     } = usePlanner();
 
-    const {
-        isLoading, isSubmitting, isNewOrderDialogOpen, isEditOrderDialogOpen, viewingArchived,
-        archivedPage, pageSize, totalArchived, newOrder, orderToEdit,
-        searchTerm, statusFilter, classificationFilter, dateFilter,
-        customerSearchTerm, isCustomerSearchOpen, productSearchTerm, isProductSearchOpen,
-        isStatusDialogOpen, orderToUpdate, newStatus, statusUpdateNotes, deliveredQuantity,
-        erpPackageNumber, erpTicketNumber, isHistoryDialogOpen, historyOrder, history,
-        isHistoryLoading, isReopenDialogOpen, reopenStep, reopenConfirmationText,
-        isAddNoteDialogOpen, notePayload
-    } = state;
-
-    if (isAuthorized === null || (isAuthorized && state.isLoading)) {
+    if (isAuthorized === null || (isAuthorized && isLoading)) {
         return (
             <main className="flex-1 p-4 md:p-6">
                 <div className="flex justify-between items-center mb-6">
@@ -184,7 +174,7 @@ export default function PlannerPage() {
     
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
                 <h1 className="text-lg font-semibold md:text-2xl">Órdenes de Producción</h1>
                  <div className="flex items-center gap-2 md:gap-4 flex-wrap">
                     <Button variant="outline" onClick={() => actions.loadInitialData(0)} disabled={state.isLoading}>
@@ -192,11 +182,11 @@ export default function PlannerPage() {
                         Refrescar
                     </Button>
                      <div className="flex items-center gap-1">
-                        <Button variant={viewingArchived ? "outline" : "secondary"} onClick={() => actions.setViewingArchived(false)}>Activas</Button>
-                        <Button variant={viewingArchived ? "secondary" : "outline"} onClick={() => actions.setViewingArchived(true)}>Archivadas</Button>
+                        <Button variant={state.viewingArchived ? "outline" : "secondary"} onClick={() => actions.setViewingArchived(false)}>Activas</Button>
+                        <Button variant={state.viewingArchived ? "secondary" : "outline"} onClick={() => actions.setViewingArchived(true)}>Archivadas</Button>
                      </div>
                      {selectors.hasPermission('planner:create') && (
-                        <Dialog open={isNewOrderDialogOpen} onOpenChange={actions.setNewOrderDialogOpen}>
+                        <Dialog open={state.isNewOrderDialogOpen} onOpenChange={actions.setNewOrderDialogOpen}>
                             <DialogTrigger asChild>
                                 <Button><FilePlus className="mr-2"/> Nueva Orden</Button>
                             </DialogTrigger>
@@ -213,11 +203,11 @@ export default function PlannerPage() {
                                                 <SearchInput
                                                     options={selectors.customerOptions}
                                                     onSelect={actions.handleSelectCustomer}
-                                                    value={customerSearchTerm}
+                                                    value={state.customerSearchTerm}
                                                     onValueChange={actions.setCustomerSearchTerm}
                                                     placeholder="Buscar cliente..."
                                                     onKeyDown={actions.handleCustomerInputKeyDown}
-                                                    open={isCustomerSearchOpen}
+                                                    open={state.isCustomerSearchOpen}
                                                     onOpenChange={actions.setCustomerSearchOpen}
                                                 />
                                             </div>
@@ -226,37 +216,37 @@ export default function PlannerPage() {
                                                 <SearchInput
                                                     options={selectors.productOptions}
                                                     onSelect={actions.handleSelectProduct}
-                                                    value={productSearchTerm}
+                                                    value={state.productSearchTerm}
                                                     onValueChange={actions.setProductSearchTerm}
                                                     placeholder="Buscar producto..."
                                                     onKeyDown={actions.handleProductInputKeyDown}
-                                                    open={isProductSearchOpen}
+                                                    open={state.isProductSearchOpen}
                                                     onOpenChange={actions.setProductSearchOpen}
                                                 />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-purchase-order">Nº Orden de Compra (Opcional)</Label>
-                                                <Input id="new-order-purchase-order" placeholder="Ej: OC-12345" value={newOrder.purchaseOrder || ''} onChange={(e) => actions.setNewOrder(prev => ({ ...prev, purchaseOrder: e.target.value }))} />
+                                                <Input id="new-order-purchase-order" placeholder="Ej: OC-12345" value={state.newOrder.purchaseOrder || ''} onChange={(e) => actions.setNewOrder(prev => ({ ...prev, purchaseOrder: e.target.value }))} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-quantity">Cantidad Solicitada</Label>
-                                                <Input id="new-order-quantity" type="number" placeholder="0.00" value={newOrder.quantity || ''} onChange={e => actions.setNewOrder(prev => ({ ...prev, quantity: Number(e.target.value) }))} required />
+                                                <Input id="new-order-quantity" type="number" placeholder="0.00" value={state.newOrder.quantity || ''} onChange={e => actions.setNewOrder(prev => ({ ...prev, quantity: Number(e.target.value) }))} required />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-inventory">Inventario Actual (Manual)</Label>
-                                                <Input id="new-order-inventory" type="number" placeholder="0.00" value={newOrder.inventory || ''} onChange={e => actions.setNewOrder(prev => ({ ...prev, inventory: Number(e.target.value) }))} />
+                                                <Input id="new-order-inventory" type="number" placeholder="0.00" value={state.newOrder.inventory || ''} onChange={e => actions.setNewOrder(prev => ({ ...prev, inventory: Number(e.target.value) }))} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-inventory-erp">Inventario Actual (ERP)</Label>
-                                                <Input id="new-order-inventory-erp" value={(selectors.stockLevels.find(s => s.itemId === newOrder.productId)?.totalStock ?? 0).toLocaleString()} disabled />
+                                                <Input id="new-order-inventory-erp" value={(selectors.stockLevels.find(s => s.itemId === state.newOrder.productId)?.totalStock ?? 0).toLocaleString()} disabled />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-delivery-date">Fecha de Entrega Requerida</Label>
-                                                <Input id="new-order-delivery-date" type="date" value={newOrder.deliveryDate} onChange={e => actions.setNewOrder(prev => ({ ...prev, deliveryDate: e.target.value }))} required />
+                                                <Input id="new-order-delivery-date" type="date" value={state.newOrder.deliveryDate} onChange={e => actions.setNewOrder(prev => ({ ...prev, deliveryDate: e.target.value }))} required />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-priority">Prioridad</Label>
-                                                <Select value={newOrder.priority} onValueChange={(value: typeof newOrder.priority) => actions.setNewOrder(prev => ({...prev, priority: value}))}>
+                                                <Select value={state.newOrder.priority} onValueChange={(value: typeof state.newOrder.priority) => actions.setNewOrder(prev => ({...prev, priority: value}))}>
                                                     <SelectTrigger id="new-order-priority"><SelectValue placeholder="Seleccione una prioridad" /></SelectTrigger>
                                                     <SelectContent>
                                                         {Object.entries(selectors.priorityConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}
@@ -265,13 +255,13 @@ export default function PlannerPage() {
                                             </div>
                                             <div className="space-y-2 col-span-1 md:col-span-2">
                                                 <Label htmlFor="new-order-notes">Notas Adicionales</Label>
-                                                <Textarea id="new-order-notes" placeholder="Instrucciones especiales, detalles del pedido, etc." value={newOrder.notes || ''} onChange={e => actions.setNewOrder(prev => ({ ...prev, notes: e.target.value }))} />
+                                                <Textarea id="new-order-notes" placeholder="Instrucciones especiales, detalles del pedido, etc." value={state.newOrder.notes || ''} onChange={e => actions.setNewOrder(prev => ({ ...prev, notes: e.target.value }))} />
                                             </div>
                                         </div>
                                     </ScrollArea>
                                     <DialogFooter>
                                         <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
-                                        <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Crear Orden</Button>
+                                        <Button type="submit" disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Crear Orden</Button>
                                     </DialogFooter>
                                 </form>
                             </DialogContent>
@@ -282,15 +272,15 @@ export default function PlannerPage() {
             <Card>
                 <CardContent className="p-4 space-y-4">
                     <div className="flex flex-col md:flex-row gap-4">
-                        <Input placeholder="Buscar por Nº orden, cliente o producto..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm" />
-                        <Select value={statusFilter} onValueChange={actions.setStatusFilter}>
+                        <Input placeholder="Buscar por Nº orden, cliente o producto..." value={state.searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm" />
+                        <Select value={state.statusFilter} onValueChange={actions.setStatusFilter}>
                             <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por estado..." /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Todos los Estados</SelectItem>
                                 {Object.entries(selectors.statusConfig).map(([key, { label }]) => (<SelectItem key={key} value={key}>{label}</SelectItem>))}
                             </SelectContent>
                         </Select>
-                         <Select value={classificationFilter} onValueChange={actions.setClassificationFilter}>
+                         <Select value={state.classificationFilter} onValueChange={actions.setClassificationFilter}>
                             <SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Filtrar por clasificación..." /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Todas las Clasificaciones</SelectItem>
@@ -299,16 +289,16 @@ export default function PlannerPage() {
                         </Select>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant={"outline"} className={cn("w-full md:w-[240px] justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateFilter?.from ? (dateFilter.to ? (`${format(dateFilter.from, "LLL dd, y")} - ${format(dateFilter.to, "LLL dd, y")}`) : (format(dateFilter.from, "LLL dd, y"))) : (<span>Filtrar por fecha</span>)}</Button>
+                                <Button variant={"outline"} className={cn("w-full md:w-[240px] justify-start text-left font-normal", !state.dateFilter && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{state.dateFilter?.from ? (state.dateFilter.to ? (`${format(state.dateFilter.from, "LLL dd, y")} - ${format(state.dateFilter.to, "LLL dd, y")}`) : (format(state.dateFilter.from, "LLL dd, y"))) : (<span>Filtrar por fecha</span>)}</Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={dateFilter} onSelect={actions.setDateFilter} /></PopoverContent>
+                            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={state.dateFilter} onSelect={actions.setDateFilter} /></PopoverContent>
                         </Popover>
                         <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                     </div>
-                     {viewingArchived && (
+                     {state.viewingArchived && (
                         <div className="flex items-center gap-2">
                             <Label htmlFor="page-size">Registros por página:</Label>
-                            <Select value={String(pageSize)} onValueChange={(value) => actions.setPageSize(Number(value))}><SelectTrigger id="page-size" className="w-[100px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem><SelectItem value="200">200</SelectItem></SelectContent></Select>
+                            <Select value={String(state.pageSize)} onValueChange={(value) => actions.setPageSize(Number(value))}><SelectTrigger id="page-size" className="w-[100px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem><SelectItem value="200">200</SelectItem></SelectContent></Select>
                         </div>
                     )}
                 </CardContent>
@@ -322,11 +312,11 @@ export default function PlannerPage() {
                 ) : (<div className="col-span-full flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><div className="flex flex-col items-center gap-2 text-center"><h3 className="text-2xl font-bold tracking-tight">No se encontraron órdenes.</h3><p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda o crea una nueva orden.</p></div></div>)}
             </div>
 
-             {viewingArchived && totalArchived > pageSize && (
+             {state.viewingArchived && state.totalArchived > state.pageSize && (
                  <div className="flex items-center justify-center space-x-2 py-4">
-                    <Button variant="outline" size="sm" onClick={() => actions.setArchivedPage(p => p - 1)} disabled={archivedPage === 0}><ChevronLeft className="mr-2 h-4 w-4" />Anterior</Button>
-                    <span className="text-sm text-muted-foreground">Página {archivedPage + 1} de {Math.ceil(totalArchived / pageSize)}</span>
-                    <Button variant="outline" size="sm" onClick={() => actions.setArchivedPage(p => p + 1)} disabled={(archivedPage + 1) * pageSize >= totalArchived}>Siguiente<ChevronRight className="ml-2 h-4 w-4" /></Button>
+                    <Button variant="outline" size="sm" onClick={() => actions.setArchivedPage(p => p - 1)} disabled={state.archivedPage === 0}><ChevronLeft className="mr-2 h-4 w-4" />Anterior</Button>
+                    <span className="text-sm text-muted-foreground">Página {state.archivedPage + 1} de {Math.ceil(state.totalArchived / state.pageSize)}</span>
+                    <Button variant="outline" size="sm" onClick={() => actions.setArchivedPage(p => p + 1)} disabled={(state.archivedPage + 1) * state.pageSize >= state.totalArchived}>Siguiente<ChevronRight className="ml-2 h-4 w-4" /></Button>
                 </div>
             )}
         </main>
