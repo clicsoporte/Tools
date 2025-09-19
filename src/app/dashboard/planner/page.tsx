@@ -308,7 +308,14 @@ export default function PlannerPage() {
                     Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-56 w-full" />)
                 ) : selectors.filteredOrders.length > 0 ? (
                     selectors.filteredOrders.map(renderOrderCard)
-                ) : (<div className="col-span-full flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><div className="flex flex-col items-center gap-2 text-center"><h3 className="text-2xl font-bold tracking-tight">No se encontraron órdenes.</h3><p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda o crea una nueva orden.</p></div></div>)}
+                ) : (
+                    <div className="col-span-full flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+                        <div className="flex flex-col items-center gap-2 text-center">
+                            <h3 className="text-2xl font-bold tracking-tight">No se encontraron órdenes.</h3>
+                            <p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda o crea una nueva orden.</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
              {state.viewingArchived && state.totalArchived > state.pageSize && (
@@ -321,5 +328,3 @@ export default function PlannerPage() {
         </main>
     );
 }
-
-    
