@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React from 'react';
@@ -70,7 +69,7 @@ export default function PlannerPage() {
         const daysRemaining = selectors.getDaysRemaining(order);
         
         return (
-            <Card key={order.id} className="w-full">
+            <Card key={order.id} className="w-full flex flex-col">
                 <CardHeader className="p-4">
                     <div className="flex justify-between items-start gap-2">
                         <div>
@@ -104,8 +103,8 @@ export default function PlannerPage() {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="p-4 pt-0">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-6 text-sm">
+                <CardContent className="p-4 pt-0 flex-grow">
+                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-6 text-sm">
                         <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Estado Actual</p>
                             <div className="flex items-center gap-2">
@@ -323,3 +322,4 @@ export default function PlannerPage() {
     );
 }
 
+    
