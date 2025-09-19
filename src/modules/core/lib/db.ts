@@ -192,21 +192,7 @@ async function checkAndApplyMigrations(db: Database.Database) {
         const lawsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='exemption_laws'`).get();
         if (!lawsTable) {
              console.log("MIGRATION: Creating exemption_laws table.");
-             db.exec(`CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT, authNumber TEXT)`);
-
-             if (apiTableInfo.some(col => col.name === 'zonaFrancaLaw')) {
-                 const oldSettings = db.prepare('SELECT zonaFrancaLaw FROM api_settings WHERE id = 1').get() as { zonaFrancaLaw?: string };
-                 if (oldSettings && oldSettings.zonaFrancaLaw) {
-                     db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName, authNumber) VALUES (?, ?, ?)')
-                       .run('99', 'Régimen de Zona Franca', oldSettings.zonaFrancaLaw);
-                 }
-             } else {
-                 db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName, authNumber) VALUES (?, ?, ?)')
-                       .run('99', 'Régimen de Zona Franca', '9635');
-             }
-
-             db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)')
-               .run('03', 'Exento para Compras Autorizadas', '04', 'Ventas a Diplomáticos', '05', 'Autorizado por Ley Especial', '06', 'Ventas a la CCSS', '07', 'Ventas a Instituciones Públicas');
+             db.exec(`CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT NOT NULL, authNumber TEXT)`);
         }
 
         if (apiTableInfo.some(col => col.name === 'zonaFrancaLaw')) {
@@ -381,6 +367,11 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
         'https://api.hacienda.go.cr/fe/ex?autorizacion=',
         'https://api.hacienda.go.cr/fe/ae?identificacion='
     );
+
+    db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName, authNumber) VALUES (?, ?, ?)')
+        .run('99', 'Régimen de Zona Franca', '9635');
+    db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)')
+        .run('02', 'Exento para Compras Autorizadas', '03', 'Ventas a Diplomáticos', '04', 'Ventas a la CCSS', '05', 'Ventas a Instituciones Públicas', '06', 'Otros');
 
     const roleInsert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
