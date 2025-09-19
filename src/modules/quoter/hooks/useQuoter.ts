@@ -261,15 +261,13 @@ export const useQuoter = () => {
     
     if (!isMounted) {
       loadInitialData(false);
-      // Set default dates on client side to avoid hydration mismatch
       const today = new Date();
       setQuoteDate(today.toISOString().substring(0, 10));
       setDeliveryDate(today.toISOString().substring(0, 16));
       setValidUntilDate(new Date(new Date().setDate(today.getDate() + 8)).toISOString().substring(0, 10));
       setIsMounted(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMounted]);
+  }, [isMounted, loadInitialData, setTitle]);
 
   useEffect(() => {
     if (sellerType === "user" && isMounted && currentUser) {
@@ -469,9 +467,10 @@ export const useQuoter = () => {
         doc.setFontSize(12);
         doc.text(`Nº: ${currentQuoteNumber}`, pageWidth - margin, 22, { align: 'right' });
         doc.setFontSize(10);
-        doc.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, 28, { align: 'right' });
+        doc.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, 28, { align: 'right' });
+        doc.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, 34, { align: 'right' });
         if (purchaseOrderNumber) {
-            doc.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, 34, { align: 'right' });
+            doc.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, 40, { align: 'right' });
         }
 
         let startY = 40;
@@ -489,7 +488,7 @@ export const useQuoter = () => {
         startY += 6;
         doc.text(`Email: ${companyData.email}`, margin, startY);
 
-        let sellerStartY = 40;
+        let sellerStartY = 46;
         doc.setFont('helvetica', 'bold');
         doc.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
         sellerStartY += 6;
@@ -534,7 +533,7 @@ export const useQuoter = () => {
         addHeader(doc);
         
         autoTable(doc, {
-            startY: 85,
+            startY: 95,
             head: [['Cliente', 'Entrega']],
             body: [[customerDetails, `Dirección: ${deliveryAddress}\nFecha Entrega: ${formattedDeliveryDate}`]],
             theme: 'plain',
