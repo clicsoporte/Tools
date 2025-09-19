@@ -13,7 +13,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getWarehouseData, getStockSettings } from '@/modules/warehouse/lib/actions';
+import { getWarehouseData } from '@/modules/warehouse/lib/actions';
 import { importAllDataFromFiles } from '@/modules/core/lib/db';
 import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer } from '@/modules/core/types';
 import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, RefreshCw, Loader2, Info, User } from 'lucide-react';
@@ -55,15 +55,12 @@ export default function WarehousePage() {
     const loadData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [wData, sSettings] = await Promise.all([
-                getWarehouseData(),
-                getStockSettings(),
-            ]);
+            const wData = await getWarehouseData();
             setLocations(wData.locations);
             setInventory(wData.inventory);
             setItemLocations(wData.itemLocations);
             setStock(wData.stock);
-            setStockSettings(sSettings);
+            setStockSettings(wData.stockSettings);
             setWarehouseSettings(wData.warehouseSettings);
         } catch (error) {
             console.error("Failed to load warehouse data", error);
@@ -344,3 +341,5 @@ export default function WarehousePage() {
         </main>
     );
 }
+
+    

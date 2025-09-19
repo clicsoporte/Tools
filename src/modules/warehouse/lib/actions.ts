@@ -39,3 +39,5 @@ export const unassignItemFromLocation = async (itemLocationId: number): Promise<
 export const getWarehouseData = async () => getWarehouseDataServer();
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);
 
+
+    

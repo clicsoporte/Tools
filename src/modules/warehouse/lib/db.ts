@@ -5,7 +5,7 @@
  */
 "use server";
 
-import { connectDb, getAllStock } from '../../core/lib/db';
+import { connectDb, getAllStock, getStockSettings as getStockSettingsFromMain } from '../../core/lib/db';
 import type { WarehouseLocation, WarehouseInventoryItem, MovementLog, WarehouseSettings, StockSettings, StockInfo, ItemLocation } from '../../core/types';
 
 const WAREHOUSE_DB_FILE = 'warehouse.db';
@@ -200,13 +200,14 @@ export async function logMovement(movement: Omit<MovementLog, 'id' | 'timestamp'
     ).run(newMovement);
 }
 
-export async function getWarehouseData(): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], stock: StockInfo[], itemLocations: ItemLocation[], warehouseSettings: WarehouseSettings }> {
+export async function getWarehouseData(): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], stock: StockInfo[], itemLocations: ItemLocation[], warehouseSettings: WarehouseSettings, stockSettings: StockSettings }> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const locations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
     const inventory = db.prepare('SELECT * FROM inventory').all() as WarehouseInventoryItem[];
     const itemLocations = db.prepare('SELECT * FROM item_locations').all() as ItemLocation[];
     const stock = await getAllStock();
     const warehouseSettings = await getWarehouseSettings();
+    const stockSettings = await getStockSettingsFromMain();
 
     // Sanitize data to ensure they are plain objects for serialization
     return {
@@ -235,24 +236,10 @@ export async function getWarehouseData(): Promise<{ locations: WarehouseLocation
             locationId: Number(il.locationId),
             clientId: il.clientId ? String(il.clientId) : null
         })),
-        warehouseSettings
+        warehouseSettings,
+        stockSettings
     };
 }
-
-export async function getStockSettings(): Promise<StockSettings> {
-    const mainDb = await connectDb('intratool.db');
-    try {
-        const result = mainDb.prepare("SELECT value FROM stock_settings WHERE key = 'warehouses'").get() as { value: string } | undefined;
-        if (result) {
-            return { warehouses: JSON.parse(result.value) };
-        }
-        return { warehouses: [] };
-    } catch (error) {
-        console.error("Failed to get stock settings from main DB:", error);
-        return { warehouses: [] };
-    }
-}
-
 
 export async function getMovements(itemId?: string): Promise<MovementLog[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
@@ -277,3 +264,5 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
     const db = await connectDb(WAREHOUSE_DB_FILE);
     db.prepare('DELETE FROM item_locations WHERE id = ?').run(itemLocationId);
 }
+
+    
