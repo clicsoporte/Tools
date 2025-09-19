@@ -115,7 +115,7 @@ export default function DashboardPage() {
               <h2 className="text-2xl font-bold tracking-tight">
                 Todas las Herramientas
               </h2>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-end">
                   {exchangeRateData.rate && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg">
                         <DollarSign className="h-4 w-4"/>

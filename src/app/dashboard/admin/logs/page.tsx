@@ -53,19 +53,19 @@ export default function LogViewerPage() {
       <main className="flex-1 p-4 md:p-6 lg:p-8">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <CardTitle>Registros del Sistema</CardTitle>
                 <CardDescription>
                   Eventos, advertencias y errores registrados en la aplicación.
                 </CardDescription>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchLogs}>
+              <div className="flex w-full sm:w-auto gap-2">
+                <Button variant="outline" onClick={fetchLogs} className="flex-1 sm:flex-initial">
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Refrescar
                 </Button>
-                <Button variant="destructive" onClick={handleClearLogs}>
+                <Button variant="destructive" onClick={handleClearLogs} className="flex-1 sm:flex-initial">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Limpiar Registros
                 </Button>
@@ -95,7 +95,7 @@ export default function LogViewerPage() {
                         <TableCell>
                             {log.message}
                             {log.details && (
-                                <pre className="mt-2 text-xs text-muted-foreground bg-muted p-2 rounded-md">
+                                <pre className="mt-2 text-xs text-muted-foreground bg-muted p-2 rounded-md overflow-x-auto">
                                     {JSON.stringify(log.details, null, 2)}
                                 </pre>
                             )}

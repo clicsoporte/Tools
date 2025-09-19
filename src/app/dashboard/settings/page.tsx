@@ -203,7 +203,7 @@ export default function SettingsPage() {
           <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
             <Card>
               <CardHeader>
-                <div className="flex items-center gap-6">
+                <div className="flex flex-col sm:flex-row items-center gap-6">
                   <div {...getRootProps()} className="relative group cursor-pointer">
                     <input {...getInputProps()} />
                     <Avatar className="h-24 w-24 text-4xl">

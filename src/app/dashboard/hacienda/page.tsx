@@ -357,7 +357,7 @@ export default function HaciendaQueryPage() {
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-8">
             <Tabs defaultValue="unified">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
                     <TabsTrigger value="unified">Búsqueda Unificada</TabsTrigger>
                     <TabsTrigger value="taxpayer">Situación Tributaria</TabsTrigger>
                     <TabsTrigger value="exemption">Exoneraciones</TabsTrigger>

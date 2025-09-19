@@ -331,9 +331,9 @@ export default function UsersPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Correo Electrónico</TableHead>
-                        <TableHead>Rol</TableHead>
+                        <TableHead className="w-1/3">Nombre</TableHead>
+                        <TableHead className="w-1/3 hidden sm:table-cell">Correo Electrónico</TableHead>
+                        <TableHead className="w-1/4 hidden md:table-cell">Rol</TableHead>
                         <TableHead>
                             <span className="sr-only">Acciones</span>
                         </TableHead>
@@ -347,10 +347,13 @@ export default function UsersPage() {
                                     <AvatarImage src={user.avatar} alt={user.name} />
                                     <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
                                 </Avatar>
-                                <span>{user.name}</span>
+                                <div className="flex flex-col">
+                                    <span>{user.name}</span>
+                                    <span className="text-muted-foreground text-xs sm:hidden">{user.email}</span>
+                                </div>
                             </TableCell>
-                            <TableCell>{user.email}</TableCell>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell">{user.email}</TableCell>
+                            <TableCell className="hidden md:table-cell">
                             <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
                                 {roles.find(r => r.id === user.role)?.name || user.role}
                             </Badge>

@@ -23,9 +23,8 @@ import {
   Network,
   Wrench,
   LayoutDashboard,
-  Sheet,
   LifeBuoy,
-  ClipboardPen,
+  Sheet as SheetIcon,
   CalendarCheck,
   ShoppingCart,
   Warehouse,
@@ -109,7 +108,7 @@ export function AppSidebar() {
       name: "Cotizador",
       description: "Crear y gestionar cotizaciones para clientes.",
       href: "/dashboard/quoter",
-      icon: Sheet,
+      icon: SheetIcon,
       bgColor: "bg-green-500",
       textColor: "text-white",
     },
@@ -248,5 +247,3 @@ export function AppSidebar() {
       </Sidebar>
   );
 }
-
-    
