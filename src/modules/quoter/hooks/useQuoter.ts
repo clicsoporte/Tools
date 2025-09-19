@@ -262,9 +262,10 @@ export const useQuoter = () => {
     if (!isMounted) {
       loadInitialData(false);
       // Set default dates on client side to avoid hydration mismatch
-      setQuoteDate(new Date().toISOString().substring(0, 10));
-      setDeliveryDate(new Date().toISOString().substring(0, 16));
-      setValidUntilDate(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
+      const today = new Date();
+      setQuoteDate(today.toISOString().substring(0, 10));
+      setDeliveryDate(today.toISOString().substring(0, 16));
+      setValidUntilDate(new Date(new Date().setDate(today.getDate() + 8)).toISOString().substring(0, 10));
       setIsMounted(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

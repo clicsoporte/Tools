@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -154,7 +155,7 @@ export default function PlannerPage() {
                                                     options={selectors.customerOptions}
                                                     onSelect={(value) => actions.handleSelectCustomer(value)}
                                                     value={customerSearchTerm}
-                                                    onValueChange={(val) => { if(!val) actions.handleSelectCustomer(''); actions.setCustomerSearchTerm(val); }}
+                                                    onValueChange={(val) => { actions.setCustomerSearchTerm(val); }}
                                                     placeholder="Buscar cliente..."
                                                     onKeyDown={actions.handleCustomerInputKeyDown}
                                                     open={isCustomerSearchOpen}
@@ -167,7 +168,7 @@ export default function PlannerPage() {
                                                     options={selectors.productOptions}
                                                     onSelect={(value) => actions.handleSelectProduct(value)}
                                                     value={productSearchTerm}
-                                                    onValueChange={(val) => { if(!val) actions.handleSelectProduct(''); actions.setProductSearchTerm(val); }}
+                                                    onValueChange={(val) => { actions.setProductSearchTerm(val); }}
                                                     placeholder="Buscar producto..."
                                                     onKeyDown={actions.handleProductInputKeyDown}
                                                     open={isProductSearchOpen}

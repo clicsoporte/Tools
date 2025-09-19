@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview The main login page for the application.
  * It handles user authentication and provides a form for password recovery.
@@ -28,7 +27,7 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useRouter } from "next/navigation";
-import { Network } from "lucide-react";
+import { Loader2, Network } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import type { User, Company } from "../modules/core/types";
 import { useToast } from "../modules/core/hooks/use-toast";
@@ -47,6 +46,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [companyData, setCompanyData] = useState<Company | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   
   // State for password recovery flow
   const [isRecoveryDialogOpen, setRecoveryDialogOpen] = useState(false);
@@ -79,6 +79,7 @@ export default function LoginPage() {
    */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoggingIn(true);
     const loggedIn = await login(email, password);
 
     if (loggedIn) {
@@ -89,6 +90,7 @@ export default function LoginPage() {
         description: "El correo o la contraseña no son correctos. Inténtalo de nuevo o usa la opción de recuperación.",
         variant: "destructive",
       });
+      setIsLoggingIn(false);
     }
   };
 
@@ -308,7 +310,8 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full" disabled={isLoggingIn}>
+              {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Iniciar Sesión
             </Button>
           </CardFooter>

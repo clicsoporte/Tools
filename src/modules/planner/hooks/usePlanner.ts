@@ -141,7 +141,7 @@ export const usePlanner = () => {
         if (isAuthorized) {
             loadInitialData(archivedPage);
         }
-    }, [setTitle, isAuthorized, loadInitialData, archivedPage, viewingArchived]);
+    }, [setTitle, isAuthorized, loadInitialData, archivedPage]);
 
     const handleCreateOrder = async () => {
         if (!newOrder.customerId || !newOrder.productId || !newOrder.quantity || !newOrder.deliveryDate || !currentUser) return;
