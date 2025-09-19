@@ -3,7 +3,7 @@
  * This file contains functions that are executed only on the server, providing a secure
  * way to interact with third-party services without exposing API keys or dealing with CORS.
  */
-'use server';
+"use server";
 
 import { getApiSettings } from './db';
 import { logError } from './logger';
@@ -19,8 +19,9 @@ export async function getExchangeRate(): Promise<any> {
             throw new Error("Exchange rate API URL not configured in settings.");
         }
 
+        // Use no-store to always get the freshest data from the API endpoint itself
         const response = await fetch(apiSettings.exchangeRateApi, {
-            next: { revalidate: 3600 } // Cache for 1 hour
+            cache: 'no-store'
         });
 
         if (!response.ok) {
@@ -35,6 +36,7 @@ export async function getExchangeRate(): Promise<any> {
         return { error: true, message: "Internal Server Error" };
     }
 }
+
 
 /**
  * Fetches the status of a tax exemption from the configured Hacienda API endpoint.

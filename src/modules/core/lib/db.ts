@@ -17,6 +17,7 @@ import { executeQuery } from './sql-service';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
+import { getExchangeRate as fetchExchangeRateFromApi } from './api-actions';
 
 
 const DB_FILE = 'intratool.db';
@@ -247,6 +248,12 @@ async function checkAndApplyMigrations(db: Database.Database) {
             `);
         }
 
+        const exchangeRatesTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='exchange_rates'`).get();
+        if (!exchangeRatesTable) {
+            console.log("MIGRATION: Creating exchange_rates table.");
+            db.exec(`CREATE TABLE exchange_rates (date TEXT PRIMARY KEY, rate REAL NOT NULL);`);
+        }
+
 
     } catch (error) {
         console.error("Failed to apply migrations:", error);
@@ -346,6 +353,11 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
             code TEXT PRIMARY KEY,
             description TEXT NOT NULL,
             taxRate REAL
+        );
+
+        CREATE TABLE exchange_rates (
+            date TEXT PRIMARY KEY,
+            rate REAL NOT NULL
         );
     `;
 
@@ -1197,4 +1209,44 @@ export async function saveImportQueries(queries: ImportQuery[]): Promise<void> {
 
 export async function testSqlConnection(): Promise<void> {
     await executeQuery("SELECT 1"); 
+}
+
+export async function getAndCacheExchangeRate(forceRefresh = false): Promise<{ rate: number, date: string } | null> {
+    const db = await connectDb();
+    const today = new Date().toISOString().split('T')[0];
+
+    // Clean up old rates
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    db.prepare(`DELETE FROM exchange_rates WHERE date < ?`).run(sixtyDaysAgo.toISOString().split('T')[0]);
+
+    if (!forceRefresh) {
+        const cachedRate = db.prepare(`SELECT rate, date FROM exchange_rates WHERE date = ?`).get(today) as { rate: number, date: string } | undefined;
+        if (cachedRate) {
+            return { rate: cachedRate.rate, date: new Date(cachedRate.date).toLocaleDateString('es-CR') };
+        }
+    }
+    
+    // If not in cache or forcing refresh, fetch from API
+    try {
+        const data = await fetchExchangeRateFromApi();
+        if (data.error) throw new Error(data.message);
+        
+        const rate = data.venta?.valor;
+        const rateDate = new Date(data.venta?.fecha).toISOString().split('T')[0];
+        
+        if (rate && rateDate) {
+            db.prepare(`INSERT OR REPLACE INTO exchange_rates (date, rate) VALUES (?, ?)`).run(rateDate, rate);
+            return { rate, date: new Date(rateDate).toLocaleDateString('es-CR') };
+        }
+        return null;
+    } catch (error) {
+        console.error('Failed to fetch and cache exchange rate:', error);
+        // Fallback to the latest available rate in the DB
+        const lastRate = db.prepare('SELECT rate, date FROM exchange_rates ORDER BY date DESC LIMIT 1').get() as { rate: number, date: string } | undefined;
+        if (lastRate) {
+            return { rate: lastRate.rate, date: new Date(lastRate.date).toLocaleDateString('es-CR') };
+        }
+        return null;
+    }
 }

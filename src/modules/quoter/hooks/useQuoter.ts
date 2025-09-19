@@ -13,21 +13,15 @@ import autoTable from "jspdf-autotable";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import type { Customer, Product, Company, User, QuoteDraft, QuoteLine, Exemption, HaciendaExemptionApiResponse, ExemptionLaw, StockInfo, ApiSettings } from "@/modules/core/types";
 import { logError, logInfo, logWarn } from "@/modules/core/lib/logger";
-import { getCurrentUser } from "@/modules/core/lib/auth-client";
 import {
-  getCompanySettings,
-  getAllCustomers,
-  getAllProducts,
   saveQuoteDraft,
   getAllQuoteDrafts,
   deleteQuoteDraft,
   saveCompanySettings,
   getAllExemptions,
   getExemptionLaws,
-  getAllStock,
-  getApiSettings,
 } from "@/modules/core/lib/db";
-import { getExchangeRate, getExemptionStatus } from "@/modules/core/lib/api-actions";
+import { getExemptionStatus } from "@/modules/core/lib/api-actions";
 import { format, parseISO } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -81,24 +75,6 @@ const normalizeNumber = (value: string): number => {
     return isNaN(parsed) ? 0 : parsed;
 };
 
-const fetchRate = async () => {
-    try {
-        const data = await getExchangeRate();
-        if (!data || data.error) {
-            throw new Error(data?.message || 'La respuesta de la API de tipo de cambio no es válida.');
-        }
-        const sellRate = data.venta?.valor;
-        const rateDate = data.venta?.fecha;
-        if (typeof sellRate !== 'number' || typeof rateDate !== 'string') {
-            throw new Error('Estructura de datos inválida desde la API de tipo de cambio.');
-        }
-        return { rate: sellRate, date: new Date(rateDate).toLocaleDateString('es-CR') };
-    } catch (error: any) {
-        await logError("Error fetching exchange rate", { error: error.message });
-        return null;
-    }
-};
-
 
 /**
  * Main hook for the Quoter component.
@@ -107,7 +83,7 @@ const fetchRate = async () => {
 export const useQuoter = () => {
   const { toast } = useToast();
   const { setTitle } = usePageTitle();
-  const { user: currentUser, customers: authCustomers, products: authProducts, companyData: authCompanyData } = useAuth();
+  const { user: currentUser, customers, products, companyData: authCompanyData, stockLevels, exchangeRateData, refreshAuth } = useAuth();
   
   // --- STATE MANAGEMENT ---
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -116,11 +92,11 @@ export const useQuoter = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(initialQuoteState.selectedCustomer);
   const [customerDetails, setCustomerDetails] = useState(initialQuoteState.customerDetails);
   const [deliveryAddress, setDeliveryAddress] = useState(initialQuoteState.deliveryAddress);
-  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
-  const [exchangeRateDate, setExchangeRateDate] = useState<string | null>(null);
+  const [exchangeRate, setExchangeRate] = useState<number | null>(exchangeRateData.rate);
+  const [exchangeRateDate, setExchangeRateDate] = useState<string | null>(exchangeRateData.date);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
-  const [apiExchangeRate, setApiExchangeRate] = useState<number | null>(null);
-  const [exchangeRateLoaded, setExchangeRateLoaded] = useState(false);
+  const [apiExchangeRate, setApiExchangeRate] = useState<number | null>(exchangeRateData.rate);
+  const [exchangeRateLoaded, setExchangeRateLoaded] = useState(!!exchangeRateData.rate);
   const [quoteNumber, setQuoteNumber] = useState("");
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(initialQuoteState.purchaseOrderNumber);
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().substring(0, 16));
@@ -133,10 +109,7 @@ export const useQuoter = () => {
   const [creditDays, setCreditDays] = useState(initialQuoteState.creditDays);
   const [validUntilDate, setValidUntilDate] = useState(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
   const [notes, setNotes] = useState(initialQuoteState.notes);
-  const [products, setProducts] = useState<Product[]>(authProducts || []);
-  const [customers, setCustomers] = useState<Customer[]>(authCustomers || []);
   const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
-  const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
   const [showInactiveCustomers, setShowInactiveCustomers] = useState(false);
   const [showInactiveProducts, setShowInactiveProducts] = useState(false);
   const [selectedLineForInfo, setSelectedLineForInfo] = useState<QuoteLine | null>(null);
@@ -198,52 +171,34 @@ export const useQuoter = () => {
   const loadInitialData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
         setIsRefreshing(true);
+        await refreshAuth(); // This will re-fetch all data in the context
     }
+    
     try {
-      // Fetch local data first for immediate UI response
-      const [company, user, dbCustomers, dbProducts, dbExemptions, dbLaws, dbStock] = await Promise.all([
-        getCompanySettings(),
-        getCurrentUser(),
-        getAllCustomers(),
-        getAllProducts(),
-        getAllExemptions(),
-        getExemptionLaws(),
-        getAllStock(),
-      ]);
+      if (authCompanyData) {
+        setCompanyData(authCompanyData);
+        if (!isRefresh) {
+            setQuoteNumber(`${authCompanyData.quotePrefix ?? "COT-"}${(authCompanyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
+        }
+        setDecimalPlaces(authCompanyData.decimalPlaces ?? 2);
+      }
+      if (currentUser && !isRefresh) {
+        setSellerName(currentUser.name);
+      }
+      if (exchangeRateData.rate) {
+          setExchangeRate(exchangeRateData.rate);
+          setApiExchangeRate(exchangeRateData.rate);
+          setExchangeRateDate(exchangeRateData.date);
+          setExchangeRateLoaded(true);
+      }
 
-      if (company) {
-        setCompanyData(company);
-        if (!isRefresh) {
-            setQuoteNumber(`${company.quotePrefix ?? "COT-"}${(company.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
-        }
-        setDecimalPlaces(company.decimalPlaces ?? 2);
-      }
-      if (user) {
-        if (!isRefresh) {
-            setSellerName(user.name);
-        }
-      }
-      setCustomers(dbCustomers || []);
-      setProducts(dbProducts || []);
+      // These are already in context but we might need to fetch them if not available, e.g. exemptions
+      const [dbExemptions, dbLaws] = await Promise.all([
+          getAllExemptions(),
+          getExemptionLaws()
+      ]);
       setAllExemptions(dbExemptions || []);
       setExemptionLaws(dbLaws || []);
-      setStockLevels(dbStock || []);
-      
-      // Fetch external data in the background
-      fetchRate().then(rateData => {
-        if (rateData) {
-          setExchangeRate(rateData.rate);
-          setApiExchangeRate(rateData.rate);
-          setExchangeRateDate(rateData.date);
-        } else {
-          toast({
-            title: "Error de Tipo de Cambio",
-            description: "No se pudo obtener el tipo de cambio. Se usará un valor manual.",
-            variant: "destructive",
-          });
-        }
-        setExchangeRateLoaded(true);
-      });
 
       if (isRefresh) {
           toast({ title: "Datos Refrescados", description: "Los clientes, productos y exoneraciones han sido actualizados." });
@@ -257,17 +212,15 @@ export const useQuoter = () => {
             setIsRefreshing(false);
         }
     }
-  }, [toast]);
+  }, [toast, refreshAuth, authCompanyData, currentUser, exchangeRateData]);
 
   useEffect(() => {
     setTitle("Cotizador");
-    
     if (!isMounted) {
-      loadInitialData(false);
+      loadInitialData();
       setIsMounted(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMounted]);
+  }, [setTitle, isMounted, loadInitialData]);
 
   useEffect(() => {
     if (sellerType === "user" && isMounted && currentUser) {
@@ -276,6 +229,17 @@ export const useQuoter = () => {
       setSellerName("");
     }
   }, [sellerType, currentUser, isMounted]);
+
+  useEffect(() => {
+      setCompanyData(authCompanyData);
+      setExchangeRate(exchangeRateData.rate);
+      setApiExchangeRate(exchangeRateData.rate);
+      setExchangeRateDate(exchangeRateData.date);
+      setExchangeRateLoaded(!!exchangeRateData.rate);
+      if(authCompanyData) {
+          setQuoteNumber(`${authCompanyData.quotePrefix ?? "COT-"}${(authCompanyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
+      }
+  }, [authCompanyData, exchangeRateData]);
 
 
   // Focus qty input of the newest line

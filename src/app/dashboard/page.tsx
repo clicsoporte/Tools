@@ -11,7 +11,7 @@ import type { Tool } from "../../modules/core/types";
 import { Skeleton } from "../../components/ui/skeleton";
 import { usePageTitle } from "../../modules/core/hooks/usePageTitle";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Wrench, Clock } from "lucide-react";
+import { Loader2, RefreshCw, Wrench, Clock, DollarSign } from "lucide-react";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
@@ -26,11 +26,12 @@ import { cn } from "@/lib/utils";
  * based on user permissions.
  */
 export default function DashboardPage() {
-  const { user, companyData, isLoading: isAuthLoading, refreshAuth } = useAuth();
+  const { user, companyData, isLoading: isAuthLoading, refreshAuth, exchangeRateData, refreshExchangeRate } = useAuth();
   const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const { setTitle } = usePageTitle();
   const { hasPermission } = useAuthorization(['admin:import:run']);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isRateRefreshing, setIsRateRefreshing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -85,6 +86,13 @@ export default function DashboardPage() {
     }
   }
 
+  const handleRateRefresh = async () => {
+      setIsRateRefreshing(true);
+      await refreshExchangeRate();
+      toast({ title: "Tipo de Cambio Actualizado", description: "Se ha obtenido el valor más reciente de la API." });
+      setIsRateRefreshing(false);
+  }
+
   // Display a skeleton loader while the user data is being fetched.
   if (isAuthLoading) {
     return (
@@ -103,27 +111,39 @@ export default function DashboardPage() {
       <main className="flex-1 p-4 md:p-6 lg:p-8">
         <div className="grid gap-8">
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
               <h2 className="text-2xl font-bold tracking-tight">
                 Todas las Herramientas
               </h2>
-              {hasPermission('admin:import:run') && (
-                <div className="flex items-center gap-2">
-                    {companyData?.lastSyncTimestamp && (
-                        <span className={cn(
-                            "text-xs text-muted-foreground", 
-                            (new Date().getTime() - new Date(companyData.lastSyncTimestamp).getTime()) > 12 * 60 * 60 * 1000 && "text-red-500 font-medium"
-                        )}>
-                            <Clock className="inline h-3 w-3 mr-1" />
-                            Última Sinc: {format(new Date(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}
-                        </span>
-                    )}
-                    <Button onClick={handleFullSync} disabled={isSyncing}>
-                        {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                        Sincronizar Datos del ERP
-                    </Button>
-                </div>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                  {exchangeRateData.rate && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg">
+                        <DollarSign className="h-4 w-4"/>
+                        <span>TC Venta: <strong>{exchangeRateData.rate.toLocaleString('es-CR')}</strong></span>
+                        <span className="text-xs">({exchangeRateData.date})</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleRateRefresh} disabled={isRateRefreshing}>
+                           {isRateRefreshing ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}
+                        </Button>
+                    </div>
+                  )}
+                  {hasPermission('admin:import:run') && (
+                    <div className="flex items-center gap-2">
+                        {companyData?.lastSyncTimestamp && (
+                            <span className={cn(
+                                "text-xs text-muted-foreground", 
+                                (new Date().getTime() - new Date(companyData.lastSyncTimestamp).getTime()) > 12 * 60 * 60 * 1000 && "text-red-500 font-medium"
+                            )}>
+                                <Clock className="inline h-3 w-3 mr-1" />
+                                Última Sinc: {format(new Date(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}
+                            </span>
+                        )}
+                        <Button onClick={handleFullSync} disabled={isSyncing}>
+                            {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                            Sincronizar ERP
+                        </Button>
+                    </div>
+                  )}
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {visibleTools.map((tool) => (

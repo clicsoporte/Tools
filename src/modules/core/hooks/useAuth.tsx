@@ -8,7 +8,7 @@
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import type { User, Role, Company, Product, StockInfo, Customer } from "../types";
 import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
-import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock } from '../lib/db';
+import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAndCacheExchangeRate } from '../lib/db';
 
 /**
  * Defines the shape of the authentication context's value.
@@ -20,8 +20,10 @@ interface AuthContextType {
   customers: Customer[];
   products: Product[];
   stockLevels: StockInfo[];
+  exchangeRateData: { rate: number | null, date: string | null };
   isLoading: boolean;
   refreshAuth: () => Promise<void>;
+  refreshExchangeRate: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,18 +41,25 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
+  const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null, date: string | null }>({ rate: null, date: null });
   const [isLoading, setIsLoading] = useState(true);
+
+  const refreshExchangeRate = useCallback(async () => {
+    const rateData = await getAndCacheExchangeRate(true);
+    setExchangeRateData(rateData || { rate: null, date: null });
+  }, []);
 
   const loadAuthData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [currentUser, allRoles, companySettings, dbCustomers, dbProducts, dbStock] = await Promise.all([
+      const [currentUser, allRoles, companySettings, dbCustomers, dbProducts, dbStock, rateData] = await Promise.all([
         getCurrentUserClient(),
         getAllRoles(),
         getCompanySettings(),
         getAllCustomers(),
         getAllProducts(),
         getAllStock(),
+        getAndCacheExchangeRate(),
       ]);
 
       setUser(currentUser);
@@ -58,6 +67,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setCustomers(dbCustomers);
       setProducts(dbProducts);
       setStockLevels(dbStock);
+      setExchangeRateData(rateData || { rate: null, date: null });
 
       if (currentUser && allRoles.length > 0) {
         const role = allRoles.find(r => r.id === currentUser.role);
@@ -73,6 +83,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setCustomers([]);
       setProducts([]);
       setStockLevels([]);
+      setExchangeRateData({ rate: null, date: null });
     } finally {
       setIsLoading(false);
     }
@@ -95,8 +106,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     customers,
     products,
     stockLevels,
+    exchangeRateData,
     isLoading,
     refreshAuth: loadAuthData,
+    refreshExchangeRate,
   };
 
   return (
