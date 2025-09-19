@@ -308,6 +308,7 @@ export type PurchaseRequest = {
   purchaseOrder?: string; // Nº Orden de Compra Cliente
   requestDate: string;
   requiredDate: string;
+  arrivalDate?: string;
   receivedDate?: string;
   clientId: string;
   clientName: string;
@@ -364,6 +365,7 @@ export type UpdateRequestStatusPayload = {
     manualSupplier?: string;
     erpOrderNumber?: string;
     deliveredQuantity?: number;
+    arrivalDate?: string;
 };
 
 export type RejectCancellationPayload = {

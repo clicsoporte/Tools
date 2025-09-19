@@ -21,6 +21,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
             purchaseOrder TEXT,
             requestDate TEXT NOT NULL,
             requiredDate TEXT NOT NULL,
+            arrivalDate TEXT,
             receivedDate TEXT,
             clientId TEXT NOT NULL,
             clientName TEXT NOT NULL,
@@ -111,6 +112,10 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
     if (!columns.has('purchaseType')) {
         console.log("MIGRATION (requests.db): Adding purchaseType column to purchase_requests.");
         db.exec(`ALTER TABLE purchase_requests ADD COLUMN purchaseType TEXT DEFAULT 'single'`);
+    }
+    if (!columns.has('arrivalDate')) {
+        console.log("MIGRATION (requests.db): Adding arrivalDate column to purchase_requests.");
+        db.exec(`ALTER TABLE purchase_requests ADD COLUMN arrivalDate TEXT`);
     }
 }
 
@@ -336,7 +341,7 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
 
 export async function updateStatus(payload: UpdateRequestStatusPayload): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
-    const { requestId, status, notes, updatedBy, reopen, manualSupplier, erpOrderNumber, deliveredQuantity } = payload;
+    const { requestId, status, notes, updatedBy, reopen, manualSupplier, erpOrderNumber, deliveredQuantity, arrivalDate } = payload;
 
     const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest | undefined;
     if (!currentRequest) {
@@ -379,6 +384,7 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
                 deliveredQuantity = @deliveredQuantity,
                 receivedInWarehouseBy = @receivedInWarehouseBy,
                 receivedDate = @receivedDate,
+                arrivalDate = @arrivalDate,
                 previousStatus = @previousStatus
             WHERE id = @requestId
         `);
@@ -395,6 +401,7 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
             deliveredQuantity: deliveredQuantity !== undefined ? deliveredQuantity : currentRequest.deliveredQuantity,
             receivedInWarehouseBy: receivedInWarehouseBy !== undefined ? receivedInWarehouseBy : currentRequest.receivedInWarehouseBy,
             receivedDate: receivedDate,
+            arrivalDate: arrivalDate !== undefined ? arrivalDate : currentRequest.arrivalDate,
             previousStatus: previousStatus
         });
         
