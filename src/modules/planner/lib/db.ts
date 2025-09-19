@@ -469,7 +469,7 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 }
 
 
-export async function rejectCancellation(payload: RejectCancellationPayload): Promise<void> {
+export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<void> {
     const db = await connectDb(PLANNER_DB_FILE);
     const { entityId: orderId, notes, updatedBy } = payload;
 

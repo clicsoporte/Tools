@@ -13,7 +13,7 @@ import {
     getOrderHistory as getOrderHistoryServer,
     getSettings,
     saveSettings,
-    rejectCancellation as rejectCancellationServer,
+    rejectCancellationRequest as rejectCancellationServer,
     addNote as addNoteServer,
 } from './db';
 

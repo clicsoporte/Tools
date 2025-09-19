@@ -326,27 +326,21 @@ export const usePlanner = () => {
 
     const filteredOrders = useMemo(() => {
         let ordersToFilter = viewingArchived ? archivedOrders : activeOrders;
-
-        // Apply filters only if not viewing archived and a filter is set
-        if (!viewingArchived) {
-             ordersToFilter = ordersToFilter.filter(order => {
-                const product = products.find(p => p.id === order.productId);
-                const searchMatch = debouncedSearchTerm ? 
-                    order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                    order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                    order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                    order.purchaseOrder?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                    : true;
-                const statusMatch = statusFilter === 'all' || order.status === statusFilter;
-                const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
-                const dateMatch = !dateFilter || !dateFilter.from || (new Date(order.deliveryDate) >= dateFilter.from && new Date(order.deliveryDate) <= (dateFilter.to || dateFilter.from));
-                
-                return searchMatch && statusMatch && classificationMatch && dateMatch;
-            });
-        }
         
-        return ordersToFilter;
-
+        return ordersToFilter.filter(order => {
+            const product = products.find(p => p.id === order.productId);
+            const searchMatch = debouncedSearchTerm ? 
+                order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                order.purchaseOrder?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                : true;
+            const statusMatch = statusFilter === 'all' || order.status === statusFilter;
+            const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
+            const dateMatch = !dateFilter || !dateFilter.from || (new Date(order.deliveryDate) >= dateFilter.from && new Date(order.deliveryDate) <= (dateFilter.to || dateFilter.from));
+            
+            return searchMatch && statusMatch && classificationMatch && dateMatch;
+        });
     }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products, dateFilter]);
 
     const selectors = {

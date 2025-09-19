@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProductionOrder } from '@/modules/core/types';
+import { ProductionOrder, ProductionOrderPriority } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
@@ -214,7 +214,7 @@ export default function PlannerPage() {
                                                     options={selectors.customerOptions}
                                                     onSelect={actions.handleSelectCustomer}
                                                     value={customerSearchTerm}
-                                                    onValueChange={(val) => { actions.setCustomerSearchTerm(val); }}
+                                                    onValueChange={actions.setCustomerSearchTerm}
                                                     placeholder="Buscar cliente..."
                                                     onKeyDown={actions.handleCustomerInputKeyDown}
                                                     open={isCustomerSearchOpen}
@@ -227,7 +227,7 @@ export default function PlannerPage() {
                                                     options={selectors.productOptions}
                                                     onSelect={actions.handleSelectProduct}
                                                     value={productSearchTerm}
-                                                    onValueChange={(val) => { actions.setProductSearchTerm(val); }}
+                                                    onValueChange={actions.setProductSearchTerm}
                                                     placeholder="Buscar producto..."
                                                     onKeyDown={actions.handleProductInputKeyDown}
                                                     open={isProductSearchOpen}
@@ -329,4 +329,3 @@ export default function PlannerPage() {
         </main>
     );
 }
-
