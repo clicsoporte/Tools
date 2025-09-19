@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -140,7 +141,14 @@ export const usePlanner = () => {
         if (isAuthorized) {
             loadInitialData(archivedPage);
         }
-    }, [setTitle, isAuthorized, loadInitialData, archivedPage]);
+    }, [setTitle, isAuthorized, archivedPage]);
+
+    // Recalculate on page change for archived view
+    useEffect(() => {
+        if(viewingArchived) {
+            loadInitialData(archivedPage)
+        }
+    }, [archivedPage, viewingArchived, loadInitialData])
 
     const handleCreateOrder = async () => {
         if (!newOrder.customerId || !newOrder.productId || !newOrder.quantity || !newOrder.deliveryDate || !currentUser) return;
@@ -403,7 +411,6 @@ export const usePlanner = () => {
             stockLevels,
         },
         isAuthorized,
-        isLoading,
     };
 };
 

@@ -196,30 +196,32 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
 export async function getOrders(options: { 
     page?: number; 
     pageSize?: number;
-    filters?: {
-        searchTerm?: string;
-        status?: string;
-        classification?: string;
-        dateRange?: DateRange;
-        productIds?: string[];
-    };
 }): Promise<{ activeOrders: ProductionOrder[], archivedOrders: ProductionOrder[], totalArchivedCount: number }> {
     const db = await connectDb(PLANNER_DB_FILE);
     
-    // Fetch all orders once.
-    const allOrders: ProductionOrder[] = db.prepare(`SELECT * FROM production_orders ORDER BY requestDate DESC`).all() as ProductionOrder[];
-    
+    const { page = 0, pageSize = 50 } = options;
     const settings = await getSettings();
     const finalStatus = settings.useWarehouseReception ? 'received-in-warehouse' : 'completed';
+    const archivedStatuses = `'${finalStatus}', 'canceled'`;
+
+    const activeOrders: ProductionOrder[] = db.prepare(`
+        SELECT * FROM production_orders 
+        WHERE status NOT IN (${archivedStatuses}) 
+        ORDER BY requestDate DESC
+    `).all() as ProductionOrder[];
     
-    const activeOrders = allOrders.filter(o => o.status !== finalStatus && o.status !== 'canceled');
-    const allArchived = allOrders.filter(o => o.status === finalStatus || o.status === 'canceled');
-    
-    const archivedOrders = options.page !== undefined && options.pageSize !== undefined 
-        ? allArchived.slice(options.page * options.pageSize, (options.page + 1) * options.pageSize)
-        : allArchived;
+    const archivedOrders: ProductionOrder[] = db.prepare(`
+        SELECT * FROM production_orders 
+        WHERE status IN (${archivedStatuses}) 
+        ORDER BY requestDate DESC 
+        LIMIT ? OFFSET ?
+    `).all(pageSize, page * pageSize) as ProductionOrder[];
         
-    const totalArchivedCount = allArchived.length;
+    const totalArchivedCount = (db.prepare(`
+        SELECT COUNT(*) as count 
+        FROM production_orders 
+        WHERE status IN (${archivedStatuses})
+    `).get() as { count: number }).count;
 
     return { activeOrders, archivedOrders, totalArchivedCount };
 }
@@ -509,3 +511,4 @@ export async function addNote(payload: NotePayload): Promise<void> {
 
     transaction();
 }
+

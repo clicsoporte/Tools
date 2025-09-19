@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -325,6 +326,160 @@ export default function PlannerPage() {
                     <Button variant="outline" size="sm" onClick={() => actions.setArchivedPage(p => p + 1)} disabled={(state.archivedPage + 1) * state.pageSize >= state.totalArchived}>Siguiente<ChevronRight className="ml-2 h-4 w-4" /></Button>
                 </div>
             )}
+            
+            {/* Dialogs */}
+            <Dialog open={state.isEditOrderDialogOpen} onOpenChange={actions.setEditOrderDialogOpen}>
+                <DialogContent className="sm:max-w-3xl">
+                    <form onSubmit={actions.handleEditOrder}>
+                        <DialogHeader>
+                            <DialogTitle>Editar Orden de Producción - {state.orderToEdit?.consecutive}</DialogTitle>
+                        </DialogHeader>
+                        <ScrollArea className="h-[60vh] md:h-auto">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                                {/* Form fields for editing */}
+                                <div className="space-y-2">
+                                    <Label>Cliente</Label>
+                                    <Input value={state.orderToEdit?.customerName || ''} disabled />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Producto</Label>
+                                    <Input value={state.orderToEdit?.productDescription || ''} disabled />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-order-quantity">Cantidad</Label>
+                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit(prev => prev ? { ...prev, quantity: Number(e.target.value) } : null)} required />
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="edit-order-delivery-date">Fecha de Entrega</Label>
+                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit(prev => prev ? { ...prev, deliveryDate: e.target.value } : null)} required />
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="edit-order-purchase-order">Nº OC Cliente</Label>
+                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit(prev => prev ? { ...prev, purchaseOrder: e.target.value } : null)} />
+                                </div>
+                                <div className="space-y-2 col-span-1 md:col-span-2">
+                                    <Label htmlFor="edit-order-notes">Notas</Label>
+                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit(prev => prev ? { ...prev, notes: e.target.value } : null)} />
+                                </div>
+                            </div>
+                        </ScrollArea>
+                        <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
+                            <Button type="submit" disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Guardar Cambios</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={state.isStatusDialogOpen} onOpenChange={actions.setStatusDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Actualizar Estado de la Orden</DialogTitle>
+                        <DialogDescription>Estás a punto de cambiar el estado a "{state.newStatus ? selectors.statusConfig[state.newStatus]?.label : ''}".</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        {state.newStatus === 'completed' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="status-delivered-quantity">Cantidad Entregada</Label>
+                                <Input id="status-delivered-quantity" type="number" value={state.deliveredQuantity} onChange={(e) => actions.setDeliveredQuantity(e.target.value)} placeholder={`Cantidad solicitada: ${state.orderToUpdate?.quantity.toLocaleString()}`} />
+                            </div>
+                        )}
+                        {state.newStatus === 'received-in-warehouse' && (
+                            <div className="grid grid-cols-2 gap-4">
+                                 <div className="space-y-2">
+                                    <Label htmlFor="status-erp-package">Nº Bulto ERP</Label>
+                                    <Input id="status-erp-package" value={state.erpPackageNumber} onChange={(e) => actions.setErpPackageNumber(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="status-erp-ticket">Nº Boleta ERP</Label>
+                                    <Input id="status-erp-ticket" value={state.erpTicketNumber} onChange={(e) => actions.setErpTicketNumber(e.target.value)} />
+                                </div>
+                            </div>
+                        )}
+                        <div className="space-y-2">
+                            <Label htmlFor="status-notes">Notas (Opcional)</Label>
+                            <Textarea id="status-notes" value={state.statusUpdateNotes} onChange={e => actions.setStatusUpdateNotes(e.target.value)} placeholder="Ej: Aprobado por Gerencia..." />
+                        </div>
+                    </div>
+                     <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                        <Button onClick={actions.handleStatusUpdate} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+             <Dialog open={state.isReopenDialogOpen} onOpenChange={(isOpen) => { actions.setReopenDialogOpen(isOpen); if (!isOpen) { actions.setReopenStep(0); actions.setReopenConfirmationText(''); }}}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive" /> Reabrir Orden Finalizada</DialogTitle>
+                        <DialogDescription>Estás a punto de reabrir la orden {state.orderToUpdate?.consecutive}. Esta acción es irreversible y moverá la orden de nuevo a "Pendiente".</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="reopen-confirm-checkbox" onCheckedChange={(checked) => actions.setReopenStep(checked ? 1 : 0)} />
+                            <Label htmlFor="reopen-confirm-checkbox" className="font-medium text-destructive">Entiendo que esta acción no se puede deshacer.</Label>
+                        </div>
+                        {state.reopenStep > 0 && (
+                            <div className="space-y-2">
+                                <Label htmlFor="reopen-confirmation-text">Para confirmar, escribe "REABRIR" en el campo de abajo:</Label>
+                                <Input id="reopen-confirmation-text" value={state.reopenConfirmationText} onChange={(e) => { actions.setReopenConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'REABRIR') {actions.setReopenStep(2);} else {actions.setReopenStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                        <Button onClick={actions.handleReopenOrder} disabled={state.reopenStep !== 2 || state.reopenConfirmationText !== 'REABRIR' || state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Reabrir Orden</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={state.isHistoryDialogOpen} onOpenChange={actions.setHistoryDialogOpen}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Historial de Cambios - Orden {state.historyOrder?.consecutive}</DialogTitle>
+                        <DialogDescription>Registro de todos los cambios de estado para esta orden.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        {state.isHistoryLoading ? (
+                            <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div>
+                        ) : state.history.length > 0 ? (
+                            <ScrollArea className="h-96">
+                                <Table><TableHeader><TableRow><TableHead>Fecha y Hora</TableHead><TableHead>Estado</TableHead><TableHead>Usuario</TableHead><TableHead>Notas</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {state.history.map(entry => (
+                                            <TableRow key={entry.id}>
+                                                <TableCell>{format(parseISO(entry.timestamp), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
+                                                <TableCell><Badge style={{ backgroundColor: selectors.statusConfig[entry.status]?.color }} className="text-white">{selectors.statusConfig[entry.status]?.label || entry.status}</Badge></TableCell>
+                                                <TableCell>{entry.updatedBy}</TableCell>
+                                                <TableCell>{entry.notes || '-'}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
+                        ) : (
+                            <p className="text-center text-muted-foreground py-8">No hay historial de cambios para esta orden.</p>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={state.isAddNoteDialogOpen} onOpenChange={actions.setAddNoteDialogOpen}>
+                <DialogContent>
+                     <DialogHeader>
+                        <DialogTitle>Añadir Nota a la Orden {state.notePayload?.orderId}</DialogTitle>
+                    </DialogHeader>
+                     <div className="py-4 space-y-2">
+                        <Label htmlFor="add-note-textarea">Nota</Label>
+                        <Textarea id="add-note-textarea" value={state.notePayload?.notes || ''} onChange={e => actions.setNotePayload(prev => prev ? {...prev, notes: e.target.value} : null)} placeholder="Añade aquí una nota o actualización..." />
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                        <Button onClick={actions.handleAddNote} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Añadir Nota</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </main>
     );
 }
+
