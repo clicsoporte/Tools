@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from './useAuth'; // Changed import
+import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 
 type UseAuthorizationReturn = {
@@ -27,15 +27,15 @@ export function useAuthorization(requiredPermissions: string[] = []): UseAuthori
         if (isLoading) return null; // Still loading, no decision yet
         if (!user) return false; // No user, not authorized
         
-        // Admin has all permissions
-        if (user.role === 'admin') return true;
-
         // If no specific permissions are required, just being logged in is enough
         if (requiredPermissions.length === 0) return true;
         
+        // Admin has all permissions
+        if (user.role === 'admin') return true;
+        
         // Check if the user has at least one of the required permissions
         return requiredPermissions.some(p => userPermissions.includes(p));
-    }, [isLoading, user, userRole, requiredPermissions, userPermissions]);
+    }, [isLoading, user, requiredPermissions, userPermissions]);
 
     useEffect(() => {
         if (isAuthorized === false) {

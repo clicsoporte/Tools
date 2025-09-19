@@ -214,7 +214,7 @@ const HaciendaExemptionCard = ({ data }: { data: EnrichedExemptionInfo | null })
 
 
 export default function HaciendaQueryPage() {
-    useAuthorization(['hacienda:query']);
+    const { hasPermission } = useAuthorization(['hacienda:query']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
 
