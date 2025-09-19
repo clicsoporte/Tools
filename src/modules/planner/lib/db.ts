@@ -210,12 +210,15 @@ export async function getOrders(options: {
     const allOrders: ProductionOrder[] = db.prepare(`SELECT * FROM production_orders ORDER BY requestDate DESC`).all() as ProductionOrder[];
     
     const settings = await getSettings();
-    const finalState = settings.useWarehouseReception ? 'received-in-warehouse' : 'completed';
+    const finalStatus = settings.useWarehouseReception ? 'received-in-warehouse' : 'completed';
     
-    const activeOrders = allOrders.filter(o => o.status !== finalState && o.status !== 'canceled');
-    const allArchived = allOrders.filter(o => o.status === finalState || o.status === 'canceled');
+    const activeOrders = allOrders.filter(o => o.status !== finalStatus && o.status !== 'canceled');
+    const allArchived = allOrders.filter(o => o.status === finalStatus || o.status === 'canceled');
     
-    const archivedOrders = allArchived.slice(options.page! * options.pageSize!, (options.page! + 1) * options.pageSize!);
+    const archivedOrders = options.page !== undefined && options.pageSize !== undefined 
+        ? allArchived.slice(options.page * options.pageSize, (options.page + 1) * options.pageSize)
+        : allArchived;
+        
     const totalArchivedCount = allArchived.length;
 
     return { activeOrders, archivedOrders, totalArchivedCount };
@@ -501,7 +504,7 @@ export async function addNote(payload: NotePayload): Promise<void> {
           .run(notes, updatedBy, orderId);
         
         const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, notes);
+        historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Nota agregada: ${notes}`);
     });
 
     transaction();

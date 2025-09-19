@@ -13,7 +13,7 @@ import { isToday, differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'requestedBy' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'> = {
     deliveryDate: new Date().toISOString().split('T')[0],
     customerId: '',
     customerName: '',
@@ -304,6 +304,7 @@ export const usePlanner = () => {
             await addNoteToOrder({ ...notePayload, updatedBy: currentUser.name });
             toast({ title: "Nota Añadida" });
             setAddNoteDialogOpen(false);
+            await loadInitialData();
         } catch(error: any) {
             logError("Failed to add note", { error });
             toast({ title: "Error", variant: "destructive" });
@@ -347,81 +348,6 @@ export const usePlanner = () => {
         });
     }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products, dateFilter]);
 
-    const selectors = {
-        hasPermission,
-        priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
-        statusConfig: dynamicStatusConfig,
-        getDaysRemaining: (order: ProductionOrder) => {
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            if (order.scheduledStartDate && order.scheduledEndDate) {
-                const startDate = parseISO(order.scheduledStartDate); const endDate = parseISO(order.scheduledEndDate);
-                const totalDuration = differenceInCalendarDays(endDate, startDate) + 1;
-                const remainingDays = differenceInCalendarDays(endDate, today);
-                if (remainingDays < 0) return { label: `Atrasado ${Math.abs(remainingDays)}d`, color: 'text-red-600' }
-                const percentageRemaining = totalDuration > 0 ? (remainingDays / totalDuration) : 0;
-                let color = 'text-green-600';
-                if (percentageRemaining <= 0.25) color = 'text-red-600';
-                else if (percentageRemaining <= 0.50) color = 'text-orange-500';
-                return { label: remainingDays === 0 ? `Finaliza Hoy (${totalDuration}d)` : `Faltan ${remainingDays} de ${totalDuration}d`, color: color }
-            }
-            const deliveryDate = parseISO(order.deliveryDate); deliveryDate.setHours(0, 0, 0, 0);
-            const days = differenceInCalendarDays(deliveryDate, today);
-            let color = 'text-green-600'; if (days <= 2) color = 'text-orange-500'; if (days <= 0) color = 'text-red-600';
-            return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
-        },
-        customerOptions,
-        productOptions,
-        classifications,
-        filteredOrders,
-        stockLevels,
-    };
-
-    const actions = {
-        loadInitialData,
-        handleCreateOrder,
-        handleEditOrder,
-        handleSelectProduct,
-        handleSelectCustomer,
-        handleProductInputKeyDown,
-        handleCustomerInputKeyDown,
-        openStatusDialog,
-        handleStatusUpdate,
-        handleDetailUpdate,
-        handleOpenHistory,
-        handleReopenOrder,
-        handleRejectCancellation,
-        openAddNoteDialog,
-        handleAddNote,
-        setNewOrderDialogOpen,
-        setEditOrderDialogOpen,
-        setViewingArchived,
-        setArchivedPage,
-        setPageSize,
-        setNewOrder,
-        setOrderToEdit,
-        setOrderToUpdate,
-        setSearchTerm,
-        setStatusFilter,
-        setClassificationFilter,
-        setDateFilter,
-        setCustomerSearchTerm,
-        setCustomerSearchOpen,
-        setProductSearchTerm,
-        setProductSearchOpen,
-        setStatusDialogOpen,
-        setNewStatus,
-        setStatusUpdateNotes,
-        setDeliveredQuantity,
-        setErpPackageNumber,
-        setErpTicketNumber,
-        setHistoryDialogOpen,
-        setReopenDialogOpen,
-        setReopenStep,
-        setReopenConfirmationText,
-        setAddNoteDialogOpen,
-        setNotePayload,
-    };
-
     return {
         state: {
             isLoading, isSubmitting, isNewOrderDialogOpen, isEditOrderDialogOpen, activeOrders,
@@ -433,9 +359,79 @@ export const usePlanner = () => {
             isHistoryDialogOpen, historyOrder, history, isHistoryLoading, isReopenDialogOpen,
             reopenStep, reopenConfirmationText, isAddNoteDialogOpen, notePayload,
         },
-        actions,
-        refs: {},
-        selectors,
+        actions: {
+            loadInitialData,
+            handleCreateOrder,
+            handleEditOrder,
+            handleSelectProduct,
+            handleSelectCustomer,
+            handleProductInputKeyDown,
+            handleCustomerInputKeyDown,
+            openStatusDialog,
+            handleStatusUpdate,
+            handleDetailUpdate,
+            handleOpenHistory,
+            handleReopenOrder,
+            handleRejectCancellation,
+            openAddNoteDialog,
+            handleAddNote,
+            setNewOrderDialogOpen,
+            setEditOrderDialogOpen,
+            setViewingArchived,
+            setArchivedPage,
+            setPageSize,
+            setNewOrder,
+            setOrderToEdit,
+            setOrderToUpdate,
+            setSearchTerm,
+            setStatusFilter,
+            setClassificationFilter,
+            setDateFilter,
+            setCustomerSearchTerm,
+            setCustomerSearchOpen,
+            setProductSearchTerm,
+            setProductSearchOpen,
+            setStatusDialogOpen,
+            setNewStatus,
+            setStatusUpdateNotes,
+            setDeliveredQuantity,
+            setErpPackageNumber,
+            setErpTicketNumber,
+            setHistoryDialogOpen,
+            setReopenDialogOpen,
+            setReopenStep,
+            setReopenConfirmationText,
+            setAddNoteDialogOpen,
+            setNotePayload,
+        },
+        selectors: {
+            hasPermission,
+            priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
+            statusConfig: dynamicStatusConfig,
+            getDaysRemaining: (order: ProductionOrder) => {
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                if (order.scheduledStartDate && order.scheduledEndDate) {
+                    const startDate = parseISO(order.scheduledStartDate); const endDate = parseISO(order.scheduledEndDate);
+                    const totalDuration = differenceInCalendarDays(endDate, startDate) + 1;
+                    const remainingDays = differenceInCalendarDays(endDate, today);
+                    if (remainingDays < 0) return { label: `Atrasado ${Math.abs(remainingDays)}d`, color: 'text-red-600' }
+                    const percentageRemaining = totalDuration > 0 ? (remainingDays / totalDuration) : 0;
+                    let color = 'text-green-600';
+                    if (percentageRemaining <= 0.25) color = 'text-red-600';
+                    else if (percentageRemaining <= 0.50) color = 'text-orange-500';
+                    return { label: remainingDays === 0 ? `Finaliza Hoy (${totalDuration}d)` : `Faltan ${remainingDays} de ${totalDuration}d`, color: color }
+                }
+                const deliveryDate = parseISO(order.deliveryDate); deliveryDate.setHours(0, 0, 0, 0);
+                const days = differenceInCalendarDays(deliveryDate, today);
+                let color = 'text-green-600'; if (days <= 2) color = 'text-orange-500'; if (days <= 0) color = 'text-red-600';
+                return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
+            },
+            customerOptions,
+            productOptions,
+            classifications,
+            filteredOrders,
+            stockLevels,
+        },
         isAuthorized,
     };
 };
