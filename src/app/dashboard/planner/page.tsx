@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, PlusCircle } from 'lucide-react';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, PlusCircle, MessageSquarePlus } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,7 +23,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ProductionOrder } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Popover as PopoverAddNote } from "@/components/ui/popover"
 
 /**
  * @fileoverview This is the main UI component for the Production Planner page.
@@ -98,11 +97,14 @@ export default function PlannerPage() {
                                 <PopoverContent className="w-56 p-1">
                                     <div className="grid grid-cols-1">
                                         {canEdit && <Button variant="ghost" className="justify-start" onClick={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</Button>}
+                                        <Button variant="ghost" className="justify-start" onClick={() => actions.openAddNoteDialog(order)}><MessageSquarePlus className="mr-2" /> Añadir Nota</Button>
+                                        <Separator />
                                         {canReopen && <Button variant="ghost" className="justify-start text-orange-600" onClick={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }}><Undo2 className="mr-2"/> Reabrir</Button>}
                                         {canApprove && <Button variant="ghost" className="justify-start text-green-600" onClick={() => actions.openStatusDialog(order, 'approved')}><Check className="mr-2"/> Aprobar</Button>}
                                         {canStart && <Button variant="ghost" className="justify-start text-blue-600" onClick={() => actions.openStatusDialog(order, 'in-progress')}><Truck className="mr-2"/> Iniciar Progreso</Button>}
                                         {canComplete && <Button variant="ghost" className="justify-start text-indigo-600" onClick={() => actions.openStatusDialog(order, 'completed')}><PackageCheck className="mr-2"/> Marcar como Completada</Button>}
                                         {canReceive && <Button variant="ghost" className="justify-start text-gray-700" onClick={() => actions.openStatusDialog(order, 'received-in-warehouse')}><PackageCheck className="mr-2"/> Recibir en Bodega</Button>}
+                                        <Separator />
                                         {canRequestCancel && <Button variant="ghost" className="justify-start text-red-600" onClick={() => actions.openStatusDialog(order, 'cancellation-request')}><XCircle className="mr-2"/> Solicitar Cancelación</Button>}
                                         {canApproveCancel && <Button variant="ghost" className="justify-start text-red-600" onClick={() => actions.openStatusDialog(order, 'canceled')}><XCircle className="mr-2"/> Cancelar Orden</Button>}
                                         {canRejectCancellation && <Button variant="ghost" className="justify-start" onClick={() => actions.handleRejectCancellation(order)}><AlertTriangle className="mr-2"/> Rechazar Cancelación</Button>}
@@ -113,7 +115,64 @@ export default function PlannerPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-4 pt-0">
-                    {/* ... content for the order card */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6 text-sm">
+                        <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Estado Actual</p>
+                            <div className="flex items-center gap-2">
+                                <span className={cn("h-3 w-3 rounded-full", selectors.statusConfig[order.status]?.color)}></span>
+                                <span className="font-medium">{selectors.statusConfig[order.status]?.label || order.status}</span>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Prioridad</p>
+                             <Select value={order.priority} onValueChange={(value) => actions.handleDetailUpdate(order.id, { priority: value as ProductionOrderPriority })}>
+                                <SelectTrigger className={cn("h-8 w-32 border-0 focus:ring-0", selectors.priorityConfig[order.priority]?.className)}>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                     {Object.entries(selectors.priorityConfig).map(([key, config]) => (
+                                        <SelectItem key={key} value={key} disabled={!selectors.hasPermission('planner:priority:update')}>{config.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1">
+                             <p className="font-semibold text-muted-foreground">{state.plannerSettings?.assignmentLabel || 'Máquina'}</p>
+                            <Select value={order.machineId || ''} onValueChange={(value) => actions.handleDetailUpdate(order.id, { machineId: value })}>
+                                <SelectTrigger className="h-8 w-40 border-0 focus:ring-0">
+                                    <SelectValue placeholder="Sin Asignar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">Sin Asignar</SelectItem>
+                                    {state.plannerSettings?.machines.map(machine => (
+                                        <SelectItem key={machine.id} value={machine.id} disabled={!selectors.hasPermission('planner:machine:assign')}>{machine.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Fecha Prog.</p>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button size="sm" variant="outline" className="h-8 w-48 justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{order.scheduledStartDate ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}` : 'No programada'}</Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={{ from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined, to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined }} onSelect={(range) => actions.handleDetailUpdate(order.id, { scheduledDateRange: range })} /></PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="font-semibold text-muted-foreground">Fecha Requerida</p>
+                            <div className="flex items-center gap-2">
+                                <span>{format(parseISO(order.deliveryDate), 'dd/MM/yyyy')}</span>
+                                <span className={cn('text-xs font-semibold', daysRemaining.color)}>({daysRemaining.label})</span>
+                            </div>
+                        </div>
+                        <div className="space-y-1"><p className="font-semibold text-muted-foreground">Cant. Solicitada</p><p className="font-bold text-lg">{order.quantity.toLocaleString()}</p></div>
+                        {order.purchaseOrder && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº OC Cliente</p><p>{order.purchaseOrder}</p></div>}
+                        {order.erpPackageNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Bulto</p><p>{order.erpPackageNumber}</p></div>}
+                        {order.erpTicketNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Boleta</p><p>{order.erpTicketNumber}</p></div>}
+                    </div>
+                     {order.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas de la Orden:</p><p className="text-muted-foreground">"{order.notes}"</p></div>)}
+                     {order.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">"{order.lastStatusUpdateNotes}" - <span className="italic">{order.lastStatusUpdateBy}</span></p></div>)}
                 </CardContent>
                 <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
                     <span>Solicitado por: {order.requestedBy} el {format(parseISO(order.requestDate), 'dd/MM/yyyy')}</span>
@@ -153,7 +212,7 @@ export default function PlannerPage() {
                                                 <Label htmlFor="customer-search">Cliente</Label>
                                                 <SearchInput
                                                     options={selectors.customerOptions}
-                                                    onSelect={(value) => actions.handleSelectCustomer(value)}
+                                                    onSelect={actions.handleSelectCustomer}
                                                     value={customerSearchTerm}
                                                     onValueChange={(val) => { actions.setCustomerSearchTerm(val); }}
                                                     placeholder="Buscar cliente..."
@@ -166,7 +225,7 @@ export default function PlannerPage() {
                                                 <Label htmlFor="product-search">Producto</Label>
                                                 <SearchInput
                                                     options={selectors.productOptions}
-                                                    onSelect={(value) => actions.handleSelectProduct(value)}
+                                                    onSelect={actions.handleSelectProduct}
                                                     value={productSearchTerm}
                                                     onValueChange={(val) => { actions.setProductSearchTerm(val); }}
                                                     placeholder="Buscar producto..."
@@ -253,12 +312,12 @@ export default function PlannerPage() {
                     )}
                 </CardContent>
             </Card>
-            <div className="space-y-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {state.isLoading ? (
-                    <div className="space-y-4"><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>
+                    Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-56 w-full" />)
                 ) : selectors.filteredOrders.length > 0 ? (
                     selectors.filteredOrders.map(renderOrderCard)
-                ) : (<div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><div className="flex flex-col items-center gap-2 text-center"><h3 className="text-2xl font-bold tracking-tight">No se encontraron órdenes.</h3><p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda o crea una nueva orden.</p></div></div>)}
+                ) : (<div className="col-span-full flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24"><div className="flex flex-col items-center gap-2 text-center"><h3 className="text-2xl font-bold tracking-tight">No se encontraron órdenes.</h3><p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda o crea una nueva orden.</p></div></div>)}
             </div>
              {viewingArchived && totalArchived > pageSize && (
                  <div className="flex items-center justify-center space-x-2 py-4">
@@ -270,3 +329,4 @@ export default function PlannerPage() {
         </main>
     );
 }
+

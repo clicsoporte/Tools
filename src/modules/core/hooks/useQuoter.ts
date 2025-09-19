@@ -262,9 +262,10 @@ export const useQuoter = () => {
     if (!isMounted) {
       loadInitialData(false);
       // Set default dates on client side to avoid hydration mismatch
-      setQuoteDate(new Date().toISOString().substring(0, 10));
-      setDeliveryDate(new Date().toISOString().substring(0, 16));
-      setValidUntilDate(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
+      const today = new Date();
+      setQuoteDate(today.toISOString().substring(0, 10));
+      setDeliveryDate(today.toISOString().substring(0, 16));
+      setValidUntilDate(new Date(new Date().setDate(today.getDate() + 8)).toISOString().substring(0, 10));
       setIsMounted(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -668,15 +669,16 @@ export const useQuoter = () => {
     setSelectedCustomer(initialQuoteState.selectedCustomer);
     setCustomerDetails(initialQuoteState.customerDetails);
     setDeliveryAddress(initialQuoteState.deliveryAddress);
-    setDeliveryDate(new Date().toISOString().substring(0, 16));
+    const today = new Date();
+    setDeliveryDate(today.toISOString().substring(0, 16));
     setSellerName(currentUser?.name || initialQuoteState.sellerName);
-    setQuoteDate(new Date().toISOString().substring(0, 10));
+    setQuoteDate(today.toISOString().substring(0, 10));
     setPurchaseOrderNumber(initialQuoteState.purchaseOrderNumber);
     setExchangeRate(apiExchangeRate); // Reset to the fetched API rate
     setSellerType("user");
     setPaymentTerms(initialQuoteState.paymentTerms);
     setCreditDays(initialQuoteState.creditDays);
-    setValidUntilDate(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
+    setValidUntilDate(new Date(today.setDate(today.getDate() + 8)).toISOString().substring(0, 10));
     setNotes(initialQuoteState.notes);
     setProductSearchTerm("");
     setCustomerSearchTerm("");
