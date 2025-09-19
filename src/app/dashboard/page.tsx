@@ -17,7 +17,7 @@ import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
 import { importAllDataFromFiles } from "@/modules/core/lib/db";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { cn } from "@/lib/utils";
 
 /**
@@ -104,7 +104,7 @@ export default function DashboardPage() {
   }
   
   const isSyncOld = companyData?.lastSyncTimestamp && companyData?.syncWarningHours ? 
-    (new Date().getTime() - new Date(companyData.lastSyncTimestamp).getTime()) > (companyData.syncWarningHours * 60 * 60 * 1000)
+    (new Date().getTime() - parseISO(companyData.lastSyncTimestamp).getTime()) > (companyData.syncWarningHours * 60 * 60 * 1000)
     : false;
 
   return (
@@ -129,13 +129,13 @@ export default function DashboardPage() {
                   {hasPermission('admin:import:run') && (
                     <div className="flex items-center gap-2">
                         {companyData?.lastSyncTimestamp && (
-                            <span className={cn(
-                                "text-xs text-muted-foreground", 
-                                isSyncOld && "text-red-500 font-medium"
+                            <div className={cn(
+                                "flex items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg", 
+                                isSyncOld && "text-red-500 font-medium border-red-500/50 bg-red-50"
                             )}>
-                                <Clock className="inline h-3 w-3 mr-1" />
-                                Última Sinc: {format(new Date(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}
-                            </span>
+                                <Clock className="h-4 w-4" />
+                                <span>Última Sinc: <strong>{format(parseISO(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}</strong></span>
+                            </div>
                         )}
                         <Button onClick={handleFullSync} disabled={isSyncing}>
                             {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
