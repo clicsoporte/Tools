@@ -9,7 +9,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder } from '@/modules/planner/lib/actions';
 import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload, RejectCancellationPayload } from '@/modules/core/types';
-import { isToday, differenceInCalendarDays, parseISO, format } from 'date-fns';
+import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 
@@ -44,374 +44,385 @@ export const usePlanner = () => {
     const { toast } = useToast();
     const { user: currentUser, companyData: authCompanyData, customers, products, stockLevels: initialStockLevels } = useAuth();
 
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isNewOrderDialogOpen, setNewOrderDialogOpen] = useState(false);
-    const [isEditOrderDialogOpen, setEditOrderDialogOpen] = useState(false);
-    const [activeOrders, setActiveOrders] = useState<ProductionOrder[]>([]);
-    const [archivedOrders, setArchivedOrders] = useState<ProductionOrder[]>([]);
-    const [viewingArchived, setViewingArchived] = useState(false);
-    const [archivedPage, setArchivedPage] = useState(0);
-    const [pageSize, setPageSize] = useState(50);
-    const [totalArchived, setTotalArchived] = useState(0);
-    const [plannerSettings, setPlannerSettings] = useState<PlannerSettings | null>(null);
+    const [state, setState] = useState({
+        isLoading: true,
+        isSubmitting: false,
+        isNewOrderDialogOpen: false,
+        isEditOrderDialogOpen: false,
+        activeOrders: [] as ProductionOrder[],
+        archivedOrders: [] as ProductionOrder[],
+        viewingArchived: false,
+        archivedPage: 0,
+        pageSize: 50,
+        totalArchived: 0,
+        plannerSettings: null as PlannerSettings | null,
+        stockLevels: initialStockLevels || [] as StockInfo[],
+        newOrder: emptyOrder,
+        orderToEdit: null as ProductionOrder | null,
+        searchTerm: "",
+        statusFilter: "all",
+        classificationFilter: "all",
+        dateFilter: undefined as DateRange | undefined,
+        customerSearchTerm: "",
+        isCustomerSearchOpen: false,
+        productSearchTerm: "",
+        isProductSearchOpen: false,
+        isStatusDialogOpen: false,
+        orderToUpdate: null as ProductionOrder | null,
+        newStatus: null as ProductionOrderStatus | null,
+        statusUpdateNotes: "",
+        deliveredQuantity: "" as number | string,
+        erpPackageNumber: "",
+        erpTicketNumber: "",
+        isHistoryDialogOpen: false,
+        historyOrder: null as ProductionOrder | null,
+        history: [] as ProductionOrderHistoryEntry[],
+        isHistoryLoading: false,
+        isReopenDialogOpen: false,
+        reopenStep: 0,
+        reopenConfirmationText: '',
+        dynamicStatusConfig: baseStatusConfig,
+        isAddNoteDialogOpen: false,
+        notePayload: null as { orderId: number; notes: string } | null,
+    });
     
-    const [stockLevels, setStockLevels] = useState<StockInfo[]>(initialStockLevels || []);
+    const [debouncedSearchTerm] = useDebounce(state.searchTerm, authCompanyData?.searchDebounceTime ?? 500);
+    const [debouncedCustomerSearch] = useDebounce(state.customerSearchTerm, authCompanyData?.searchDebounceTime ?? 500);
+    const [debouncedProductSearch] = useDebounce(state.productSearchTerm, authCompanyData?.searchDebounceTime ?? 500);
     
-    const [newOrder, setNewOrder] = useState(emptyOrder);
-    const [orderToEdit, setOrderToEdit] = useState<ProductionOrder | null>(null);
-
-    const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const [classificationFilter, setClassificationFilter] = useState("all");
-    const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
-    const [debouncedSearchTerm] = useDebounce(searchTerm, authCompanyData?.searchDebounceTime ?? 500);
-
-    const [customerSearchTerm, setCustomerSearchTerm] = useState("");
-    const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
-    const [productSearchTerm, setProductSearchTerm] = useState("");
-    const [isProductSearchOpen, setProductSearchOpen] = useState(false);
-    const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, authCompanyData?.searchDebounceTime ?? 500);
-    const [debouncedProductSearch] = useDebounce(productSearchTerm, authCompanyData?.searchDebounceTime ?? 500);
-    
-    const [isStatusDialogOpen, setStatusDialogOpen] = useState(false);
-    const [orderToUpdate, setOrderToUpdate] = useState<ProductionOrder | null>(null);
-    const [newStatus, setNewStatus] = useState<ProductionOrderStatus | null>(null);
-    const [statusUpdateNotes, setStatusUpdateNotes] = useState("");
-    const [deliveredQuantity, setDeliveredQuantity] = useState<number | string>("");
-    const [erpPackageNumber, setErpPackageNumber] = useState("");
-    const [erpTicketNumber, setErpTicketNumber] = useState("");
-    
-    const [isHistoryDialogOpen, setHistoryDialogOpen] = useState(false);
-    const [historyOrder, setHistoryOrder] = useState<ProductionOrder | null>(null);
-    const [history, setHistory] = useState<ProductionOrderHistoryEntry[]>([]);
-    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-
-    const [isReopenDialogOpen, setReopenDialogOpen] = useState(false);
-    const [reopenStep, setReopenStep] = useState(0);
-    const [reopenConfirmationText, setReopenConfirmationText] = useState('');
-    
-    const [dynamicStatusConfig, setDynamicStatusConfig] = useState<{ [key: string]: { label: string, color: string } }>(baseStatusConfig);
-    
-    const [isAddNoteDialogOpen, setAddNoteDialogOpen] = useState(false);
-    const [notePayload, setNotePayload] = useState<{ orderId: number; notes: string } | null>(null);
+    const updateState = (newState: Partial<typeof state>) => {
+        setState(prevState => ({ ...prevState, ...newState }));
+    };
 
     const loadInitialData = useCallback(async (page = 0) => {
-        setIsLoading(true);
+        updateState({ isLoading: true });
         try {
-             const [ settingsData, ordersData ] = await Promise.all([
+            const [ settingsData, ordersData ] = await Promise.all([
                 getPlannerSettings(),
                 getProductionOrders({
-                    page: viewingArchived ? page : undefined,
-                    pageSize: viewingArchived ? pageSize : undefined,
+                    page: state.viewingArchived ? page : undefined,
+                    pageSize: state.viewingArchived ? state.pageSize : undefined,
                 })
             ]);
-
-            setPlannerSettings(settingsData);
-            setStockLevels(initialStockLevels);
-
+            
+            let newDynamicConfig = { ...baseStatusConfig };
             if (settingsData?.customStatuses) {
-                const newConfig: { [key: string]: { label: string, color: string } } = { ...baseStatusConfig };
                 settingsData.customStatuses.forEach(cs => {
                     if (cs.isActive && cs.label) {
-                        newConfig[cs.id as ProductionOrderStatus] = { label: cs.label, color: cs.color };
+                        newDynamicConfig[cs.id as ProductionOrderStatus] = { label: cs.label, color: cs.color };
                     }
                 });
-                setDynamicStatusConfig(newConfig);
             }
-            
+
             const finalStatus = settingsData?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
             const activeFilter = (o: ProductionOrder) => o.status !== finalStatus && o.status !== 'canceled';
 
             const allOrders = [...ordersData.activeOrders, ...ordersData.archivedOrders];
-            setActiveOrders(allOrders.filter(activeFilter));
-            setArchivedOrders(allOrders.filter(o => !activeFilter(o)));
-            setTotalArchived(ordersData.totalArchivedCount);
+
+            updateState({
+                plannerSettings: settingsData,
+                stockLevels: initialStockLevels,
+                dynamicStatusConfig: newDynamicConfig,
+                activeOrders: allOrders.filter(activeFilter),
+                archivedOrders: allOrders.filter(o => !activeFilter(o)),
+                totalArchived: ordersData.totalArchivedCount,
+                isLoading: false,
+            });
 
         } catch (error) {
             logError("Failed to load planner data", { error });
             toast({ title: "Error", description: "No se pudieron cargar los datos del planificador.", variant: "destructive" });
-        } finally {
-            setIsLoading(false);
+            updateState({ isLoading: false });
         }
-    }, [toast, viewingArchived, pageSize, initialStockLevels]);
+    }, [toast, state.viewingArchived, state.pageSize, initialStockLevels]);
     
     useEffect(() => {
         setTitle("Planificador OP");
         if (isAuthorized) {
-            loadInitialData(archivedPage);
+            loadInitialData(state.archivedPage);
         }
-    }, [setTitle, isAuthorized, archivedPage]);
-
-    // Recalculate on page change for archived view
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized]);
+    
     useEffect(() => {
-        if(viewingArchived) {
-            loadInitialData(archivedPage)
+        if (isAuthorized && !state.isLoading) { // Only run if not initial load
+             loadInitialData(state.archivedPage);
         }
-    }, [archivedPage, viewingArchived, loadInitialData])
-
-    const handleCreateOrder = async () => {
-        if (!newOrder.customerId || !newOrder.productId || !newOrder.quantity || !newOrder.deliveryDate || !currentUser) return;
-        setIsSubmitting(true);
-        try {
-            await saveProductionOrder(newOrder, currentUser.name);
-            toast({ title: "Orden Creada" });
-            setNewOrderDialogOpen(false);
-            setNewOrder(emptyOrder);
-            setCustomerSearchTerm('');
-            setProductSearchTerm('');
-            await loadInitialData();
-        } catch (error: any) {
-            logError("Failed to create order", { error });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.archivedPage, state.pageSize, state.viewingArchived]);
     
-    const handleEditOrder = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!orderToEdit || !currentUser) return;
-        setIsSubmitting(true);
-        try {
-            const updated = await updateProductionOrder({ orderId: orderToEdit.id, updatedBy: currentUser.name, ...orderToEdit });
-            setActiveOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
-            setArchivedOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
-            toast({ title: "Orden Actualizada" });
-            setEditOrderDialogOpen(false);
-        } catch (error: any) {
-            logError("Failed to edit order", { error });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-    
-    const openStatusDialog = (order: ProductionOrder, status: ProductionOrderStatus) => {
-        if (plannerSettings?.requireMachineForStart && status === 'in-progress' && !order.machineId) {
-            toast({ title: "Asignación no realizada", description: "Debe asignar una máquina/proceso.", variant: "destructive" });
-            return;
-        }
-        setOrderToUpdate(order);
-        setNewStatus(status);
-        setStatusUpdateNotes(status === 'cancellation-request' ? "" : ".");
-        setDeliveredQuantity(status === 'completed' ? order.quantity : "");
-        setErpPackageNumber("");
-        setErpTicketNumber("");
-        setStatusDialogOpen(true);
-    };
-    
-    const handleStatusUpdate = async () => {
-        if (!orderToUpdate || !newStatus || !currentUser) return;
-        setIsSubmitting(true);
-        try {
-            await updateProductionOrderStatus({ orderId: orderToUpdate.id, status: newStatus, notes: statusUpdateNotes, updatedBy: currentUser.name, deliveredQuantity: newStatus === 'completed' ? Number(deliveredQuantity) : undefined, erpPackageNumber: newStatus === 'received-in-warehouse' ? erpPackageNumber : undefined, erpTicketNumber: newStatus === 'received-in-warehouse' ? erpTicketNumber : undefined, reopen: false });
-            toast({ title: "Estado Actualizado" });
-            setStatusDialogOpen(false);
-            await loadInitialData(archivedPage);
-        } catch (error: any) {
-            logError("Failed to update status", { error });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-    
-    const handleDetailUpdate = async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; scheduledDateRange?: DateRange }) => {
-        if (!currentUser) return;
-        const finalDetails = {
-            ...details,
-            machineId: details.machineId === 'none' ? null : details.machineId
-        }
-        const updated = await updateProductionOrderDetails({ orderId, ...finalDetails, updatedBy: currentUser.name });
-        setActiveOrders(prev => prev.map(o => o.id === orderId ? updated : o));
-        setArchivedOrders(prev => prev.map(o => o.id === orderId ? updated : o));
-    };
-
-    const handleOpenHistory = async (order: ProductionOrder) => {
-        setHistoryOrder(order);
-        setHistoryDialogOpen(true);
-        setIsHistoryLoading(true);
-        try {
-            setHistory(await getOrderHistory(order.id));
-        } catch (error: any) {
-            logError("Failed to get history", { error });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            setIsHistoryLoading(false);
-        }
-    };
-    
-    const handleReopenOrder = async () => {
-        if (!orderToUpdate || !currentUser || reopenStep !== 2 || reopenConfirmationText !== 'REABRIR') return;
-        setIsSubmitting(true);
-        try {
-            await updateProductionOrderStatus({ orderId: orderToUpdate.id, status: 'pending', notes: 'Orden reabierta.', updatedBy: currentUser.name, reopen: true });
-            toast({ title: "Orden Reabierta" });
-            setReopenDialogOpen(false);
-            await loadInitialData();
-        } catch (error: any) {
-            logError("Failed to reopen order", { error });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleRejectCancellation = async (order: ProductionOrder) => {
-        if (!currentUser) return;
-        setIsSubmitting(true);
-        try {
-            await rejectCancellationRequest({ entityId: order.id, notes: 'Solicitud de cancelación rechazada.', updatedBy: currentUser.name });
-            await loadInitialData();
-            toast({ title: 'Solicitud Rechazada' });
-        } catch (error: any) {
-             logError("Failed to reject cancellation", { error });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
-        }
-    }
-    
-    const handleSelectProduct = (value: string) => {
-        setProductSearchOpen(false);
-        const product = products.find(p => p.id === value);
-        if (product) {
-            const stock = stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
-            if (orderToEdit) setOrderToEdit(p => p ? { ...p, productId: product.id, productDescription: product.description, inventory: stock } : null);
-            else setNewOrder(p => ({ ...p, productId: product.id, productDescription: product.description, inventory: stock }));
-            setProductSearchTerm(`[${product.id}] - ${product.description}`);
-        }
-    };
-
-    const handleSelectCustomer = (value: string) => {
-        setCustomerSearchOpen(false);
-        const customer = customers.find(c => c.id === value);
-        if (customer) {
-            if (orderToEdit) setOrderToEdit(p => p ? { ...p, customerId: customer.id, customerName: customer.name } : null);
-            else setNewOrder(p => ({ ...p, customerId: customer.id, customerName: customer.name }));
-            setCustomerSearchTerm(`${customer.id} - ${customer.name}`);
-        }
-    };
-
-    const handleProductInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && customerOptions.length > 0) { e.preventDefault(); handleSelectProduct(productOptions[0].value); }
-    };
-    const handleCustomerInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && productOptions.length > 0) { e.preventDefault(); handleSelectCustomer(customerOptions[0].value); }
-    };
-
-    const openAddNoteDialog = (order: ProductionOrder) => {
-        setNotePayload({ orderId: order.id, notes: '' });
-        setAddNoteDialogOpen(true);
-    };
-
-    const handleAddNote = async () => {
-        if (!notePayload || !notePayload.notes.trim() || !currentUser) return;
-        setIsSubmitting(true);
-        try {
-            await addNoteToOrder({ ...notePayload, updatedBy: currentUser.name });
-            toast({ title: "Nota Añadida" });
-            setAddNoteDialogOpen(false);
-            await loadInitialData();
-        } catch(error: any) {
-            logError("Failed to add note", { error });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const customerOptions = useMemo(() => {
-        if (debouncedCustomerSearch.length < 2) return [];
-        const searchLower = debouncedCustomerSearch.toLowerCase();
-        return customers.filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower)).map(c => ({ value: c.id, label: `${c.id} - ${c.name}` }));
-    }, [customers, debouncedCustomerSearch]);
-    
-    const productOptions = useMemo(() => {
-        if (debouncedProductSearch.length < 2) return [];
-        const searchLower = debouncedProductSearch.toLowerCase();
-        return products.filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower)).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
-    }, [products, debouncedProductSearch]);
-    
-    const classifications = useMemo<string[]>(() => 
-        Array.from(new Set(products.map(p => p.classification).filter(Boolean)))
-    , [products]);
-
-    const filteredOrders = useMemo(() => {
-        let ordersToFilter = viewingArchived ? archivedOrders : activeOrders;
+    const actions = {
+        setNewOrderDialogOpen: (isOpen: boolean) => updateState({ isNewOrderDialogOpen: isOpen }),
+        setEditOrderDialogOpen: (isOpen: boolean) => updateState({ isEditOrderDialogOpen: isOpen }),
+        setViewingArchived: (isArchived: boolean) => updateState({ viewingArchived: isArchived, archivedPage: 0 }),
+        setArchivedPage: (pageUpdate: (page: number) => number) => updateState({ archivedPage: pageUpdate(state.archivedPage) }),
+        setPageSize: (size: number) => updateState({ pageSize: size, archivedPage: 0 }),
+        setNewOrder: (orderUpdate: (order: typeof emptyOrder) => typeof emptyOrder) => updateState({ newOrder: orderUpdate(state.newOrder) }),
+        setOrderToEdit: (order: ProductionOrder | null) => updateState({ orderToEdit: order }),
+        setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
+        setSearchTerm: (term: string) => updateState({ searchTerm: term }),
+        setStatusFilter: (status: string) => updateState({ statusFilter: status }),
+        setClassificationFilter: (filter: string) => updateState({ classificationFilter: filter }),
+        setDateFilter: (range: DateRange | undefined) => updateState({ dateFilter: range }),
+        setCustomerSearchTerm: (term: string) => updateState({ customerSearchTerm: term }),
+        setCustomerSearchOpen: (isOpen: boolean) => updateState({ isCustomerSearchOpen: isOpen }),
+        setProductSearchTerm: (term: string) => updateState({ productSearchTerm: term }),
+        setProductSearchOpen: (isOpen: boolean) => updateState({ isProductSearchOpen: isOpen }),
+        setStatusDialogOpen: (isOpen: boolean) => updateState({ isStatusDialogOpen: isOpen }),
+        setNewStatus: (status: ProductionOrderStatus | null) => updateState({ newStatus: status }),
+        setStatusUpdateNotes: (notes: string) => updateState({ statusUpdateNotes: notes }),
+        setDeliveredQuantity: (qty: number | string) => updateState({ deliveredQuantity: qty }),
+        setErpPackageNumber: (num: string) => updateState({ erpPackageNumber: num }),
+        setErpTicketNumber: (num: string) => updateState({ erpTicketNumber: num }),
+        setHistoryDialogOpen: (isOpen: boolean) => updateState({ isHistoryDialogOpen: isOpen }),
+        setReopenDialogOpen: (isOpen: boolean) => updateState({ isReopenDialogOpen: isOpen }),
+        setReopenStep: (step: number) => updateState({ reopenStep: step }),
+        setReopenConfirmationText: (text: string) => updateState({ reopenConfirmationText: text }),
+        setAddNoteDialogOpen: (isOpen: boolean) => updateState({ isAddNoteDialogOpen: isOpen }),
+        setNotePayload: (payload: { orderId: number; notes: string } | null) => updateState({ notePayload: payload }),
         
-        return ordersToFilter.filter(order => {
-            const product = products.find(p => p.id === order.productId);
-            const searchMatch = debouncedSearchTerm ? 
-                order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                order.purchaseOrder?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                : true;
-            const statusMatch = statusFilter === 'all' || order.status === statusFilter;
-            const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
-            const dateMatch = !dateFilter || !dateFilter.from || (new Date(order.deliveryDate) >= dateFilter.from && new Date(order.deliveryDate) <= (dateFilter.to || dateFilter.from));
+        loadInitialData: () => loadInitialData(state.archivedPage),
+
+        handleCreateOrder: async () => {
+            if (!state.newOrder.customerId || !state.newOrder.productId || !state.newOrder.quantity || !state.newOrder.deliveryDate || !currentUser) return;
+            updateState({ isSubmitting: true });
+            try {
+                await saveProductionOrder(state.newOrder, currentUser.name);
+                toast({ title: "Orden Creada" });
+                updateState({ isNewOrderDialogOpen: false, newOrder: emptyOrder, customerSearchTerm: '', productSearchTerm: '' });
+                await loadInitialData();
+            } catch (error: any) {
+                logError("Failed to create order", { error });
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+
+        handleEditOrder: async (e: React.FormEvent) => {
+            e.preventDefault();
+            if (!state.orderToEdit || !currentUser) return;
+            updateState({ isSubmitting: true });
+            try {
+                const updated = await updateProductionOrder({ orderId: state.orderToEdit.id, updatedBy: currentUser.name, ...state.orderToEdit });
+                const updatedOrders = state.activeOrders.map(o => o.id === updated.id ? updated : o);
+                updateState({ activeOrders: updatedOrders, isEditOrderDialogOpen: false });
+                toast({ title: "Orden Actualizada" });
+            } catch (error: any) {
+                logError("Failed to edit order", { error });
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+
+        openStatusDialog: (order: ProductionOrder, status: ProductionOrderStatus) => {
+            if (state.plannerSettings?.requireMachineForStart && status === 'in-progress' && !order.machineId) {
+                toast({ title: "Asignación no realizada", description: "Debe asignar una máquina/proceso.", variant: "destructive" });
+                return;
+            }
+            updateState({
+                orderToUpdate: order,
+                newStatus: status,
+                statusUpdateNotes: status === 'cancellation-request' ? "" : ".",
+                deliveredQuantity: status === 'completed' ? order.quantity : "",
+                erpPackageNumber: "",
+                erpTicketNumber: "",
+                isStatusDialogOpen: true,
+            });
+        },
+
+        handleStatusUpdate: async () => {
+            if (!state.orderToUpdate || !state.newStatus || !currentUser) return;
+            updateState({ isSubmitting: true });
+            try {
+                await updateProductionOrderStatus({ 
+                    orderId: state.orderToUpdate.id, 
+                    status: state.newStatus, 
+                    notes: state.statusUpdateNotes, 
+                    updatedBy: currentUser.name, 
+                    deliveredQuantity: state.newStatus === 'completed' ? Number(state.deliveredQuantity) : undefined, 
+                    erpPackageNumber: state.newStatus === 'received-in-warehouse' ? state.erpPackageNumber : undefined, 
+                    erpTicketNumber: state.newStatus === 'received-in-warehouse' ? state.erpTicketNumber : undefined, 
+                    reopen: false 
+                });
+                toast({ title: "Estado Actualizado" });
+                updateState({ isStatusDialogOpen: false });
+                await loadInitialData(state.archivedPage);
+            } catch (error: any) {
+                logError("Failed to update status", { error });
+                toast({ title: "Error", variant: "destructive" });
+                await loadInitialData(state.archivedPage);
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+
+        handleDetailUpdate: async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; scheduledDateRange?: DateRange }) => {
+            if (!currentUser) return;
+            const finalDetails = {
+                ...details,
+                machineId: details.machineId === 'none' ? null : details.machineId
+            };
+            const updated = await updateProductionOrderDetails({ orderId, ...finalDetails, updatedBy: currentUser.name });
+            updateState({ 
+                activeOrders: state.activeOrders.map(o => o.id === orderId ? updated : o),
+                archivedOrders: state.archivedOrders.map(o => o.id === orderId ? updated : o)
+            });
+        },
+        
+        handleOpenHistory: async (order: ProductionOrder) => {
+            updateState({ historyOrder: order, isHistoryDialogOpen: true, isHistoryLoading: true });
+            try {
+                updateState({ history: await getOrderHistory(order.id) });
+            } catch (error: any) {
+                logError("Failed to get history", { error });
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isHistoryLoading: false });
+            }
+        },
+        
+        handleReopenOrder: async () => {
+            if (!state.orderToUpdate || !currentUser || state.reopenStep !== 2 || state.reopenConfirmationText !== 'REABRIR') return;
+            updateState({ isSubmitting: true });
+            try {
+                await updateProductionOrderStatus({ orderId: state.orderToUpdate.id, status: 'pending', notes: 'Orden reabierta.', updatedBy: currentUser.name, reopen: true });
+                toast({ title: "Orden Reabierta" });
+                updateState({ isReopenDialogOpen: false });
+                await loadInitialData();
+            } catch (error: any) {
+                logError("Failed to reopen order", { error });
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+
+        handleRejectCancellation: async (order: ProductionOrder) => {
+            if (!currentUser) return;
+            updateState({ isSubmitting: true });
+            try {
+                await rejectCancellationRequest({ entityId: order.id, notes: 'Solicitud de cancelación rechazada.', updatedBy: currentUser.name });
+                await loadInitialData();
+                toast({ title: 'Solicitud Rechazada' });
+            } catch (error: any) {
+                 logError("Failed to reject cancellation", { error });
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+
+        handleSelectProduct: (value: string) => {
+            updateState({ isProductSearchOpen: false });
+            const product = products.find(p => p.id === value);
+            if (product) {
+                const stock = state.stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
+                if (state.orderToEdit) updateState({ orderToEdit: { ...state.orderToEdit, productId: product.id, productDescription: product.description, inventory: stock } });
+                else updateState({ newOrder: { ...state.newOrder, productId: product.id, productDescription: product.description, inventory: stock } });
+                updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
+            }
+        },
+    
+        handleSelectCustomer: (value: string) => {
+            updateState({ isCustomerSearchOpen: false });
+            const customer = customers.find(c => c.id === value);
+            if (customer) {
+                if (state.orderToEdit) updateState({ orderToEdit: { ...state.orderToEdit, customerId: customer.id, customerName: customer.name } });
+                else updateState({ newOrder: { ...state.newOrder, customerId: customer.id, customerName: customer.name } });
+                updateState({ customerSearchTerm: `${customer.id} - ${customer.name}` });
+            }
+        },
+
+        handleProductInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === 'Enter' && selectors.productOptions.length > 0) { e.preventDefault(); actions.handleSelectProduct(selectors.productOptions[0].value); }
+        },
+        handleCustomerInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === 'Enter' && selectors.customerOptions.length > 0) { e.preventDefault(); actions.handleSelectCustomer(selectors.customerOptions[0].value); }
+        },
+        
+        openAddNoteDialog: (order: ProductionOrder) => {
+            updateState({ notePayload: { orderId: order.id, notes: '' }, isAddNoteDialogOpen: true });
+        },
+    
+        handleAddNote: async () => {
+            if (!state.notePayload || !state.notePayload.notes.trim() || !currentUser) return;
+            updateState({ isSubmitting: true });
+            try {
+                await addNoteToOrder({ ...state.notePayload, updatedBy: currentUser.name });
+                toast({ title: "Nota Añadida" });
+                updateState({ isAddNoteDialogOpen: false });
+                await loadInitialData();
+            } catch(error: any) {
+                logError("Failed to add note", { error });
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+    };
+
+    const selectors = {
+        hasPermission,
+        priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
+        statusConfig: state.dynamicStatusConfig,
+        getDaysRemaining: (order: ProductionOrder) => {
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            if (order.scheduledStartDate && order.scheduledEndDate) {
+                const startDate = parseISO(order.scheduledStartDate); const endDate = parseISO(order.scheduledEndDate);
+                const totalDuration = differenceInCalendarDays(endDate, startDate) + 1;
+                const remainingDays = differenceInCalendarDays(endDate, today);
+                if (remainingDays < 0) return { label: `Atrasado ${Math.abs(remainingDays)}d`, color: 'text-red-600' }
+                const percentageRemaining = totalDuration > 0 ? (remainingDays / totalDuration) : 0;
+                let color = 'text-green-600';
+                if (percentageRemaining <= 0.25) color = 'text-red-600';
+                else if (percentageRemaining <= 0.50) color = 'text-orange-500';
+                return { label: remainingDays === 0 ? `Finaliza Hoy (${totalDuration}d)` : `Faltan ${remainingDays} de ${totalDuration}d`, color: color }
+            }
+            const deliveryDate = parseISO(order.deliveryDate); deliveryDate.setHours(0, 0, 0, 0);
+            const days = differenceInCalendarDays(deliveryDate, today);
+            let color = 'text-green-600'; if (days <= 2) color = 'text-orange-500'; if (days <= 0) color = 'text-red-600';
+            return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
+        },
+        customerOptions: useMemo(() => {
+            if (debouncedCustomerSearch.length < 2) return [];
+            const searchLower = debouncedCustomerSearch.toLowerCase();
+            return customers.filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower)).map(c => ({ value: c.id, label: `${c.id} - ${c.name}` }));
+        }, [customers, debouncedCustomerSearch]),
+        productOptions: useMemo(() => {
+            if (debouncedProductSearch.length < 2) return [];
+            const searchLower = debouncedProductSearch.toLowerCase();
+            return products.filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower)).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
+        }, [products, debouncedProductSearch]),
+        classifications: useMemo<string[]>(() => 
+            Array.from(new Set(products.map(p => p.classification).filter(Boolean)))
+        , [products]),
+        filteredOrders: useMemo(() => {
+            let ordersToFilter = state.viewingArchived ? state.archivedOrders : state.activeOrders;
             
-            return searchMatch && statusMatch && classificationMatch && dateMatch;
-        });
-    }, [viewingArchived, activeOrders, archivedOrders, debouncedSearchTerm, statusFilter, classificationFilter, products, dateFilter]);
+            return ordersToFilter.filter(order => {
+                const product = products.find(p => p.id === order.productId);
+                const searchMatch = debouncedSearchTerm ? 
+                    order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                    order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+                    order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                    order.purchaseOrder?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                    : true;
+                const statusMatch = state.statusFilter === 'all' || order.status === state.statusFilter;
+                const classificationMatch = state.classificationFilter === 'all' || (product && product.classification === state.classificationFilter);
+                const dateMatch = !state.dateFilter || !state.dateFilter.from || (new Date(order.deliveryDate) >= state.dateFilter.from && new Date(order.deliveryDate) <= (state.dateFilter.to || state.dateFilter.from));
+                
+                return searchMatch && statusMatch && classificationMatch && dateMatch;
+            });
+        }, [state.viewingArchived, state.activeOrders, state.archivedOrders, debouncedSearchTerm, state.statusFilter, state.classificationFilter, products, state.dateFilter]),
+        stockLevels: state.stockLevels,
+    };
 
     return {
-        state: {
-            isLoading, isSubmitting, isNewOrderDialogOpen, isEditOrderDialogOpen, activeOrders,
-            archivedOrders, viewingArchived, archivedPage, pageSize, totalArchived,
-            plannerSettings, newOrder, orderToEdit, searchTerm, statusFilter,
-            classificationFilter, dateFilter, customerSearchTerm, isCustomerSearchOpen,
-            productSearchTerm, isProductSearchOpen, isStatusDialogOpen, orderToUpdate,
-            newStatus, statusUpdateNotes, deliveredQuantity, erpPackageNumber, erpTicketNumber,
-            isHistoryDialogOpen, historyOrder, history, isHistoryLoading, isReopenDialogOpen,
-            reopenStep, reopenConfirmationText, isAddNoteDialogOpen, notePayload,
-        },
-        actions: {
-            loadInitialData, handleCreateOrder, handleEditOrder, handleSelectProduct,
-            handleSelectCustomer, handleProductInputKeyDown, handleCustomerInputKeyDown,
-            openStatusDialog, handleStatusUpdate, handleDetailUpdate, handleOpenHistory,
-            handleReopenOrder, handleRejectCancellation, openAddNoteDialog, handleAddNote,
-            setNewOrderDialogOpen, setEditOrderDialogOpen, setViewingArchived, setArchivedPage,
-            setPageSize, setNewOrder, setOrderToEdit, setOrderToUpdate, setSearchTerm,
-            setStatusFilter, setClassificationFilter, setDateFilter, setCustomerSearchTerm,
-            setCustomerSearchOpen, setProductSearchTerm, setProductSearchOpen,
-            setStatusDialogOpen, setNewStatus, setStatusUpdateNotes, setDeliveredQuantity,
-            setErpPackageNumber, setErpTicketNumber, setHistoryDialogOpen,
-            setReopenDialogOpen, setReopenStep, setReopenConfirmationText,
-            setAddNoteDialogOpen, setNotePayload,
-        },
-        selectors: {
-            hasPermission,
-            priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
-            statusConfig: dynamicStatusConfig,
-            getDaysRemaining: (order: ProductionOrder) => {
-                const today = new Date(); today.setHours(0, 0, 0, 0);
-                if (order.scheduledStartDate && order.scheduledEndDate) {
-                    const startDate = parseISO(order.scheduledStartDate); const endDate = parseISO(order.scheduledEndDate);
-                    const totalDuration = differenceInCalendarDays(endDate, startDate) + 1;
-                    const remainingDays = differenceInCalendarDays(endDate, today);
-                    if (remainingDays < 0) return { label: `Atrasado ${Math.abs(remainingDays)}d`, color: 'text-red-600' }
-                    const percentageRemaining = totalDuration > 0 ? (remainingDays / totalDuration) : 0;
-                    let color = 'text-green-600';
-                    if (percentageRemaining <= 0.25) color = 'text-red-600';
-                    else if (percentageRemaining <= 0.50) color = 'text-orange-500';
-                    return { label: remainingDays === 0 ? `Finaliza Hoy (${totalDuration}d)` : `Faltan ${remainingDays} de ${totalDuration}d`, color: color }
-                }
-                const deliveryDate = parseISO(order.deliveryDate); deliveryDate.setHours(0, 0, 0, 0);
-                const days = differenceInCalendarDays(deliveryDate, today);
-                let color = 'text-green-600'; if (days <= 2) color = 'text-orange-500'; if (days <= 0) color = 'text-red-600';
-                return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
-            },
-            customerOptions,
-            productOptions,
-            classifications,
-            filteredOrders,
-            stockLevels,
-        },
+        state,
+        actions,
+        selectors,
         isAuthorized,
     };
 };
-
-  

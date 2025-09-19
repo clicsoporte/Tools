@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, PlusCircle, MessageSquarePlus } from 'lucide-react';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, MessageSquarePlus } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,6 +24,7 @@ import { ProductionOrder, ProductionOrderPriority } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 /**
  * @fileoverview This is the main UI component for the Production Planner page.
@@ -36,10 +37,9 @@ export default function PlannerPage() {
         actions,
         selectors,
         isAuthorized,
-        isLoading,
     } = usePlanner();
 
-    if (isAuthorized === null || (isAuthorized && isLoading)) {
+    if (isAuthorized === null || (isAuthorized && state.isLoading)) {
         return (
             <main className="flex-1 p-4 md:p-6">
                 <div className="flex justify-between items-center mb-6">
@@ -81,27 +81,27 @@ export default function PlannerPage() {
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
                              <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
-                            <Popover>
-                                <PopoverTrigger asChild>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-56 p-1">
-                                    <div className="grid grid-cols-1">
-                                        {canEdit && <Button variant="ghost" className="justify-start" onClick={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</Button>}
-                                        <Button variant="ghost" className="justify-start" onClick={() => actions.openAddNoteDialog(order)}><MessageSquarePlus className="mr-2" /> Añadir Nota</Button>
-                                        <Separator />
-                                        {canReopen && <Button variant="ghost" className="justify-start text-orange-600" onClick={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }}><Undo2 className="mr-2"/> Reabrir</Button>}
-                                        {canApprove && <Button variant="ghost" className="justify-start text-green-600" onClick={() => actions.openStatusDialog(order, 'approved')}><Check className="mr-2"/> Aprobar</Button>}
-                                        {canStart && <Button variant="ghost" className="justify-start text-blue-600" onClick={() => actions.openStatusDialog(order, 'in-progress')}><Truck className="mr-2"/> Iniciar Progreso</Button>}
-                                        {canComplete && <Button variant="ghost" className="justify-start text-indigo-600" onClick={() => actions.openStatusDialog(order, 'completed')}><PackageCheck className="mr-2"/> Marcar como Completada</Button>}
-                                        {canReceive && <Button variant="ghost" className="justify-start text-gray-700" onClick={() => actions.openStatusDialog(order, 'received-in-warehouse')}><PackageCheck className="mr-2"/> Recibir en Bodega</Button>}
-                                        <Separator />
-                                        {canRequestCancel && <Button variant="ghost" className="justify-start text-red-600" onClick={() => actions.openStatusDialog(order, 'cancellation-request')}><XCircle className="mr-2"/> Solicitar Cancelación</Button>}
-                                        {canApproveCancel && <Button variant="ghost" className="justify-start text-red-600" onClick={() => actions.openStatusDialog(order, 'canceled')}><XCircle className="mr-2"/> Cancelar Orden</Button>}
-                                        {canRejectCancellation && <Button variant="ghost" className="justify-start" onClick={() => actions.handleRejectCancellation(order)}><AlertTriangle className="mr-2"/> Rechazar Cancelación</Button>}
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                    <DropdownMenuSeparator/>
+                                    {canEdit && <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</DropdownMenuItem>}
+                                    <DropdownMenuItem onSelect={() => actions.openAddNoteDialog(order)}><MessageSquarePlus className="mr-2" /> Añadir Nota</DropdownMenuItem>
+                                    <DropdownMenuSeparator/>
+                                    {canReopen && <DropdownMenuItem onSelect={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
+                                    {canApprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'approved')} className="text-green-600"><Check className="mr-2"/> Aprobar</DropdownMenuItem>}
+                                    {canStart && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Truck className="mr-2"/> Iniciar Progreso</DropdownMenuItem>}
+                                    {canComplete && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'completed')} className="text-indigo-600"><PackageCheck className="mr-2"/> Marcar como Completada</DropdownMenuItem>}
+                                    {canReceive && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'received-in-warehouse')} className="text-gray-700"><PackageCheck className="mr-2"/> Recibir en Bodega</DropdownMenuItem>}
+                                    <DropdownMenuSeparator/>
+                                    {canRequestCancel && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'cancellation-request')} className="text-red-600"><XCircle className="mr-2"/> Solicitar Cancelación</DropdownMenuItem>}
+                                    {canApproveCancel && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'canceled')} className="text-red-600"><XCircle className="mr-2"/> Cancelar Orden</DropdownMenuItem>}
+                                    {canRejectCancellation && <DropdownMenuItem onSelect={() => actions.handleRejectCancellation(order)}><AlertTriangle className="mr-2"/> Rechazar Cancelación</DropdownMenuItem>}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
                 </CardHeader>

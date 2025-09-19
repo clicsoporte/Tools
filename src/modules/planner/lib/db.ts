@@ -204,12 +204,14 @@ export async function getOrders(options: {
     const finalStatus = settings.useWarehouseReception ? 'received-in-warehouse' : 'completed';
     const archivedStatuses = `'${finalStatus}', 'canceled'`;
 
+    // Fetch all active orders
     const activeOrders: ProductionOrder[] = db.prepare(`
         SELECT * FROM production_orders 
         WHERE status NOT IN (${archivedStatuses}) 
         ORDER BY requestDate DESC
     `).all() as ProductionOrder[];
     
+    // Fetch paginated archived orders
     const archivedOrders: ProductionOrder[] = db.prepare(`
         SELECT * FROM production_orders 
         WHERE status IN (${archivedStatuses}) 
@@ -222,6 +224,9 @@ export async function getOrders(options: {
         FROM production_orders 
         WHERE status IN (${archivedStatuses})
     `).get() as { count: number }).count;
+
+    // Combine and return
+    const allOrders = [...activeOrders, ...archivedOrders];
 
     return { activeOrders, archivedOrders, totalArchivedCount };
 }
@@ -511,4 +516,3 @@ export async function addNote(payload: NotePayload): Promise<void> {
 
     transaction();
 }
-
