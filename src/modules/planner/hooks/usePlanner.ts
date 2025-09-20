@@ -162,11 +162,7 @@ export const usePlanner = () => {
             updateState({ newOrder: { ...state.newOrder, ...partialOrder } });
         },
         setOrderToEdit: (partialOrder: Partial<ProductionOrder> | null) => {
-            if (partialOrder === null) {
-                updateState({ orderToEdit: null });
-            } else {
-                updateState({ orderToEdit: { ...(state.orderToEdit as ProductionOrder), ...partialOrder } });
-            }
+            updateState({ orderToEdit: state.orderToEdit ? { ...state.orderToEdit, ...partialOrder } : null });
         },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
@@ -328,8 +324,8 @@ export const usePlanner = () => {
             const product = products.find(p => p.id === value);
             if (product) {
                 const stock = state.stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
-                if (state.orderToEdit) actions.setOrderToEdit({ productId: product.id, productDescription: product.description || '', inventory: stock });
-                else actions.setNewOrder({ productId: product.id, productDescription: product.description || '', inventory: stock });
+                if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, productId: product.id, productDescription: product.description || '', inventory: stock });
+                else actions.setNewOrder({ ...state.newOrder, productId: product.id, productDescription: product.description || '', inventory: stock });
                 updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
             }
         },
@@ -338,8 +334,8 @@ export const usePlanner = () => {
             updateState({ isCustomerSearchOpen: false });
             const customer = customers.find(c => c.id === value);
             if (customer) {
-                if (state.orderToEdit) actions.setOrderToEdit({ customerId: customer.id, customerName: customer.name });
-                else actions.setNewOrder({ customerId: customer.id, customerName: customer.name });
+                if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, customerId: customer.id, customerName: customer.name });
+                else actions.setNewOrder({ ...state.newOrder, customerId: customer.id, customerName: customer.name });
                 updateState({ customerSearchTerm: `${customer.id} - ${customer.name}` });
             }
         },
@@ -359,10 +355,13 @@ export const usePlanner = () => {
             if (!state.notePayload || !state.notePayload.notes.trim() || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
-                await addNoteToOrder({ ...state.notePayload, updatedBy: currentUser.name });
+                const updatedOrder = await addNoteToOrder({ ...state.notePayload, updatedBy: currentUser.name });
                 toast({ title: "Nota Añadida" });
-                updateState({ isAddNoteDialogOpen: false });
-                await loadInitialData();
+                updateState(prevState => ({
+                    isAddNoteDialogOpen: false,
+                    activeOrders: prevState.activeOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o),
+                    archivedOrders: prevState.archivedOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o)
+                }));
             } catch(error: any) {
                 logError("Failed to add note", { error });
                 toast({ title: "Error", variant: "destructive" });

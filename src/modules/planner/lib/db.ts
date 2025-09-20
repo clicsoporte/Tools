@@ -497,7 +497,7 @@ export async function rejectCancellationRequest(payload: RejectCancellationPaylo
     transaction();
 }
 
-export async function addNote(payload: NotePayload): Promise<void> {
+export async function addNote(payload: NotePayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     const { orderId, notes, updatedBy } = payload;
 
@@ -515,4 +515,6 @@ export async function addNote(payload: NotePayload): Promise<void> {
     });
 
     transaction();
+    const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+    return updatedOrder;
 }

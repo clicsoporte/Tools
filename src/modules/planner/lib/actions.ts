@@ -62,6 +62,6 @@ export async function rejectCancellationRequest(payload: RejectCancellationPaylo
     return rejectCancellationServer(payload);
 }
 
-export async function addNoteToOrder(payload: NotePayload): Promise<void> {
+export async function addNoteToOrder(payload: NotePayload): Promise<ProductionOrder> {
     return addNoteServer(payload);
 }
