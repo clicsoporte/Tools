@@ -350,19 +350,19 @@ export default function PlannerPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-order-quantity">Cantidad</Label>
-                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit({ quantity: Number(e.target.value) })} required />
+                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, quantity: Number(e.target.value) })} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-delivery-date">Fecha de Entrega</Label>
-                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit({ deliveryDate: e.target.value })} required />
+                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, deliveryDate: e.target.value })} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-purchase-order">Nº OC Cliente</Label>
-                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit({ purchaseOrder: e.target.value })} />
+                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, purchaseOrder: e.target.value })} />
                                 </div>
                                 <div className="space-y-2 col-span-1 md:col-span-2">
                                     <Label htmlFor="edit-order-notes">Notas</Label>
-                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit({ notes: e.target.value })} />
+                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, notes: e.target.value })} />
                                 </div>
                             </div>
                         </ScrollArea>
