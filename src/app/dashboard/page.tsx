@@ -33,6 +33,7 @@ export default function DashboardPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isRateRefreshing, setIsRateRefreshing] = useState(false);
   const { toast } = useToast();
+  const [isSyncOld, setIsSyncOld] = useState(false);
 
   useEffect(() => {
     setTitle("Panel Principal");
@@ -56,6 +57,13 @@ export default function DashboardPage() {
       setVisibleTools(tools);
     }
   }, [setTitle, user]);
+
+  useEffect(() => {
+    if (companyData?.lastSyncTimestamp && companyData?.syncWarningHours) {
+        const isOld = (new Date().getTime() - parseISO(companyData.lastSyncTimestamp).getTime()) > (companyData.syncWarningHours * 60 * 60 * 1000);
+        setIsSyncOld(isOld);
+    }
+  }, [companyData]);
 
   const handleFullSync = async () => {
     setIsSyncing(true);
@@ -102,10 +110,6 @@ export default function DashboardPage() {
         </main>
     )
   }
-  
-  const isSyncOld = companyData?.lastSyncTimestamp && companyData?.syncWarningHours ? 
-    (new Date().getTime() - parseISO(companyData.lastSyncTimestamp).getTime()) > (companyData.syncWarningHours * 60 * 60 * 1000)
-    : false;
 
   return (
       <main className="flex-1 p-4 md:p-6 lg:p-8">

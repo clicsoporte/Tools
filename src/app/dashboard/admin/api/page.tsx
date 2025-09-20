@@ -61,7 +61,6 @@ export default function ApiSettingsPage() {
   const [apiSettings, setApiSettings] = useState<ApiSettings>(initialApiSettings);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
   const [isLawsLoading, setIsLawsLoading] = useState(true);
-  const [isMounted, setMounted] = useState(false);
   const { setTitle } = usePageTitle();
   
   // State for dialogs
@@ -83,7 +82,6 @@ export default function ApiSettingsPage() {
         }
         setExemptionLaws(savedLawsData);
         setIsLawsLoading(false);
-        setMounted(true);
     }
     if (isAuthorized) {
         fetchSettings();
@@ -151,11 +149,7 @@ export default function ApiSettingsPage() {
       setLawToDelete(null);
   }, [lawToDelete, toast]);
 
-  if (!isAuthorized) {
-    return null;
-  }
-
-  if (!isMounted) {
+  if (isAuthorized === null) {
       return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="mx-auto max-w-2xl space-y-6">
@@ -164,6 +158,10 @@ export default function ApiSettingsPage() {
             </div>
         </main>
       );
+  }
+
+  if (isAuthorized === false) {
+      return null;
   }
 
   return (
