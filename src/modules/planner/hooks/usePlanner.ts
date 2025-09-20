@@ -166,7 +166,7 @@ export const usePlanner = () => {
                 updateState({ orderToEdit: null });
                 return;
             }
-            updateState({ orderToEdit: { ...state.orderToEdit, ...partialOrder } as ProductionOrder});
+            updateState(prevState => ({ orderToEdit: prevState.orderToEdit ? { ...prevState.orderToEdit, ...partialOrder } : null }));
         },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
@@ -215,10 +215,15 @@ export const usePlanner = () => {
 
         handleEditOrder: async (e: React.FormEvent) => {
             e.preventDefault();
-            if (!state.orderToEdit || !currentUser) return;
+            if (!state.orderToEdit || !state.orderToEdit.id || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
-                const updated = await updateProductionOrder({ orderId: state.orderToEdit.id, updatedBy: currentUser.name, ...state.orderToEdit });
+                const payload: UpdateProductionOrderPayload = {
+                    ...state.orderToEdit,
+                    orderId: state.orderToEdit.id,
+                    updatedBy: currentUser.name
+                };
+                const updated = await updateProductionOrder(payload);
                 updateState(prevState => ({
                     activeOrders: prevState.activeOrders.map(o => o.id === updated.id ? updated : o),
                     isEditOrderDialogOpen: false

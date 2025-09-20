@@ -242,7 +242,7 @@ export type ProductionOrder = {
   previousStatus?: ProductionOrderStatus | null;
 };
 
-export type UpdateProductionOrderPayload = Pick<ProductionOrder, 'deliveryDate' | 'customerId' | 'customerName' | 'productId' | 'productDescription' | 'quantity' | 'inventory' | 'notes' | 'purchaseOrder'> & {
+export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy'>> & {
     orderId: number;
     updatedBy: string;
 };
@@ -336,7 +336,7 @@ export type PurchaseRequest = {
   previousStatus?: PurchaseRequestStatus | null;
 };
 
-export type UpdatePurchaseRequestPayload = Pick<PurchaseRequest, 'requiredDate' | 'clientId' | 'clientName' | 'itemId' | 'itemDescription' | 'quantity' | 'unitSalePrice' | 'erpOrderNumber' | 'manualSupplier' | 'route' | 'shippingMethod' | 'purchaseOrder' | 'notes' | 'inventory' | 'priority' | 'purchaseType'> & {
+export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'receivedDate' | 'receivedInWarehouseBy' | 'previousStatus'>> & {
     requestId: number;
     updatedBy: string;
 };
