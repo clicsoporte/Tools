@@ -383,7 +383,8 @@ export const usePlanner = () => {
             try {
                 const updatedOrder = await addNoteToOrder({ ...state.notePayload, updatedBy: currentUser.name });
                 toast({ title: "Nota Añadida" });
-                updateState(prevState => ({
+                setState(prevState => ({
+                    ...prevState,
                     isAddNoteDialogOpen: false,
                     activeOrders: prevState.activeOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o),
                     archivedOrders: prevState.archivedOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o)
