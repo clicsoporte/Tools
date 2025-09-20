@@ -21,6 +21,8 @@ import { SearchInput } from '@/components/ui/search-input';
 import { cn } from '@/lib/utils';
 import { useDebounce } from 'use-debounce';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/modules/core/hooks/useAuth';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ContributorInfoCard = ({ data }: { data: HaciendaContributorInfo | null }) => {
     if (!data) {
@@ -214,14 +216,13 @@ const HaciendaExemptionCard = ({ data }: { data: EnrichedExemptionInfo | null })
 
 
 export default function HaciendaQueryPage() {
-    const { hasPermission } = useAuthorization(['hacienda:query']);
+    useAuthorization(['hacienda:query']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-
-    const [customers, setCustomers] = useState<Customer[]>([]);
+    const { customers, isLoading: isAuthLoading } = useAuth();
+    
     const [exemptions, setExemptions] = useState<Exemption[]>([]);
-    const [isLoadingData, setIsLoadingData] = useState(true);
-
+    
     const [isUnifiedLoading, setIsUnifiedLoading] = useState(false);
     const [unifiedContributorData, setUnifiedContributorData] = useState<HaciendaContributorInfo | null>(null);
     const [unifiedExemptionData, setUnifiedExemptionData] = useState<EnrichedExemptionInfo | null>(null);
@@ -242,18 +243,11 @@ export default function HaciendaQueryPage() {
     useEffect(() => {
         setTitle("Consultas a Hacienda");
         const loadLocalData = async () => {
-            setIsLoadingData(true);
             try {
-                const [customersData, exemptionsData] = await Promise.all([
-                    getAllCustomers(),
-                    getAllExemptions()
-                ]);
-                setCustomers(customersData);
+                const exemptionsData = await getAllExemptions();
                 setExemptions(exemptionsData);
             } catch (error) {
-                toast({ title: "Error de carga", description: "No se pudieron cargar los datos locales de clientes y exoneraciones.", variant: "destructive" });
-            } finally {
-                setIsLoadingData(false);
+                toast({ title: "Error de carga", description: "No se pudieron cargar los datos locales de exoneraciones.", variant: "destructive" });
             }
         };
         loadLocalData();
@@ -354,7 +348,7 @@ export default function HaciendaQueryPage() {
         }
     };
 
-    if (isLoadingData) {
+    if (isAuthLoading) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                  <Card className="max-w-4xl mx-auto">
