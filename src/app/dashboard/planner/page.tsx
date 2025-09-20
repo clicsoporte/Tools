@@ -88,7 +88,7 @@ export default function PlannerPage() {
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                                     <DropdownMenuSeparator/>
-                                    {canEdit && <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditRequestDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</DropdownMenuItem>}
+                                    {canEdit && <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</DropdownMenuItem>}
                                     <DropdownMenuItem onSelect={() => actions.openAddNoteDialog(order)}><MessageSquarePlus className="mr-2" /> Añadir Nota</DropdownMenuItem>
                                     <DropdownMenuSeparator/>
                                     {canReopen && <DropdownMenuItem onSelect={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
@@ -349,19 +349,19 @@ export default function PlannerPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-order-quantity">Cantidad</Label>
-                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => { const value = e.target.value; actions.setOrderToEdit(prev => prev ? { ...prev, quantity: Number(value) } : null);}} required />
+                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => { actions.setOrderToEdit({ ...state.orderToEdit!, quantity: Number(e.target.value) }); }} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-delivery-date">Fecha de Entrega</Label>
-                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => { const value = e.target.value; actions.setOrderToEdit(prev => prev ? { ...prev, deliveryDate: value } : null);}} required />
+                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => { actions.setOrderToEdit({ ...state.orderToEdit!, deliveryDate: e.target.value });}} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-purchase-order">Nº OC Cliente</Label>
-                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => { const value = e.target.value; actions.setOrderToEdit(prev => prev ? { ...prev, purchaseOrder: value } : null);}} />
+                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => { actions.setOrderToEdit({ ...state.orderToEdit!, purchaseOrder: e.target.value });}} />
                                 </div>
                                 <div className="space-y-2 col-span-1 md:col-span-2">
                                     <Label htmlFor="edit-order-notes">Notas</Label>
-                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => { const value = e.target.value; actions.setOrderToEdit(prev => prev ? { ...prev, notes: value } : null);}} />
+                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => { actions.setOrderToEdit({ ...state.orderToEdit!, notes: e.target.value });}} />
                                 </div>
                             </div>
                         </ScrollArea>
@@ -483,7 +483,7 @@ export default function PlannerPage() {
                 </DialogContent>
             </Dialog>
 
-            {state.isSubmitting && (
+            {(state.isSubmitting || state.isLoading) && (
                 <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span>Procesando...</span>
