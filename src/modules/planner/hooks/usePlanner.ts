@@ -12,6 +12,7 @@ import type { Customer, Product, ProductionOrder, ProductionOrderStatus, Product
 import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
+import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 
 const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'> = {
     deliveryDate: new Date().toISOString().split('T')[0],
@@ -164,7 +165,7 @@ export const usePlanner = () => {
             if (partialOrder === null) {
                 updateState({ orderToEdit: null });
             } else {
-                updateState({ orderToEdit: { ...state.orderToEdit!, ...partialOrder } });
+                updateState({ orderToEdit: { ...(state.orderToEdit as ProductionOrder), ...partialOrder } });
             }
         },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
@@ -375,23 +376,34 @@ export const usePlanner = () => {
         hasPermission,
         priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
         statusConfig: state.dynamicStatusConfig,
-        getDaysRemaining: (order: ProductionOrder) => {
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            if (order.scheduledStartDate && order.scheduledEndDate) {
-                const startDate = parseISO(order.scheduledStartDate); const endDate = parseISO(order.scheduledEndDate);
+        getDaysRemaining: (dateStr: string) => getSimpleDaysRemaining(dateStr),
+        getScheduledDaysRemaining: (order: ProductionOrder) => {
+            if (!order.scheduledStartDate || !order.scheduledEndDate) {
+                return { label: 'Sin Programar', color: 'text-gray-500' };
+            }
+            try {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const startDate = parseISO(order.scheduledStartDate);
+                const endDate = parseISO(order.scheduledEndDate);
+                
                 const totalDuration = differenceInCalendarDays(endDate, startDate) + 1;
                 const remainingDays = differenceInCalendarDays(endDate, today);
-                if (remainingDays < 0) return { label: `Atrasado ${Math.abs(remainingDays)}d`, color: 'text-red-600' }
+
+                if (remainingDays < 0) {
+                    return { label: `Atrasado ${Math.abs(remainingDays)}d`, color: 'text-red-600' };
+                }
+                
                 const percentageRemaining = totalDuration > 0 ? (remainingDays / totalDuration) : 0;
                 let color = 'text-green-600';
                 if (percentageRemaining <= 0.25) color = 'text-red-600';
                 else if (percentageRemaining <= 0.50) color = 'text-orange-500';
-                return { label: remainingDays === 0 ? `Finaliza Hoy (${totalDuration}d)` : `Faltan ${remainingDays} de ${totalDuration}d`, color: color }
+
+                return { label: `Faltan ${remainingDays} de ${totalDuration}d`, color };
+            } catch (error) {
+                return { label: 'Fecha inv.', color: 'text-red-600' };
             }
-            const deliveryDate = parseISO(order.deliveryDate); deliveryDate.setHours(0, 0, 0, 0);
-            const days = differenceInCalendarDays(deliveryDate, today);
-            let color = 'text-green-600'; if (days <= 2) color = 'text-orange-500'; if (days <= 0) color = 'text-red-600';
-            return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
         },
         customerOptions: useMemo(() => {
             if (debouncedCustomerSearch.length < 2) return [];

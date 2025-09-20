@@ -69,7 +69,8 @@ export default function PlannerPage() {
         const canReopen = selectors.hasPermission('planner:reopen') && (order.status === finalState || order.status === 'canceled');
         const canRejectCancellation = order.status === 'cancellation-request' && (selectors.hasPermission('planner:status:cancel-approved') || selectors.hasPermission('planner:status:cancel'));
         
-        const daysRemaining = selectors.getDaysRemaining(order);
+        const daysRemaining = selectors.getDaysRemaining(order.deliveryDate);
+        const scheduledDaysRemaining = selectors.getScheduledDaysRemaining(order);
         
         return (
             <Card key={order.id} className="w-full flex flex-col">
@@ -144,12 +145,15 @@ export default function PlannerPage() {
                         </div>
                          <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Fecha Prog.</p>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button size="sm" variant="outline" className="h-8 w-48 justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{order.scheduledStartDate ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}` : 'No programada'}</Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={{ from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined, to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined }} onSelect={(range) => actions.handleDetailUpdate(order.id, { scheduledDateRange: range })} /></PopoverContent>
-                            </Popover>
+                            <div className="flex items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button size="sm" variant="outline" className="h-8 w-48 justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{order.scheduledStartDate ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}` : 'No programada'}</Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={{ from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined, to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined }} onSelect={(range) => actions.handleDetailUpdate(order.id, { scheduledDateRange: range })} /></PopoverContent>
+                                </Popover>
+                                <span className={cn('text-xs font-semibold', scheduledDaysRemaining.color)}>({scheduledDaysRemaining.label})</span>
+                            </div>
                         </div>
                         <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Fecha Requerida</p>
@@ -350,19 +354,19 @@ export default function PlannerPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-order-quantity">Cantidad</Label>
-                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, quantity: Number(e.target.value) })} required />
+                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit({ quantity: Number(e.target.value) })} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-delivery-date">Fecha de Entrega</Label>
-                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, deliveryDate: e.target.value })} required />
+                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit({ deliveryDate: e.target.value })} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-purchase-order">Nº OC Cliente</Label>
-                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, purchaseOrder: e.target.value })} />
+                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit({ purchaseOrder: e.target.value })} />
                                 </div>
                                 <div className="space-y-2 col-span-1 md:col-span-2">
                                     <Label htmlFor="edit-order-notes">Notas</Label>
-                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, notes: e.target.value })} />
+                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit({ notes: e.target.value })} />
                                 </div>
                             </div>
                         </ScrollArea>
@@ -475,7 +479,7 @@ export default function PlannerPage() {
                     </DialogHeader>
                      <div className="py-4 space-y-2">
                         <Label htmlFor="add-note-textarea">Nota</Label>
-                        <Textarea id="add-note-textarea" value={state.notePayload?.notes || ''} onChange={e => actions.setNotePayload(state.notePayload ? { ...state.notePayload, notes: e.target.value } : null)} placeholder="Añade aquí una nota o actualización..." />
+                        <Textarea id="add-note-textarea" value={state.notePayload?.notes || ''} onChange={e => actions.setNotePayload({ ...state.notePayload, notes: e.target.value })} placeholder="Añade aquí una nota o actualización..." />
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
