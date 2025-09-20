@@ -166,7 +166,7 @@ export const usePlanner = () => {
                 updateState({ orderToEdit: null });
                 return;
             }
-            updateState(prevState => ({ orderToEdit: prevState.orderToEdit ? { ...prevState.orderToEdit, ...partialOrder } : null }));
+            setState(prevState => ({ ...prevState, orderToEdit: prevState.orderToEdit ? { ...prevState.orderToEdit, ...partialOrder } : null }));
         },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
