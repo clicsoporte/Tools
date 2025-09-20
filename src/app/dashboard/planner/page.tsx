@@ -25,6 +25,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 
 /**
  * @fileoverview This is the main UI component for the Production Planner page.
@@ -55,7 +57,7 @@ export default function PlannerPage() {
     }
 
     const renderOrderCard = (order: ProductionOrder) => {
-        const canEdit = selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold'].includes(order.status) || selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress'].includes(order.status);
+        const canEdit = (selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold'].includes(order.status)) || (selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress'].includes(order.status));
         const canApprove = selectors.hasPermission('planner:status:approve') && order.status === 'pending';
         const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'approved';
         const canHold = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
@@ -106,7 +108,7 @@ export default function PlannerPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-4 pt-0 flex-grow">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-6 text-sm">
+                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-6 text-sm">
                         <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Estado Actual</p>
                             <div className="flex items-center gap-2">
@@ -349,19 +351,19 @@ export default function PlannerPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-order-quantity">Cantidad</Label>
-                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => { actions.setOrderToEdit({ ...state.orderToEdit!, quantity: Number(e.target.value) }); }} required />
+                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => { if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, quantity: Number(e.target.value) }); }} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-delivery-date">Fecha de Entrega</Label>
-                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => { actions.setOrderToEdit({ ...state.orderToEdit!, deliveryDate: e.target.value });}} required />
+                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => { if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, deliveryDate: e.target.value });}} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-purchase-order">Nº OC Cliente</Label>
-                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => { actions.setOrderToEdit({ ...state.orderToEdit!, purchaseOrder: e.target.value });}} />
+                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => { if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, purchaseOrder: e.target.value });}} />
                                 </div>
                                 <div className="space-y-2 col-span-1 md:col-span-2">
                                     <Label htmlFor="edit-order-notes">Notas</Label>
-                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => { actions.setOrderToEdit({ ...state.orderToEdit!, notes: e.target.value });}} />
+                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => { if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, notes: e.target.value });}} />
                                 </div>
                             </div>
                         </ScrollArea>
