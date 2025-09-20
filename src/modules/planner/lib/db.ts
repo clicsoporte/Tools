@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the planner database.
  */
@@ -293,16 +294,16 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
     }
 
     const changes: string[] = [];
-    if (Number(currentOrder.quantity) !== Number(dataToUpdate.quantity)) {
+    if (dataToUpdate.quantity !== undefined && Number(currentOrder.quantity) !== Number(dataToUpdate.quantity)) {
         changes.push(`Cantidad: de ${currentOrder.quantity} a ${dataToUpdate.quantity}.`);
     }
-    if ((currentOrder.purchaseOrder || '') !== (dataToUpdate.purchaseOrder || '')) {
+    if (dataToUpdate.purchaseOrder !== undefined && (currentOrder.purchaseOrder || '') !== (dataToUpdate.purchaseOrder || '')) {
         changes.push(`Nº OC: de '${currentOrder.purchaseOrder || 'N/A'}' a '${dataToUpdate.purchaseOrder || 'N/A'}'.`);
     }
-    if (currentOrder.deliveryDate !== dataToUpdate.deliveryDate) {
+    if (dataToUpdate.deliveryDate && currentOrder.deliveryDate !== dataToUpdate.deliveryDate) {
         changes.push(`Fecha Entrega: de ${format(parseISO(currentOrder.deliveryDate), 'dd/MM/yy')} a ${format(parseISO(dataToUpdate.deliveryDate), 'dd/MM/yy')}.`);
     }
-     if ((currentOrder.notes || '') !== (dataToUpdate.notes || '')) {
+     if (dataToUpdate.notes !== undefined && (currentOrder.notes || '') !== (dataToUpdate.notes || '')) {
         changes.push(`Notas actualizadas.`);
     }
 
