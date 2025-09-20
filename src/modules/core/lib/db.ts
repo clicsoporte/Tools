@@ -500,7 +500,7 @@ export async function saveExemptionLaws(laws: ExemptionLaw[]): Promise<void> {
         for(const law of lawsToSave) {
             insert.run({
                 ...law,
-                authNumber: law.authNumber || null
+                authNumber: law.authNumber ? String(law.authNumber) : null
             });
         }
     });
@@ -1373,3 +1373,4 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+

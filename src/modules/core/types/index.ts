@@ -204,7 +204,7 @@ export type Exemption = {
 export type ExemptionLaw = {
   docType: string; // e.g., '99' or '03'
   institutionName: string; // e.g., 'Régimen de Zona Franca'
-  authNumber?: string | null; // e.g., '9635', only for specific cases
+  authNumber: string | null; // e.g., '9635', only for specific cases
 };
 
 

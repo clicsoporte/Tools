@@ -300,12 +300,12 @@ export default function ApiSettingsPage() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="authNumber">Nº de Autorización (Opcional)</Label>
+                        <Label htmlFor="authNumber">Nº de Autorización</Label>
                         <Input 
                             id="authNumber" 
                             value={currentLaw?.authNumber || ''}
                             onChange={(e) => setCurrentLaw(prev => prev ? {...prev, authNumber: e.target.value} : null)}
-                            placeholder="Ej: 9635 (usado para casos específicos)"
+                            placeholder="Ej: 9635 (usado para casos especiales)"
                         />
                     </div>
                 </div>
