@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProductionOrder, ProductionOrderPriority } from '@/modules/core/types';
+import { ProductionOrder, ProductionOrderPriority, ProductionOrder as ProductionOrderType } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -88,7 +88,7 @@ export default function PlannerPage() {
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                                     <DropdownMenuSeparator/>
-                                    {canEdit && <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</DropdownMenuItem>}
+                                    {canEdit && <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditRequestDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</DropdownMenuItem>}
                                     <DropdownMenuItem onSelect={() => actions.openAddNoteDialog(order)}><MessageSquarePlus className="mr-2" /> Añadir Nota</DropdownMenuItem>
                                     <DropdownMenuSeparator/>
                                     {canReopen && <DropdownMenuItem onSelect={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
@@ -349,19 +349,19 @@ export default function PlannerPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-order-quantity">Cantidad</Label>
-                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit(prev => prev ? { ...prev, quantity: Number(e.target.value) } : null)} required />
+                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => { const value = e.target.value; actions.setOrderToEdit(prev => prev ? { ...prev, quantity: Number(value) } : null);}} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-delivery-date">Fecha de Entrega</Label>
-                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit(prev => prev ? { ...prev, deliveryDate: e.target.value } : null)} required />
+                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => { const value = e.target.value; actions.setOrderToEdit(prev => prev ? { ...prev, deliveryDate: value } : null);}} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-purchase-order">Nº OC Cliente</Label>
-                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit(prev => prev ? { ...prev, purchaseOrder: e.target.value } : null)} />
+                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => { const value = e.target.value; actions.setOrderToEdit(prev => prev ? { ...prev, purchaseOrder: value } : null);}} />
                                 </div>
                                 <div className="space-y-2 col-span-1 md:col-span-2">
                                     <Label htmlFor="edit-order-notes">Notas</Label>
-                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit(prev => prev ? { ...prev, notes: e.target.value } : null)} />
+                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => { const value = e.target.value; actions.setOrderToEdit(prev => prev ? { ...prev, notes: value } : null);}} />
                                 </div>
                             </div>
                         </ScrollArea>
