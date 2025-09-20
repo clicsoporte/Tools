@@ -519,3 +519,5 @@ export async function addNote(payload: NotePayload): Promise<ProductionOrder> {
     const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
     return updatedOrder;
 }
+
+    
