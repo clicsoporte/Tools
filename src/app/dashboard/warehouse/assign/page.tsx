@@ -406,6 +406,12 @@ export default function AssignInventoryPage() {
                    {warehouseSettings?.enablePhysicalInventoryTracking ? renderAdvancedMode() : renderSimpleMode()}
                 </div>
             </div>
+             {isSubmitting && (
+                <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Procesando...</span>
+                </div>
+            )}
         </main>
     );
 }

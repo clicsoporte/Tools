@@ -178,7 +178,7 @@ export default function PlannerPage() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
                 <h1 className="text-lg font-semibold md:text-2xl">Órdenes de Producción</h1>
                  <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-                    <Button variant="outline" onClick={() => actions.loadInitialData(0)} disabled={state.isLoading}>
+                    <Button variant="outline" onClick={() => actions.loadInitialData()} disabled={state.isLoading}>
                         {state.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
                         Refrescar
                     </Button>
@@ -482,6 +482,13 @@ export default function PlannerPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {state.isSubmitting && (
+                <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Procesando...</span>
+                </div>
+            )}
         </main>
     );
 }
