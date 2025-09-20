@@ -709,17 +709,45 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
     
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) throw new Error("Module not found");
+    
+    const buffer = Buffer.from(await backupFile.arrayBuffer());
 
+    // Validate the backup file in memory first
+    try {
+        const inMemoryDb = new Database(buffer);
+        inMemoryDb.pragma('integrity_check'); // Check if the database is valid
+        inMemoryDb.close();
+    } catch (e: any) {
+        console.error("Backup file is malformed", e.message);
+        throw new Error("El archivo de backup es inválido o está corrupto.");
+    }
+
+    // Close the existing connection if it's open
     if (dbConnections.has(module.dbFile)) {
         dbConnections.get(module.dbFile)!.close();
         dbConnections.delete(module.dbFile);
     }
 
+    // Perform an atomic restore using a temporary file
     const dbPath = path.join(dbDirectory, module.dbFile);
-    const buffer = Buffer.from(await backupFile.arrayBuffer());
-    fs.writeFileSync(dbPath, buffer);
-    await connectDb(module.dbFile); // Reconnect to validate
+    const tempPath = dbPath + '.tmp';
+    
+    try {
+        fs.writeFileSync(tempPath, buffer);
+        fs.renameSync(tempPath, dbPath);
+    } catch (error) {
+        // If anything fails, clean up the temp file if it exists
+        if (fs.existsSync(tempPath)) {
+            fs.unlinkSync(tempPath);
+        }
+        console.error("Atomic restore failed:", error);
+        throw new Error("La restauración falló durante la escritura del archivo.");
+    }
+
+    // Reconnect to the newly restored database to validate it
+    await connectDb(module.dbFile);
 }
+
 
 export async function resetDatabase(moduleId: string): Promise<void> {
     const module = DB_MODULES.find(m => m.id === moduleId);
