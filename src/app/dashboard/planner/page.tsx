@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProductionOrder, ProductionOrderPriority } from '@/modules/core/types';
+import { ProductionOrder, ProductionOrderPriority, NotePayload } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from "@/components/ui/checkbox";
