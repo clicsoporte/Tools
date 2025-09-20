@@ -61,7 +61,7 @@ export async function getAllUsers(): Promise<User[]> {
     }
 }
 
-export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity'>): Promise<User> {
+export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer' | 'phone' | 'whatsapp'>): Promise<User> {
   const db = await connectDb();
   
   const hashedPassword = bcrypt.hashSync(userData.password!, SALT_ROUNDS);
@@ -71,10 +71,14 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
 
   const userToCreate: User = {
     id: nextId,
+    name: userData.name,
+    email: userData.email,
+    password: hashedPassword,
+    role: userData.role,
     avatar: "",
     recentActivity: "Usuario recién creado.",
-    ...userData,
-    password: hashedPassword,
+    phone: "",
+    whatsapp: "",
   };
   
   const stmt = db.prepare(

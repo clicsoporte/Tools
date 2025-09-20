@@ -79,5 +79,5 @@ export async function saveAllUsers(users: User[]): Promise<void> {
  * @returns {Promise<boolean>} True if the password matches the hash.
  */
 export async function comparePasswords(password: string, hash: string): Promise<boolean> {
-    return comparePasswordsServer(password, hash);
+    return await comparePasswordsServer(password, hash);
 }
