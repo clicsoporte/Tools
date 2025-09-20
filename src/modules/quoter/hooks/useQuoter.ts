@@ -395,18 +395,60 @@ export const useQuoter = () => {
 
     try {
         const doc = new jsPDF();
-        const currentQuoteNumber = quoteNumber;
-
-        const formatCurrencyForPdf = (amount: number) => {
-            const prefix = currency === "CRC" ? "CRC " : "$ ";
-            return `${prefix}${amount.toLocaleString("es-CR", {
-                minimumFractionDigits: decimalPlaces,
-                maximumFractionDigits: decimalPlaces,
-            })}`;
+        
+        const addHeader = (doc: jsPDF) => {
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 14;
+            doc.setFontSize(18);
+            doc.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(12);
+            doc.text(`Nº: ${quoteNumber}`, pageWidth - margin, 22, { align: 'right' });
+            doc.setFontSize(10);
+            doc.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, 28, { align: 'right' });
+            doc.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, 34, { align: 'right' });
+            if (purchaseOrderNumber) doc.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, 40, { align: 'right' });
+            let startY = 40;
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text(companyData.name, margin, startY);
+            doc.setFont('helvetica', 'normal');
+            startY += 6;
+            doc.text(`Cédula: ${companyData.taxId}`, margin, startY);
+            startY += 6;
+            const splitAddress = doc.splitTextToSize(companyData.address, 80);
+            doc.text(splitAddress, margin, startY);
+            startY += (splitAddress.length * 5);
+            doc.text(`Tel: ${companyData.phone}`, margin, startY);
+            startY += 6;
+            doc.text(`Email: ${companyData.email}`, margin, startY);
+            let sellerStartY = 46;
+            doc.setFont('helvetica', 'bold');
+            doc.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
+            sellerStartY += 6;
+            doc.setFont('helvetica', 'normal');
+            if (sellerType === 'user' && currentUser) {
+                doc.text(currentUser.name, pageWidth - margin, sellerStartY, { align: 'right' });
+                sellerStartY += 6;
+                if (currentUser.phone) doc.text(`Tel: ${currentUser.phone}`, pageWidth - margin, sellerStartY, { align: 'right' });
+                sellerStartY += 6;
+                if (currentUser.whatsapp) doc.text(`WhatsApp: ${currentUser.whatsapp}`, pageWidth - margin, sellerStartY, { align: 'right' });
+                sellerStartY += 6;
+                doc.text(currentUser.email, pageWidth - margin, sellerStartY, { align: 'right' });
+            } else {
+                doc.text(sellerName, pageWidth - margin, sellerStartY, { align: 'right' });
+            }
         };
 
-        // This is an async function now, to handle logo loading
-        const addContentAndSave = async () => {
+        const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 14;
+            doc.setFontSize(8);
+            doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+        };
+        
+        const addContent = () => {
             addHeader(doc);
             
             autoTable(doc, {
@@ -425,9 +467,9 @@ export const useQuoter = () => {
                 line.quantity,
                 line.product.unit,
                 line.product.cabys,
-                formatCurrencyForPdf(line.price),
+                formatCurrency(line.price),
                 `${(line.tax * 100).toFixed(0)}%`,
-                formatCurrencyForPdf(line.quantity * line.price * (1 + line.tax)),
+                formatCurrency(line.quantity * line.price * (1 + line.tax)),
             ]);
 
             autoTable(doc, {
@@ -473,13 +515,13 @@ export const useQuoter = () => {
             }
 
             doc.setFontSize(10);
-            doc.text(`Subtotal: ${formatCurrencyForPdf(currentTotals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
+            doc.text(`Subtotal: ${formatCurrency(currentTotals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
             bottomContentY +=6;
-            doc.text(`Impuestos: ${formatCurrencyForPdf(currentTotals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
+            doc.text(`Impuestos: ${formatCurrency(currentTotals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
             bottomContentY +=8;
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
-            doc.text(`Total: ${formatCurrencyForPdf(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
+            doc.text(`Total: ${formatCurrency(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
 
             let leftBottomY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
              if (leftBottomY > doc.internal.pageSize.getHeight() - 40) { }
@@ -504,65 +546,13 @@ export const useQuoter = () => {
                 addFooter(doc, i, doc.getNumberOfPages());
             }
             
-            doc.save(`${currentQuoteNumber}.pdf`);
-            toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${currentQuoteNumber} ha sido descargado.` });
-            logInfo(`Cotización generada: ${currentQuoteNumber}`, { customer: selectedCustomer?.name, total: currentTotals.total });
+            doc.save(`${quoteNumber}.pdf`);
+            toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${quoteNumber} ha sido descargado.` });
+            logInfo(`Cotización generada: ${quoteNumber}`, { customer: selectedCustomer?.name, total: currentTotals.total });
             incrementAndSaveQuoteNumber();
         };
 
-        const addHeader = (doc: jsPDF) => {
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 14;
-            doc.setFontSize(18);
-            doc.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(12);
-            doc.text(`Nº: ${currentQuoteNumber}`, pageWidth - margin, 22, { align: 'right' });
-            doc.setFontSize(10);
-            doc.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, 28, { align: 'right' });
-            doc.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, 34, { align: 'right' });
-            if (purchaseOrderNumber) doc.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, 40, { align: 'right' });
-            let startY = 40;
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text(companyData.name, margin, startY);
-            doc.setFont('helvetica', 'normal');
-            startY += 6;
-            doc.text(`Cédula: ${companyData.taxId}`, margin, startY);
-            startY += 6;
-            const splitAddress = doc.splitTextToSize(companyData.address, 80);
-            doc.text(splitAddress, margin, startY);
-            startY += (splitAddress.length * 5);
-            doc.text(`Tel: ${companyData.phone}`, margin, startY);
-            startY += 6;
-            doc.text(`Email: ${companyData.email}`, margin, startY);
-            let sellerStartY = 46;
-            doc.setFont('helvetica', 'bold');
-            doc.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
-            sellerStartY += 6;
-            doc.setFont('helvetica', 'normal');
-            if (sellerType === 'user' && currentUser) {
-                doc.text(currentUser.name, pageWidth - margin, sellerStartY, { align: 'right' });
-                sellerStartY += 6;
-                if (currentUser.phone) doc.text(`Tel: ${currentUser.phone}`, pageWidth - margin, sellerStartY, { align: 'right' });
-                sellerStartY += 6;
-                if (currentUser.whatsapp) doc.text(`WhatsApp: ${currentUser.whatsapp}`, pageWidth - margin, sellerStartY, { align: 'right' });
-                sellerStartY += 6;
-                doc.text(currentUser.email, pageWidth - margin, sellerStartY, { align: 'right' });
-            } else {
-                doc.text(sellerName, pageWidth - margin, sellerStartY, { align: 'right' });
-            }
-        };
-
-        const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 14;
-            doc.setFontSize(8);
-            doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-        };
-        
-        await addContentAndSave();
+        addContent();
 
     } catch (e: any) {
         logError("Error generating PDF", { error: e.message });
