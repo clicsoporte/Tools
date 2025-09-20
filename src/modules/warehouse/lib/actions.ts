@@ -24,7 +24,7 @@ export const getWarehouseSettings = async (): Promise<WarehouseSettings> => getW
 export const saveWarehouseSettings = async (settings: WarehouseSettings): Promise<void> => saveWarehouseSettingsServer(settings);
 export const getLocations = async (): Promise<WarehouseLocation[]> => getLocationsServer();
 export const addLocation = async (location: Omit<WarehouseLocation, 'id'>): Promise<WarehouseLocation> => addLocationServer(location);
-export const updateLocation = async (location: WarehouseLocation): Promise<void> => updateLocationServer(location);
+export const updateLocation = async (location: WarehouseLocation): Promise<WarehouseLocation> => updateLocationServer(location);
 export const deleteLocation = async (id: number): Promise<void> => deleteLocationServer(id);
 export const getInventoryForItem = async (itemId: string): Promise<WarehouseInventoryItem[]> => getInventoryForItemServer(itemId);
 export const logMovement = async (movement: Omit<MovementLog, 'id'|'timestamp'>): Promise<void> => logMovementServer(movement);

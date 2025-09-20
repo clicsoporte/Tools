@@ -161,13 +161,16 @@ export async function addLocation(location: Omit<WarehouseLocation, 'id'>): Prom
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { name, code, type, parentId } = location;
     const info = db.prepare('INSERT INTO locations (name, code, type, parentId) VALUES (?, ?, ?, ?)').run(name, code, type, parentId ?? null);
-    return { ...location, id: info.lastInsertRowid as number };
+    const newLocation = db.prepare('SELECT * FROM locations WHERE id = ?').get(info.lastInsertRowid) as WarehouseLocation;
+    return newLocation;
 }
 
-export async function updateLocation(location: WarehouseLocation): Promise<void> {
+export async function updateLocation(location: WarehouseLocation): Promise<WarehouseLocation> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { id, name, code, type, parentId } = location;
     db.prepare('UPDATE locations SET name = ?, code = ?, type = ?, parentId = ? WHERE id = ?').run(name, code, type, parentId ?? null, id);
+    const updatedLocation = db.prepare('SELECT * FROM locations WHERE id = ?').get(id) as WarehouseLocation;
+    return updatedLocation;
 }
 
 export async function deleteLocation(id: number): Promise<void> {

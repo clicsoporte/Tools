@@ -153,11 +153,11 @@ export const useRequests = () => {
 
         setIsSubmitting(true);
         try {
-            await savePurchaseRequest(requestWithFormattedDate, currentUser.name);
+            const createdRequest = await savePurchaseRequest(requestWithFormattedDate, currentUser.name);
             toast({ title: "Solicitud Creada" });
             setNewRequestDialogOpen(false);
             setNewRequest(emptyRequest);
-            await loadInitialData();
+            setActiveRequests(prev => [createdRequest, ...prev]);
         } catch (error: any) {
             logError("Failed to create request", { error });
             toast({ title: "Error", variant: "destructive" });

@@ -6,7 +6,7 @@
 'use client';
 
 import type { User } from '@/modules/core/types';
-import { getAllUsers as getAllUsersServer, login as loginServer, saveAllUsers as saveAllUsersServer, comparePasswords as comparePasswordsServer } from './auth';
+import { getAllUsers as getAllUsersServer, login as loginServer, saveAllUsers as saveAllUsersServer, comparePasswords as comparePasswordsServer, addUser as addUserServer } from './auth';
 
 const CURRENT_USER_ID_KEY = 'currentUserId';
 
@@ -55,6 +55,10 @@ export async function getCurrentUser(): Promise<User | null> {
  */
 export async function getAllUsers(): Promise<User[]> {
     return getAllUsersServer();
+}
+
+export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity'>): Promise<User> {
+    return addUserServer(userData);
 }
 
 /**

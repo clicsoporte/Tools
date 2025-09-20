@@ -56,7 +56,7 @@ import { logInfo, logWarn, logError } from "../../../../modules/core/lib/logger"
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
-import { getAllUsers, saveAllUsers } from "../../../../modules/core/lib/auth-client";
+import { getAllUsers, saveAllUsers, addUser as addUserAction } from "../../../../modules/core/lib/auth-client";
 import { getAllRoles } from "../../../../modules/core/lib/db";
 import { Separator } from "../../../../components/ui/separator";
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
@@ -160,21 +160,12 @@ export default function UsersPage() {
             return;
         }
         
-        const highestId = users.reduce((maxId, user) => Math.max(user.id, maxId), 0);
-
-        const userToCreate: User = {
-            id: highestId + 1,
-            avatar: "", // Default empty avatar
-            recentActivity: "Usuario recién creado.", // Default activity
-            ...newUser
-        };
-
-        const updatedUsers = [...users, userToCreate];
-        
         try {
-            await handleSaveToDb(updatedUsers);
-            toast({ title: "Usuario Añadido", description: `${userToCreate.name} ha sido añadido al sistema.` });
-            await logInfo("New user added", { user: userToCreate.name, role: userToCreate.role });
+            const addedUser = await addUserAction(newUser);
+            setUsers(prevUsers => [...prevUsers, addedUser]);
+
+            toast({ title: "Usuario Añadido", description: `${addedUser.name} ha sido añadido al sistema.` });
+            await logInfo("New user added", { user: addedUser.name, role: addedUser.role });
             setNewUser(emptyUser);
             setAddUserDialogOpen(false);
             
@@ -205,6 +196,7 @@ export default function UsersPage() {
 
         const updatedUsers = users.map(user => user.id === userToUpdate.id ? userToUpdate : user);
         await handleSaveToDb(updatedUsers);
+        
         toast({ title: "Usuario Actualizado", description: `Los datos de ${currentUserToEdit.name} han sido actualizados.` });
         await logInfo("User profile updated", { user: currentUserToEdit.name });
 

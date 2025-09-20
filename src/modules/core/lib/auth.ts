@@ -61,6 +61,39 @@ export async function getAllUsers(): Promise<User[]> {
     }
 }
 
+export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity'>): Promise<User> {
+  const db = await connectDb();
+  
+  const hashedPassword = bcrypt.hashSync(userData.password!, SALT_ROUNDS);
+
+  const highestIdResult = db.prepare('SELECT MAX(id) as maxId FROM users').get() as { maxId: number | null };
+  const nextId = (highestIdResult.maxId || 0) + 1;
+
+  const userToCreate: User = {
+    id: nextId,
+    avatar: "",
+    recentActivity: "Usuario recién creado.",
+    ...userData,
+    password: hashedPassword,
+  };
+  
+  const stmt = db.prepare(
+    `INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) 
+     VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)`
+  );
+  
+  stmt.run({
+    ...userToCreate,
+    phone: userToCreate.phone || null,
+    whatsapp: userToCreate.whatsapp || null,
+    securityQuestion: userToCreate.securityQuestion || null,
+    securityAnswer: userToCreate.securityAnswer || null,
+  });
+
+  const { password, ...userWithoutPassword } = userToCreate;
+  return userWithoutPassword as User;
+}
+
 /**
  * Saves the entire list of users to the database.
  * This is an "all-or-nothing" operation that replaces all existing users.

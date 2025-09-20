@@ -162,7 +162,11 @@ export const usePlanner = () => {
             updateState({ newOrder: { ...state.newOrder, ...partialOrder } });
         },
         setOrderToEdit: (partialOrder: Partial<ProductionOrder> | null) => {
-            updateState({ orderToEdit: state.orderToEdit ? { ...state.orderToEdit, ...partialOrder } : null });
+            if (!partialOrder) {
+                updateState({ orderToEdit: null });
+                return;
+            }
+            updateState({ orderToEdit: { ...state.orderToEdit, ...partialOrder } as ProductionOrder});
         },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
@@ -192,10 +196,15 @@ export const usePlanner = () => {
             if (!state.newOrder.customerId || !state.newOrder.productId || !state.newOrder.quantity || !state.newOrder.deliveryDate || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
-                await saveProductionOrder(state.newOrder, currentUser.name);
+                const createdOrder = await saveProductionOrder(state.newOrder, currentUser.name);
                 toast({ title: "Orden Creada" });
-                updateState({ isNewOrderDialogOpen: false, newOrder: emptyOrder, customerSearchTerm: '', productSearchTerm: '' });
-                await loadInitialData();
+                updateState(prevState => ({
+                    isNewOrderDialogOpen: false,
+                    newOrder: emptyOrder,
+                    customerSearchTerm: '',
+                    productSearchTerm: '',
+                    activeOrders: [...prevState.activeOrders, createdOrder]
+                }));
             } catch (error: any) {
                 logError("Failed to create order", { error });
                 toast({ title: "Error", variant: "destructive" });
@@ -210,8 +219,10 @@ export const usePlanner = () => {
             updateState({ isSubmitting: true });
             try {
                 const updated = await updateProductionOrder({ orderId: state.orderToEdit.id, updatedBy: currentUser.name, ...state.orderToEdit });
-                const updatedOrders = state.activeOrders.map(o => o.id === updated.id ? updated : o);
-                updateState({ activeOrders: updatedOrders, isEditOrderDialogOpen: false });
+                updateState(prevState => ({
+                    activeOrders: prevState.activeOrders.map(o => o.id === updated.id ? updated : o),
+                    isEditOrderDialogOpen: false
+                }));
                 toast({ title: "Orden Actualizada" });
             } catch (error: any) {
                 logError("Failed to edit order", { error });
@@ -241,7 +252,7 @@ export const usePlanner = () => {
             if (!state.orderToUpdate || !state.newStatus || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
-                await updateProductionOrderStatus({ 
+                const updatedOrder = await updateProductionOrderStatus({ 
                     orderId: state.orderToUpdate.id, 
                     status: state.newStatus, 
                     notes: state.statusUpdateNotes, 
@@ -252,12 +263,19 @@ export const usePlanner = () => {
                     reopen: false 
                 });
                 toast({ title: "Estado Actualizado" });
-                updateState({ isStatusDialogOpen: false });
-                await loadInitialData(state.archivedPage);
+                updateState(prevState => {
+                    const finalStatus = prevState.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
+                    const isArchived = updatedOrder.status === finalStatus || updatedOrder.status === 'canceled';
+
+                    return {
+                        isStatusDialogOpen: false,
+                        activeOrders: isArchived ? prevState.activeOrders.filter(o => o.id !== updatedOrder.id) : prevState.activeOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o),
+                        archivedOrders: isArchived ? [...prevState.archivedOrders, updatedOrder] : prevState.archivedOrders.filter(o => o.id !== updatedOrder.id)
+                    };
+                });
             } catch (error: any) {
                 logError("Failed to update status", { error });
                 toast({ title: "Error", variant: "destructive" });
-                await loadInitialData(state.archivedPage);
             } finally {
                 updateState({ isSubmitting: false });
             }
