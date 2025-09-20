@@ -10,7 +10,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { initialUsers, initialCompany, initialRoles } from './data';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, Warehouse, StockSettings, Location, InventoryItem, SqlConfig, ImportQuery, ItemLocation } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, Warehouse, StockSettings, Location, InventoryItem, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -23,6 +23,8 @@ import { getExchangeRate as fetchExchangeRateFromApi } from './api-actions';
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'public', 'data', 'cabys.csv');
+const UPDATE_BACKUP_DIR = 'update_backups';
+
 
 /**
  * Acts as a registry for all database modules in the application.
@@ -145,8 +147,6 @@ async function checkAndApplyMigrations(db: Database.Database) {
                     }
                 } catch {}
             }
-            // A more complex migration would be needed to remove the 'customer' column,
-            // but for now, we leave it to avoid data loss.
         }
         if (!draftColumns.has('lines')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN lines TEXT;`);
         if (!draftColumns.has('totals')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN totals TEXT;`);
@@ -950,26 +950,6 @@ export async function importData(type: 'customers' | 'products' | 'exemptions' |
     }
 }
 
-export async function addUser(userData: Omit<User, 'id'>): Promise<void> {
-  const db = await connectDb();
-  
-  const hashedPassword = userData.password ? bcrypt.hashSync(userData.password, SALT_ROUNDS) : null;
-  
-  db.prepare(
-    `INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) 
-     VALUES (@name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)`
-  ).run({
-    ...userData,
-    password: hashedPassword,
-    phone: userData.phone || null,
-    whatsapp: userData.whatsapp || null,
-    avatar: userData.avatar || '',
-    recentActivity: userData.recentActivity || 'Usuario recién creado.',
-    securityQuestion: userData.securityQuestion || null,
-    securityAnswer: userData.securityAnswer || null,
-  });
-}
-
 export async function getAllStock(): Promise<StockInfo[]> {
     const db = await connectDb();
     try {
@@ -1072,19 +1052,14 @@ export async function saveStockSettings(settings: StockSettings): Promise<void> 
     }
 }
 
-/**
- * Normalizes a header string by converting to lowercase, removing diacritics, and trimming.
- * @param header The header string to normalize.
- * @returns The normalized header string.
- */
 const normalizeHeader = (header: string): string => {
     if (!header) return '';
     return header
         .toLowerCase()
         .trim()
         .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") // Remove accents
-        .replace(/[^a-z0-9\(\)]/g, ""); // Remove non-alphanumeric characters except parentheses
+        .replace(/[\u0300-\u036f]/g, "") 
+        .replace(/[^a-z0-9\(\)]/g, ""); 
 };
 
 
@@ -1092,13 +1067,12 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
     const parsed = Papa.parse(fileContent, {
         header: true,
         skipEmptyLines: true,
-        delimiter: ';', // Explicitly set the delimiter to semicolon
+        delimiter: ';', 
         transformHeader: (header) => header.trim(),
     });
 
     if (parsed.errors.length > 0) {
         const firstError = parsed.errors[0];
-        // Don't throw for "Too many fields", we can handle that.
         if (firstError.code !== 'TooManyFields' && firstError.code !== 'TooFewFields') {
           throw new Error(`Error al procesar el archivo CSV: ${firstError.message} en la línea ${firstError.row}.`);
         }
@@ -1143,7 +1117,6 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
 
     transaction(parsed.data);
     
-    // Write back the standardized file for future use
     const standardizedData = parsed.data.map((row: any) => ({
         Codigo: row[codeHeader],
         Descripcion: row[descHeader],
@@ -1181,7 +1154,6 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
             results.push({ type: task.type, count: result.count });
         } catch (error) {
             console.error(`Failed to import data for ${task.type}:`, error);
-            // We can decide whether to throw or just log and continue
         }
     }
 
@@ -1244,7 +1216,6 @@ export async function getAndCacheExchangeRate(forceRefresh = false): Promise<{ r
     const db = await connectDb();
     const today = new Date().toISOString().split('T')[0];
 
-    // Clean up old rates
     const sixtyDaysAgo = new Date();
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
     db.prepare(`DELETE FROM exchange_rates WHERE date < ?`).run(sixtyDaysAgo.toISOString().split('T')[0]);
@@ -1256,7 +1227,6 @@ export async function getAndCacheExchangeRate(forceRefresh = false): Promise<{ r
         }
     }
     
-    // If not in cache or forcing refresh, fetch from API
     try {
         const data = await fetchExchangeRateFromApi();
         if (data.error) throw new Error(data.message);
@@ -1271,11 +1241,99 @@ export async function getAndCacheExchangeRate(forceRefresh = false): Promise<{ r
         return null;
     } catch (error) {
         console.error('Failed to fetch and cache exchange rate:', error);
-        // Fallback to the latest available rate in the DB
         const lastRate = db.prepare('SELECT rate, date FROM exchange_rates ORDER BY date DESC LIMIT 1').get() as { rate: number, date: string } | undefined;
         if (lastRate) {
             return { rate: lastRate.rate, date: new Date(lastRate.date).toLocaleDateString('es-CR') };
         }
         return null;
     }
+}
+
+export async function backupAllForUpdate(): Promise<string[]> {
+    const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
+    if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    const timestamp = new Date().toISOString().replace(/:/g, '-');
+    const backedUpFiles: string[] = [];
+
+    for (const module of DB_MODULES) {
+        const dbPath = path.join(dbDirectory, module.dbFile);
+        if (fs.existsSync(dbPath)) {
+            const backupFileName = `backup-${module.id}-${timestamp}.db`;
+            const backupPath = path.join(backupDir, backupFileName);
+            fs.copyFileSync(dbPath, backupPath);
+            backedUpFiles.push(backupFileName);
+        }
+    }
+    return backedUpFiles;
+}
+
+export async function restoreAllFromUpdateBackup(): Promise<string[]> {
+    const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
+    if (!fs.existsSync(backupDir)) {
+        throw new Error("No se encontró el directorio de backups de actualización.");
+    }
+
+    const restoredFiles: string[] = [];
+
+    for (const module of DB_MODULES) {
+        const backupFiles = fs.readdirSync(backupDir)
+            .filter(file => file.startsWith(`backup-${module.id}-`) && file.endsWith('.db'))
+            .sort()
+            .reverse();
+
+        if (backupFiles.length > 0) {
+            const latestBackupFile = backupFiles[0];
+            const backupPath = path.join(backupDir, latestBackupFile);
+            const dbPath = path.join(dbDirectory, module.dbFile);
+
+            if (dbConnections.has(module.dbFile)) {
+                dbConnections.get(module.dbFile)!.close();
+                dbConnections.delete(module.dbFile);
+            }
+
+            fs.copyFileSync(backupPath, dbPath);
+            restoredFiles.push(module.dbFile);
+            await connectDb(module.dbFile);
+        }
+    }
+
+    if (restoredFiles.length === 0) {
+        throw new Error("No se encontraron archivos de backup para restaurar.");
+    }
+
+    return restoredFiles;
+}
+
+export async function listUpdateBackups(): Promise<UpdateBackupInfo[]> {
+    const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
+    if (!fs.existsSync(backupDir)) {
+        return [];
+    }
+
+    const backupInfo: UpdateBackupInfo[] = [];
+
+    for (const module of DB_MODULES) {
+        const backupFiles = fs.readdirSync(backupDir)
+            .filter(file => file.startsWith(`backup-${module.id}-`) && file.endsWith('.db'))
+            .sort()
+            .reverse();
+        
+        if (backupFiles.length > 0) {
+            const latestBackupFile = backupFiles[0];
+            const timestampMatch = latestBackupFile.match(/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z)/);
+            if (timestampMatch) {
+                backupInfo.push({
+                    moduleId: module.id,
+                    moduleName: module.name,
+                    fileName: latestBackupFile,
+                    date: timestampMatch[1],
+                });
+            }
+        }
+    }
+
+    return backupInfo;
 }

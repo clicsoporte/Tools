@@ -533,3 +533,11 @@ export type NotePayload = {
     notes: string;
     updatedBy: string;
 };
+
+// --- Maintenance Types ---
+export type UpdateBackupInfo = {
+    moduleId: string;
+    moduleName: string;
+    fileName: string;
+    date: string;
+};

@@ -25,15 +25,18 @@ import {
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
-import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2 } from "lucide-react";
+import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2, Save, LifeBuoy } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Label } from '../../../../components/ui/label';
 import { Input } from '../../../../components/ui/input';
-import { getDbModules, backupDatabase, restoreDatabase, resetDatabase } from '../../../../modules/core/lib/db';
-import type { DatabaseModule } from '../../../../modules/core/types';
+import { getDbModules, backupDatabase, restoreDatabase, resetDatabase, backupAllForUpdate, restoreAllFromUpdateBackup, listUpdateBackups } from '../../../../modules/core/lib/db';
+import type { DatabaseModule, UpdateBackupInfo } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 
 export default function MaintenancePage() {
@@ -42,28 +45,47 @@ export default function MaintenancePage() {
     const [dbModules, setDbModules] = useState<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]>([]);
     const [selectedModule, setSelectedModule] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [processingAction, setProcessingAction] = useState<string | null>(null);
     const { setTitle } = usePageTitle();
 
     // State for the reset confirmation flow
     const [resetStep, setResetStep] = useState(0);
     const [resetConfirmationText, setResetConfirmationText] = useState('');
 
-    useEffect(() => {
-        setTitle("Mantenimiento del Sistema");
-        const fetchModules = async () => {
-            const modules = await getDbModules();
+    // State for update backups
+    const [updateBackups, setUpdateBackups] = useState<UpdateBackupInfo[]>([]);
+    const [isRestoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+
+
+    const fetchMaintenanceData = useCallback(async () => {
+        setIsProcessing(true);
+        setProcessingAction('load');
+        try {
+            const [modules, backups] = await Promise.all([getDbModules(), listUpdateBackups()]);
             setDbModules(modules);
             if (modules.length > 0) {
                 setSelectedModule(modules[0].id);
             }
-        };
-        fetchModules();
-    }, [setTitle]);
+            setUpdateBackups(backups);
+        } catch(error: any) {
+            logError("Error fetching maintenance data", { error: error.message });
+            toast({ title: "Error", description: "No se pudieron cargar los datos de mantenimiento.", variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
+            setProcessingAction(null);
+        }
+    }, [toast]);
+
+    useEffect(() => {
+        setTitle("Mantenimiento del Sistema");
+        fetchMaintenanceData();
+    }, [setTitle, fetchMaintenanceData]);
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0 && selectedModule) {
             const file = acceptedFiles[0];
             setIsProcessing(true);
+            setProcessingAction(`restore-${selectedModule}`);
             try {
                 const formData = new FormData();
                 formData.append('moduleId', selectedModule);
@@ -85,6 +107,7 @@ export default function MaintenancePage() {
                 await logError(`Error restoring database for module ${selectedModule}`, { error: error.message });
             } finally {
                 setIsProcessing(false);
+                setProcessingAction(null);
             }
         }
     }, [selectedModule, toast]);
@@ -98,6 +121,7 @@ export default function MaintenancePage() {
     const handleBackup = async () => {
         if (!selectedModule) return;
         setIsProcessing(true);
+        setProcessingAction(`backup-${selectedModule}`);
         try {
             const buffer = await backupDatabase(selectedModule);
             const blob = new Blob([new Uint8Array(buffer)], { type: 'application/x-sqlite3' });
@@ -123,12 +147,14 @@ export default function MaintenancePage() {
             await logError(`Error creating backup for module ${selectedModule}`, { error: error.message });
         } finally {
             setIsProcessing(false);
+            setProcessingAction(null);
         }
     }
 
     const handleReset = async () => {
         if (!selectedModule || resetStep !== 2 || resetConfirmationText !== 'RESET') return;
         setIsProcessing(true);
+        setProcessingAction(`reset-${selectedModule}`);
         try {
             await resetDatabase(selectedModule);
             toast({
@@ -146,24 +172,138 @@ export default function MaintenancePage() {
             await logError(`Error resetting module ${selectedModule}`, { error: error.message });
         } finally {
             setIsProcessing(false);
+            setProcessingAction(null);
             setResetStep(0);
             setResetConfirmationText('');
         }
     }
+    
+    const handleFullBackup = async () => {
+        setIsProcessing(true);
+        setProcessingAction('full-backup');
+        try {
+            const backedUpFiles = await backupAllForUpdate();
+            await fetchMaintenanceData();
+            toast({
+                title: "Backup Completo Creado",
+                description: `Se han respaldado ${backedUpFiles.length} bases de datos para la actualización.`
+            });
+            await logInfo("Full backup for update created", { files: backedUpFiles });
+        } catch (error: any) {
+             toast({
+                title: "Error de Backup",
+                description: `No se pudo crear el backup completo. ${error.message}`,
+                variant: "destructive"
+            });
+            await logError(`Error creating full backup`, { error: error.message });
+        } finally {
+            setIsProcessing(false);
+            setProcessingAction(null);
+        }
+    };
+    
+    const handleFullRestore = async () => {
+        setIsProcessing(true);
+        setProcessingAction('full-restore');
+        try {
+            const restoredFiles = await restoreAllFromUpdateBackup();
+            toast({
+                title: "Restauración Completa",
+                description: `Se han restaurado ${restoredFiles.length} bases de datos. La página se recargará.`,
+                duration: 5000,
+            });
+            await logWarn("Full restore from update backup performed", { files: restoredFiles });
+            setTimeout(() => window.location.reload(), 3000);
+        } catch (error: any) {
+             toast({
+                title: "Error de Restauración",
+                description: `No se pudo completar la restauración. ${error.message}`,
+                variant: "destructive"
+            });
+            await logError(`Error performing full restore`, { error: error.message });
+             setIsProcessing(false);
+            setProcessingAction(null);
+        }
+    };
 
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
+
+                 <Card className="border-primary/50">
+                    <CardHeader>
+                        <div className="flex items-center gap-4">
+                            <LifeBuoy className="h-8 w-8 text-primary" />
+                            <div>
+                                <CardTitle>Gestión de Actualizaciones</CardTitle>
+                                <CardDescription>
+                                Herramientas para realizar un backup antes de actualizar y restaurar después.
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-4">
+                            <h3 className="font-semibold">Paso 1: Crear Backup</h3>
+                             <p className="text-sm text-muted-foreground">
+                                Presiona este botón para crear una copia de seguridad de todas las bases de datos en una carpeta especial.
+                            </p>
+                            <Button onClick={handleFullBackup} disabled={isProcessing} className="w-full">
+                                {processingAction === 'full-backup' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
+                                Backup para Actualización
+                            </Button>
+                        </div>
+                        <div className="space-y-4">
+                             <h3 className="font-semibold">Paso 2: Restaurar Backup</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Después de actualizar los archivos de la aplicación, presiona este botón para restaurar los datos desde el último backup.
+                            </p>
+                            {updateBackups.length > 0 ? (
+                                <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                                    {updateBackups.map(b => (
+                                        <li key={b.moduleId}>
+                                            <strong>{b.moduleName}:</strong> {format(parseISO(b.date), "dd/MM/yyyy HH:mm", { locale: es })}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-xs text-center py-4 text-muted-foreground">No hay backups de actualización disponibles.</p>
+                            )}
+
+                             <AlertDialog open={isRestoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" disabled={isProcessing || updateBackups.length === 0} className="w-full">
+                                        {processingAction === 'full-restore' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RotateCcw className="mr-2 h-4 w-4" />}
+                                        Restaurar Último Backup
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Confirmar Restauración?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta acción reemplazará todas las bases de datos actuales con los datos del último backup. Esta acción no se puede deshacer.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleFullRestore}>Sí, restaurar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader>
-                        <CardTitle>Seleccionar Módulo de Base de Datos</CardTitle>
+                        <CardTitle>Mantenimiento por Módulo</CardTitle>
                         <CardDescription>
-                            Elige sobre qué módulo o herramienta deseas realizar la operación. Cada herramienta principal tiene su propia base de datos.
+                            Elige sobre qué módulo o herramienta deseas realizar la operación individual.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <Select value={selectedModule} onValueChange={setSelectedModule}>
+                         <Select value={selectedModule} onValueChange={setSelectedModule} disabled={isProcessing}>
                             <SelectTrigger className="w-[280px]">
                                 <SelectValue placeholder="Selecciona un módulo..." />
                             </SelectTrigger>
@@ -186,7 +326,7 @@ export default function MaintenancePage() {
                         </CardHeader>
                         <CardFooter>
                             <Button onClick={handleBackup} disabled={!selectedModule || isProcessing}>
-                                <DatabaseBackup className="mr-2 h-4 w-4" />
+                                {processingAction === `backup-${selectedModule}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <DatabaseBackup className="mr-2 h-4 w-4" />}
                                 Descargar Copia de Seguridad
                             </Button>
                         </CardFooter>
@@ -225,7 +365,7 @@ export default function MaintenancePage() {
                     <CardContent className="space-y-4">
                        <h3 className="font-semibold">Resetear Módulo a Estado de Fábrica</h3>
                        <p className="text-sm text-muted-foreground">
-                           Esto borrará todos los datos del módulo seleccionado ({dbModules.find(m => m.id === selectedModule)?.name}) y lo restaurará a su estado inicial, incluyendo usuarios, roles y configuraciones por defecto.
+                           Esto borrará todos los datos del módulo seleccionado ({dbModules.find(m => m.id === selectedModule)?.name}) y lo restaurará a su estado inicial.
                        </p>
                         {resetStep > 0 && (
                             <div className="space-y-4 rounded-lg border bg-background p-4">
@@ -245,7 +385,7 @@ export default function MaintenancePage() {
                                         <Input
                                             id="reset-text"
                                             value={resetConfirmationText}
-                                            onChange={(e) => setResetConfirmationText(e.target.value)}
+                                            onChange={(e) => setResetConfirmationText(e.target.value.toUpperCase())}
                                             className="border-destructive focus-visible:ring-destructive"
                                         />
                                     </div>
@@ -265,7 +405,7 @@ export default function MaintenancePage() {
                                 onClick={handleReset} 
                                 disabled={resetStep !== 2 || resetConfirmationText !== 'RESET' || isProcessing}
                             >
-                                <RotateCcw className="mr-2 h-4 w-4" />
+                                {processingAction === `reset-${selectedModule}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RotateCcw className="mr-2 h-4 w-4" />}
                                 Resetear Módulo Ahora
                             </Button>
                          )}
