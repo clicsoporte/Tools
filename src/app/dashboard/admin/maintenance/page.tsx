@@ -34,7 +34,7 @@ import { Input } from '../../../../components/ui/input';
 import { getDbModules, backupDatabase, restoreDatabase, resetDatabase, backupAllForUpdate, restoreAllFromUpdateBackup, listUpdateBackups } from '../../../../modules/core/lib/db';
 import type { DatabaseModule, UpdateBackupInfo } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
