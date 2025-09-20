@@ -7,7 +7,6 @@ import { usePlanner } from '@/modules/planner/hooks/usePlanner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProductionOrder, ProductionOrderPriority, ProductionOrder as ProductionOrderType } from '@/modules/core/types';
+import { ProductionOrder, ProductionOrderPriority } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -229,15 +228,15 @@ export default function PlannerPage() {
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-purchase-order">Nº Orden de Compra (Opcional)</Label>
-                                                <Input id="new-order-purchase-order" placeholder="Ej: OC-12345" value={state.newOrder.purchaseOrder || ''} onChange={(e) => actions.setNewOrder(prev => ({ ...prev, purchaseOrder: e.target.value }))} />
+                                                <Input id="new-order-purchase-order" placeholder="Ej: OC-12345" value={state.newOrder.purchaseOrder || ''} onChange={(e) => actions.setNewOrder({ purchaseOrder: e.target.value })} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-quantity">Cantidad Solicitada</Label>
-                                                <Input id="new-order-quantity" type="number" placeholder="0.00" value={state.newOrder.quantity || ''} onChange={e => actions.setNewOrder(prev => ({ ...prev, quantity: Number(e.target.value) }))} required />
+                                                <Input id="new-order-quantity" type="number" placeholder="0.00" value={state.newOrder.quantity || ''} onChange={e => actions.setNewOrder({ quantity: Number(e.target.value) })} required />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-inventory">Inventario Actual (Manual)</Label>
-                                                <Input id="new-order-inventory" type="number" placeholder="0.00" value={state.newOrder.inventory || ''} onChange={e => actions.setNewOrder(prev => ({ ...prev, inventory: Number(e.target.value) }))} />
+                                                <Input id="new-order-inventory" type="number" placeholder="0.00" value={state.newOrder.inventory || ''} onChange={e => actions.setNewOrder({ inventory: Number(e.target.value) })} />
                                             </div>
                                              <div className="space-y-2">
                                                 <Label htmlFor="new-order-inventory-erp">Inventario Actual (ERP)</Label>
@@ -245,11 +244,11 @@ export default function PlannerPage() {
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-delivery-date">Fecha de Entrega Requerida</Label>
-                                                <Input id="new-order-delivery-date" type="date" value={state.newOrder.deliveryDate} onChange={e => actions.setNewOrder(prev => ({ ...prev, deliveryDate: e.target.value }))} required />
+                                                <Input id="new-order-delivery-date" type="date" value={state.newOrder.deliveryDate} onChange={e => actions.setNewOrder({ deliveryDate: e.target.value })} required />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-priority">Prioridad</Label>
-                                                <Select value={state.newOrder.priority} onValueChange={(value: typeof state.newOrder.priority) => actions.setNewOrder(prev => ({...prev, priority: value}))}>
+                                                <Select value={state.newOrder.priority} onValueChange={(value: typeof state.newOrder.priority) => actions.setNewOrder({priority: value})}>
                                                     <SelectTrigger id="new-order-priority"><SelectValue placeholder="Seleccione una prioridad" /></SelectTrigger>
                                                     <SelectContent>
                                                         {Object.entries(selectors.priorityConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}
@@ -258,7 +257,7 @@ export default function PlannerPage() {
                                             </div>
                                             <div className="space-y-2 col-span-1 md:col-span-2">
                                                 <Label htmlFor="new-order-notes">Notas Adicionales</Label>
-                                                <Textarea id="new-order-notes" placeholder="Instrucciones especiales, detalles del pedido, etc." value={state.newOrder.notes || ''} onChange={e => actions.setNewOrder(prev => ({ ...prev, notes: e.target.value }))} />
+                                                <Textarea id="new-order-notes" placeholder="Instrucciones especiales, detalles del pedido, etc." value={state.newOrder.notes || ''} onChange={e => actions.setNewOrder({ notes: e.target.value })} />
                                             </div>
                                         </div>
                                     </ScrollArea>
@@ -351,19 +350,19 @@ export default function PlannerPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-order-quantity">Cantidad</Label>
-                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit(state.orderToEdit ? { ...state.orderToEdit, quantity: Number(e.target.value) } : null)} required />
+                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit({ quantity: Number(e.target.value) })} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-delivery-date">Fecha de Entrega</Label>
-                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit(state.orderToEdit ? { ...state.orderToEdit, deliveryDate: e.target.value } : null)} required />
+                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit({ deliveryDate: e.target.value })} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-purchase-order">Nº OC Cliente</Label>
-                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit(state.orderToEdit ? { ...state.orderToEdit, purchaseOrder: e.target.value } : null)} />
+                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit({ purchaseOrder: e.target.value })} />
                                 </div>
                                 <div className="space-y-2 col-span-1 md:col-span-2">
                                     <Label htmlFor="edit-order-notes">Notas</Label>
-                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit(state.orderToEdit ? { ...state.orderToEdit, notes: e.target.value } : null)} />
+                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit({ notes: e.target.value })} />
                                 </div>
                             </div>
                         </ScrollArea>

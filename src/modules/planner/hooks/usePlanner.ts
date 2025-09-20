@@ -157,8 +157,16 @@ export const usePlanner = () => {
         setViewingArchived: (isArchived: boolean) => updateState({ viewingArchived: isArchived, archivedPage: 0 }),
         setArchivedPage: (pageUpdate: (page: number) => number) => updateState({ archivedPage: pageUpdate(state.archivedPage) }),
         setPageSize: (size: number) => updateState({ pageSize: size, archivedPage: 0 }),
-        setNewOrder: (orderUpdate: (order: typeof emptyOrder) => typeof emptyOrder) => updateState({ newOrder: orderUpdate(state.newOrder) }),
-        setOrderToEdit: (order: ProductionOrder | null) => updateState({ orderToEdit: order }),
+        setNewOrder: (partialOrder: Partial<typeof emptyOrder>) => {
+            updateState({ newOrder: { ...state.newOrder, ...partialOrder } });
+        },
+        setOrderToEdit: (partialOrder: Partial<ProductionOrder> | null) => {
+            if (partialOrder === null) {
+                updateState({ orderToEdit: null });
+            } else {
+                updateState({ orderToEdit: { ...state.orderToEdit!, ...partialOrder } });
+            }
+        },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
         setStatusFilter: (status: string) => updateState({ statusFilter: status }),
@@ -319,8 +327,8 @@ export const usePlanner = () => {
             const product = products.find(p => p.id === value);
             if (product) {
                 const stock = state.stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
-                if (state.orderToEdit) updateState({ orderToEdit: { ...state.orderToEdit, productId: product.id, productDescription: product.description, inventory: stock } });
-                else updateState({ newOrder: { ...state.newOrder, productId: product.id, productDescription: product.description, inventory: stock } });
+                if (state.orderToEdit) actions.setOrderToEdit({ productId: product.id, productDescription: product.description || '', inventory: stock });
+                else actions.setNewOrder({ productId: product.id, productDescription: product.description || '', inventory: stock });
                 updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
             }
         },
@@ -329,8 +337,8 @@ export const usePlanner = () => {
             updateState({ isCustomerSearchOpen: false });
             const customer = customers.find(c => c.id === value);
             if (customer) {
-                if (state.orderToEdit) updateState({ orderToEdit: { ...state.orderToEdit, customerId: customer.id, customerName: customer.name } });
-                else updateState({ newOrder: { ...state.newOrder, customerId: customer.id, customerName: customer.name } });
+                if (state.orderToEdit) actions.setOrderToEdit({ customerId: customer.id, customerName: customer.name });
+                else actions.setNewOrder({ customerId: customer.id, customerName: customer.name });
                 updateState({ customerSearchTerm: `${customer.id} - ${customer.name}` });
             }
         },
