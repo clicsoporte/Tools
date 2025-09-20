@@ -198,7 +198,8 @@ export const usePlanner = () => {
             try {
                 const createdOrder = await saveProductionOrder(state.newOrder, currentUser.name);
                 toast({ title: "Orden Creada" });
-                updateState(prevState => ({
+                setState(prevState => ({
+                    ...prevState,
                     isNewOrderDialogOpen: false,
                     newOrder: emptyOrder,
                     customerSearchTerm: '',
@@ -215,7 +216,7 @@ export const usePlanner = () => {
 
         handleEditOrder: async (e: React.FormEvent) => {
             e.preventDefault();
-            if (!state.orderToEdit || !state.orderToEdit.id || !currentUser) return;
+            if (!state.orderToEdit?.id || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
                 const payload: UpdateProductionOrderPayload = {
