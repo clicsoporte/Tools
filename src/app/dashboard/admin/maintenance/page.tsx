@@ -256,6 +256,8 @@ export default function MaintenancePage() {
         }
     };
 
+    const oldBackupsCount = totalBackupCount - dbModules.length > 0 ? totalBackupCount - dbModules.length : 0;
+
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -328,9 +330,9 @@ export default function MaintenancePage() {
                      <CardFooter className="border-t pt-4">
                         <AlertDialog open={isClearBackupsConfirmOpen} onOpenChange={setClearBackupsConfirmOpen}>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="outline" disabled={isProcessing || totalBackupCount <= dbModules.length} className="w-full sm:w-auto">
+                                    <Button variant="outline" disabled={isProcessing || oldBackupsCount === 0} className="w-full sm:w-auto">
                                         {processingAction === 'clear-backups' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <TrashIcon className="mr-2 h-4 w-4" />}
-                                        Limpiar Backups Antiguos
+                                        Limpiar {oldBackupsCount > 0 ? `${oldBackupsCount} Backups` : 'Backups'} Antiguos
                                     </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
