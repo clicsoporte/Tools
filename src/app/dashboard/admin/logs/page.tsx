@@ -15,9 +15,8 @@ import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 
 export default function LogViewerPage() {
-  useAuthorization(['admin:logs:read', 'admin:logs:clear']);
+  const { isAuthorized } = useAuthorization(['admin:logs:read', 'admin:logs:clear']);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [mounted, setMounted] = useState(false);
   const { setTitle } = usePageTitle();
 
   const fetchLogs = async () => {
@@ -27,9 +26,10 @@ export default function LogViewerPage() {
 
   useEffect(() => {
     setTitle("Visor de Eventos");
-    fetchLogs();
-    setMounted(true);
-  }, [setTitle]);
+    if (isAuthorized) {
+        fetchLogs();
+    }
+  }, [setTitle, isAuthorized]);
 
   const handleClearLogs = async () => {
     await logWarn("System logs cleared by an administrator.");
@@ -45,7 +45,7 @@ export default function LogViewerPage() {
     }
   };
   
-  if (!mounted) {
+  if (!isAuthorized) {
     return null; // or a skeleton loader
   }
 

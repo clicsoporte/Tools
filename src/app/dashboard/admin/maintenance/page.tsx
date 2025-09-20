@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview System maintenance page for administrators.
  * This page provides critical, high-risk functionalities such as database
@@ -40,7 +41,7 @@ import { es } from 'date-fns/locale';
 
 
 export default function MaintenancePage() {
-    useAuthorization(['admin:maintenance:backup', 'admin:maintenance:restore', 'admin:maintenance:reset']);
+    const { isAuthorized } = useAuthorization(['admin:maintenance:backup', 'admin:maintenance:restore', 'admin:maintenance:reset']);
     const { toast } = useToast();
     const [dbModules, setDbModules] = useState<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]>([]);
     const [selectedModule, setSelectedModule] = useState<string>('');
@@ -85,8 +86,10 @@ export default function MaintenancePage() {
 
     useEffect(() => {
         setTitle("Mantenimiento del Sistema");
-        fetchMaintenanceData();
-    }, [setTitle, fetchMaintenanceData]);
+        if(isAuthorized) {
+            fetchMaintenanceData();
+        }
+    }, [setTitle, fetchMaintenanceData, isAuthorized]);
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0 && selectedModule) {
@@ -257,6 +260,10 @@ export default function MaintenancePage() {
     };
 
     const oldBackupsCount = totalBackupCount - dbModules.length > 0 ? totalBackupCount - dbModules.length : 0;
+    
+    if (!isAuthorized) {
+        return null;
+    }
 
 
     return (

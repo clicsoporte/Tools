@@ -386,7 +386,7 @@ export const useQuoter = () => {
     await logInfo("Default decimal places updated", { newPrecision: decimalPlaces });
   };
   
-  const generatePDF = async () => {
+  const generatePDF = () => {
     if (isAuthLoading || !companyData) {
         toast({ title: "Por favor espere", description: "Los datos aún se están cargando.", variant: "destructive" });
         return;
@@ -683,13 +683,7 @@ export const useQuoter = () => {
   };
 
   const handleProductInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        const firstProduct = productOptions[0];
-        if (firstProduct) {
-            handleSelectProduct(firstProduct.value);
-        }
-    }
+    if (e.key === 'Enter' && selectors.productOptions.length > 0) { e.preventDefault(); handleSelectProduct(selectors.productOptions[0].value); }
   };
 
 
@@ -754,4 +748,3 @@ export const useQuoter = () => {
     selectors: { totals, customerOptions, productOptions },
   };
 };
-

@@ -56,7 +56,7 @@ const emptyLaw: ExemptionLaw = {
 };
 
 export default function ApiSettingsPage() {
-  useAuthorization(['admin:settings:api']);
+  const { isAuthorized } = useAuthorization(['admin:settings:api']);
   const { toast } = useToast();
   const [apiSettings, setApiSettings] = useState<ApiSettings>(initialApiSettings);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
@@ -85,8 +85,10 @@ export default function ApiSettingsPage() {
         setIsLawsLoading(false);
         setMounted(true);
     }
-    fetchSettings();
-  }, [setTitle]);
+    if (isAuthorized) {
+        fetchSettings();
+    }
+  }, [setTitle, isAuthorized]);
 
   const handleApiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -149,6 +151,9 @@ export default function ApiSettingsPage() {
       setLawToDelete(null);
   }, [lawToDelete, toast]);
 
+  if (!isAuthorized) {
+    return null;
+  }
 
   if (!isMounted) {
       return (

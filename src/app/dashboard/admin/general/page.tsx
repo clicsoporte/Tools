@@ -33,7 +33,7 @@ const getInitials = (name: string) => {
 
 
 export default function GeneralSettingsPage() {
-  useAuthorization(['admin:settings:general']);
+  const { isAuthorized } = useAuthorization(['admin:settings:general']);
   const { toast } = useToast();
   const { refreshAuth } = useAuth();
   const [companyData, setCompanyData] = useState<Company | null>(null);
@@ -48,8 +48,10 @@ export default function GeneralSettingsPage() {
         setCompanyData(data);
         setIsLoading(false);
     }
-    loadData();
-  }, [setTitle]);
+    if (isAuthorized) {
+        loadData();
+    }
+  }, [setTitle, isAuthorized]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0 && companyData) {
@@ -92,6 +94,10 @@ export default function GeneralSettingsPage() {
     await refreshAuth();
     await logInfo("Configuración general guardada", { companyName: companyData.name });
   };
+  
+  if (!isAuthorized) {
+    return null;
+  }
 
   if (isLoading || !companyData) {
     return (

@@ -294,17 +294,20 @@ export const useRequests = () => {
         });
     }, [viewingArchived, activeRequests, archivedRequests, debouncedSearchTerm, statusFilter, classificationFilter, items, dateFilter]);
 
+    const getDaysRemaining = (dateStr: string) => {
+        if (!dateStr) return { label: 'Sin fecha', color: 'text-gray-500' };
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const requiredDate = parseISO(dateStr); requiredDate.setHours(0, 0, 0, 0);
+        const days = differenceInCalendarDays(requiredDate, today);
+        let color = 'text-green-600'; if (days <= 2) color = 'text-orange-500'; if (days <= 0) color = 'text-red-600';
+        return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
+    };
+
     const selectors = {
         hasPermission,
         priorityConfig,
         statusConfig,
-        getDaysRemaining: (dateStr: string) => {
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            const requiredDate = parseISO(dateStr); requiredDate.setHours(0, 0, 0, 0);
-            const days = differenceInCalendarDays(requiredDate, today);
-            let color = 'text-green-600'; if (days <= 2) color = 'text-orange-500'; if (days <= 0) color = 'text-red-600';
-            return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
-        },
+        getDaysRemaining,
         clientOptions: useMemo(() => {
             if (debouncedClientSearch.length < 2) return [];
             const searchLower = debouncedClientSearch.toLowerCase();

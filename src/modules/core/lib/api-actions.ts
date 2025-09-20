@@ -25,15 +25,16 @@ export async function getExchangeRate(): Promise<any> {
         });
 
         if (!response.ok) {
-            await logError("Error fetching exchange rate from external API", { status: response.status, statusText: response.statusText });
-            return { error: true, message: `External API error: ${response.statusText}`, status: response.status };
+            const errorPayload = { status: response.status, statusText: response.statusText, url: apiSettings.exchangeRateApi };
+            await logError("Error fetching exchange rate from external API", errorPayload);
+            return { error: true, message: `Error de API externa (${response.status})`, status: response.status };
         }
 
         const data = await response.json();
         return data;
     } catch (error: any) {
         await logError("Failed to fetch exchange rate", { error: error.message });
-        return { error: true, message: "Internal Server Error" };
+        return { error: true, message: "Error interno al consultar la API de tipo de cambio." };
     }
 }
 
@@ -59,20 +60,21 @@ export async function getExemptionStatus(authNumber: string): Promise<any> {
         const response = await fetch(fullApiUrl, {
              next: { revalidate: 86400 } // Cache for 24 hours
         });
+        
+        const errorPayload = { 
+            status: response.status, 
+            statusText: response.statusText, 
+            authNumber: authNumber,
+            url: fullApiUrl
+        };
 
         if (!response.ok) {
-            const errorPayload = { 
-                status: response.status, 
-                statusText: response.statusText, 
-                authNumber: authNumber,
-                url: fullApiUrl
-            };
             if (response.status === 404) {
                  await logWarn("Exemption not found in Hacienda API", errorPayload);
                  return { error: true, message: "Exoneración no encontrada en Hacienda.", status: 404 };
             }
             await logError("Error fetching exemption from external API", errorPayload);
-            return { error: true, message: `External API error: ${response.statusText}`, status: response.status };
+            return { error: true, message: `Error de API externa (${response.status})`, status: response.status };
         }
 
         const data = await response.json();
@@ -80,7 +82,6 @@ export async function getExemptionStatus(authNumber: string): Promise<any> {
 
     } catch (error: any) {
         await logError(`Failed to fetch exemption for auth number: ${authNumber}`, { error: error.message });
-        return { error: true, message: "Internal Server Error" };
+        return { error: true, message: "Error interno al consultar la API de exoneraciones." };
     }
 }
-

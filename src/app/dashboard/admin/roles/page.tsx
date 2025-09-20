@@ -144,7 +144,7 @@ const emptyRole: Role = {
 }
 
 export default function RolesPage() {
-    useAuthorization(['roles:read', 'roles:create', 'roles:update', 'roles:delete']);
+    const { isAuthorized } = useAuthorization(['roles:read', 'roles:create', 'roles:update', 'roles:delete']);
     const { toast } = useToast();
     const [roles, setRoles] = useState<Role[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -162,8 +162,10 @@ export default function RolesPage() {
 
     useEffect(() => {
         setTitle("Gestión de Roles");
-        fetchRoles();
-    }, [setTitle]);
+        if (isAuthorized) {
+            fetchRoles();
+        }
+    }, [setTitle, isAuthorized]);
     
     const handlePermissionChange = (roleId: string, permission: string, checked: boolean) => {
         setRoles(currentRoles => 
@@ -233,6 +235,10 @@ export default function RolesPage() {
         await fetchRoles(); // Refresca la lista de roles desde la DB
         toast({ title: "Roles Reiniciados", description: "Los roles por defecto han sido restaurados." });
         await logWarn("Los roles por defecto han sido reiniciados por un administrador.");
+    }
+    
+    if (!isAuthorized) {
+        return null;
     }
 
     if (isLoading) {

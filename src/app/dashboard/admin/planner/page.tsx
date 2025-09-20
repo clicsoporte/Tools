@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 const defaultColors = [ '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#ff7300', '#0088fe', '#00c49f', '#ffbb28' ];
 
 export default function PlannerSettingsPage() {
-    useAuthorization(['admin:settings:planner']);
+    const { isAuthorized } = useAuthorization(['admin:settings:planner']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const [settings, setSettings] = useState<PlannerSettings | null>(null);
@@ -48,8 +48,10 @@ export default function PlannerSettingsPage() {
             setSettings(currentSettings);
             setIsLoading(false);
         };
-        loadSettings();
-    }, [setTitle]);
+        if (isAuthorized) {
+            loadSettings();
+        }
+    }, [setTitle, isAuthorized]);
 
     const handleAddMachine = () => {
         if (!settings || !newMachine.id || !newMachine.name) {
@@ -93,6 +95,10 @@ export default function PlannerSettingsPage() {
         }
     };
 
+    if (!isAuthorized) {
+        return null;
+    }
+    
     if (isLoading || !settings) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">

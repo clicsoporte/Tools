@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Admin page for user management.
  * Allows admins to view, create, edit, and delete users.
@@ -65,12 +66,10 @@ import { Avatar, AvatarImage, AvatarFallback } from "../../../../components/ui/a
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 
 // Initial state for the "Add User" form.
-const emptyUser: Omit<User, 'id' | 'avatar' | 'recentActivity'> = {
+const emptyUser: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer' | 'phone' | 'whatsapp'> = {
     name: "",
     email: "",
     password: "",
-    phone: "",
-    whatsapp: "",
     role: "viewer", // Default role for new users
 }
 
@@ -85,7 +84,7 @@ const getInitials = (name: string) => {
  * Handles fetching users and roles, and provides UI for all CRUD operations.
  */
 export default function UsersPage() {
-    useAuthorization(['users:create', 'users:read', 'users:update', 'users:delete']);
+    const { isAuthorized } = useAuthorization(['users:create', 'users:read', 'users:update', 'users:delete']);
     const { toast } = useToast();
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
@@ -126,8 +125,10 @@ export default function UsersPage() {
 
     useEffect(() => {
         setTitle("Gestión de Usuarios");
-        fetchAllData();
-    }, [setTitle]);
+        if (isAuthorized) {
+            fetchAllData();
+        }
+    }, [setTitle, isAuthorized]);
 
     /**
      * Persists the current state of users to the database.
@@ -234,6 +235,10 @@ export default function UsersPage() {
     const openDeleteAlert = (user: User) => {
         setUserToDelete(user);
         setDeleteAlertOpen(true);
+    }
+
+    if (!isAuthorized) {
+        return null;
     }
 
     if (isLoading) {

@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 
 export default function RequestSettingsPage() {
-    useAuthorization(['admin:settings:requests']);
+    const { isAuthorized } = useAuthorization(['admin:settings:requests']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const [settings, setSettings] = useState<RequestSettings | null>(null);
@@ -42,8 +42,10 @@ export default function RequestSettingsPage() {
             setSettings(currentSettings);
             setIsLoading(false);
         };
-        loadSettings();
-    }, [setTitle]);
+        if (isAuthorized) {
+            loadSettings();
+        }
+    }, [setTitle, isAuthorized]);
 
     const handleAddRoute = () => {
         if (!settings || !newRoute.trim()) {
@@ -111,6 +113,10 @@ export default function RequestSettingsPage() {
             toast({ title: "Error", description: "No se pudieron guardar los ajustes.", variant: "destructive" });
         }
     };
+    
+    if (!isAuthorized) {
+        return null;
+    }
 
     if (isLoading || !settings) {
         return (
