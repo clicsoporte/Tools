@@ -225,7 +225,8 @@ export const usePlanner = () => {
                     updatedBy: currentUser.name
                 };
                 const updated = await updateProductionOrder(payload);
-                updateState(prevState => ({
+                setState(prevState => ({
+                    ...prevState,
                     activeOrders: prevState.activeOrders.map(o => o.id === updated.id ? updated : o),
                     isEditOrderDialogOpen: false
                 }));
