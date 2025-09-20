@@ -61,10 +61,17 @@ export async function getExemptionStatus(authNumber: string): Promise<any> {
         });
 
         if (!response.ok) {
+            const errorPayload = { 
+                status: response.status, 
+                statusText: response.statusText, 
+                authNumber: authNumber,
+                url: fullApiUrl
+            };
             if (response.status === 404) {
+                 await logWarn("Exemption not found in Hacienda API", errorPayload);
                  return { error: true, message: "Exemption not found", status: 404 };
             }
-            await logError("Error fetching exemption from external API", { status: response.status, statusText: response.statusText });
+            await logError("Error fetching exemption from external API", errorPayload);
             return { error: true, message: `External API error: ${response.statusText}`, status: response.status };
         }
 
