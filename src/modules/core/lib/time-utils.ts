@@ -3,10 +3,8 @@
  * Centralizing this logic adheres to the DRY (Don't Repeat Yourself) principle and makes
  * the business rules for date calculations consistent and easy to update.
  */
-'use server';
 
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import { cn } from '@/lib/utils';
 
 /**
  * Calculates the number of days remaining until a given date and returns a label and a color class.
