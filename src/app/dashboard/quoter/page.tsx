@@ -352,7 +352,7 @@ export default function QuoterPage() {
                               <p className="font-semibold text-muted-foreground">Estado en ERP:</p>
                               <div className={cn("flex items-center gap-1 font-medium", state.exemptionInfo.isErpValid ? 'text-green-600' : 'text-red-600')}>
                                   {state.exemptionInfo.isErpValid ? <ShieldCheck className="h-4 w-4"/> : <ShieldX className="h-4 w-4"/>}
-                                  <span>Vigente</span>
+                                  <span>{state.exemptionInfo.isErpValid ? 'Vigente' : 'Vencida'}</span>
                               </div>
                               <p className="text-xs text-muted-foreground">
                                   Vence: {isValid(new Date(state.exemptionInfo.erpExemption.endDate)) ? format(parseISO(state.exemptionInfo.erpExemption.endDate), 'dd/MM/yyyy') : 'N/A'}
@@ -361,9 +361,14 @@ export default function QuoterPage() {
                           <div>
                               <p className="font-semibold text-muted-foreground">Estado en Hacienda:</p>
                               {state.exemptionInfo.isSpecialLaw ? (
-                                    <div className="flex items-center gap-1 text-blue-600 font-medium">
-                                        <Info className="h-4 w-4" />
-                                        <span>Ley Especial</span>
+                                    <div className="text-blue-600">
+                                        <div className="flex items-center gap-1 font-medium">
+                                            <Info className="h-4 w-4" />
+                                            <span>Ley Especial</span>
+                                        </div>
+                                        <p className="text-xs text-blue-600/80 mt-1">
+                                            {state.exemptionInfo.erpExemption.institutionName} (Nº {state.exemptionInfo.erpExemption.authNumber})
+                                        </p>
                                     </div>
                               ) : state.exemptionInfo.isLoading ? (
                                   <Skeleton className="h-10 w-24 mt-1" />
