@@ -844,16 +844,24 @@ export default function QuoterPage() {
                 </div>
               </SheetContent>
             </Sheet>
-            <Button variant="secondary" onClick={actions.saveDraft}>
+            <Button variant="secondary" onClick={actions.saveDraft} disabled={state.isProcessing}>
+                {state.isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
               Guardar Borrador
             </Button>
-            <Button onClick={actions.generatePDF}>
+            <Button onClick={actions.generatePDF} disabled={state.isProcessing}>
+                {state.isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
               <FileDown className="mr-2 h-4 w-4" />
               Generar Cotización
             </Button>
           </CardFooter>
         </Card>
       </div>
+       {state.isProcessing && (
+            <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Procesando...</span>
+            </div>
+        )}
     </main>
   );
 }
