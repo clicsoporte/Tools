@@ -334,6 +334,7 @@ export default function PlannerPage() {
                     <form onSubmit={actions.handleEditOrder}>
                         <DialogHeader>
                             <DialogTitle>Editar Orden de Producción - {state.orderToEdit?.consecutive}</DialogTitle>
+                            <DialogDescription>Modifique los campos necesarios y guarde los cambios.</DialogDescription>
                         </DialogHeader>
                         <ScrollArea className="h-[60vh] md:h-auto">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
@@ -469,6 +470,7 @@ export default function PlannerPage() {
                 <DialogContent>
                      <DialogHeader>
                         <DialogTitle>Añadir Nota a la Orden {state.notePayload?.orderId}</DialogTitle>
+                        <DialogDescription>Agrega una nota o actualización a la orden sin cambiar su estado actual.</DialogDescription>
                     </DialogHeader>
                      <div className="py-4 space-y-2">
                         <Label htmlFor="add-note-textarea">Nota</Label>
