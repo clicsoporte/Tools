@@ -22,7 +22,7 @@ import {
   getExemptionLaws,
 } from "@/modules/core/lib/db";
 import { getExemptionStatus } from "@/modules/core/lib/api-actions";
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 
@@ -323,7 +323,7 @@ export const useQuoter = () => {
       
       if (customerExemption) {
           const isErpValid = new Date(customerExemption.endDate) > new Date();
-          const isSpecial = exemptionLaws.some(law => law.docType === customerExemption.docType);
+          const isSpecial = exemptionLaws.some(law => law.docType === customerExemption.docType || (law.authNumber && law.authNumber === customerExemption.authNumber));
           
           const initialExemptionState: ExemptionInfo = {
               erpExemption: customerExemption,
