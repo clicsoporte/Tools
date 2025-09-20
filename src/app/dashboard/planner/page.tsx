@@ -83,7 +83,7 @@ export default function PlannerPage() {
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
                              <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
-                            <DropdownMenu>
+                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                                 </DropdownMenuTrigger>
@@ -351,19 +351,19 @@ export default function PlannerPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-order-quantity">Cantidad</Label>
-                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => { if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, quantity: Number(e.target.value) }); }} required />
+                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit(state.orderToEdit ? { ...state.orderToEdit, quantity: Number(e.target.value) } : null)} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-delivery-date">Fecha de Entrega</Label>
-                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => { if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, deliveryDate: e.target.value });}} required />
+                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit(state.orderToEdit ? { ...state.orderToEdit, deliveryDate: e.target.value } : null)} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-purchase-order">Nº OC Cliente</Label>
-                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => { if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, purchaseOrder: e.target.value });}} />
+                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit(state.orderToEdit ? { ...state.orderToEdit, purchaseOrder: e.target.value } : null)} />
                                 </div>
                                 <div className="space-y-2 col-span-1 md:col-span-2">
                                     <Label htmlFor="edit-order-notes">Notas</Label>
-                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => { if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, notes: e.target.value });}} />
+                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit(state.orderToEdit ? { ...state.orderToEdit, notes: e.target.value } : null)} />
                                 </div>
                             </div>
                         </ScrollArea>
@@ -476,7 +476,7 @@ export default function PlannerPage() {
                     </DialogHeader>
                      <div className="py-4 space-y-2">
                         <Label htmlFor="add-note-textarea">Nota</Label>
-                        <Textarea id="add-note-textarea" value={state.notePayload?.notes || ''} onChange={e => actions.setNotePayload(prev => prev ? {...prev, notes: e.target.value} : null)} placeholder="Añade aquí una nota o actualización..." />
+                        <Textarea id="add-note-textarea" value={state.notePayload?.notes || ''} onChange={e => actions.setNotePayload(state.notePayload ? { ...state.notePayload, notes: e.target.value } : null)} placeholder="Añade aquí una nota o actualización..." />
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
