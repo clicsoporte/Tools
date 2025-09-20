@@ -83,7 +83,7 @@ const normalizeNumber = (value: string): number => {
 export const useQuoter = () => {
   const { toast } = useToast();
   const { setTitle } = usePageTitle();
-  const { user: currentUser, customers, products, companyData: authCompanyData, stockLevels, exchangeRateData, refreshAuth } = useAuth();
+  const { user: currentUser, customers, products, companyData: authCompanyData, stockLevels, exchangeRateData, refreshAuth, isLoading: isAuthLoading } = useAuth();
   
   // --- STATE MANAGEMENT ---
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -105,7 +105,6 @@ export const useQuoter = () => {
   const [quoteDate, setQuoteDate] = useState(new Date().toISOString().substring(0, 10));
   const [companyData, setCompanyData] = useState<Company | null>(authCompanyData);
   const [sellerType, setSellerType] = useState("user");
-  const [isMounted, setIsMounted] = useState(false);
   const [paymentTerms, setPaymentTerms] = useState(initialQuoteState.paymentTerms);
   const [creditDays, setCreditDays] = useState(initialQuoteState.creditDays);
   const [validUntilDate, setValidUntilDate] = useState(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
@@ -176,23 +175,6 @@ export const useQuoter = () => {
     }
     
     try {
-      if (authCompanyData) {
-        setCompanyData(authCompanyData);
-        if (!isRefresh) {
-            setQuoteNumber(`${authCompanyData.quotePrefix ?? "COT-"}${(authCompanyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
-        }
-        setDecimalPlaces(authCompanyData.decimalPlaces ?? 2);
-      }
-      if (currentUser && !isRefresh) {
-        setSellerName(currentUser.name);
-      }
-      if (exchangeRateData.rate) {
-          setExchangeRate(exchangeRateData.rate);
-          setApiExchangeRate(exchangeRateData.rate);
-          setExchangeRateDate(exchangeRateData.date);
-          setExchangeRateLoaded(true);
-      }
-
       const [dbExemptions, dbLaws] = await Promise.all([
           getAllExemptions(),
           getExemptionLaws()
@@ -212,23 +194,20 @@ export const useQuoter = () => {
             setIsRefreshing(false);
         }
     }
-  }, [toast, refreshAuth, authCompanyData, currentUser, exchangeRateData]);
+  }, [toast, refreshAuth]);
 
   useEffect(() => {
     setTitle("Cotizador");
-    if (!isMounted) {
-      loadInitialData();
-      setIsMounted(true);
-    }
-  }, [setTitle, isMounted, loadInitialData]);
+    loadInitialData();
+  }, [setTitle, loadInitialData]);
 
   useEffect(() => {
-    if (sellerType === "user" && isMounted && currentUser) {
+    if (sellerType === "user" && currentUser) {
       setSellerName(currentUser.name);
     } else if (sellerType === "manual") {
       setSellerName("");
     }
-  }, [sellerType, currentUser, isMounted]);
+  }, [sellerType, currentUser]);
 
   useEffect(() => {
       setCompanyData(authCompanyData);
@@ -405,7 +384,7 @@ export const useQuoter = () => {
   };
   
   const generatePDF = async () => {
-    if (!isMounted || !companyData) {
+    if (isAuthLoading || !companyData) {
         toast({ title: "Por favor espere", description: "Los datos aún se están cargando.", variant: "destructive" });
         return;
     }
@@ -649,7 +628,7 @@ export const useQuoter = () => {
   };
 
   const loadDrafts = async () => {
-    if (!isMounted || !currentUser) return;
+    if (isAuthLoading || !currentUser) return;
     const draftsFromDb = await getAllQuoteDrafts(currentUser.id);
     const enrichedDrafts = draftsFromDb.map(draft => ({
         ...draft,
@@ -780,6 +759,5 @@ export const useQuoter = () => {
     },
     refs: { productInputRef, customerInputRef, lineInputRefs },
     selectors: { totals, customerOptions, productOptions },
-    isMounted,
   };
 };

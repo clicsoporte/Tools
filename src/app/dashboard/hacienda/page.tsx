@@ -354,6 +354,23 @@ export default function HaciendaQueryPage() {
         }
     };
 
+    if (isLoadingData) {
+        return (
+            <main className="flex-1 p-4 md:p-6 lg:p-8">
+                 <Card className="max-w-4xl mx-auto">
+                    <CardHeader>
+                        <Skeleton className="h-8 w-64" />
+                        <Skeleton className="h-6 w-full max-w-md mt-2" />
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-40 w-full" />
+                    </CardContent>
+                 </Card>
+            </main>
+        )
+    }
+
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-8">
             <Tabs defaultValue="unified">
@@ -443,6 +460,12 @@ export default function HaciendaQueryPage() {
                     </Card>
                 </TabsContent>
             </Tabs>
+             {(isUnifiedLoading || isTaxpayerLoading || isExemptionLoading) && (
+                <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Procesando...</span>
+                </div>
+            )}
         </main>
     );
 }

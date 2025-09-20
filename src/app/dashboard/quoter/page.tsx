@@ -75,6 +75,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/modules/core/hooks/useAuth";
 
 const taxes = [
   { name: "IVA 13%", value: 0.13 },
@@ -90,10 +91,12 @@ export default function QuoterPage() {
     actions,
     refs,
     selectors,
-    isMounted,
   } = useQuoter();
 
-  if (!isMounted) {
+  const { isLoading: isAuthLoading } = useAuth();
+
+
+  if (isAuthLoading) {
     return (
       <main className="flex-1 p-4 md:p-6 lg:p-8">
         <Card>
@@ -856,7 +859,7 @@ export default function QuoterPage() {
           </CardFooter>
         </Card>
       </div>
-       {state.isProcessing && (
+       {(state.isProcessing || state.isRefreshing) && (
             <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
                 <Loader2 className="h-5 w-5 animate-spin" />
                 <span>Procesando...</span>
