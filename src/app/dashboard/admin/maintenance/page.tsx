@@ -25,7 +25,7 @@ import {
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
-import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle } from "lucide-react";
+import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2 } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -272,6 +272,13 @@ export default function MaintenancePage() {
                     </CardFooter>
                 </Card>
             </div>
+            
+            {isProcessing && (
+                <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-secondary p-3 text-secondary-foreground shadow-lg">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Procesando...</span>
+                </div>
+            )}
         </main>
     );
 }
