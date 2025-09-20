@@ -1337,3 +1337,39 @@ export async function listUpdateBackups(): Promise<UpdateBackupInfo[]> {
 
     return backupInfo;
 }
+
+export async function deleteOldUpdateBackups(): Promise<number> {
+    const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
+    if (!fs.existsSync(backupDir)) {
+        return 0;
+    }
+
+    let deletedCount = 0;
+    for (const module of DB_MODULES) {
+        const backupFiles = fs.readdirSync(backupDir)
+            .filter(file => file.startsWith(`backup-${module.id}-`) && file.endsWith('.db'))
+            .sort()
+            .reverse(); // Newest first
+
+        if (backupFiles.length > 1) {
+            const filesToDelete = backupFiles.slice(1); // All except the newest one
+            for (const file of filesToDelete) {
+                try {
+                    fs.unlinkSync(path.join(backupDir, file));
+                    deletedCount++;
+                } catch (error) {
+                    console.error(`Failed to delete old backup file: ${file}`, error);
+                }
+            }
+        }
+    }
+    return deletedCount;
+}
+
+export async function countAllUpdateBackups(): Promise<number> {
+    const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
+    if (!fs.existsSync(backupDir)) {
+        return 0;
+    }
+    return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
+}

@@ -25,13 +25,13 @@ import {
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
-import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2, Save, LifeBuoy } from "lucide-react";
+import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2, Save, LifeBuoy, Trash2 as TrashIcon } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Label } from '../../../../components/ui/label';
 import { Input } from '../../../../components/ui/input';
-import { getDbModules, backupDatabase, restoreDatabase, resetDatabase, backupAllForUpdate, restoreAllFromUpdateBackup, listUpdateBackups } from '../../../../modules/core/lib/db';
+import { getDbModules, backupDatabase, restoreDatabase, resetDatabase, backupAllForUpdate, restoreAllFromUpdateBackup, listUpdateBackups, deleteOldUpdateBackups, countAllUpdateBackups } from '../../../../modules/core/lib/db';
 import type { DatabaseModule, UpdateBackupInfo } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -54,19 +54,26 @@ export default function MaintenancePage() {
 
     // State for update backups
     const [updateBackups, setUpdateBackups] = useState<UpdateBackupInfo[]>([]);
+    const [totalBackupCount, setTotalBackupCount] = useState(0);
     const [isRestoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+    const [isClearBackupsConfirmOpen, setClearBackupsConfirmOpen] = useState(false);
 
 
     const fetchMaintenanceData = useCallback(async () => {
         setIsProcessing(true);
         setProcessingAction('load');
         try {
-            const [modules, backups] = await Promise.all([getDbModules(), listUpdateBackups()]);
+            const [modules, backups, totalBackups] = await Promise.all([
+                getDbModules(), 
+                listUpdateBackups(),
+                countAllUpdateBackups()
+            ]);
             setDbModules(modules);
             if (modules.length > 0) {
                 setSelectedModule(modules[0].id);
             }
             setUpdateBackups(backups);
+            setTotalBackupCount(totalBackups);
         } catch(error: any) {
             logError("Error fetching maintenance data", { error: error.message });
             toast({ title: "Error", description: "No se pudieron cargar los datos de mantenimiento.", variant: "destructive" });
@@ -220,8 +227,31 @@ export default function MaintenancePage() {
                 description: `No se pudo completar la restauración. ${error.message}`,
                 variant: "destructive"
             });
-            await logError(`Error performing full restore`, { error: error.message });
              setIsProcessing(false);
+            setProcessingAction(null);
+        }
+    };
+
+    const handleClearOldBackups = async () => {
+        setIsProcessing(true);
+        setProcessingAction('clear-backups');
+        try {
+            const count = await deleteOldUpdateBackups();
+            await fetchMaintenanceData();
+            toast({
+                title: "Limpieza Completada",
+                description: `Se han eliminado ${count} backups antiguos.`
+            });
+            await logInfo(`${count} old update backups deleted.`);
+        } catch (error: any) {
+             toast({
+                title: "Error al Limpiar",
+                description: `No se pudieron eliminar los backups. ${error.message}`,
+                variant: "destructive"
+            });
+            await logError(`Error clearing old backups`, { error: error.message });
+        } finally {
+            setIsProcessing(false);
             setProcessingAction(null);
         }
     };
@@ -243,56 +273,80 @@ export default function MaintenancePage() {
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-4">
-                            <h3 className="font-semibold">Paso 1: Crear Backup</h3>
-                             <p className="text-sm text-muted-foreground">
-                                Presiona este botón para crear una copia de seguridad de todas las bases de datos en una carpeta especial.
-                            </p>
-                            <Button onClick={handleFullBackup} disabled={isProcessing} className="w-full">
-                                {processingAction === 'full-backup' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
-                                Backup para Actualización
-                            </Button>
-                        </div>
-                        <div className="space-y-4">
-                             <h3 className="font-semibold">Paso 2: Restaurar Backup</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Después de actualizar los archivos de la aplicación, presiona este botón para restaurar los datos desde el último backup.
-                            </p>
-                            {updateBackups.length > 0 ? (
-                                <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                                    {updateBackups.map(b => (
-                                        <li key={b.moduleId}>
-                                            <strong>{b.moduleName}:</strong> {format(parseISO(b.date), "dd/MM/yyyy HH:mm", { locale: es })}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-xs text-center py-4 text-muted-foreground">No hay backups de actualización disponibles.</p>
-                            )}
+                    <CardContent className="space-y-6">
+                        <div className="grid gap-6 md:grid-cols-2">
+                            <div className="space-y-4">
+                                <h3 className="font-semibold">Paso 1: Crear Backup</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Presiona este botón para crear una copia de seguridad de todas las bases de datos en una carpeta especial.
+                                </p>
+                                <Button onClick={handleFullBackup} disabled={isProcessing} className="w-full">
+                                    {processingAction === 'full-backup' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
+                                    Backup para Actualización
+                                </Button>
+                            </div>
+                            <div className="space-y-4">
+                                <h3 className="font-semibold">Paso 2: Restaurar Backup</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Después de actualizar los archivos de la aplicación, presiona este botón para restaurar los datos desde el último backup.
+                                </p>
+                                {updateBackups.length > 0 ? (
+                                    <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                                        {updateBackups.map(b => (
+                                            <li key={b.moduleId}>
+                                                <strong>{b.moduleName}:</strong> {format(parseISO(b.date), "dd/MM/yyyy HH:mm", { locale: es })}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-xs text-center py-4 text-muted-foreground">No hay backups de actualización disponibles.</p>
+                                )}
 
-                             <AlertDialog open={isRestoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
+                                <AlertDialog open={isRestoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive" disabled={isProcessing || updateBackups.length === 0} className="w-full">
+                                            {processingAction === 'full-restore' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RotateCcw className="mr-2 h-4 w-4" />}
+                                            Restaurar Último Backup
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Confirmar Restauración?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Esta acción reemplazará todas las bases de datos actuales con los datos del último backup. Esta acción no se puede deshacer.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleFullRestore}>Sí, restaurar</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </div>
+                    </CardContent>
+                     <CardFooter className="border-t pt-4">
+                        <AlertDialog open={isClearBackupsConfirmOpen} onOpenChange={setClearBackupsConfirmOpen}>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" disabled={isProcessing || updateBackups.length === 0} className="w-full">
-                                        {processingAction === 'full-restore' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RotateCcw className="mr-2 h-4 w-4" />}
-                                        Restaurar Último Backup
+                                    <Button variant="outline" disabled={isProcessing || totalBackupCount <= dbModules.length} className="w-full sm:w-auto">
+                                        {processingAction === 'clear-backups' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <TrashIcon className="mr-2 h-4 w-4" />}
+                                        Limpiar Backups Antiguos
                                     </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Confirmar Restauración?</AlertDialogTitle>
+                                        <AlertDialogTitle>¿Limpiar Backups Antiguos?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            Esta acción reemplazará todas las bases de datos actuales con los datos del último backup. Esta acción no se puede deshacer.
+                                            Esta acción eliminará todos los backups de actualización excepto el más reciente de cada módulo para liberar espacio. Esta acción no se puede deshacer.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleFullRestore}>Sí, restaurar</AlertDialogAction>
+                                        <AlertDialogAction onClick={handleClearOldBackups}>Sí, limpiar</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
-                        </div>
-                    </CardContent>
+                     </CardFooter>
                 </Card>
 
                 <Card>
