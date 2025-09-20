@@ -306,7 +306,7 @@ export default function PlannerPage() {
                 </CardContent>
             </Card>
             
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 mt-6">
+            <div className="space-y-4 mt-6">
                 {state.isLoading ? (
                     Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-56 w-full" />)
                 ) : selectors.filteredOrders.length > 0 ? (
