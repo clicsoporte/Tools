@@ -1374,3 +1374,4 @@ export async function countAllUpdateBackups(): Promise<number> {
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
 
+
