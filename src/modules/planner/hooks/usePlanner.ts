@@ -270,11 +270,12 @@ export const usePlanner = () => {
                     reopen: false 
                 });
                 toast({ title: "Estado Actualizado" });
-                updateState(prevState => {
+                setState(prevState => {
                     const finalStatus = prevState.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
                     const isArchived = updatedOrder.status === finalStatus || updatedOrder.status === 'canceled';
 
                     return {
+                        ...prevState,
                         isStatusDialogOpen: false,
                         activeOrders: isArchived ? prevState.activeOrders.filter(o => o.id !== updatedOrder.id) : prevState.activeOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o),
                         archivedOrders: isArchived ? [...prevState.archivedOrders, updatedOrder] : prevState.archivedOrders.filter(o => o.id !== updatedOrder.id)
