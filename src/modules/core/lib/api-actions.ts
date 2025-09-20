@@ -6,7 +6,7 @@
 "use server";
 
 import { getApiSettings } from './db';
-import { logError } from './logger';
+import { logError, logWarn } from './logger';
 
 /**
  * Fetches the current USD to CRC exchange rate from the configured API endpoint.
@@ -69,7 +69,7 @@ export async function getExemptionStatus(authNumber: string): Promise<any> {
             };
             if (response.status === 404) {
                  await logWarn("Exemption not found in Hacienda API", errorPayload);
-                 return { error: true, message: "Exemption not found", status: 404 };
+                 return { error: true, message: "Exoneración no encontrada en Hacienda.", status: 404 };
             }
             await logError("Error fetching exemption from external API", errorPayload);
             return { error: true, message: `External API error: ${response.statusText}`, status: response.status };
@@ -83,3 +83,4 @@ export async function getExemptionStatus(authNumber: string): Promise<any> {
         return { error: true, message: "Internal Server Error" };
     }
 }
+

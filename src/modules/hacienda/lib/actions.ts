@@ -136,7 +136,7 @@ export async function getExemptionStatus(authNumber: string): Promise<HaciendaEx
 
         if (!response.ok) {
             if (response.status === 404) {
-                 return { error: true, message: "Exoneración no encontrada." };
+                 return { error: true, message: "Exoneración no encontrada en Hacienda." };
             }
             throw new Error(`Error de la API de Hacienda: ${response.status} ${response.statusText}`);
         }
@@ -174,3 +174,4 @@ export async function getEnrichedExemptionStatus(authNumber: string): Promise<En
         enrichedCabys,
     };
 }
+

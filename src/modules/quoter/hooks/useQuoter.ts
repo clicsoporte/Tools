@@ -324,8 +324,8 @@ export const useQuoter = () => {
       if (customerExemption) {
           const isErpValid = new Date(customerExemption.endDate) > new Date();
           const isSpecial = exemptionLaws.some(law => 
-              law.docType === customerExemption.docType || 
-              (law.authNumber && String(law.authNumber) === String(customerExemption.authNumber))
+              (law.docType && law.docType.trim() === customerExemption.docType.trim()) || 
+              (law.authNumber && customerExemption.authNumber && String(law.authNumber).trim() === String(customerExemption.authNumber).trim())
           );
           
           const initialExemptionState: ExemptionInfo = {
@@ -754,3 +754,4 @@ export const useQuoter = () => {
     selectors: { totals, customerOptions, productOptions },
   };
 };
+

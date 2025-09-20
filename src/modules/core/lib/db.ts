@@ -18,6 +18,7 @@ import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db'
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
 import { getExchangeRate as fetchExchangeRateFromApi } from './api-actions';
+import { getSqlConfig } from './config-db';
 
 
 const DB_FILE = 'intratool.db';
@@ -500,7 +501,7 @@ export async function saveExemptionLaws(laws: ExemptionLaw[]): Promise<void> {
         for(const law of lawsToSave) {
             insert.run({
                 ...law,
-                authNumber: law.authNumber ? String(law.authNumber) : null
+                authNumber: law.authNumber ? String(law.authNumber).trim() : null
             });
         }
     });
@@ -824,7 +825,7 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
                 if (key === 'creditLimit' || key === 'percentage' || key === 'stock' || key === 'rack' || key === 'hPos') {
                     dataObject[key] = parseFloat(value) || 0;
                 } else {
-                    dataObject[key] = value;
+                    dataObject[key] = value.trim(); // Trim all string values on import
                 }
             }
         });
@@ -1373,5 +1374,6 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 

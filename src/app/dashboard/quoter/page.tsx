@@ -70,6 +70,7 @@ import {
   ShieldCheck,
   ShieldX,
   AlertTriangle,
+  Info,
 } from "lucide-react";
 import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -210,6 +211,7 @@ export default function QuoterPage() {
                   value={state.customerSearchTerm}
                   onValueChange={actions.setCustomerSearchTerm}
                   placeholder="Buscar cliente por código o nombre..."
+                  onKeyDown={actions.handleCustomerInputKeyDown}
                   open={state.isCustomerSearchOpen}
                   onOpenChange={actions.setCustomerSearchOpen}
                 />
@@ -337,9 +339,11 @@ export default function QuoterPage() {
                       <CardHeader className="p-3">
                         <div className="flex justify-between items-center">
                           <CardTitle className="text-base">Información de Exoneración</CardTitle>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => actions.checkExemptionStatus(state.exemptionInfo?.erpExemption.authNumber)}>
-                              {state.exemptionInfo.isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4" />}
-                          </Button>
+                          {!state.exemptionInfo.isSpecialLaw && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => actions.checkExemptionStatus(state.exemptionInfo?.erpExemption.authNumber)}>
+                                {state.exemptionInfo.isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4" />}
+                            </Button>
+                          )}
                         </div>
                         <CardDescription>Nº de Autorización: {state.exemptionInfo.erpExemption.authNumber}</CardDescription>
                       </CardHeader>
@@ -356,7 +360,12 @@ export default function QuoterPage() {
                           </div>
                           <div>
                               <p className="font-semibold text-muted-foreground">Estado en Hacienda:</p>
-                              {state.exemptionInfo.isLoading ? (
+                              {state.exemptionInfo.isSpecialLaw ? (
+                                    <div className="flex items-center gap-1 text-blue-600 font-medium">
+                                        <Info className="h-4 w-4" />
+                                        <span>Ley Especial</span>
+                                    </div>
+                              ) : state.exemptionInfo.isLoading ? (
                                   <Skeleton className="h-10 w-24 mt-1" />
                               ) : state.exemptionInfo.apiError ? (
                                   <div className="flex items-center gap-1 text-red-600 font-medium">
@@ -868,3 +877,4 @@ export default function QuoterPage() {
     </main>
   );
 }
+
