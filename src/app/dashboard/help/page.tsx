@@ -19,7 +19,6 @@ import {
 } from "../../../components/ui/accordion";
 import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2 } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
-import { getCompanySettings } from "../../../modules/core/lib/db";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,15 +30,13 @@ import { useToast } from "@/modules/core/hooks/use-toast";
 
 export default function HelpPage() {
   const { setTitle } = usePageTitle();
-  const { user } = useAuth();
+  const { user, companyData } = useAuth();
   const { toast } = useToast();
-  const [company, setCompany] = useState<Company | null>(null);
   const [suggestion, setSuggestion] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setTitle("Centro de Ayuda");
-    getCompanySettings().then(setCompany);
   }, [setTitle]);
 
   const handleSuggestionSubmit = async () => {
@@ -73,8 +70,8 @@ export default function HelpPage() {
                     <LifeBuoy className="h-6 w-6" />
                 </div>
                 <div>
-                    {company ? (
-                    <CardTitle className="text-2xl">Manual de Usuario de {company.systemName || "la Aplicación"}</CardTitle>
+                    {companyData ? (
+                    <CardTitle className="text-2xl">Manual de Usuario de {companyData.systemName || "la Aplicación"}</CardTitle>
                     ) : (
                         <Skeleton className="h-8 w-96" />
                     )}
@@ -94,7 +91,7 @@ export default function HelpPage() {
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base">
                     <p>
-                    ¡Bienvenido a <strong>{company?.systemName || "la Aplicación"}</strong>! Piensa en este sistema como tu navaja suiza digital para las tareas diarias de la empresa. Ha sido diseñado para ser súper rápido y fácil de usar desde cualquier computadora en la oficina.
+                    ¡Bienvenido a <strong>{companyData?.systemName || "la Aplicación"}</strong>! Piensa en este sistema como tu navaja suiza digital para las tareas diarias de la empresa. Ha sido diseñado para ser súper rápido y fácil de usar desde cualquier computadora en la oficina.
                     </p>
                     <p>
                     El objetivo es simple: tener todas las herramientas importantes (como hacer cotizaciones, solicitudes de compra o planificar la producción) en un solo lugar, con la flexibilidad de obtener datos tanto de archivos de texto como directamente desde el ERP.

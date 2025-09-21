@@ -94,11 +94,8 @@ export const useQuoter = () => {
   const [customerDetails, setCustomerDetails] = useState(initialQuoteState.customerDetails);
   const [deliveryAddress, setDeliveryAddress] = useState(initialQuoteState.deliveryAddress);
   const [exchangeRate, setExchangeRate] = useState<number | null>(exchangeRateData.rate);
-  const [exchangeRateDate, setExchangeRateDate] = useState<string | null>(exchangeRateData.date);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
   const [apiExchangeRate, setApiExchangeRate] = useState<number | null>(exchangeRateData.rate);
-  const [exchangeRateLoaded, setExchangeRateLoaded] = useState(!!exchangeRateData.rate);
-  const [quoteNumber, setQuoteNumber] = useState("");
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(initialQuoteState.purchaseOrderNumber);
   const [deliveryDate, setDeliveryDate] = useState(initialQuoteState.deliveryDate);
   const [sellerName, setSellerName] = useState(initialQuoteState.sellerName);
@@ -132,6 +129,11 @@ export const useQuoter = () => {
   const customerInputRef = useRef<HTMLInputElement>(null);
   const lineInputRefs = useRef<Map<string, LineInputRefs>>(new Map());
 
+  // Derived state for the quote number
+  const quoteNumber = useMemo(() => {
+    if (!companyData) return "";
+    return `${companyData.quotePrefix ?? "COT-"}${(companyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`;
+  }, [companyData]);
 
   const checkExemptionStatus = useCallback(async (authNumber?: string) => {
     if (!authNumber) return;
@@ -221,11 +223,6 @@ export const useQuoter = () => {
       setCompanyData(authCompanyData);
       setExchangeRate(exchangeRateData.rate);
       setApiExchangeRate(exchangeRateData.rate);
-      setExchangeRateDate(exchangeRateData.date);
-      setExchangeRateLoaded(!!exchangeRateData.rate);
-      if(authCompanyData) {
-          setQuoteNumber(`${authCompanyData.quotePrefix ?? "COT-"}${(authCompanyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
-      }
   }, [authCompanyData, exchangeRateData]);
 
 
@@ -382,7 +379,6 @@ export const useQuoter = () => {
     const newCompanyData = { ...companyData, nextQuoteNumber: (companyData.nextQuoteNumber || 0) + 1 };
     await saveCompanySettings(newCompanyData);
     setCompanyData(newCompanyData);
-    setQuoteNumber(`${newCompanyData.quotePrefix || "COT-"}${(newCompanyData.nextQuoteNumber || 1).toString().padStart(4, "0")}`);
   };
 
   const handleSaveDecimalPlaces = async () => {
@@ -403,7 +399,8 @@ export const useQuoter = () => {
 
     try {
         const doc = new jsPDF();
-        
+        const currentQuoteNumber = quoteNumber;
+
         const addHeaderAndContent = () => {
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
@@ -411,7 +408,7 @@ export const useQuoter = () => {
             doc.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(12);
-            doc.text(`Nº: ${quoteNumber}`, pageWidth - margin, 22, { align: 'right' });
+            doc.text(`Nº: ${currentQuoteNumber}`, pageWidth - margin, 22, { align: 'right' });
             doc.setFontSize(10);
             doc.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, 28, { align: 'right' });
             doc.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, 34, { align: 'right' });
@@ -467,6 +464,13 @@ export const useQuoter = () => {
                 `${(line.tax * 100).toFixed(0)}%`,
                 formatCurrency(line.quantity * line.price * (1 + line.tax)),
             ]);
+            
+            const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const pageWidth = doc.internal.pageSize.getWidth();
+                doc.setFontSize(8);
+                doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+            };
 
             autoTable(doc, {
                 head: [tableColumn],
@@ -484,7 +488,6 @@ export const useQuoter = () => {
                         if (companyData.logoUrl) {
                             doc.addImage(companyData.logoUrl, 'PNG', 14, 15, 50, 15);
                         }
-                        addHeader(doc);
                     };
                     if (data.pageNumber > 1) {
                         addPageHeader(doc);
@@ -531,9 +534,9 @@ export const useQuoter = () => {
                 addFooter(doc, i, doc.getNumberOfPages());
             }
 
-            doc.save(`${quoteNumber}.pdf`);
-            toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${quoteNumber} ha sido descargado.` });
-            logInfo(`Cotización generada: ${quoteNumber}`, { customer: selectedCustomer?.name, total: totals.total });
+            doc.save(`${currentQuoteNumber}.pdf`);
+            toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${currentQuoteNumber} ha sido descargado.` });
+            logInfo(`Cotización generada: ${currentQuoteNumber}`, { customer: selectedCustomer?.name, total: totals.total });
             incrementAndSaveQuoteNumber();
         };
 
@@ -580,7 +583,6 @@ export const useQuoter = () => {
     setCustomerSearchTerm("");
     setExemptionInfo(null);
     if (companyData) {
-        setQuoteNumber(`${companyData.quotePrefix || "COT-"}${(companyData.nextQuoteNumber || 1).toString().padStart(4, "0")}`);
         setDecimalPlaces(companyData.decimalPlaces ?? 2);
     }
     toast({ title: "Nueva Cotización", description: "El formulario ha sido limpiado." });
@@ -639,38 +641,28 @@ export const useQuoter = () => {
   };
 
   const handleLoadDraft = (draft: QuoteDraft) => {
-    setQuoteNumber(draft.id);
-    setPurchaseOrderNumber(draft.purchaseOrderNumber || "");
-    setNotes(draft.notes);
-    setCurrency(draft.currency);
-    setExchangeRate(draft.exchangeRate);
-    
-    // Load customer and exemption info
-    if (draft.customerId) {
-      handleSelectCustomer(draft.customerId);
-    } else {
+    setLines(draft.lines.map((line: Omit<QuoteLine, 'displayQuantity' | 'displayPrice'>) => ({
+      ...line,
+      displayQuantity: String(line.quantity),
+      displayPrice: String(line.price),
+    })));
+    if (draft.customerId) handleSelectCustomer(draft.customerId);
+    else {
       setSelectedCustomer(null);
       setCustomerDetails(draft.customerDetails || "");
       setExemptionInfo(null);
     }
-    
-    const draftLines = draft.lines.map((line: Omit<QuoteLine, 'displayQuantity' | 'displayPrice'>) => ({
-      ...line,
-      displayQuantity: String(line.quantity),
-      displayPrice: String(line.price),
-    }));
-    setLines(draftLines);
-
-    // Restore other form fields
     setDeliveryAddress(draft.deliveryAddress || "");
-    setDeliveryDate(draft.deliveryDate || new Date().toISOString().substring(0, 16));
+    setDeliveryDate(draft.deliveryDate || "");
     setSellerName(draft.sellerName || "");
-    setSellerType(draft.sellerType || "user");
     setQuoteDate(draft.quoteDate || new Date().toISOString().substring(0, 10));
-    setValidUntilDate(draft.validUntilDate || new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
+    setValidUntilDate(draft.validUntilDate || "");
     setPaymentTerms(draft.paymentTerms || "contado");
     setCreditDays(draft.creditDays || 0);
-
+    setNotes(draft.notes);
+    setPurchaseOrderNumber(draft.purchaseOrderNumber || "");
+    setCurrency(draft.currency);
+    setExchangeRate(draft.exchangeRate);
     toast({ title: "Borrador Cargado", description: `La cotización Nº ${draft.id} ha sido cargada.` });
   };
 
@@ -750,7 +742,7 @@ export const useQuoter = () => {
 
   return {
     state: {
-      currency, lines, selectedCustomer, customerDetails, deliveryAddress, exchangeRate, exchangeRateDate, exchangeRateLoaded,
+      currency, lines, selectedCustomer, customerDetails, deliveryAddress, exchangeRate, exchangeRateDate: exchangeRateData.date, exchangeRateLoaded,
       quoteNumber, deliveryDate, sellerName, quoteDate, companyData, currentUser, sellerType,
       paymentTerms, creditDays, validUntilDate, notes, products, customers, showInactiveCustomers,
       showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, productSearchTerm, purchaseOrderNumber,
@@ -758,9 +750,9 @@ export const useQuoter = () => {
     },
     actions: {
       setCurrency, setLines, setSelectedCustomer, setCustomerDetails, setDeliveryAddress, setExchangeRate,
-      setQuoteNumber, setDeliveryDate, setSellerName, setQuoteDate, setSellerType, setPaymentTerms,
+      setPurchaseOrderNumber, setDeliveryDate, setSellerName, setQuoteDate, setSellerType, setPaymentTerms,
       setCreditDays, setValidUntilDate, setNotes, setShowInactiveCustomers,
-      setShowInactiveProducts, setSelectedLineForInfo, setDecimalPlaces, setPurchaseOrderNumber,
+      setShowInactiveProducts, setSelectedLineForInfo, setDecimalPlaces,
       setProductSearchTerm, setCustomerSearchTerm, setProductSearchOpen, setCustomerSearchOpen,
       addLine, removeLine, updateLine, updateLineProductDetail, handleCurrencyToggle, formatCurrency,
       handleSelectCustomer, handleSelectProduct, incrementAndSaveQuoteNumber, handleSaveDecimalPlaces,
