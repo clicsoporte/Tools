@@ -3,7 +3,7 @@
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, DateRange, RejectCancellationPayload } from '../../core/types';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload } from '../../core/types';
 import { 
     getRequests, 
     addRequest,
@@ -22,7 +22,7 @@ export async function getPurchaseRequests(options: {
         searchTerm?: string;
         status?: string;
         classification?: string;
-        dateRange?: DateRange;
+        dateRange?: any;
     };
 }): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
     return getRequests(options);

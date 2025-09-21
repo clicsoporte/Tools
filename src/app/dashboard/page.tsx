@@ -59,6 +59,8 @@ export default function DashboardPage() {
   }, [setTitle, user]);
 
   useEffect(() => {
+    // This effect runs only on the client-side, after hydration.
+    // This prevents a hydration mismatch error for time-sensitive calculations.
     if (companyData?.lastSyncTimestamp && companyData?.syncWarningHours) {
         const isOld = (new Date().getTime() - parseISO(companyData.lastSyncTimestamp).getTime()) > (companyData.syncWarningHours * 60 * 60 * 1000);
         setIsSyncOld(isOld);

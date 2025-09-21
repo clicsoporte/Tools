@@ -137,7 +137,7 @@ export type QuoteDraft = {
     createdAt: string;
     userId: number;
     customerId: string | null;
-    customer?: Customer | null; // Enriched on the client side
+    customer?: Customer | null;
     lines: Omit<QuoteLine, 'displayQuantity' | 'displayPrice'>[];
     totals: {
         subtotal: number;
@@ -148,6 +148,16 @@ export type QuoteDraft = {
     currency: string;
     exchangeRate: number | null;
     purchaseOrderNumber?: string;
+    // Fields for complete form state restoration
+    customerDetails?: string;
+    deliveryAddress?: string;
+    deliveryDate?: string;
+    sellerName?: string;
+    sellerType?: string;
+    quoteDate?: string;
+    validUntilDate?: string;
+    paymentTerms?: string;
+    creditDays?: number;
 }
 
 /**

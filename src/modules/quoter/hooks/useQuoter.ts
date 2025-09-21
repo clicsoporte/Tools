@@ -100,14 +100,14 @@ export const useQuoter = () => {
   const [exchangeRateLoaded, setExchangeRateLoaded] = useState(!!exchangeRateData.rate);
   const [quoteNumber, setQuoteNumber] = useState("");
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(initialQuoteState.purchaseOrderNumber);
-  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().substring(0, 16));
+  const [deliveryDate, setDeliveryDate] = useState(initialQuoteState.deliveryDate);
   const [sellerName, setSellerName] = useState(initialQuoteState.sellerName);
-  const [quoteDate, setQuoteDate] = useState(new Date().toISOString().substring(0, 10));
+  const [quoteDate, setQuoteDate] = useState(initialQuoteState.quoteDate);
   const [companyData, setCompanyData] = useState<Company | null>(authCompanyData);
   const [sellerType, setSellerType] = useState("user");
   const [paymentTerms, setPaymentTerms] = useState(initialQuoteState.paymentTerms);
   const [creditDays, setCreditDays] = useState(initialQuoteState.creditDays);
-  const [validUntilDate, setValidUntilDate] = useState(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
+  const [validUntilDate, setValidUntilDate] = useState(initialQuoteState.validUntilDate);
   const [notes, setNotes] = useState(initialQuoteState.notes);
   const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
   const [showInactiveCustomers, setShowInactiveCustomers] = useState(false);
@@ -200,6 +200,14 @@ export const useQuoter = () => {
     setTitle("Cotizador");
     loadInitialData();
   }, [setTitle, loadInitialData]);
+
+  useEffect(() => {
+    // Set dates on client side to avoid hydration errors
+    const today = new Date();
+    setQuoteDate(today.toISOString().substring(0, 10));
+    setDeliveryDate(today.toISOString().substring(0, 16));
+    setValidUntilDate(new Date(new Date().setDate(today.getDate() + 8)).toISOString().substring(0, 10));
+  }, []);
 
   useEffect(() => {
     if (sellerType === "user" && currentUser) {
@@ -324,8 +332,8 @@ export const useQuoter = () => {
       if (customerExemption) {
           const isErpValid = new Date(customerExemption.endDate) > new Date();
           const isSpecial = exemptionLaws.some(law => 
-              (law.docType && law.docType.trim() === customerExemption.docType.trim()) || 
-              (law.authNumber && customerExemption.authNumber && String(law.authNumber).trim() === String(customerExemption.authNumber).trim())
+              (law.docType?.trim() && law.docType.trim() === customerExemption.docType?.trim()) || 
+              (law.authNumber?.trim() && customerExemption.authNumber?.trim() && law.authNumber.trim() === customerExemption.authNumber.trim())
           );
           
           const initialExemptionState: ExemptionInfo = {
@@ -448,111 +456,107 @@ export const useQuoter = () => {
             doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
         };
         
-        const addContent = () => {
-            addHeader(doc);
-            
-            autoTable(doc, {
-                startY: 95,
-                head: [['Cliente', 'Entrega']],
-                body: [[customerDetails, `Dirección: ${deliveryAddress}\nFecha Entrega: ${deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A'}`]],
-                theme: 'plain',
-                styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
-                headStyles: { fontStyle: 'bold' }
-            });
+        addHeader(doc);
+        
+        autoTable(doc, {
+            startY: 95,
+            head: [['Cliente', 'Entrega']],
+            body: [[customerDetails, `Dirección: ${deliveryAddress}\nFecha Entrega: ${deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A'}`]],
+            theme: 'plain',
+            styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
+            headStyles: { fontStyle: 'bold' }
+        });
 
-            const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
-            const tableRows: any[][] = lines.map(line => [
-                line.product.id,
-                { content: line.product.description, styles: { cellWidth: 'auto' } },
-                line.quantity,
-                line.product.unit,
-                line.product.cabys,
-                formatCurrency(line.price),
-                `${(line.tax * 100).toFixed(0)}%`,
-                formatCurrency(line.quantity * line.price * (1 + line.tax)),
-            ]);
+        const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
+        const tableRows: any[][] = lines.map(line => [
+            line.product.id,
+            { content: line.product.description, styles: { cellWidth: 'auto' } },
+            line.quantity,
+            line.product.unit,
+            line.product.cabys,
+            formatCurrency(line.price),
+            `${(line.tax * 100).toFixed(0)}%`,
+            formatCurrency(line.quantity * line.price * (1 + line.tax)),
+        ]);
 
-            autoTable(doc, {
-                head: [tableColumn],
-                body: tableRows,
-                theme: 'striped',
-                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-                columnStyles: {
-                    0: { cellWidth: 20 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 15, halign: 'right' },
-                    3: { cellWidth: 15 }, 4: { cellWidth: 25 }, 5: { cellWidth: 25, halign: 'right' },
-                    6: { cellWidth: 15, halign: 'center' }, 7: { cellWidth: 25, halign: 'right' },
-                },
-                margin: { top: 80, bottom: 30 },
-                didDrawPage: (data) => {
-                     if (data.pageNumber > 1) {
-                        addHeader(doc);
-                     }
-                },
-                didParseCell: (data) => {
-                    if (data.section === 'head') {
-                        data.cell.styles.fontStyle = 'bold';
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'striped',
+            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            columnStyles: {
+                0: { cellWidth: 20 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 15, halign: 'right' },
+                3: { cellWidth: 15 }, 4: { cellWidth: 25 }, 5: { cellWidth: 25, halign: 'right' },
+                6: { cellWidth: 15, halign: 'center' }, 7: { cellWidth: 25, halign: 'right' },
+            },
+            margin: { top: 80, bottom: 30 },
+            didDrawPage: (data) => {
+                    if (data.pageNumber > 1) {
+                    addHeader(doc);
                     }
+            },
+            didParseCell: (data) => {
+                if (data.section === 'head') {
+                    data.cell.styles.fontStyle = 'bold';
                 }
-            });
-
-            const finalY = (doc as any).lastAutoTable.finalY;
-            const totalPages = doc.getNumberOfPages();
-
-            doc.setPage(totalPages);
-
-            const margin = 14;
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const totalsX = pageWidth - margin;
-            const currentTotals = totals;
-            let bottomContentY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
-            
-            if (bottomContentY > doc.internal.pageSize.getHeight() - 40) {
-                doc.addPage();
-                const newTotalPages = doc.getNumberOfPages();
-                bottomContentY = 20;
-                addHeader(doc);
-                addFooter(doc, newTotalPages, newTotalPages);
             }
+        });
 
-            doc.setFontSize(10);
-            doc.text(`Subtotal: ${formatCurrency(currentTotals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
-            bottomContentY +=6;
-            doc.text(`Impuestos: ${formatCurrency(currentTotals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
-            bottomContentY +=8;
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`Total: ${formatCurrency(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
+        const finalY = (doc as any).lastAutoTable.finalY;
+        const totalPages = doc.getNumberOfPages();
 
-            let leftBottomY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
-             if (leftBottomY > doc.internal.pageSize.getHeight() - 40) { }
+        doc.setPage(totalPages);
 
-            const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Condiciones de Pago:', margin, leftBottomY);
-            doc.setFont('helvetica', 'normal');
-            leftBottomY +=6;
-            doc.text(paymentInfo, margin, leftBottomY);
-            leftBottomY +=8;
-            doc.setFont('helvetica', 'bold');
-            doc.text('Notas:', margin, leftBottomY);
-            leftBottomY +=6;
-            doc.setFont('helvetica', 'normal');
-            const splitNotes = doc.splitTextToSize(notes, 100);
-            doc.text(splitNotes, margin, leftBottomY);
-            
-            for (let i = 1; i <= doc.getNumberOfPages(); i++) {
-                doc.setPage(i);
-                addFooter(doc, i, doc.getNumberOfPages());
-            }
-            
-            doc.save(`${quoteNumber}.pdf`);
-            toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${quoteNumber} ha sido descargado.` });
-            logInfo(`Cotización generada: ${quoteNumber}`, { customer: selectedCustomer?.name, total: currentTotals.total });
-            incrementAndSaveQuoteNumber();
-        };
+        const margin = 14;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const totalsX = pageWidth - margin;
+        const currentTotals = totals;
+        let bottomContentY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
+        
+        if (bottomContentY > doc.internal.pageSize.getHeight() - 40) {
+            doc.addPage();
+            const newTotalPages = doc.getNumberOfPages();
+            bottomContentY = 20;
+            addHeader(doc);
+            addFooter(doc, newTotalPages, newTotalPages);
+        }
 
-        addContent();
+        doc.setFontSize(10);
+        doc.text(`Subtotal: ${formatCurrency(currentTotals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
+        bottomContentY +=6;
+        doc.text(`Impuestos: ${formatCurrency(currentTotals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
+        bottomContentY +=8;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total: ${formatCurrency(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
+
+        let leftBottomY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
+            if (leftBottomY > doc.internal.pageSize.getHeight() - 40) { }
+
+        const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Condiciones de Pago:', margin, leftBottomY);
+        doc.setFont('helvetica', 'normal');
+        leftBottomY +=6;
+        doc.text(paymentInfo, margin, leftBottomY);
+        leftBottomY +=8;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Notas:', margin, leftBottomY);
+        leftBottomY +=6;
+        doc.setFont('helvetica', 'normal');
+        const splitNotes = doc.splitTextToSize(notes, 100);
+        doc.text(splitNotes, margin, leftBottomY);
+        
+        for (let i = 1; i <= doc.getNumberOfPages(); i++) {
+            doc.setPage(i);
+            addFooter(doc, i, doc.getNumberOfPages());
+        }
+        
+        doc.save(`${quoteNumber}.pdf`);
+        toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${quoteNumber} ha sido descargado.` });
+        logInfo(`Cotización generada: ${quoteNumber}`, { customer: selectedCustomer?.name, total: currentTotals.total });
+        incrementAndSaveQuoteNumber();
 
     } catch (e: any) {
         logError("Error generating PDF", { error: e.message });
@@ -607,6 +611,16 @@ export const useQuoter = () => {
           currency: currency,
           exchangeRate: exchangeRate,
           purchaseOrderNumber: purchaseOrderNumber,
+          // Add missing fields from form state
+          customerDetails: customerDetails,
+          deliveryAddress: deliveryAddress,
+          deliveryDate: deliveryDate,
+          sellerName: sellerName,
+          sellerType: sellerType,
+          quoteDate: quoteDate,
+          validUntilDate: validUntilDate,
+          paymentTerms: paymentTerms,
+          creditDays: creditDays,
         };
         await saveQuoteDraft(draft);
         toast({ title: "Borrador Guardado", description: `La cotización Nº ${quoteNumber} ha sido guardada.` });
@@ -637,11 +651,12 @@ export const useQuoter = () => {
     setCurrency(draft.currency);
     setExchangeRate(draft.exchangeRate);
     
+    // Load customer and exemption info
     if (draft.customerId) {
       handleSelectCustomer(draft.customerId);
     } else {
       setSelectedCustomer(null);
-      setCustomerDetails("");
+      setCustomerDetails(draft.customerDetails || "");
       setExemptionInfo(null);
     }
     
@@ -651,6 +666,16 @@ export const useQuoter = () => {
       displayPrice: String(line.price),
     }));
     setLines(draftLines);
+
+    // Restore other form fields
+    setDeliveryAddress(draft.deliveryAddress || "");
+    setDeliveryDate(draft.deliveryDate || new Date().toISOString().substring(0, 16));
+    setSellerName(draft.sellerName || "");
+    setSellerType(draft.sellerType || "user");
+    setQuoteDate(draft.quoteDate || new Date().toISOString().substring(0, 10));
+    setValidUntilDate(draft.validUntilDate || new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
+    setPaymentTerms(draft.paymentTerms || "contado");
+    setCreditDays(draft.creditDays || 0);
 
     toast({ title: "Borrador Cargado", description: `La cotización Nº ${draft.id} ha sido cargada.` });
   };
