@@ -11,7 +11,7 @@ import { useToast } from "@/modules/core/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
-import type { Customer, Product, Company, User, QuoteDraft, QuoteLine, Exemption, HaciendaExemptionApiResponse, ExemptionLaw, StockInfo, ApiSettings } from "@/modules/core/types";
+import type { Customer, Product, Company, User, QuoteDraft, QuoteLine, Exemption, HaciendaExemptionApiResponse, ExemptionLaw, StockInfo } from "@/modules/core/types";
 import { logError, logInfo, logWarn } from "@/modules/core/lib/logger";
 import {
   saveQuoteDraft,
@@ -37,7 +37,7 @@ const initialQuoteState = {
   deliveryAddress: "",
   deliveryDate: "",
   sellerName: "",
-  quoteDate: "",
+  quoteDate: new Date().toISOString().substring(0, 10), // Initialize here to avoid hydration issues
   validUntilDate: "",
   paymentTerms: "contado",
   creditDays: 0,
@@ -202,9 +202,9 @@ export const useQuoter = () => {
   }, [setTitle, loadInitialData]);
 
   useEffect(() => {
-    // Set dates on client side to avoid hydration errors
+    // Set dates on client side to avoid hydration errors on complex scenarios,
+    // though simple ones are fine.
     const today = new Date();
-    setQuoteDate(today.toISOString().substring(0, 10));
     setDeliveryDate(today.toISOString().substring(0, 16));
     setValidUntilDate(new Date(new Date().setDate(today.getDate() + 8)).toISOString().substring(0, 10));
   }, []);
@@ -333,7 +333,7 @@ export const useQuoter = () => {
           const isErpValid = new Date(customerExemption.endDate) > new Date();
           const isSpecial = exemptionLaws.some(law => 
               (law.docType?.trim() && law.docType.trim() === customerExemption.docType?.trim()) || 
-              (law.authNumber?.trim() && customerExemption.authNumber?.trim() && law.authNumber.trim() === customerExemption.authNumber.trim())
+              (law.authNumber?.trim() && customerExemption.authNumber?.trim() && String(law.authNumber).trim() === String(customerExemption.authNumber).trim())
           );
           
           const initialExemptionState: ExemptionInfo = {
@@ -404,7 +404,7 @@ export const useQuoter = () => {
     try {
         const doc = new jsPDF();
         
-        const addHeader = (doc: jsPDF) => {
+        const addHeaderAndContent = () => {
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
             doc.setFontSize(18);
@@ -446,117 +446,111 @@ export const useQuoter = () => {
             } else {
                 doc.text(sellerName, pageWidth - margin, sellerStartY, { align: 'right' });
             }
-        };
 
-        const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 14;
-            doc.setFontSize(8);
-            doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-        };
-        
-        addHeader(doc);
-        
-        autoTable(doc, {
-            startY: 95,
-            head: [['Cliente', 'Entrega']],
-            body: [[customerDetails, `Dirección: ${deliveryAddress}\nFecha Entrega: ${deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A'}`]],
-            theme: 'plain',
-            styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
-            headStyles: { fontStyle: 'bold' }
-        });
+            autoTable(doc, {
+                startY: 95,
+                head: [['Cliente', 'Entrega']],
+                body: [[customerDetails, `Dirección: ${deliveryAddress}\nFecha Entrega: ${deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A'}`]],
+                theme: 'plain',
+                styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
+                headStyles: { fontStyle: 'bold' }
+            });
 
-        const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
-        const tableRows: any[][] = lines.map(line => [
-            line.product.id,
-            { content: line.product.description, styles: { cellWidth: 'auto' } },
-            line.quantity,
-            line.product.unit,
-            line.product.cabys,
-            formatCurrency(line.price),
-            `${(line.tax * 100).toFixed(0)}%`,
-            formatCurrency(line.quantity * line.price * (1 + line.tax)),
-        ]);
+            const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
+            const tableRows: any[][] = lines.map(line => [
+                line.product.id,
+                { content: line.product.description, styles: { cellWidth: 'auto' } },
+                line.quantity,
+                line.product.unit,
+                line.product.cabys,
+                formatCurrency(line.price),
+                `${(line.tax * 100).toFixed(0)}%`,
+                formatCurrency(line.quantity * line.price * (1 + line.tax)),
+            ]);
 
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'striped',
-            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-            columnStyles: {
-                0: { cellWidth: 20 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 15, halign: 'right' },
-                3: { cellWidth: 15 }, 4: { cellWidth: 25 }, 5: { cellWidth: 25, halign: 'right' },
-                6: { cellWidth: 15, halign: 'center' }, 7: { cellWidth: 25, halign: 'right' },
-            },
-            margin: { top: 80, bottom: 30 },
-            didDrawPage: (data) => {
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                theme: 'striped',
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                columnStyles: {
+                    0: { cellWidth: 20 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 15, halign: 'right' },
+                    3: { cellWidth: 15 }, 4: { cellWidth: 25 }, 5: { cellWidth: 25, halign: 'right' },
+                    6: { cellWidth: 15, halign: 'center' }, 7: { cellWidth: 25, halign: 'right' },
+                },
+                margin: { top: 80, bottom: 30 },
+                didDrawPage: (data) => {
+                    const addPageHeader = (doc: jsPDF) => {
+                        if (companyData.logoUrl) {
+                            doc.addImage(companyData.logoUrl, 'PNG', 14, 15, 50, 15);
+                        }
+                        addHeader(doc);
+                    };
                     if (data.pageNumber > 1) {
-                    addHeader(doc);
+                        addPageHeader(doc);
                     }
-            },
-            didParseCell: (data) => {
-                if (data.section === 'head') {
-                    data.cell.styles.fontStyle = 'bold';
+                },
+                didParseCell: (data) => {
+                    if (data.section === 'head') {
+                        data.cell.styles.fontStyle = 'bold';
+                    }
                 }
+            });
+
+            const finalY = (doc as any).lastAutoTable.finalY;
+            doc.setPage(doc.getNumberOfPages());
+            let bottomContentY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
+            if (bottomContentY > doc.internal.pageSize.getHeight() - 40) {
+                doc.addPage();
+                bottomContentY = 20;
             }
-        });
+            const totalsX = doc.internal.pageSize.getWidth() - margin;
+            doc.setFontSize(10);
+            doc.text(`Subtotal: ${formatCurrency(totals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
+            bottomContentY += 6;
+            doc.text(`Impuestos: ${formatCurrency(totals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
+            bottomContentY += 8;
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Total: ${formatCurrency(totals.total)}`, totalsX, bottomContentY, { align: 'right' });
 
-        const finalY = (doc as any).lastAutoTable.finalY;
-        const totalPages = doc.getNumberOfPages();
+            const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Condiciones de Pago:', margin, bottomContentY - 14);
+            doc.setFont('helvetica', 'normal');
+            doc.text(paymentInfo, margin, bottomContentY - 8);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Notas:', margin, bottomContentY);
+            doc.setFont('helvetica', 'normal');
+            const splitNotes = doc.splitTextToSize(notes, 100);
+            doc.text(splitNotes, margin, bottomContentY + 6);
+            
+            for (let i = 1; i <= doc.getNumberOfPages(); i++) {
+                doc.setPage(i);
+                addFooter(doc, i, doc.getNumberOfPages());
+            }
 
-        doc.setPage(totalPages);
+            doc.save(`${quoteNumber}.pdf`);
+            toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${quoteNumber} ha sido descargado.` });
+            logInfo(`Cotización generada: ${quoteNumber}`, { customer: selectedCustomer?.name, total: totals.total });
+            incrementAndSaveQuoteNumber();
+        };
 
-        const margin = 14;
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const totalsX = pageWidth - margin;
-        const currentTotals = totals;
-        let bottomContentY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
-        
-        if (bottomContentY > doc.internal.pageSize.getHeight() - 40) {
-            doc.addPage();
-            const newTotalPages = doc.getNumberOfPages();
-            bottomContentY = 20;
-            addHeader(doc);
-            addFooter(doc, newTotalPages, newTotalPages);
+        if (companyData.logoUrl) {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = companyData.logoUrl;
+            img.onload = () => {
+                doc.addImage(img, 'PNG', 14, 15, 50, 15);
+                addHeaderAndContent();
+            };
+            img.onerror = () => {
+                addHeaderAndContent();
+            };
+        } else {
+            addHeaderAndContent();
         }
-
-        doc.setFontSize(10);
-        doc.text(`Subtotal: ${formatCurrency(currentTotals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
-        bottomContentY +=6;
-        doc.text(`Impuestos: ${formatCurrency(currentTotals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
-        bottomContentY +=8;
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Total: ${formatCurrency(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
-
-        let leftBottomY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
-            if (leftBottomY > doc.internal.pageSize.getHeight() - 40) { }
-
-        const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Condiciones de Pago:', margin, leftBottomY);
-        doc.setFont('helvetica', 'normal');
-        leftBottomY +=6;
-        doc.text(paymentInfo, margin, leftBottomY);
-        leftBottomY +=8;
-        doc.setFont('helvetica', 'bold');
-        doc.text('Notas:', margin, leftBottomY);
-        leftBottomY +=6;
-        doc.setFont('helvetica', 'normal');
-        const splitNotes = doc.splitTextToSize(notes, 100);
-        doc.text(splitNotes, margin, leftBottomY);
-        
-        for (let i = 1; i <= doc.getNumberOfPages(); i++) {
-            doc.setPage(i);
-            addFooter(doc, i, doc.getNumberOfPages());
-        }
-        
-        doc.save(`${quoteNumber}.pdf`);
-        toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${quoteNumber} ha sido descargado.` });
-        logInfo(`Cotización generada: ${quoteNumber}`, { customer: selectedCustomer?.name, total: currentTotals.total });
-        incrementAndSaveQuoteNumber();
 
     } catch (e: any) {
         logError("Error generating PDF", { error: e.message });
@@ -710,6 +704,10 @@ export const useQuoter = () => {
   const handleProductInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && selectors.productOptions.length > 0) { e.preventDefault(); handleSelectProduct(selectors.productOptions[0].value); }
   };
+
+  const handleCustomerInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && selectors.customerOptions.length > 0) { e.preventDefault(); handleSelectCustomer(selectors.customerOptions[0].value); }
+  }
 
 
   // --- MEMOIZED SELECTORS ---
