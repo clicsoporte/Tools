@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview System maintenance page for administrators.
  * This page provides critical, high-risk functionalities such as database
@@ -32,7 +31,7 @@ import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Label } from '../../../../components/ui/label';
 import { Input } from '../../../../components/ui/input';
-import { getDbModules, backupDatabase, restoreDatabase, resetDatabase, backupAllForUpdate, restoreAllFromUpdateBackup, listUpdateBackups, deleteOldUpdateBackups, countAllUpdateBackups } from '../../../../modules/core/lib/db';
+import { getDbModules, backupDatabase, restoreDatabase, resetDatabase, backupAllForUpdate, restoreAllFromUpdateBackup, listUpdateBackups, deleteOldUpdateBackups, countAllUpdateBackups, deleteTempBackup } from '../../../../modules/core/lib/db';
 import type { DatabaseModule, UpdateBackupInfo } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -131,16 +130,24 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction(`backup-${selectedModule}`);
         try {
-            const buffer = await backupDatabase(selectedModule);
-            const blob = new Blob([buffer], { type: 'application/x-sqlite3' });
-            const url = window.URL.createObjectURL(blob);
+            const result = await backupDatabase(selectedModule);
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            const { filePath, fileName } = result;
+
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `backup-${selectedModule}-${new Date().toISOString().split('T')[0]}.db`;
+            a.href = `/api/temp-backups?file=${encodeURIComponent(fileName)}`;
+            a.download = fileName;
             document.body.appendChild(a);
             a.click();
             a.remove();
-            window.URL.revokeObjectURL(url);
+
+            setTimeout(() => {
+                deleteTempBackup(fileName);
+            }, 5000);
+
             toast({
                 title: "Copia de Seguridad Exitosa",
                 description: `Se ha descargado la copia de seguridad para '${selectedModule}'.`,

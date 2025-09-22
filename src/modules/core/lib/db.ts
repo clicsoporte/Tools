@@ -26,6 +26,7 @@ const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'public', 'data', 'cabys.csv');
 const UPDATE_BACKUP_DIR = 'update_backups';
+const TEMP_BACKUP_DIR = 'temp_backups';
 
 
 /**
@@ -691,35 +692,37 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'm
     return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
 }
 
-export async function backupDatabase(moduleId: string): Promise<ArrayBuffer> {
+export async function backupDatabase(moduleId: string): Promise<{error?: string, filePath?: string, fileName?: string}> {
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) {
-        await logError(`Backup failed: Module not found`, { moduleId });
-        throw new Error("Module not found");
+        const errorMsg = "Module not found";
+        await logError(`Backup failed: ${errorMsg}`, { moduleId });
+        return { error: errorMsg };
     }
 
     const dbPath = path.join(dbDirectory, module.dbFile);
     if (!fs.existsSync(dbPath)) {
-        await logError(`Backup failed: Database file not found`, { moduleId, path: dbPath });
-        throw new Error("Database file not found");
+        const errorMsg = "Database file not found";
+        await logError(`Backup failed: ${errorMsg}`, { moduleId, path: dbPath });
+        return { error: errorMsg };
     }
 
-    const backupDir = path.join(dbDirectory, 'temp_backups');
+    const backupDir = path.join(dbDirectory, TEMP_BACKUP_DIR);
     if (!fs.existsSync(backupDir)) {
         fs.mkdirSync(backupDir, { recursive: true });
     }
-    const tempBackupPath = path.join(backupDir, `temp-backup-${module.id}-${Date.now()}.db`);
+    const fileName = `backup-${module.id}-${Date.now()}.db`;
+    const tempBackupPath = path.join(backupDir, fileName);
     
-    let fileBuffer: Buffer;
-
     try {
-        // Close the connection before copying to ensure file is not locked
         if (dbConnections.has(module.dbFile)) {
             dbConnections.get(module.dbFile)!.close();
             dbConnections.delete(module.dbFile);
         }
         
         fs.copyFileSync(dbPath, tempBackupPath);
+
+        await connectDb(module.dbFile);
 
         const tempDb = new Database(tempBackupPath);
         const result = tempDb.pragma('integrity_check', { simple: true });
@@ -728,22 +731,31 @@ export async function backupDatabase(moduleId: string): Promise<ArrayBuffer> {
         if (result !== 'ok') {
             throw new Error(`Integrity check failed: ${result}`);
         }
-
-        fileBuffer = fs.readFileSync(tempBackupPath);
-        
     } catch (e: any) {
+        const errorMsg = `La creación o validación del backup falló: ${e.message}`;
         await logError("Backup creation or validation failed", { moduleId, error: e.message });
-        throw new Error("El backup generado está corrupto o falló la validación. No se pudo crear la copia de seguridad.");
-    } finally {
         if (fs.existsSync(tempBackupPath)) {
             fs.unlinkSync(tempBackupPath);
         }
-        // Re-establish connection
-        await connectDb(module.dbFile);
+        return { error: errorMsg };
     }
     
-    await logInfo(`Individual backup created for module`, { moduleId: module.name });
-    return fileBuffer.buffer;
+    await logInfo(`Individual backup created for module`, { moduleId: module.name, file: fileName });
+    return { filePath: tempBackupPath, fileName: fileName };
+}
+
+export async function deleteTempBackup(fileName: string): Promise<void> {
+    try {
+        const backupDir = path.join(dbDirectory, TEMP_BACKUP_DIR);
+        const filePath = path.join(backupDir, fileName);
+
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            await logInfo('Temporary backup file deleted', { fileName });
+        }
+    } catch (error: any) {
+        await logError('Failed to delete temporary backup file', { fileName, error: error.message });
+    }
 }
 
 
@@ -917,7 +929,7 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
     }
     
     const lines = fileContent.split(/\r?\n/).filter(line => line.trim() !== '');
-    if (lines.length === 0) return { count: 0, source: filePath };
+    if (lines.length < 1) return { count: 0, source: filePath };
     
     const dataArray = parseData(lines, type);
     
@@ -1460,6 +1472,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 
