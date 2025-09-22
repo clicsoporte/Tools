@@ -66,11 +66,13 @@ import { Avatar, AvatarImage, AvatarFallback } from "../../../../components/ui/a
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 
 // Initial state for the "Add User" form.
-const emptyUser: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer' | 'phone' | 'whatsapp'> = {
+const emptyUser: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> = {
     name: "",
     email: "",
     password: "",
     role: "viewer", // Default role for new users
+    phone: "",
+    whatsapp: ""
 }
 
 const getInitials = (name: string) => {
@@ -237,7 +239,7 @@ export default function UsersPage() {
         setDeleteAlertOpen(true);
     }
 
-    if (!isAuthorized) {
+    if (isAuthorized === null) {
         return null;
     }
 
@@ -464,3 +466,4 @@ export default function UsersPage() {
     </>
   );
 }
+

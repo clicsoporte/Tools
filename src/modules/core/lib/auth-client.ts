@@ -57,7 +57,7 @@ export async function getAllUsers(): Promise<User[]> {
     return getAllUsersServer();
 }
 
-export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity'>): Promise<User> {
+export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'>): Promise<User> {
     return addUserServer(userData);
 }
 
