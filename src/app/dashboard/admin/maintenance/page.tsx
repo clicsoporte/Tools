@@ -25,7 +25,7 @@ import {
     SelectValue,
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
-import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
+import { logError } from "../../../../modules/core/lib/logger";
 import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2, Save, LifeBuoy, Trash2 as TrashIcon } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
@@ -107,14 +107,12 @@ export default function MaintenancePage() {
                     title: "Restauración Exitosa",
                     description: `La base de datos para el módulo '${selectedModule}' ha sido restaurada.`,
                 });
-                await logInfo(`Database restored for module: ${selectedModule}`);
             } catch (error: any) {
                 toast({
                     title: "Error de Restauración",
                     description: `No se pudo restaurar la base de datos. Error: ${error.message}`,
                     variant: "destructive"
                 });
-                await logError(`Error restoring database for module ${selectedModule}`, { error: error.message });
             } finally {
                 setIsProcessing(false);
                 setProcessingAction(null);
@@ -147,14 +145,12 @@ export default function MaintenancePage() {
                 title: "Copia de Seguridad Exitosa",
                 description: `Se ha descargado la copia de seguridad para '${selectedModule}'.`,
             });
-            await logInfo(`Database backup created for module: ${selectedModule}`);
         } catch (error: any) {
             toast({
                 title: "Error de Backup",
                 description: `No se pudo crear la copia de seguridad. Error: ${error.message}`,
                 variant: "destructive"
             });
-            await logError(`Error creating backup for module ${selectedModule}`, { error: error.message });
         } finally {
             setIsProcessing(false);
             setProcessingAction(null);
@@ -172,14 +168,12 @@ export default function MaintenancePage() {
                 description: `El módulo '${dbModules.find(m => m.id === selectedModule)?.name}' ha sido reseteado a los valores de fábrica.`,
                 variant: 'destructive',
             });
-            await logWarn(`System reset to factory defaults for module: ${selectedModule}`);
         } catch (error: any) {
              toast({
                 title: "Error de Reseteo",
                 description: `No se pudo resetear el módulo. Error: ${error.message}`,
                 variant: "destructive"
             });
-            await logError(`Error resetting module ${selectedModule}`, { error: error.message });
         } finally {
             setIsProcessing(false);
             setProcessingAction(null);
@@ -198,14 +192,12 @@ export default function MaintenancePage() {
                 title: "Backup Completo Creado",
                 description: `Se han respaldado ${backedUpFiles.length} bases de datos para la actualización.`
             });
-            await logInfo("Full backup for update created", { files: backedUpFiles });
         } catch (error: any) {
              toast({
                 title: "Error de Backup",
                 description: `No se pudo crear el backup completo. ${error.message}`,
                 variant: "destructive"
             });
-            await logError(`Error creating full backup`, { error: error.message });
         } finally {
             setIsProcessing(false);
             setProcessingAction(null);
@@ -222,7 +214,6 @@ export default function MaintenancePage() {
                 description: `Se han restaurado ${restoredFiles.length} bases de datos. La página se recargará.`,
                 duration: 5000,
             });
-            await logWarn("Full restore from update backup performed", { files: restoredFiles });
             setTimeout(() => window.location.reload(), 3000);
         } catch (error: any) {
              toast({
@@ -245,14 +236,12 @@ export default function MaintenancePage() {
                 title: "Limpieza Completada",
                 description: `Se han eliminado ${count} backups antiguos.`
             });
-            await logInfo(`${count} old update backups deleted.`);
         } catch (error: any) {
              toast({
                 title: "Error al Limpiar",
                 description: `No se pudieron eliminar los backups. ${error.message}`,
                 variant: "destructive"
             });
-            await logError(`Error clearing old backups`, { error: error.message });
         } finally {
             setIsProcessing(false);
             setProcessingAction(null);

@@ -19,6 +19,7 @@ import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/d
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
 import { getExchangeRate as fetchExchangeRateFromApi } from './api-actions';
 import { getSqlConfig } from './config-db';
+import { logError, logInfo, logWarn } from './logger';
 
 
 const DB_FILE = 'intratool.db';
@@ -690,12 +691,18 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'm
     return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
 }
 
-export async function backupDatabase(moduleId: string): Promise<Buffer> {
+export async function backupDatabase(moduleId: string): Promise<ArrayBuffer> {
     const module = DB_MODULES.find(m => m.id === moduleId);
-    if (!module) throw new Error("Module not found");
+    if (!module) {
+        await logError(`Backup failed: Module not found`, { moduleId });
+        throw new Error("Module not found");
+    }
 
     const dbPath = path.join(dbDirectory, module.dbFile);
-    if (!fs.existsSync(dbPath)) throw new Error("Database file not found");
+    if (!fs.existsSync(dbPath)) {
+        await logError(`Backup failed: Database file not found`, { moduleId, path: dbPath });
+        throw new Error("Database file not found");
+    }
 
     const backupDir = path.join(dbDirectory, 'temp_backups');
     if (!fs.existsSync(backupDir)) {
@@ -712,10 +719,8 @@ export async function backupDatabase(moduleId: string): Promise<Buffer> {
             dbConnections.delete(module.dbFile);
         }
         
-        // Copy the file to a temporary location
         fs.copyFileSync(dbPath, tempBackupPath);
 
-        // Validate the temporary file
         const tempDb = new Database(tempBackupPath);
         const result = tempDb.pragma('integrity_check', { simple: true });
         tempDb.close();
@@ -724,21 +729,21 @@ export async function backupDatabase(moduleId: string): Promise<Buffer> {
             throw new Error(`Integrity check failed: ${result}`);
         }
 
-        // Read the validated temporary file into a buffer
         fileBuffer = fs.readFileSync(tempBackupPath);
         
     } catch (e: any) {
-        console.error("Backup creation or validation failed", { moduleId, error: e.message });
-        throw new Error("El backup generado está corrupto. No se pudo crear la copia de seguridad.");
+        await logError("Backup creation or validation failed", { moduleId, error: e.message });
+        throw new Error("El backup generado está corrupto o falló la validación. No se pudo crear la copia de seguridad.");
     } finally {
-        // Clean up the temporary file and re-establish the original connection
         if (fs.existsSync(tempBackupPath)) {
             fs.unlinkSync(tempBackupPath);
         }
+        // Re-establish connection
         await connectDb(module.dbFile);
     }
     
-    return fileBuffer;
+    await logInfo(`Individual backup created for module`, { moduleId: module.name });
+    return fileBuffer.buffer;
 }
 
 
@@ -747,60 +752,57 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
     const backupFile = formData.get('backupFile') as File | null;
 
     if (!moduleId || !backupFile) {
+        await logError("Restore failed: Missing module ID or backup file");
         throw new Error("Module ID and backup file are required.");
     }
     
     const module = DB_MODULES.find(m => m.id === moduleId);
-    if (!module) throw new Error("Module not found");
+    if (!module) {
+        await logError("Restore failed: Module not found", { moduleId });
+        throw new Error("Module not found");
+    }
     
-    // Convert the File-like object from FormData into a buffer
-    const blob = new Blob([backupFile]);
-    const buffer = Buffer.from(await blob.arrayBuffer());
-
-
-    // Validate the backup file in memory first
     try {
+        const blob = new Blob([backupFile]);
+        const buffer = Buffer.from(await blob.arrayBuffer());
+
         const inMemoryDb = new Database(buffer);
         const result = inMemoryDb.pragma('integrity_check', { simple: true });
         inMemoryDb.close();
         if (result !== 'ok') {
             throw new Error(`Integrity check failed: ${result}`);
         }
-    } catch (e: any) {
-        console.error("Backup file is malformed", e.message);
-        throw new Error("El archivo de backup es inválido o está corrupto.");
-    }
 
-    // Close the existing connection if it's open
-    if (dbConnections.has(module.dbFile)) {
-        dbConnections.get(module.dbFile)!.close();
-        dbConnections.delete(module.dbFile);
-    }
+        if (dbConnections.has(module.dbFile)) {
+            dbConnections.get(module.dbFile)!.close();
+            dbConnections.delete(module.dbFile);
+        }
 
-    // Perform an atomic restore using a temporary file
-    const dbPath = path.join(dbDirectory, module.dbFile);
-    const tempPath = dbPath + '.tmp';
-    
-    try {
+        const dbPath = path.join(dbDirectory, module.dbFile);
+        const tempPath = dbPath + '.tmp';
+        
         fs.writeFileSync(tempPath, buffer);
         fs.renameSync(tempPath, dbPath);
-    } catch (error) {
-        // If anything fails, clean up the temp file if it exists
-        if (fs.existsSync(tempPath)) {
-            fs.unlinkSync(tempPath);
-        }
-        console.error("Atomic restore failed:", error);
-        throw new Error("La restauración falló durante la escritura del archivo.");
-    }
 
-    // Reconnect to the newly restored database to validate it
-    await connectDb(module.dbFile);
+        await connectDb(module.dbFile);
+        await logWarn(`Database restored from individual backup for module`, { moduleId: module.name });
+
+    } catch (error: any) {
+        await logError(`Restore failed for module: ${module.name}`, { error: error.message });
+        if (error.message.includes('Integrity check failed')) {
+            throw new Error("El archivo de backup es inválido o está corrupto.");
+        }
+        throw new Error(`La restauración falló: ${error.message}`);
+    }
 }
 
 
 export async function resetDatabase(moduleId: string): Promise<void> {
     const module = DB_MODULES.find(m => m.id === moduleId);
-    if (!module) throw new Error("Module not found");
+    if (!module) {
+        await logError(`Reset failed: Module not found`, { moduleId });
+        throw new Error("Module not found");
+    }
 
     if (dbConnections.has(module.dbFile)) {
         dbConnections.get(module.dbFile)!.close();
@@ -812,8 +814,8 @@ export async function resetDatabase(moduleId: string): Promise<void> {
         fs.unlinkSync(dbPath);
     }
     
-    // The connectDb function will automatically re-initialize it.
     await connectDb(module.dbFile);
+    await logWarn(`Database reset to factory defaults for module`, { moduleId: module.name });
 }
 
 const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys') => {
@@ -1315,71 +1317,77 @@ export async function backupAllForUpdate(): Promise<string[]> {
             const backupFileName = `backup-${module.id}-${timestamp}.db`;
             const backupPath = path.join(backupDir, backupFileName);
             
-            // Close connection before copy
-            if (dbConnections.has(module.dbFile)) {
-                dbConnections.get(module.dbFile)!.close();
-                dbConnections.delete(module.dbFile);
-            }
-            
-            fs.copyFileSync(dbPath, backupPath);
-
-            // Re-open connection
-            await connectDb(module.dbFile);
-
-            // Validate the newly created backup file
             try {
+                if (dbConnections.has(module.dbFile)) {
+                    dbConnections.get(module.dbFile)!.close();
+                    dbConnections.delete(module.dbFile);
+                }
+                
+                fs.copyFileSync(dbPath, backupPath);
+
+                await connectDb(module.dbFile);
+
                 const backupDb = new Database(backupPath);
                 const result = backupDb.pragma('integrity_check', { simple: true });
                 backupDb.close();
                 if (result !== 'ok') {
                     throw new Error(`Integrity check failed for ${backupFileName}: ${result}`);
                 }
+
+                backedUpFiles.push(backupFileName);
             } catch (e: any) {
-                console.error(`Backup validation failed for ${backupFileName}. Deleting corrupt backup.`, { error: e.message });
-                fs.unlinkSync(backupPath); // Delete corrupt backup
+                await logError(`Update backup failed for module ${module.name}`, { error: e.message });
+                if (fs.existsSync(backupPath)) fs.unlinkSync(backupPath);
                 throw new Error(`El backup del módulo '${module.name}' está corrupto. La operación se ha cancelado.`);
             }
-
-            backedUpFiles.push(backupFileName);
         }
     }
+    await logInfo("Full backup for update created successfully.", { files: backedUpFiles });
     return backedUpFiles;
 }
 
 export async function restoreAllFromUpdateBackup(): Promise<string[]> {
     const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
     if (!fs.existsSync(backupDir)) {
+        await logError("Restore failed: Update backup directory not found.");
         throw new Error("No se encontró el directorio de backups de actualización.");
     }
 
     const restoredFiles: string[] = [];
 
     for (const module of DB_MODULES) {
-        const backupFiles = fs.readdirSync(backupDir)
-            .filter(file => file.startsWith(`backup-${module.id}-`) && file.endsWith('.db'))
-            .sort()
-            .reverse();
+        try {
+            const backupFiles = fs.readdirSync(backupDir)
+                .filter(file => file.startsWith(`backup-${module.id}-`) && file.endsWith('.db'))
+                .sort()
+                .reverse();
 
-        if (backupFiles.length > 0) {
-            const latestBackupFile = backupFiles[0];
-            const backupPath = path.join(backupDir, latestBackupFile);
-            const dbPath = path.join(dbDirectory, module.dbFile);
+            if (backupFiles.length > 0) {
+                const latestBackupFile = backupFiles[0];
+                const backupPath = path.join(backupDir, latestBackupFile);
+                const dbPath = path.join(dbDirectory, module.dbFile);
 
-            if (dbConnections.has(module.dbFile)) {
-                dbConnections.get(module.dbFile)!.close();
-                dbConnections.delete(module.dbFile);
+                if (dbConnections.has(module.dbFile)) {
+                    dbConnections.get(module.dbFile)!.close();
+                    dbConnections.delete(module.dbFile);
+                }
+
+                fs.copyFileSync(backupPath, dbPath);
+                restoredFiles.push(module.dbFile);
+                await connectDb(module.dbFile);
             }
-
-            fs.copyFileSync(backupPath, dbPath);
-            restoredFiles.push(module.dbFile);
-            await connectDb(module.dbFile);
+        } catch(error: any) {
+             await logError(`Restore failed for module: ${module.name}`, { error: error.message });
+             throw new Error(`Error al restaurar el módulo ${module.name}: ${error.message}`);
         }
     }
 
     if (restoredFiles.length === 0) {
+        await logWarn("Restore from update backup attempted, but no backup files were found.");
         throw new Error("No se encontraron archivos de backup para restaurar.");
     }
 
+    await logWarn("Full restore from update backup completed successfully.", { files: restoredFiles });
     return restoredFiles;
 }
 
@@ -1434,10 +1442,13 @@ export async function deleteOldUpdateBackups(): Promise<number> {
                     fs.unlinkSync(path.join(backupDir, file));
                     deletedCount++;
                 } catch (error) {
-                    console.error(`Failed to delete old backup file: ${file}`, error);
+                    await logError(`Failed to delete old backup file: ${file}`, { error });
                 }
             }
         }
+    }
+    if (deletedCount > 0) {
+      await logInfo(`${deletedCount} old update backups deleted.`);
     }
     return deletedCount;
 }
@@ -1449,6 +1460,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 
