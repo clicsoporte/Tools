@@ -697,8 +697,21 @@ export async function backupDatabase(moduleId: string): Promise<ArrayBuffer> {
     const dbPath = path.join(dbDirectory, module.dbFile);
     if (!fs.existsSync(dbPath)) throw new Error("Database file not found");
 
-    // Return ArrayBuffer to be consistent with what `File.arrayBuffer()` returns on the client.
     const fileBuffer = fs.readFileSync(dbPath);
+    
+    // Validate the backup before returning
+    try {
+        const inMemoryDb = new Database(fileBuffer);
+        const result = inMemoryDb.pragma('integrity_check', { simple: true });
+        inMemoryDb.close();
+        if (result !== 'ok') {
+            throw new Error(`Integrity check failed: ${result}`);
+        }
+    } catch (e: any) {
+        console.error("Backup integrity check failed", { moduleId, error: e.message });
+        throw new Error("El backup generado está corrupto. No se pudo crear la copia de seguridad.");
+    }
+
     return fileBuffer.buffer.slice(fileBuffer.byteOffset, fileBuffer.byteOffset + fileBuffer.byteLength);
 }
 
@@ -718,8 +731,11 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
     // Validate the backup file in memory first
     try {
         const inMemoryDb = new Database(buffer);
-        inMemoryDb.pragma('integrity_check'); // Check if the database is valid
+        const result = inMemoryDb.pragma('integrity_check', { simple: true });
         inMemoryDb.close();
+        if (result !== 'ok') {
+            throw new Error(`Integrity check failed: ${result}`);
+        }
     } catch (e: any) {
         console.error("Backup file is malformed", e.message);
         throw new Error("El archivo de backup es inválido o está corrupto.");
@@ -1267,7 +1283,24 @@ export async function backupAllForUpdate(): Promise<string[]> {
         if (fs.existsSync(dbPath)) {
             const backupFileName = `backup-${module.id}-${timestamp}.db`;
             const backupPath = path.join(backupDir, backupFileName);
+            
+            // Create backup copy
             fs.copyFileSync(dbPath, backupPath);
+
+            // Validate the newly created backup file
+            try {
+                const backupDb = new Database(backupPath);
+                const result = backupDb.pragma('integrity_check', { simple: true });
+                backupDb.close();
+                if (result !== 'ok') {
+                    throw new Error(`Integrity check failed for ${backupFileName}: ${result}`);
+                }
+            } catch (e: any) {
+                console.error(`Backup validation failed for ${backupFileName}. Deleting corrupt backup.`, { error: e.message });
+                fs.unlinkSync(backupPath); // Delete corrupt backup
+                throw new Error(`El backup del módulo '${module.name}' está corrupto. La operación se ha cancelado.`);
+            }
+
             backedUpFiles.push(backupFileName);
         }
     }
@@ -1377,6 +1410,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 
