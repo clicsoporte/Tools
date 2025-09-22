@@ -697,26 +697,46 @@ export async function backupDatabase(moduleId: string): Promise<Buffer> {
     const dbPath = path.join(dbDirectory, module.dbFile);
     if (!fs.existsSync(dbPath)) throw new Error("Database file not found");
 
-    // Close the connection before creating a backup to ensure file is not locked
+    // Close the connection before copying to ensure file is not locked
     if (dbConnections.has(module.dbFile)) {
         dbConnections.get(module.dbFile)!.close();
         dbConnections.delete(module.dbFile);
     }
 
-    const fileBuffer = fs.readFileSync(dbPath);
+    const backupDir = path.join(dbDirectory, 'temp_backups');
+    if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+    }
+    const tempBackupPath = path.join(backupDir, `temp-backup-${module.id}-${Date.now()}.db`);
+    
+    let fileBuffer: Buffer;
 
     try {
-        const inMemoryDb = new Database(fileBuffer);
-        const result = inMemoryDb.pragma('integrity_check', { simple: true });
-        inMemoryDb.close();
+        // Copy the file to a temporary location
+        fs.copyFileSync(dbPath, tempBackupPath);
+
+        // Validate the temporary file
+        const tempDb = new Database(tempBackupPath);
+        const result = tempDb.pragma('integrity_check', { simple: true });
+        tempDb.close();
+
         if (result !== 'ok') {
             throw new Error(`Integrity check failed: ${result}`);
         }
+
+        // Read the validated temporary file into a buffer
+        fileBuffer = fs.readFileSync(tempBackupPath);
+        
     } catch (e: any) {
-        console.error("Backup integrity check failed", { moduleId, error: e.message });
+        console.error("Backup creation or validation failed", { moduleId, error: e.message });
+        // Re-establish connection even if backup fails
+        await connectDb(module.dbFile);
         throw new Error("El backup generado está corrupto. No se pudo crear la copia de seguridad.");
     } finally {
-        // Re-open the connection
+        // Clean up the temporary file and re-establish the original connection
+        if (fs.existsSync(tempBackupPath)) {
+            fs.unlinkSync(tempBackupPath);
+        }
         await connectDb(module.dbFile);
     }
     
@@ -1428,6 +1448,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 
