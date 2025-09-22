@@ -690,14 +690,16 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'm
     return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
 }
 
-export async function backupDatabase(moduleId: string): Promise<Buffer> {
+export async function backupDatabase(moduleId: string): Promise<ArrayBuffer> {
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) throw new Error("Module not found");
 
     const dbPath = path.join(dbDirectory, module.dbFile);
     if (!fs.existsSync(dbPath)) throw new Error("Database file not found");
 
-    return fs.readFileSync(dbPath);
+    // Return ArrayBuffer to be consistent with what `File.arrayBuffer()` returns on the client.
+    const fileBuffer = fs.readFileSync(dbPath);
+    return fileBuffer.buffer.slice(fileBuffer.byteOffset, fileBuffer.byteOffset + fileBuffer.byteLength);
 }
 
 export async function restoreDatabase(formData: FormData): Promise<void> {
@@ -867,6 +869,7 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
     }
     
     const lines = fileContent.split(/\r?\n/).filter(line => line.trim() !== '');
+    if (lines.length === 0) return { count: 0, source: filePath };
     const dataArray = parseData(lines, type);
     
     if (type === 'customers') await saveAllCustomers(dataArray as Customer[]);
@@ -1374,6 +1377,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 
