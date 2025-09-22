@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Admin page for user management.
  * Allows admins to view, create, edit, and delete users.
@@ -339,43 +338,50 @@ export default function UsersPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.map((user) => (
-                        <TableRow key={user.id}>
-                            <TableCell className="font-medium flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                    <AvatarImage src={user.avatar} alt={user.name} />
-                                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col">
-                                    <span>{user.name}</span>
-                                    <span className="text-muted-foreground text-xs sm:hidden">{user.email}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell className="hidden sm:table-cell">{user.email}</TableCell>
-                            <TableCell className="hidden md:table-cell">
-                            <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                                {roles.find(r => r.id === user.role)?.name || user.role}
-                            </Badge>
-                            </TableCell>
-                            <TableCell>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">Toggle menu</span>
-                                </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                <DropdownMenuItem onSelect={() => openEditDialog(user)}>Editar</DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => openDeleteAlert(user)} className="text-red-600">
-                                    Eliminar
-                                </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                        ))}
+                        {users.map((user) => {
+                            const userRole = roles.find(r => r.id === user.role);
+                            return (
+                                <TableRow key={user.id}>
+                                    <TableCell className="font-medium flex items-center gap-3">
+                                        <Avatar className="h-9 w-9">
+                                            <AvatarImage src={user.avatar} alt={user.name} />
+                                            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col">
+                                            <span>{user.name}</span>
+                                            <span className="text-muted-foreground text-xs sm:hidden">{user.email}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="hidden sm:table-cell">{user.email}</TableCell>
+                                    <TableCell className="hidden md:table-cell">
+                                    {userRole ? (
+                                        <Badge variant={userRole.id === 'admin' ? 'default' : 'secondary'}>
+                                            {userRole.name}
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="destructive">Rol Inválido</Badge>
+                                    )}
+                                    </TableCell>
+                                    <TableCell>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">Toggle menu</span>
+                                        </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                        <DropdownMenuItem onSelect={() => openEditDialog(user)}>Editar</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => openDeleteAlert(user)} className="text-red-600">
+                                            Eliminar
+                                        </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
                     </TableBody>
                 </Table>
             </div>
@@ -466,4 +472,3 @@ export default function UsersPage() {
     </>
   );
 }
-
