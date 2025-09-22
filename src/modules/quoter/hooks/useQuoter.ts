@@ -160,7 +160,7 @@ export const useQuoter = () => {
              }
         });
     } catch (error: any) {
-        logError("Error verificando exoneración en Hacienda", { error: error.message });
+        logError("Error verificando exoneración en Hacienda", { error: error.message, authNumber });
         setExemptionInfo(prev => {
             if (!prev) return null;
             return { ...prev, isLoading: false, apiError: true }
@@ -324,13 +324,13 @@ export const useQuoter = () => {
         setCreditDays(0);
       }
 
-      const customerExemption = allExemptions.find(ex => ex.customer === customer.id);
+      const customerExemption = allExemptions.find(ex => ex.customer?.trim() === customer.id.trim());
       
       if (customerExemption) {
           const isErpValid = new Date(customerExemption.endDate) > new Date();
           const isSpecial = exemptionLaws.some(law => 
               (law.docType?.trim() && law.docType.trim() === customerExemption.docType?.trim()) || 
-              (law.authNumber?.trim() && customerExemption.authNumber?.trim() && String(law.authNumber).trim() === String(customerExemption.authNumber).trim())
+              (law.authNumber?.trim() && String(law.authNumber).trim() === String(customerExemption.authNumber).trim())
           );
           
           const initialExemptionState: ExemptionInfo = {
@@ -742,7 +742,7 @@ export const useQuoter = () => {
 
   return {
     state: {
-      currency, lines, selectedCustomer, customerDetails, deliveryAddress, exchangeRate, exchangeRateDate: exchangeRateData.date, exchangeRateLoaded,
+      currency, lines, selectedCustomer, customerDetails, deliveryAddress, exchangeRate, exchangeRateDate: exchangeRateData.date, exchangeRateLoaded: !!exchangeRateData.rate,
       quoteNumber, deliveryDate, sellerName, quoteDate, companyData, currentUser, sellerType,
       paymentTerms, creditDays, validUntilDate, notes, products, customers, showInactiveCustomers,
       showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, productSearchTerm, purchaseOrderNumber,

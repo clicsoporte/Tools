@@ -142,8 +142,8 @@ export default function QuoterPage() {
                       <Input
                       id="quote-number"
                       value={state.quoteNumber}
-                      onChange={(e) => actions.setQuoteNumber(e.target.value)}
-                      className="w-40"
+                      readOnly
+                      className="w-40 bg-muted"
                       />
                   </div>
                   <div className="flex items-center gap-2">
@@ -364,7 +364,7 @@ export default function QuoterPage() {
                                     <div className="text-blue-600">
                                         <div className="flex items-center gap-1 font-medium">
                                             <Info className="h-4 w-4" />
-                                            <span>Ley Especial</span>
+                                            <span>Ley Especial (No requiere consulta API)</span>
                                         </div>
                                         <p className="text-xs text-blue-600/80 mt-1">
                                             {state.exemptionInfo.erpExemption.institutionName} (Nº {state.exemptionInfo.erpExemption.authNumber})
@@ -882,4 +882,3 @@ export default function QuoterPage() {
     </main>
   );
 }
-
