@@ -690,16 +690,21 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'm
     return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
 }
 
-export async function backupDatabase(moduleId: string): Promise<ArrayBuffer> {
+export async function backupDatabase(moduleId: string): Promise<Buffer> {
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) throw new Error("Module not found");
 
     const dbPath = path.join(dbDirectory, module.dbFile);
     if (!fs.existsSync(dbPath)) throw new Error("Database file not found");
 
+    // Close the connection before creating a backup to ensure file is not locked
+    if (dbConnections.has(module.dbFile)) {
+        dbConnections.get(module.dbFile)!.close();
+        dbConnections.delete(module.dbFile);
+    }
+
     const fileBuffer = fs.readFileSync(dbPath);
-    
-    // Validate the backup before returning
+
     try {
         const inMemoryDb = new Database(fileBuffer);
         const result = inMemoryDb.pragma('integrity_check', { simple: true });
@@ -710,10 +715,14 @@ export async function backupDatabase(moduleId: string): Promise<ArrayBuffer> {
     } catch (e: any) {
         console.error("Backup integrity check failed", { moduleId, error: e.message });
         throw new Error("El backup generado está corrupto. No se pudo crear la copia de seguridad.");
+    } finally {
+        // Re-open the connection
+        await connectDb(module.dbFile);
     }
-
-    return fileBuffer.buffer.slice(fileBuffer.byteOffset, fileBuffer.byteOffset + fileBuffer.byteLength);
+    
+    return fileBuffer;
 }
+
 
 export async function restoreDatabase(formData: FormData): Promise<void> {
     const moduleId = formData.get('moduleId') as string;
@@ -886,6 +895,7 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
     
     const lines = fileContent.split(/\r?\n/).filter(line => line.trim() !== '');
     if (lines.length === 0) return { count: 0, source: filePath };
+    
     const dataArray = parseData(lines, type);
     
     if (type === 'customers') await saveAllCustomers(dataArray as Customer[]);
@@ -1284,8 +1294,16 @@ export async function backupAllForUpdate(): Promise<string[]> {
             const backupFileName = `backup-${module.id}-${timestamp}.db`;
             const backupPath = path.join(backupDir, backupFileName);
             
-            // Create backup copy
+            // Close connection before copy
+            if (dbConnections.has(module.dbFile)) {
+                dbConnections.get(module.dbFile)!.close();
+                dbConnections.delete(module.dbFile);
+            }
+            
             fs.copyFileSync(dbPath, backupPath);
+
+            // Re-open connection
+            await connectDb(module.dbFile);
 
             // Validate the newly created backup file
             try {
@@ -1410,6 +1428,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 
