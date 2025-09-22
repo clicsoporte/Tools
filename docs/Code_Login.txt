@@ -1,0 +1,383 @@
+======================================================================
+CLIC-TOOLS: GUÍA COMPLETA DEL SISTEMA DE AUTENTICACIÓN Y PERMISOS
+======================================================================
+
+Este documento es una guía técnica detallada que explica cómo funciona el sistema de autenticación, gestión de usuarios, roles con permisos granulares y recuperación de contraseñas. El objetivo es que puedas entender, replicar y adaptar esta arquitectura en otros proyectos.
+
+---
+ARQUITECTURA GENERAL
+---
+El sistema sigue una arquitectura moderna y segura utilizando las capacidades de Next.js y un enfoque de separación de responsabilidades:
+
+1.  **Contexto de Autenticación (`useAuth`)**: Un proveedor global (`AuthProvider`) carga una sola vez los datos del usuario, sus roles y otros datos esenciales (clientes, productos). Esto evita recargas innecesarias y proporciona un estado centralizado a toda la aplicación.
+2.  **Acciones de Servidor (`'use server'`)**: Toda la lógica que interactúa con la base de datos (consultas, hashing de contraseñas) se ejecuta exclusivamente en el servidor, garantizando que las credenciales y la lógica crítica nunca se expongan al cliente.
+3.  **Acciones de Cliente**: Funciones del lado del cliente que actúan como un puente seguro para llamar a las acciones del servidor.
+4.  **Protección de Rutas**: Un componente de orden superior (`AuthWrapper`) protege las rutas del dashboard, redirigiendo a los usuarios no autenticados a la página de inicio.
+5.  **Hook de Autorización (`useAuthorization`)**: Un hook reutilizable que permite proteger páginas o componentes específicos basándose en una lista de permisos requeridos.
+
+---
+1. INICIO DE SESIÓN Y REDIRECCIÓN
+---
+
+El flujo comienza en la página de inicio (`src/app/page.tsx`) y termina en el dashboard (`/dashboard`).
+
+### Paso 1: La Interfaz de Inicio de Sesión (`src/app/page.tsx`)
+
+Este componente renderiza el formulario de login. La lógica clave está en la función `handleLogin`.
+
+```tsx
+// src/app/page.tsx
+
+"use client";
+
+// ... (imports)
+
+export default function LoginPage() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    // Llama a la acción de cliente para iniciar sesión
+    const loggedIn = await login(email, password);
+
+    if (loggedIn) {
+      // Si el login es exitoso, redirige al dashboard
+      router.push("/dashboard");
+    } else {
+      toast({
+        title: "Credenciales Incorrectas",
+        description: "El correo o la contraseña no son correctos.",
+        variant: "destructive",
+      });
+      setIsLoggingIn(false);
+    }
+  };
+
+  // ... (resto del JSX con el formulario)
+}
+```
+
+### Paso 2: Acción de Cliente (`src/modules/core/lib/auth-client.ts`)
+
+Esta función de cliente llama a la acción del servidor y gestiona el `sessionStorage` para mantener el ID del usuario logueado en el navegador.
+
+```ts
+// src/modules/core/lib/auth-client.ts
+
+'use client';
+
+import type { User } from '@/modules/core/types';
+import { login as loginServer } from './auth';
+
+const CURRENT_USER_ID_KEY = 'currentUserId';
+
+export async function login(email: string, password: string): Promise<boolean> {
+    // Llama a la función del servidor
+    const user = await loginServer(email, password);
+    if (user) {
+        // Almacena el ID del usuario en el navegador para mantener la sesión
+        sessionStorage.setItem(CURRENT_USER_ID_KEY, String(user.id));
+        return true;
+    }
+    return false;
+}
+
+export function logout() {
+    sessionStorage.removeItem(CURRENT_USER_ID_KEY);
+    // Notifica a otros tabs/componentes que la sesión se cerró
+    window.dispatchEvent(new Event("storage"));
+}
+```
+
+### Paso 3: Lógica del Servidor (`src/modules/core/lib/auth.ts`)
+
+Aquí reside la lógica segura. Compara la contraseña hasheada en la base de datos con la proporcionada por el usuario usando `bcrypt`.
+
+```ts
+// src/modules/core/lib/auth.ts
+
+"use server";
+
+import { connectDb } from './db';
+import type { User } from '../types';
+import bcrypt from 'bcryptjs';
+
+export async function login(email: string, passwordProvided: string): Promise<User | null> {
+  const db = await connectDb();
+  try {
+    const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
+    const user: User | undefined = stmt.get(email) as User | undefined;
+
+    if (user && user.password) {
+      // Compara de forma segura la contraseña
+      const isMatch = await bcrypt.compare(passwordProvided, user.password);
+      if (isMatch) {
+        // NUNCA devolver el hash de la contraseña al cliente
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword as User;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Login error:", error);
+    return null;
+  }
+}
+```
+
+### Paso 4: Protección de Rutas y Redirección (`src/app/dashboard/layout.tsx`)
+
+El `AuthWrapper` es un componente que envuelve todo el layout del dashboard. Usa el `useAuth` hook para verificar si el usuario está autenticado.
+
+```tsx
+// src/app/dashboard/layout.tsx
+
+'use client';
+
+// ... (imports)
+import { AuthProvider, useAuth } from "../../modules/core/hooks/useAuth";
+
+function AuthWrapper({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
+  
+  useEffect(() => {
+    // Si la carga ha terminado y no hay usuario, redirige a la página de inicio
+    if (!isLoading && !user) {
+        router.push('/');
+    }
+  }, [isLoading, user, router]);
+
+  // Muestra un esqueleto de carga mientras se verifica la sesión
+  if (isLoading || !user) {
+    return (
+        <div className="flex items-center justify-center h-screen">
+            {/* ... Skeleton UI ... */}
+        </div>
+    )
+  }
+
+  // Si el usuario está autenticado, renderiza el contenido del dashboard
+  return <>{children}</>;
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode; }) {
+  return (
+    <AuthProvider>
+        <AuthWrapper>
+            {/* ... Resto del layout (Sidebar, Header, etc.) ... */}
+            {children}
+        </AuthWrapper>
+    </AuthProvider>
+  );
+}
+```
+
+---
+2. GESTIÓN DE USUARIOS, ROLES Y PERMISOS
+---
+
+El sistema utiliza un modelo RBAC (Role-Based Access Control) simple y efectivo.
+
+### Definición de Tipos (`src/modules/core/types/index.ts`)
+
+```ts
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+  password?: string; // Hashed en la BD
+  role: string;      // ID del rol
+  // ... otros campos
+};
+
+export type Role = {
+  id: string; // ej: "admin", "planner-user"
+  name: string; // ej: "Admin", "Planificador"
+  permissions: string[]; // ej: ["planner:read", "planner:create"]
+};
+```
+
+### Datos Iniciales (`src/modules/core/lib/data.ts`)
+
+Aquí se definen el usuario `admin` por defecto y los roles iniciales con sus permisos. Esto asegura que la aplicación siempre tenga un punto de partida funcional.
+
+```ts
+// src/modules/core/lib/data.ts
+
+export const initialUsers: User[] = [
+  {
+    id: 1,
+    name: "Jonathan Ugalde G",
+    email: "jonathan@clicsoporte.com",
+    password: "LGnexus4*", // Se hashea en el primer arranque
+    role: "admin",
+    // ...
+  },
+];
+
+export const initialRoles: Role[] = [
+  {
+    id: "admin",
+    name: "Admin",
+    permissions: [
+        "dashboard:access",
+        "quotes:create",
+        "planner:read",
+        "users:create",
+        // ... todos los permisos
+    ],
+  },
+  {
+    id: "viewer",
+    name: "Viewer",
+    permissions: ["dashboard:access", "quotes:create"],
+  },
+  // ... otros roles
+];
+```
+
+### Hook de Autorización (`src/modules/core/hooks/useAuthorization.tsx`)
+
+Este hook es la pieza central para proteger funcionalidades. Recibe una lista de permisos requeridos y devuelve si el usuario actual tiene al menos uno de ellos.
+
+```tsx
+// src/modules/core/hooks/useAuthorization.tsx
+
+'use client';
+
+import { useEffect, useMemo } from 'react';
+import { useAuth } from './useAuth';
+
+export function useAuthorization(requiredPermissions: string[] = []) {
+    const { user, userRole, isLoading } = useAuth(); // Obtiene el usuario y su rol del contexto
+
+    const userPermissions = useMemo(() => userRole?.permissions || [], [userRole]);
+
+    const isAuthorized = useMemo(() => {
+        if (isLoading) return null; // Aún cargando
+        if (!user) return false;    // Sin usuario
+        if (user.role === 'admin') return true; // El admin siempre tiene acceso
+        
+        // Verifica si el usuario tiene al menos uno de los permisos requeridos
+        return requiredPermissions.some(p => userPermissions.includes(p));
+    }, [isLoading, user, requiredPermissions, userPermissions]);
+
+    // ... (lógica de redirección si no está autorizado)
+
+    const hasPermission = (permission: string) => {
+        if (isLoading || !userRole) return false;
+        if (userRole.id === 'admin') return true;
+        return userPermissions.includes(permission);
+    };
+
+    return { isAuthorized, hasPermission, userPermissions };
+}
+
+// Uso en un componente de página:
+// const { isAuthorized } = useAuthorization(['planner:read', 'planner:create']);
+// if (!isAuthorized) { return null; } // No renderiza nada si no tiene permiso
+```
+
+---
+3. SISTEMA DE RECUPERACIÓN DE CONTRASEÑA
+---
+
+El flujo de "Olvidé mi contraseña" se maneja en un diálogo modal dentro de `src/app/page.tsx` y consta de 3 pasos.
+
+### Paso 1: Ingresar Correo
+
+El usuario introduce su correo. La función `handleRecoveryStart` busca al usuario en la base de datos.
+
+```tsx
+// src/app/page.tsx
+
+const handleRecoveryStart = async () => {
+    // Llama a una acción de cliente para obtener todos los usuarios
+    const allUsers: User[] = await getAllUsers(); 
+    const user = allUsers.find(u => u.email === recoveryEmail);
+
+    if (user && user.securityQuestion) {
+        setUserForRecovery(user); // Guarda el usuario encontrado en el estado
+        setRecoveryStep(2);       // Avanza al siguiente paso
+    } else {
+        toast({ title: "Error", description: "El correo no fue encontrado o no tiene una pregunta de seguridad." });
+    }
+}
+```
+
+### Paso 2: Responder Pregunta de Seguridad
+
+Se muestra la pregunta de seguridad del usuario. La función `handleRecoveryAnswer` compara la respuesta.
+
+```tsx
+// src/app/page.tsx
+
+const handleRecoveryAnswer = () => {
+    if (userForRecovery && securityAnswer.toLowerCase() === userForRecovery.securityAnswer?.toLowerCase()) {
+        setRecoveryStep(3); // Respuesta correcta, avanza a cambiar contraseña
+    } else {
+        toast({ title: "Respuesta Incorrecta" });
+    }
+}
+```
+
+### Paso 3: Establecer Nueva Contraseña
+
+El usuario introduce y confirma su nueva contraseña. La función `handleSetNewPassword` la hashea y la guarda en la base de datos.
+
+```tsx
+// src/app/page.tsx
+
+const handleSetNewPassword = async () => {
+    if (!userForRecovery) return;
+    if (newPassword !== confirmNewPassword) { /* ... error ... */ }
+
+    // Obtiene todos los usuarios, actualiza el del usuario en recuperación, y guarda la lista completa.
+    const allUsers = await getAllUsers();
+    const updatedUsers = allUsers.map(u => 
+        u.id === userForRecovery.id ? { ...u, password: newPassword } : u
+    );
+
+    // saveAllUsers se encarga de hashear la nueva contraseña antes de guardarla.
+    await saveAllUsers(updatedUsers); 
+    
+    toast({ title: "Contraseña Actualizada" });
+    setRecoveryDialogOpen(false); // Cierra el diálogo
+}
+```
+
+La función `saveAllUsers` en el servidor (`src/modules/core/lib/auth.ts`) es la que se encarga de verificar si una contraseña es nueva (es decir, no es un hash) y la hashea antes de guardarla.
+
+```ts
+// src/modules/core/lib/auth.ts
+
+export async function saveAllUsers(users: User[]): Promise<void> {
+   const db = await connectDb();
+   const transaction = db.transaction((usersToSave: User[]) => {
+        // ... (obtiene usuarios existentes)
+        db.prepare('DELETE FROM users').run(); 
+        
+        for (const user of usersToSave) {
+          let passwordToSave = user.password;
+          const existingPassword = existingUsersMap.get(user.id);
+          
+          // Si la contraseña es nueva o diferente y no parece un hash, la hashea.
+          if (passwordToSave && passwordToSave !== existingPassword) {
+              if (!passwordToSave.startsWith('$2a$')) {
+                  passwordToSave = bcrypt.hashSync(passwordToSave, SALT_ROUNDS);
+              }
+          } else {
+             passwordToSave = existingPassword;
+          }
+          // ... (inserta el usuario con la contraseña correcta)
+        }
+    });
+    transaction(users);
+}
+```
