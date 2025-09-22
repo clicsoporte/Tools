@@ -697,12 +697,6 @@ export async function backupDatabase(moduleId: string): Promise<Buffer> {
     const dbPath = path.join(dbDirectory, module.dbFile);
     if (!fs.existsSync(dbPath)) throw new Error("Database file not found");
 
-    // Close the connection before copying to ensure file is not locked
-    if (dbConnections.has(module.dbFile)) {
-        dbConnections.get(module.dbFile)!.close();
-        dbConnections.delete(module.dbFile);
-    }
-
     const backupDir = path.join(dbDirectory, 'temp_backups');
     if (!fs.existsSync(backupDir)) {
         fs.mkdirSync(backupDir, { recursive: true });
@@ -712,6 +706,12 @@ export async function backupDatabase(moduleId: string): Promise<Buffer> {
     let fileBuffer: Buffer;
 
     try {
+        // Close the connection before copying to ensure file is not locked
+        if (dbConnections.has(module.dbFile)) {
+            dbConnections.get(module.dbFile)!.close();
+            dbConnections.delete(module.dbFile);
+        }
+        
         // Copy the file to a temporary location
         fs.copyFileSync(dbPath, tempBackupPath);
 
@@ -729,8 +729,6 @@ export async function backupDatabase(moduleId: string): Promise<Buffer> {
         
     } catch (e: any) {
         console.error("Backup creation or validation failed", { moduleId, error: e.message });
-        // Re-establish connection even if backup fails
-        await connectDb(module.dbFile);
         throw new Error("El backup generado está corrupto. No se pudo crear la copia de seguridad.");
     } finally {
         // Clean up the temporary file and re-establish the original connection
@@ -755,7 +753,10 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) throw new Error("Module not found");
     
-    const buffer = Buffer.from(await backupFile.arrayBuffer());
+    // Convert the File-like object from FormData into a buffer
+    const blob = new Blob([backupFile]);
+    const buffer = Buffer.from(await blob.arrayBuffer());
+
 
     // Validate the backup file in memory first
     try {
@@ -1448,6 +1449,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 
