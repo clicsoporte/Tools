@@ -757,7 +757,7 @@ export const useQuoter = () => {
       addLine, removeLine, updateLine, updateLineProductDetail, handleCurrencyToggle, formatCurrency,
       handleSelectCustomer, handleSelectProduct, incrementAndSaveQuoteNumber, handleSaveDecimalPlaces,
       generatePDF, resetQuote, saveDraft, loadDrafts, handleLoadDraft, handleDeleteDraft, handleNumericInputBlur,
-      handleCustomerDetailsChange, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown,
+      handleCustomerDetailsChange, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown, handleCustomerInputKeyDown,
     },
     refs: { productInputRef, customerInputRef, lineInputRefs },
     selectors: { totals, customerOptions, productOptions },
