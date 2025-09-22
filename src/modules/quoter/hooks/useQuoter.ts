@@ -693,14 +693,6 @@ export const useQuoter = () => {
     }
   };
 
-  const handleProductInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && selectors.productOptions.length > 0) { e.preventDefault(); handleSelectProduct(selectors.productOptions[0].value); }
-  };
-
-  const handleCustomerInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && selectors.customerOptions.length > 0) { e.preventDefault(); handleSelectCustomer(selectors.customerOptions[0].value); }
-  }
-
 
   // --- MEMOIZED SELECTORS ---
   const totals = useMemo(() => {
@@ -739,6 +731,16 @@ export const useQuoter = () => {
         }
       });
   }, [products, showInactiveProducts, debouncedProductSearch, stockLevels]);
+  
+  const handleProductInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && productOptions.length > 0) { e.preventDefault(); handleSelectProduct(productOptions[0].value); }
+  };
+
+  const handleCustomerInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && customerOptions.length > 0) { e.preventDefault(); handleSelectCustomer(customerOptions[0].value); }
+  };
+  
+  const selectors = { totals, customerOptions, productOptions };
 
   return {
     state: {
@@ -760,6 +762,6 @@ export const useQuoter = () => {
       handleCustomerDetailsChange, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown, handleCustomerInputKeyDown,
     },
     refs: { productInputRef, customerInputRef, lineInputRefs },
-    selectors: { totals, customerOptions, productOptions },
+    selectors,
   };
 };

@@ -821,11 +821,11 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
         header.forEach((h, index) => {
             const key = headerMapping[h as keyof typeof headerMapping];
             if (key) {
-                const value = data[index]?.replace(/[\n\r]/g, '').trim() || '';
+                const value = data[index]?.trim() || '';
                 if (key === 'creditLimit' || key === 'percentage' || key === 'stock' || key === 'rack' || key === 'hPos') {
                     dataObject[key] = parseFloat(value) || 0;
                 } else {
-                    dataObject[key] = value.trim(); // Trim all string values on import
+                    dataObject[key] = value;
                 }
             }
         });
@@ -1374,6 +1374,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 
