@@ -134,7 +134,7 @@ export default function MaintenancePage() {
         setProcessingAction(`backup-${selectedModule}`);
         try {
             const buffer = await backupDatabase(selectedModule);
-            const blob = new Blob([new Uint8Array(buffer)], { type: 'application/x-sqlite3' });
+            const blob = new Blob([buffer], { type: 'application/x-sqlite3' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
