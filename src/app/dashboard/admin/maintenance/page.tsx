@@ -30,8 +30,8 @@ import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Label } from '../../../../components/ui/label';
-import { getDbModules, backupAllForUpdate, restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile } from '../../../../modules/core/lib/db';
-import type { DatabaseModule, UpdateBackupInfo } from '../../../../modules/core/types';
+import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile, backupAllForUpdate } from '../../../../modules/core/lib/db';
+import type { UpdateBackupInfo } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format, parseISO } from 'date-fns';
@@ -44,7 +44,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function MaintenancePage() {
     const { isAuthorized } = useAuthorization(['admin:maintenance:backup', 'admin:maintenance:restore', 'admin:maintenance:reset']);
     const { toast } = useToast();
-    const [dbModules, setDbModules] = useState<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [processingAction, setProcessingAction] = useState<string | null>(null);
     const { setTitle } = usePageTitle();
@@ -61,11 +60,7 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('load');
         try {
-            const [modules, backups] = await Promise.all([
-                getDbModules(), 
-                listAllUpdateBackups(),
-            ]);
-            setDbModules(modules);
+            const backups = await listAllUpdateBackups();
             setUpdateBackups(backups);
             if (backups.length > 0) {
                 const latestTimestamp = backups.reduce((latest, current) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
@@ -200,7 +195,7 @@ export default function MaintenancePage() {
 
     const oldBackupsCount = uniqueTimestamps.length > 1 ? uniqueTimestamps.length - 1 : 0;
     
-    if (isAuthorized === null || (isAuthorized && isLoading)) {
+    if (isAuthorized === null || (isProcessing && processingAction === 'load')) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <div className="mx-auto max-w-4xl space-y-8">
