@@ -68,11 +68,12 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
     if (fs.existsSync(restoreFilePath)) {
         console.log(`Restore file found for ${dbFile}. Applying restore...`);
         try {
-            if (dbConnections.has(dbFile)) {
+            if (dbConnections.has(dbFile) && dbConnections.get(dbFile)?.open) {
                 dbConnections.get(dbFile)!.close();
                 dbConnections.delete(dbFile);
             }
             if (fs.existsSync(dbPath)) {
+                fs.copyFileSync(dbPath, `${dbPath}.bak`); // Create a .bak before overwriting
                 fs.unlinkSync(dbPath);
             }
             fs.renameSync(restoreFilePath, dbPath);
@@ -110,7 +111,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             }
         } catch (error) {
             console.error(`Database ${dbFile} is corrupted or unreadable. It will be re-initialized.`, error);
-            if (dbConnections.has(dbFile)) {
+            if (dbConnections.has(dbFile) && dbConnections.get(dbFile)?.open) {
                 dbConnections.get(dbFile)!.close();
             }
             fs.unlinkSync(dbPath);
@@ -821,18 +822,21 @@ export async function restoreDatabase(formData: FormData): Promise<{ needsRestar
     const backupFile = formData.get('backupFile') as File | null;
 
     if (!backupFile) {
+        const errorMsg = "No se proporcionó archivo de backup.";
         await logError("Restore failed: No backup file provided.");
-        throw new Error("No se proporcionó archivo de backup.");
+        throw new Error(errorMsg);
     }
     
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) {
+        const errorMsg = "Módulo no encontrado.";
         await logError("Restore failed: Module not found", { moduleId });
-        throw new Error("Módulo no encontrado.");
+        throw new Error(errorMsg);
     }
     
     try {
-        const blob = new Blob([await (backupFile as any).arrayBuffer()]);
+        // This is now compatible with how Next.js handles file objects in Server Actions.
+        const blob = new Blob([await backupFile.arrayBuffer()]);
         const buffer = Buffer.from(await blob.arrayBuffer());
 
         const inMemoryDb = new Database(buffer);
@@ -864,7 +868,7 @@ export async function resetDatabase(moduleId: string): Promise<void> {
         throw new Error("Module not found");
     }
 
-    if (dbConnections.has(module.dbFile)) {
+    if (dbConnections.has(module.dbFile) && dbConnections.get(module.dbFile)?.open) {
         dbConnections.get(module.dbFile)!.close();
         dbConnections.delete(module.dbFile);
     }
@@ -1378,7 +1382,7 @@ export async function backupAllForUpdate(): Promise<void> {
             const backupPath = path.join(backupDir, backupFileName);
             
             try {
-                if (dbConnections.has(module.dbFile)) {
+                if (dbConnections.has(module.dbFile) && dbConnections.get(module.dbFile)?.open) {
                     dbConnections.get(module.dbFile)!.close();
                     dbConnections.delete(module.dbFile);
                 }
@@ -1427,11 +1431,12 @@ export async function restoreAllFromUpdateBackup(): Promise<void> {
                 const backupPath = path.join(backupDir, latestBackupFile);
                 const dbPath = path.join(dbDirectory, module.dbFile);
 
-                if (dbConnections.has(module.dbFile)) {
+                if (dbConnections.has(module.dbFile) && dbConnections.get(module.dbFile)?.open) {
                     dbConnections.get(module.dbFile)!.close();
                     dbConnections.delete(module.dbFile);
                 }
-
+                
+                fs.copyFileSync(backupPath, `${dbPath}.bak`); // Create a backup of the current live db
                 fs.copyFileSync(backupPath, dbPath);
                 restoredFiles.push(module.dbFile);
                 await connectDb(module.dbFile);

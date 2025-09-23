@@ -105,7 +105,7 @@ export default function MaintenancePage() {
                  if (result?.needsRestart) {
                     toast({
                         title: "Restauración Preparada",
-                        description: `El sistema se reiniciará en 5 segundos para aplicar la restauración del módulo '${selectedModule}'.`,
+                        description: `El sistema se reiniciará en 5 segundos para aplicar la restauración del módulo '${dbModules.find(m => m.id === selectedModule)?.name}'.`,
                         duration: 5000,
                     });
                     setTimeout(() => window.location.reload(), 5000);
@@ -114,6 +114,10 @@ export default function MaintenancePage() {
                         title: "Restauración Exitosa",
                         description: `La base de datos para el módulo '${selectedModule}' ha sido restaurada.`,
                     });
+                     // No restart needed, but we should probably re-fetch data
+                    await fetchMaintenanceData();
+                    setIsProcessing(false);
+                    setProcessingAction(null);
                 }
             } catch (error: any) {
                 toast({
@@ -124,9 +128,8 @@ export default function MaintenancePage() {
                 setIsProcessing(false);
                 setProcessingAction(null);
             }
-            // Do not set processing to false if a restart is needed
         }
-    }, [selectedModule, toast]);
+    }, [selectedModule, toast, fetchMaintenanceData, dbModules]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -161,7 +164,7 @@ export default function MaintenancePage() {
 
             toast({
                 title: "Copia de Seguridad Exitosa",
-                description: `Se ha descargado la copia de seguridad para '${selectedModule}'.`,
+                description: `Se ha descargado la copia de seguridad para '${dbModules.find(m => m.id === selectedModule)?.name}'.`,
             });
         } catch (error: any) {
             toast({

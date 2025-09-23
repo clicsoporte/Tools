@@ -44,14 +44,23 @@ export async function GET(request: NextRequest) {
 
     try {
         const stats = fs.statSync(filePath);
-        const data: Readable = fs.createReadStream(filePath);
+        const dataStream = fs.createReadStream(filePath);
+        
+        // This is a type assertion needed because Next.js NextResponse expects a specific stream type.
+        const readableStream = new ReadableStream({
+            start(controller) {
+                dataStream.on('data', (chunk) => controller.enqueue(chunk));
+                dataStream.on('end', () => controller.close());
+                dataStream.on('error', (err) => controller.error(err));
+            },
+        });
 
         const headers = new Headers();
         headers.set('Content-Type', 'application/x-sqlite3');
         headers.set('Content-Disposition', `attachment; filename="${sanitizedFileName}"`);
         headers.set('Content-Length', String(stats.size));
 
-        return new NextResponse(data as any, { status: 200, headers });
+        return new NextResponse(readableStream as any, { status: 200, headers });
 
     } catch (error: any) {
         console.error(`Failed to read backup file: ${error.message}`);
