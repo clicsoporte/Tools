@@ -413,11 +413,19 @@ export const usePlanner = () => {
         handleExportPDF: () => {
             if (!authCompanyData) return;
             const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 14;
+
+            // Add header
+            if (authCompanyData.logoUrl) {
+                try {
+                    doc.addImage(authCompanyData.logoUrl, 'PNG', margin, 15, 50, 15);
+                } catch(e) { console.error("Error adding logo to PDF:", e) }
+            }
             doc.setFontSize(18);
-            doc.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, 14, 22);
-            doc.setFontSize(11);
-            doc.setTextColor(100);
-            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 30);
+            doc.text(`Lista de Órdenes (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, 22, { align: 'center' });
+            doc.setFontSize(10);
+            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 22, { align: 'right' });
     
             const tableColumn = ["OP", "Cliente", "Producto", "Cant.", "Entrega", "Estado"];
             const tableRows: (string | number)[][] = selectors.filteredOrders.map(order => [
@@ -432,7 +440,7 @@ export const usePlanner = () => {
             autoTable(doc, {
                 head: [tableColumn],
                 body: tableRows,
-                startY: 35,
+                startY: 40,
                 headStyles: { fillColor: [41, 128, 185], halign: 'left' },
                 didDrawCell: (data) => {
                     if (data.section === 'head' && data.column.index === 3) {
@@ -448,41 +456,67 @@ export const usePlanner = () => {
         },
     
         handleExportSingleOrderPDF: async (order: ProductionOrder) => {
+            if (!authCompanyData) return;
             const doc = new jsPDF();
-            const margin = 15;
             const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 14;
             let y = 20;
 
+            // Add Header
+            if (authCompanyData.logoUrl) {
+                try {
+                    doc.addImage(authCompanyData.logoUrl, 'PNG', margin, 15, 50, 15);
+                } catch(e) { console.error("Error adding logo to PDF:", e) }
+            }
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
             doc.text('Orden de Producción', pageWidth / 2, y, { align: 'center' });
             y += 8;
             doc.setFontSize(12);
             doc.setFont('helvetica', 'normal');
-            doc.text(`${order.consecutive}`, pageWidth - margin, y, { align: 'right' });
+            doc.text(`${order.consecutive}`, pageWidth - margin, y - 8, { align: 'right' });
+            doc.setFontSize(10);
+            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, y, { align: 'right' });
             y += 15;
+            
+            const machineName = state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
 
+            // Add Order Details Table
             const details = [
-                { label: 'Cliente:', value: order.customerName },
-                { label: 'Producto:', value: `[${order.productId}] ${order.productDescription}` },
-                { label: 'Cantidad Solicitada:', value: order.quantity.toLocaleString('es-CR') },
-                { label: 'Fecha de Entrega:', value: format(parseISO(order.deliveryDate), 'dd/MM/yyyy') },
-                { label: 'Estado Actual:', value: selectors.statusConfig[order.status]?.label || order.status },
-                { label: 'Prioridad:', value: selectors.priorityConfig[order.priority]?.label || order.priority },
-                { label: 'Notas:', value: order.notes || 'N/A' },
+                ['Cliente', order.customerName],
+                ['Producto', `[${order.productId}] ${order.productDescription}`],
+                ['Cantidad', order.quantity.toLocaleString('es-CR')],
+                ['Fecha Solicitud', format(parseISO(order.requestDate), 'dd/MM/yyyy')],
+                ['Fecha Entrega', format(parseISO(order.deliveryDate), 'dd/MM/yyyy')],
+                ['Estado', selectors.statusConfig[order.status]?.label || order.status],
+                ['Prioridad', selectors.priorityConfig[order.priority]?.label || order.priority],
+                ['Asignación', machineName],
+                ['Notas', order.notes || 'N/A'],
+                ['Solicitado por', order.requestedBy],
+                ['Aprobado por', order.approvedBy || 'N/A'],
+                ['Última actualización', `${order.lastStatusUpdateBy || 'N/A'} - ${order.lastStatusUpdateNotes || ''}`]
             ];
-            
-            let startY = y;
-            details.forEach(detail => {
-                doc.setFont('helvetica', 'bold');
-                doc.text(detail.label, margin, startY);
-                doc.setFont('helvetica', 'normal');
-                const splitValue = doc.splitTextToSize(detail.value, pageWidth - (margin * 2) - 40);
-                doc.text(splitValue, margin + 40, startY);
-                startY += (splitValue.length * 5) + 4;
+
+            autoTable(doc, {
+                startY: y,
+                head: [['Campo', 'Valor']],
+                body: details,
+                theme: 'striped',
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                columnStyles: {
+                    0: { fontStyle: 'bold', cellWidth: 40 },
+                    1: { cellWidth: 'auto' }
+                },
+                didParseCell: (data) => {
+                     if (data.row.section === 'body') {
+                        data.cell.styles.fillColor = '#ffffff';
+                     }
+                }
             });
-            y = startY + 10;
-            
+
+            y = (doc as any).lastAutoTable.finalY + 15;
+
+            // Add History Table
             if (y > 220) { doc.addPage(); y = 20; }
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
