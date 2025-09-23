@@ -237,7 +237,7 @@ export default function MaintenancePage() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             {uniqueTimestamps.slice(0, showAllRestorePoints ? undefined : 1).map(ts => (
-                                                <SelectItem key={ts} value={ts}>{format(parseISO(ts), "'dd/MM/yyyy' 'a las' HH:mm:ss", { locale: es })}</SelectItem>
+                                                <SelectItem key={ts} value={ts}>{format(parseISO(ts), "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es })}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
