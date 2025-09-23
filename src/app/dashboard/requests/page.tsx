@@ -26,6 +26,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { PurchaseRequest } from '@/modules/core/types';
+import { Separator } from '@/components/ui/separator';
 
 
 export default function PurchaseRequestPage() {
