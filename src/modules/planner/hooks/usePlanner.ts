@@ -40,6 +40,13 @@ const baseStatusConfig: { [key: string]: { label: string, color: string } } = {
     canceled: { label: "Cancelada", color: "bg-red-700" },
 };
 
+const priorityConfig = { 
+    low: { label: "Baja", className: "text-gray-500" }, 
+    medium: { label: "Media", className: "text-blue-500" }, 
+    high: { label: "Alta", className: "text-yellow-600" }, 
+    urgent: { label: "Urgente", className: "text-red-600" }
+};
+
 
 export const usePlanner = () => {
     const { isAuthorized, hasPermission } = useAuthorization(['planner:read']);
@@ -427,6 +434,11 @@ export const usePlanner = () => {
                 body: tableRows,
                 startY: 35,
                 headStyles: { fillColor: [41, 128, 185], halign: 'left' },
+                didDrawCell: (data) => {
+                    if (data.section === 'head' && data.column.index === 3) {
+                        data.cell.styles.halign = 'right';
+                    }
+                },
                 columnStyles: {
                     3: { halign: 'right' }
                 },
@@ -441,17 +453,15 @@ export const usePlanner = () => {
             const pageWidth = doc.internal.pageSize.getWidth();
             let y = 20;
 
-            // Header
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
             doc.text('Orden de Producción', pageWidth / 2, y, { align: 'center' });
             y += 8;
             doc.setFontSize(12);
             doc.setFont('helvetica', 'normal');
-            doc.text(`OP-${order.consecutive}`, pageWidth - margin, y, { align: 'right' });
+            doc.text(`${order.consecutive}`, pageWidth - margin, y, { align: 'right' });
             y += 15;
 
-            // Order Details
             const details = [
                 { label: 'Cliente:', value: order.customerName },
                 { label: 'Producto:', value: `[${order.productId}] ${order.productDescription}` },
@@ -461,23 +471,18 @@ export const usePlanner = () => {
                 { label: 'Prioridad:', value: selectors.priorityConfig[order.priority]?.label || order.priority },
                 { label: 'Notas:', value: order.notes || 'N/A' },
             ];
-
-            doc.setFont('helvetica', 'bold');
-            details.forEach(detail => {
-                doc.text(detail.label, margin, y);
-                y += 7;
-            });
-
-            y = 43; // Reset Y for values
-            doc.setFont('helvetica', 'normal');
-            details.forEach(detail => {
-                const splitValue = doc.splitTextToSize(detail.value, pageWidth - margin - 50);
-                doc.text(splitValue, margin + 50, y);
-                y += (splitValue.length * 5) + 2;
-            });
-            y += 10;
             
-            // History
+            let startY = y;
+            details.forEach(detail => {
+                doc.setFont('helvetica', 'bold');
+                doc.text(detail.label, margin, startY);
+                doc.setFont('helvetica', 'normal');
+                const splitValue = doc.splitTextToSize(detail.value, pageWidth - (margin * 2) - 40);
+                doc.text(splitValue, margin + 40, startY);
+                startY += (splitValue.length * 5) + 4;
+            });
+            y = startY + 10;
+            
             if (y > 220) { doc.addPage(); y = 20; }
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
@@ -497,7 +502,7 @@ export const usePlanner = () => {
                     head: [tableColumn],
                     body: tableRows,
                     startY: y,
-                    headStyles: { fillColor: [41, 128, 185], halign: 'left' },
+                    headStyles: { fillColor: [41, 128, 185] },
                 });
             } else {
                 doc.setFontSize(10);
