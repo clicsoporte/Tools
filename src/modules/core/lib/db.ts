@@ -430,7 +430,7 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
         initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode
     );
     
-    db.prepare(`INSERT INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)`).run(
+    db.prepare(`INSERT OR IGNORE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)`).run(
         'https://api.hacienda.go.cr/indicadores/tc/dolar', 
         'https://api.hacienda.go.cr/fe/ex?autorizacion=',
         'https://api.hacienda.go.cr/fe/ae?identificacion='
@@ -758,14 +758,16 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'm
 export async function backupDatabase(moduleId: string): Promise<{error?: string; fileName?: string}> {
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) {
-        await logError("Backup failed: Module not found", { moduleId });
-        return { error: "Module not found" };
+        const msg = "Module not found";
+        await logError(`Backup failed: ${msg}`, { moduleId });
+        return { error: msg };
     }
 
     const dbPath = path.join(dbDirectory, module.dbFile);
     if (!fs.existsSync(dbPath)) {
-        await logError(`Backup failed: Database file not found`, { moduleId, path: dbPath });
-        return { error: "Database file not found" };
+        const msg = "Database file not found";
+        await logError(`Backup failed: ${msg}`, { moduleId, path: dbPath });
+        return { error: msg };
     }
 
     const backupDir = path.join(dbDirectory, TEMP_BACKUP_DIR);
@@ -820,7 +822,7 @@ export async function deleteTempBackup(fileName: string): Promise<void> {
 export async function restoreDatabase(formData: FormData): Promise<{ needsRestart?: boolean }> {
     const moduleId = formData.get('moduleId') as string;
     const backupFile = formData.get('backupFile') as File | null;
-
+    
     if (!backupFile) {
         const errorMsg = "No se proporcionó archivo de backup.";
         await logError("Restore failed: No backup file provided.");
@@ -847,10 +849,29 @@ export async function restoreDatabase(formData: FormData): Promise<{ needsRestar
             throw new Error(`El archivo de backup está corrupto (integrity check: ${result})`);
         }
 
-        const restoreFilePath = path.join(dbDirectory, `${module.dbFile}_restore.db`);
-        fs.writeFileSync(restoreFilePath, buffer);
+        const dbPath = path.join(dbDirectory, module.dbFile);
+        
+        // --- Start of Robust Restore Logic ---
+        // 1. Explicitly close and remove connection if it exists
+        if (dbConnections.has(module.dbFile) && dbConnections.get(module.dbFile)?.open) {
+            dbConnections.get(module.dbFile)!.close();
+            dbConnections.delete(module.dbFile);
+            await logInfo(`Closed existing DB connection for ${module.dbFile} before restore.`);
+        }
 
-        await logWarn(`Restore file staged for module ${module.name}. App restart is required.`, { moduleId: module.name, fileName: backupFile.name });
+        // 2. Create a backup of the current database before overwriting.
+        if (fs.existsSync(dbPath)) {
+            fs.copyFileSync(dbPath, `${dbPath}.bak_${Date.now()}`);
+        }
+
+        // 3. Write the new database file from the buffer.
+        fs.writeFileSync(dbPath, buffer);
+
+        // 4. Re-establish connection to the newly restored DB
+        await connectDb(module.dbFile);
+        // --- End of Robust Restore Logic ---
+
+        await logWarn(`Restore for module ${module.name} completed. App restart is recommended.`, { moduleId: module.name, fileName: backupFile.name });
 
         return { needsRestart: true };
 
@@ -1525,3 +1546,4 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+

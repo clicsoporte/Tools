@@ -24,7 +24,7 @@ import {
     SelectValue,
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
-import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
+import { logError } from "../../../../modules/core/lib/logger";
 import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2, Save, LifeBuoy, Trash2 as TrashIcon } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
@@ -104,20 +104,11 @@ export default function MaintenancePage() {
                 
                  if (result?.needsRestart) {
                     toast({
-                        title: "Restauración Preparada",
-                        description: `El sistema se reiniciará en 5 segundos para aplicar la restauración del módulo '${dbModules.find(m => m.id === selectedModule)?.name}'.`,
+                        title: "Restauración Completada",
+                        description: `El módulo '${dbModules.find(m => m.id === selectedModule)?.name}' fue restaurado. La aplicación se reiniciará en 5 segundos.`,
                         duration: 5000,
                     });
                     setTimeout(() => window.location.reload(), 5000);
-                } else {
-                     toast({
-                        title: "Restauración Exitosa",
-                        description: `La base de datos para el módulo '${selectedModule}' ha sido restaurada.`,
-                    });
-                     // No restart needed, but we should probably re-fetch data
-                    await fetchMaintenanceData();
-                    setIsProcessing(false);
-                    setProcessingAction(null);
                 }
             } catch (error: any) {
                 toast({
@@ -129,7 +120,7 @@ export default function MaintenancePage() {
                 setProcessingAction(null);
             }
         }
-    }, [selectedModule, toast, fetchMaintenanceData, dbModules]);
+    }, [selectedModule, toast, dbModules]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
