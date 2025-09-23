@@ -23,7 +23,10 @@ const SALT_ROUNDS = 10;
  */
 export async function login(email: string, passwordProvided: string): Promise<User | null> {
   const db = await connectDb();
-  const clientIp = headers().get('x-forwarded-for') ?? 'Unknown IP';
+  const requestHeaders = headers();
+  const clientIp = requestHeaders.get('x-forwarded-for') ?? 'Unknown IP';
+  const clientHost = requestHeaders.get('host') ?? 'Unknown Host';
+  const logMeta = { email, ip: clientIp, host: clientHost };
   try {
     const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
     const user: User | undefined = stmt.get(email) as User | undefined;
@@ -33,15 +36,15 @@ export async function login(email: string, passwordProvided: string): Promise<Us
       if (isMatch) {
         // Do not send the password hash back to the client.
         const { password, ...userWithoutPassword } = user;
-        await logInfo(`User '${user.name}' logged in successfully.`, { email: user.email, ip: clientIp });
+        await logInfo(`User '${user.name}' logged in successfully.`, logMeta);
         return userWithoutPassword as User;
       }
     }
-    await logWarn(`Failed login attempt for email: ${email}`, { ip: clientIp });
+    await logWarn(`Failed login attempt for email: ${email}`, logMeta);
     return null;
   } catch (error: any) {
     console.error("Login error:", error);
-    await logWarn(`Login process failed for email: ${email} with error: ${error.message}`, { ip: clientIp });
+    await logWarn(`Login process failed for email: ${email} with error: ${error.message}`, logMeta);
     return null;
   }
 }
