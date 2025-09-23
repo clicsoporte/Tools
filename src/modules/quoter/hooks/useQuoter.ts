@@ -204,8 +204,6 @@ export const useQuoter = () => {
   }, [setTitle, loadInitialData]);
 
   useEffect(() => {
-    // Set dates on client side to avoid hydration errors on complex scenarios,
-    // though simple ones are fine.
     const today = new Date();
     setDeliveryDate(today.toISOString().substring(0, 16));
     setValidUntilDate(new Date(new Date().setDate(today.getDate() + 8)).toISOString().substring(0, 10));
@@ -271,15 +269,14 @@ export const useQuoter = () => {
     const newLineId = new Date().toISOString();
 
     let taxRate = 0.13; // Default tax
-    // Auto-set tax to 0 if there's a valid exemption for 13%
-    if (exemptionInfo && (exemptionInfo.isErpValid || exemptionInfo.isHaciendaValid) && exemptionInfo.erpExemption.percentage === 13) {
-      taxRate = 0;
-    }
-    // Set tax to 1% if it's a basic good
     if (product.isBasicGood === 'S') {
         taxRate = 0.01;
+    } else if (exemptionInfo && (exemptionInfo.isErpValid || exemptionInfo.isHaciendaValid) && exemptionInfo.erpExemption.percentage > 0) {
+      if (exemptionInfo.erpExemption.percentage >= 13) {
+        taxRate = 0;
+      }
     }
-
+    
     const newLine: QuoteLine = {
       id: newLineId,
       product,
@@ -388,7 +385,7 @@ export const useQuoter = () => {
           const initialExemptionState: ExemptionInfo = {
               erpExemption: customerExemption,
               haciendaExemption: null,
-              isLoading: !isSpecial, // Only load if it's not a special law
+              isLoading: !isSpecial,
               isErpValid: isErpValid,
               isHaciendaValid: false,
               isSpecialLaw: isSpecial,
@@ -440,7 +437,24 @@ export const useQuoter = () => {
         const doc = new jsPDF();
         const currentQuoteNumber = quoteNumber;
 
-        const addHeaderAndContent = () => {
+        const formatCurrencyForPdf = (amount: number) => {
+            const prefix = currency === "CRC" ? "CRC " : "$ ";
+            return `${prefix}${amount.toLocaleString("es-CR", {
+                minimumFractionDigits: decimalPlaces,
+                maximumFractionDigits: decimalPlaces,
+            })}`;
+        };
+        const formatNumberForPdf = (amount: number) => {
+            return amount.toLocaleString("es-CR", {
+                minimumFractionDigits: decimalPlaces,
+                maximumFractionDigits: decimalPlaces,
+            });
+        };
+
+        const addPageHeader = (doc: jsPDF) => {
+            if (companyData.logoUrl) {
+                doc.addImage(companyData.logoUrl, 'PNG', 14, 15, 50, 15);
+            }
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
             doc.setFontSize(18);
@@ -452,6 +466,7 @@ export const useQuoter = () => {
             doc.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, 28, { align: 'right' });
             doc.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, 34, { align: 'right' });
             if (purchaseOrderNumber) doc.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, 40, { align: 'right' });
+            
             let startY = 40;
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
@@ -466,6 +481,7 @@ export const useQuoter = () => {
             doc.text(`Tel: ${companyData.phone}`, margin, startY);
             startY += 6;
             doc.text(`Email: ${companyData.email}`, margin, startY);
+
             let sellerStartY = 46;
             doc.setFont('helvetica', 'bold');
             doc.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
@@ -482,7 +498,9 @@ export const useQuoter = () => {
             } else {
                 doc.text(sellerName, pageWidth - margin, sellerStartY, { align: 'right' });
             }
+        };
 
+        const addContent = () => {
             autoTable(doc, {
                 startY: 95,
                 head: [['Cliente', 'Entrega']],
@@ -499,44 +517,29 @@ export const useQuoter = () => {
                 line.quantity,
                 line.product.unit,
                 line.product.cabys,
-                formatCurrency(line.price),
+                formatCurrencyForPdf(line.price),
                 `${(line.tax * 100).toFixed(0)}%`,
-                formatCurrency(line.quantity * line.price * (1 + line.tax)),
+                formatCurrencyForPdf(line.quantity * line.price * (1 + line.tax)),
             ]);
             
             const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
                 const pageHeight = doc.internal.pageSize.getHeight();
                 const pageWidth = doc.internal.pageSize.getWidth();
                 doc.setFontSize(8);
-                doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+                doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
             };
 
             autoTable(doc, {
                 head: [tableColumn],
                 body: tableRows,
                 theme: 'striped',
-                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
                 columnStyles: {
                     0: { cellWidth: 20 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 15, halign: 'right' },
                     3: { cellWidth: 15 }, 4: { cellWidth: 25 }, 5: { cellWidth: 25, halign: 'right' },
                     6: { cellWidth: 15, halign: 'center' }, 7: { cellWidth: 25, halign: 'right' },
                 },
-                margin: { top: 80, bottom: 30 },
-                didDrawPage: (data) => {
-                    const addPageHeader = (doc: jsPDF) => {
-                        if (companyData.logoUrl) {
-                            doc.addImage(companyData.logoUrl, 'PNG', 14, 15, 50, 15);
-                        }
-                    };
-                    if (data.pageNumber > 1) {
-                        addPageHeader(doc);
-                    }
-                },
-                didParseCell: (data) => {
-                    if (data.section === 'head') {
-                        data.cell.styles.fontStyle = 'bold';
-                    }
-                }
+                didDrawPage: (data) => { addPageHeader(doc); }
             });
 
             const finalY = (doc as any).lastAutoTable.finalY;
@@ -545,28 +548,29 @@ export const useQuoter = () => {
             if (bottomContentY > doc.internal.pageSize.getHeight() - 40) {
                 doc.addPage();
                 bottomContentY = 20;
+                addPageHeader(doc);
             }
-            const totalsX = doc.internal.pageSize.getWidth() - margin;
+            const totalsX = doc.internal.pageSize.getWidth() - 14;
             doc.setFontSize(10);
-            doc.text(`Subtotal: ${formatCurrency(totals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
+            doc.text(`Subtotal: ${formatCurrencyForPdf(totals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
             bottomContentY += 6;
-            doc.text(`Impuestos: ${formatCurrency(totals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
+            doc.text(`Impuestos: ${formatCurrencyForPdf(totals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
             bottomContentY += 8;
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
-            doc.text(`Total: ${formatCurrency(totals.total)}`, totalsX, bottomContentY, { align: 'right' });
+            doc.text(`Total: ${formatCurrencyForPdf(totals.total)}`, totalsX, bottomContentY, { align: 'right' });
 
             const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
             doc.setFontSize(10);
             doc.setFont('helvetica', 'bold');
-            doc.text('Condiciones de Pago:', margin, bottomContentY - 14);
+            doc.text('Condiciones de Pago:', 14, bottomContentY - 14);
             doc.setFont('helvetica', 'normal');
-            doc.text(paymentInfo, margin, bottomContentY - 8);
+            doc.text(paymentInfo, 14, bottomContentY - 8);
             doc.setFont('helvetica', 'bold');
-            doc.text('Notas:', margin, bottomContentY);
+            doc.text('Notas:', 14, bottomContentY);
             doc.setFont('helvetica', 'normal');
             const splitNotes = doc.splitTextToSize(notes, 100);
-            doc.text(splitNotes, margin, bottomContentY + 6);
+            doc.text(splitNotes, 14, bottomContentY + 6);
             
             for (let i = 1; i <= doc.getNumberOfPages(); i++) {
                 doc.setPage(i);
@@ -579,20 +583,7 @@ export const useQuoter = () => {
             incrementAndSaveQuoteNumber();
         };
 
-        if (companyData.logoUrl) {
-            const img = new Image();
-            img.crossOrigin = "Anonymous";
-            img.src = companyData.logoUrl;
-            img.onload = () => {
-                doc.addImage(img, 'PNG', 14, 15, 50, 15);
-                addHeaderAndContent();
-            };
-            img.onerror = () => {
-                addHeaderAndContent();
-            };
-        } else {
-            addHeaderAndContent();
-        }
+        addHeaderAndContent();
 
     } catch (e: any) {
         logError("Error generating PDF", { error: e.message });
@@ -612,7 +603,7 @@ export const useQuoter = () => {
     setSellerName(currentUser?.name || initialQuoteState.sellerName);
     setQuoteDate(today.toISOString().substring(0, 10));
     setPurchaseOrderNumber(initialQuoteState.purchaseOrderNumber);
-    setExchangeRate(apiExchangeRate); // Reset to the fetched API rate
+    setExchangeRate(apiExchangeRate);
     setSellerType("user");
     setPaymentTerms(initialQuoteState.paymentTerms);
     setCreditDays(initialQuoteState.creditDays);
@@ -646,7 +637,6 @@ export const useQuoter = () => {
           currency: currency,
           exchangeRate: exchangeRate,
           purchaseOrderNumber: purchaseOrderNumber,
-          // Add missing fields from form state
           customerDetails: customerDetails,
           deliveryAddress: deliveryAddress,
           deliveryDate: deliveryDate,
@@ -708,7 +698,7 @@ export const useQuoter = () => {
   const handleDeleteDraft = async (draftId: string) => {
     await deleteQuoteDraft(draftId);
     await logInfo(`Quote draft deleted: ${draftId}`);
-    await loadDrafts(); // Refresh list
+    await loadDrafts();
     toast({ title: "Borrador Eliminado", description: `El borrador Nº ${draftId} ha sido eliminado.`, variant: "destructive" });
   };
   
@@ -732,8 +722,6 @@ export const useQuoter = () => {
     }
   };
 
-
-  // --- MEMOIZED SELECTORS ---
   const totals = useMemo(() => {
     const subtotal = lines.reduce((acc, line) => acc + (line.quantity * line.price), 0);
     const totalTaxes = lines.reduce((acc, line) => acc + (line.quantity * line.price * line.tax), 0);

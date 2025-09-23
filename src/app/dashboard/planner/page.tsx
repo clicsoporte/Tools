@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, MessageSquarePlus } from 'lucide-react';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, MessageSquarePlus, FileDown } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -299,6 +299,7 @@ export default function PlannerPage() {
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={state.dateFilter} onSelect={actions.setDateFilter} /></PopoverContent>
                         </Popover>
+                        <Button variant="outline" onClick={actions.handleExportPDF}><FileDown className="mr-2 h-4 w-4"/>Exportar PDF</Button>
                         <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                     </div>
                      {state.viewingArchived && (
@@ -343,7 +344,6 @@ export default function PlannerPage() {
                         </DialogHeader>
                         <ScrollArea className="h-[60vh] md:h-auto">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-                                {/* Form fields for editing */}
                                 <div className="space-y-2">
                                     <Label>Cliente</Label>
                                     <Input value={state.orderToEdit?.customerName || ''} disabled />
