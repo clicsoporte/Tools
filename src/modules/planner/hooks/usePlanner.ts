@@ -426,57 +426,91 @@ export const usePlanner = () => {
                 head: [tableColumn],
                 body: tableRows,
                 startY: 35,
-                headStyles: { fillColor: [41, 128, 185] },
+                headStyles: { fillColor: [41, 128, 185], halign: 'left' },
                 columnStyles: {
                     3: { halign: 'right' }
                 },
-                didParseCell: (data) => {
-                    if (data.section === 'head' && data.column.index === 3) {
-                        data.cell.styles.halign = 'right';
-                    }
-                }
             });
     
             doc.save(`ordenes_produccion_${new Date().getTime()}.pdf`);
         },
     
-        handleExportSingleOrderPDF: (order: ProductionOrder) => {
-            if (!authCompanyData) return;
+        handleExportSingleOrderPDF: async (order: ProductionOrder) => {
             const doc = new jsPDF();
-    
+            const margin = 15;
+            const pageWidth = doc.internal.pageSize.getWidth();
+            let y = 20;
+
+            // Header
             doc.setFontSize(18);
-            doc.text(`Orden de Producción: ${order.consecutive}`, 14, 22);
-            doc.setFontSize(11);
-            doc.setTextColor(100);
-            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 30);
-    
-            autoTable(doc, {
-                startY: 40,
-                head: [['Campo', 'Valor']],
-                body: [
-                    ['Cliente', order.customerName],
-                    ['Producto', `[${order.productId}] ${order.productDescription}`],
-                    ['Cantidad', order.quantity.toLocaleString()],
-                    ['Fecha Solicitud', format(parseISO(order.requestDate), 'dd/MM/yyyy')],
-                    ['Fecha Entrega', format(parseISO(order.deliveryDate), 'dd/MM/yyyy')],
-                    ['Estado', selectors.statusConfig[order.status]?.label || order.status],
-                    ['Prioridad', selectors.priorityConfig[order.priority]?.label || order.priority],
-                    ['Asignación', state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A'],
-                    ['Notas', order.notes || 'N/A'],
-                    ['Solicitado por', order.requestedBy],
-                    ['Aprobado por', order.approvedBy || 'N/A'],
-                    ['Última actualización', order.lastStatusUpdateBy ? `${order.lastStatusUpdateBy} - ${order.lastStatusUpdateNotes}` : 'N/A']
-                ],
-                theme: 'striped'
+            doc.setFont('helvetica', 'bold');
+            doc.text('Orden de Producción', pageWidth / 2, y, { align: 'center' });
+            y += 8;
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`OP-${order.consecutive}`, pageWidth - margin, y, { align: 'right' });
+            y += 15;
+
+            // Order Details
+            const details = [
+                { label: 'Cliente:', value: order.customerName },
+                { label: 'Producto:', value: `[${order.productId}] ${order.productDescription}` },
+                { label: 'Cantidad Solicitada:', value: order.quantity.toLocaleString('es-CR') },
+                { label: 'Fecha de Entrega:', value: format(parseISO(order.deliveryDate), 'dd/MM/yyyy') },
+                { label: 'Estado Actual:', value: selectors.statusConfig[order.status]?.label || order.status },
+                { label: 'Prioridad:', value: selectors.priorityConfig[order.priority]?.label || order.priority },
+                { label: 'Notas:', value: order.notes || 'N/A' },
+            ];
+
+            doc.setFont('helvetica', 'bold');
+            details.forEach(detail => {
+                doc.text(detail.label, margin, y);
+                y += 7;
             });
-    
+
+            y = 43; // Reset Y for values
+            doc.setFont('helvetica', 'normal');
+            details.forEach(detail => {
+                const splitValue = doc.splitTextToSize(detail.value, pageWidth - margin - 50);
+                doc.text(splitValue, margin + 50, y);
+                y += (splitValue.length * 5) + 2;
+            });
+            y += 10;
+            
+            // History
+            if (y > 220) { doc.addPage(); y = 20; }
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Historial de Cambios', margin, y);
+            y += 8;
+
+            const orderHistory = await getOrderHistory(order.id);
+            if (orderHistory.length > 0) {
+                const tableColumn = ["Fecha", "Estado", "Usuario", "Notas"];
+                const tableRows = orderHistory.map(entry => [
+                    format(parseISO(entry.timestamp), 'dd/MM/yy HH:mm'),
+                    selectors.statusConfig[entry.status]?.label || entry.status,
+                    entry.updatedBy,
+                    entry.notes || ''
+                ]);
+                autoTable(doc, {
+                    head: [tableColumn],
+                    body: tableRows,
+                    startY: y,
+                    headStyles: { fillColor: [41, 128, 185], halign: 'left' },
+                });
+            } else {
+                doc.setFontSize(10);
+                doc.text('No hay historial de cambios para esta orden.', margin, y);
+            }
+
             doc.save(`op_${order.consecutive}.pdf`);
         }
     };
 
     const selectors = {
         hasPermission,
-        priorityConfig: { low: { label: "Baja", className: "text-gray-500" }, medium: { label: "Media", className: "text-blue-500" }, high: { label: "Alta", className: "text-yellow-600" }, urgent: { label: "Urgente", className: "text-red-600" }},
+        priorityConfig,
         statusConfig: state.dynamicStatusConfig,
         getDaysRemaining: (dateStr: string) => getSimpleDaysRemaining(dateStr),
         getScheduledDaysRemaining: (order: ProductionOrder) => {
