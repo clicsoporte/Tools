@@ -113,7 +113,7 @@ export default function SettingsPage() {
     };
 
     if (passwords.current || passwords.new || passwords.confirm) {
-      const isMatch = await comparePasswords(passwords.current, user.password!);
+      const isMatch = await comparePasswords(user.id, passwords.current);
       if (!isMatch) {
         toast({
           title: "Error de Contraseña",

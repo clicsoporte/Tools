@@ -72,12 +72,12 @@ export async function saveAllUsers(users: User[]): Promise<void> {
 }
 
 /**
- * Compares a plaintext password with a stored bcrypt hash.
+ * Compares a plaintext password with a stored bcrypt hash for a given user.
  * This is a client-side wrapper for the server-side password comparison.
+ * @param {number} userId - The ID of the user whose password hash should be retrieved.
  * @param {string} password - The plaintext password to check.
- * @param {string} hash - The stored bcrypt hash.
  * @returns {Promise<boolean>} True if the password matches the hash.
  */
-export async function comparePasswords(password: string, hash: string): Promise<boolean> {
-    return await comparePasswordsServer(password, hash);
+export async function comparePasswords(userId: number, password: string): Promise<boolean> {
+    return await comparePasswordsServer(userId, password);
 }
