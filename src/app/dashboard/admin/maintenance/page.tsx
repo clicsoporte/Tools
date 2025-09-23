@@ -24,8 +24,8 @@ import {
     SelectValue,
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
-import { logError } from "../../../../modules/core/lib/logger";
-import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download } from "lucide-react";
+import { logError, logInfo } from "../../../../modules/core/lib/logger";
+import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -38,6 +38,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 export default function MaintenancePage() {
@@ -153,10 +154,10 @@ export default function MaintenancePage() {
             await restoreAllFromUpdateBackup(selectedRestoreTimestamp);
             toast({
                 title: "Restauración Completada",
-                description: `Se han restaurado los datos. La página se recargará.`,
+                description: `Se han restaurado los datos. La página se recargará en 5 segundos.`,
                 duration: 5000,
             });
-            setTimeout(() => window.location.reload(), 3000);
+            setTimeout(() => window.location.reload(), 5000);
         } catch (error: any) {
              toast({
                 title: "Error de Restauración",
@@ -169,6 +170,11 @@ export default function MaintenancePage() {
     };
 
     const handleClearOldBackups = async () => {
+        if (uniqueTimestamps.length <= 1) {
+            toast({ title: "Acción no necesaria", description: "No hay backups antiguos para eliminar.", variant: "default"});
+            return;
+        }
+
         setIsProcessing(true);
         setProcessingAction('clear-backups');
         try {
@@ -194,6 +200,16 @@ export default function MaintenancePage() {
 
     const oldBackupsCount = uniqueTimestamps.length > 1 ? uniqueTimestamps.length - 1 : 0;
     
+    if (isAuthorized === null || (isAuthorized && isLoading)) {
+        return (
+             <main className="flex-1 p-4 md:p-6 lg:p-8">
+                <div className="mx-auto max-w-4xl space-y-8">
+                    <Skeleton className="h-96 w-full" />
+                </div>
+            </main>
+        )
+    }
+
     if (!isAuthorized) {
         return null;
     }
@@ -236,7 +252,7 @@ export default function MaintenancePage() {
                                             <SelectValue placeholder="Seleccione un punto de restauración..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {uniqueTimestamps.slice(0, showAllRestorePoints ? undefined : 1).map(ts => (
+                                            {uniqueTimestamps.slice(0, showAllRestorePoints ? undefined : 5).map(ts => (
                                                 <SelectItem key={ts} value={ts}>{format(parseISO(ts), "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es })}</SelectItem>
                                             ))}
                                         </SelectContent>

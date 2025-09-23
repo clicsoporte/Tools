@@ -118,6 +118,22 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
         console.log("MIGRATION (requests.db): Adding arrivalDate column to purchase_requests.");
         db.exec(`ALTER TABLE purchase_requests ADD COLUMN arrivalDate TEXT`);
     }
+    if (!columns.has('purchaseOrder')) {
+        console.log("MIGRATION (requests.db): Adding purchaseOrder column to purchase_requests.");
+        db.exec(`ALTER TABLE purchase_requests ADD COLUMN purchaseOrder TEXT`);
+    }
+    if (!columns.has('unitSalePrice')) {
+        console.log("MIGRATION (requests.db): Adding unitSalePrice column to purchase_requests.");
+        db.exec(`ALTER TABLE purchase_requests ADD COLUMN unitSalePrice REAL`);
+    }
+    if (!columns.has('erpOrderNumber')) {
+        console.log("MIGRATION (requests.db): Adding erpOrderNumber column to purchase_requests.");
+        db.exec(`ALTER TABLE purchase_requests ADD COLUMN erpOrderNumber TEXT`);
+    }
+    if (!columns.has('manualSupplier')) {
+        console.log("MIGRATION (requests.db): Adding manualSupplier column to purchase_requests.");
+        db.exec(`ALTER TABLE purchase_requests ADD COLUMN manualSupplier TEXT`);
+    }
 }
 
 

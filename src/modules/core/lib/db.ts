@@ -208,6 +208,16 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         if (!draftColumns.has('currency')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN currency TEXT;`);
         if (!draftColumns.has('exchangeRate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN exchangeRate REAL;`);
         if (!draftColumns.has('purchaseOrderNumber')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN purchaseOrderNumber TEXT;`);
+        if (!draftColumns.has('customerDetails')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN customerDetails TEXT;`);
+        if (!draftColumns.has('deliveryAddress')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN deliveryAddress TEXT;`);
+        if (!draftColumns.has('deliveryDate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN deliveryDate TEXT;`);
+        if (!draftColumns.has('sellerName')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN sellerName TEXT;`);
+        if (!draftColumns.has('sellerType')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN sellerType TEXT;`);
+        if (!draftColumns.has('quoteDate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN quoteDate TEXT;`);
+        if (!draftColumns.has('validUntilDate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN validUntilDate TEXT;`);
+        if (!draftColumns.has('paymentTerms')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN paymentTerms TEXT;`);
+        if (!draftColumns.has('creditDays')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN creditDays INTEGER;`);
+        
 
         const usersToUpdate = db.prepare('SELECT id, password FROM users').all() as User[];
         const updateUserPassword = db.prepare('UPDATE users SET password = ? WHERE id = ?');
@@ -392,7 +402,9 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
 
         CREATE TABLE quote_drafts (
             id TEXT PRIMARY KEY, createdAt TEXT NOT NULL, userId INTEGER, customerId TEXT,
-            lines TEXT, totals TEXT, notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT
+            lines TEXT, totals TEXT, notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT,
+            customerDetails TEXT, deliveryAddress TEXT, deliveryDate TEXT, sellerName TEXT,
+            sellerType TEXT, quoteDate TEXT, validUntilDate TEXT, paymentTerms TEXT, creditDays INTEGER
         );
 
         CREATE TABLE sql_config (
@@ -728,7 +740,7 @@ export async function getAllQuoteDrafts(userId: number): Promise<QuoteDraft[]> {
 
 export async function saveQuoteDraft(draft: QuoteDraft): Promise<void> {
     const db = await connectDb();
-    const stmt = db.prepare('INSERT OR REPLACE INTO quote_drafts (id, createdAt, userId, customerId, lines, totals, notes, currency, exchangeRate, purchaseOrderNumber) VALUES (@id, @createdAt, @userId, @customerId, @lines, @totals, @notes, @currency, @exchangeRate, @purchaseOrderNumber)');
+    const stmt = db.prepare('INSERT OR REPLACE INTO quote_drafts (id, createdAt, userId, customerId, lines, totals, notes, currency, exchangeRate, purchaseOrderNumber, customerDetails, deliveryAddress, deliveryDate, sellerName, sellerType, quoteDate, validUntilDate, paymentTerms, creditDays) VALUES (@id, @createdAt, @userId, @customerId, @lines, @totals, @notes, @currency, @exchangeRate, @purchaseOrderNumber, @customerDetails, @deliveryAddress, @deliveryDate, @sellerName, @sellerType, @quoteDate, @validUntilDate, @paymentTerms, @creditDays)');
     try {
         stmt.run({
             ...draft,
@@ -1374,8 +1386,11 @@ export async function deleteOldUpdateBackups(): Promise<number> {
     for (const module of DB_MODULES) {
         const backupFiles = fs.readdirSync(backupDir)
             .filter(file => file.startsWith(`backup-${module.id}-`) && file.endsWith('.db'))
-            .sort()
-            .reverse(); // Newest first
+            .sort((a, b) => {
+                const dateA = new Date(a.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)/)?.[0] || 0).getTime();
+                const dateB = new Date(b.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)/)?.[0] || 0).getTime();
+                return dateB - dateA;
+            }); // Newest first
 
         if (backupFiles.length > 1) {
             const filesToDelete = backupFiles.slice(1); // All except the newest one

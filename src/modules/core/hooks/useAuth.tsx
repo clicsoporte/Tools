@@ -91,12 +91,6 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   useEffect(() => {
     loadAuthData();
-    // Listen for storage events (like logout or settings changes) to refresh data
-    const handleStorageChange = () => loadAuthData();
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    }
   }, [loadAuthData]);
 
   const contextValue: AuthContextType = {

@@ -26,7 +26,7 @@
 ## 2. Estructura del Proyecto
 
 -   `src/app/`: Contiene las rutas y páginas de la aplicación.
-    -   `(auth)/`: Páginas de autenticación (login).
+    -   `page.tsx`: Página de inicio de sesión.
     -   `dashboard/`: Layout y páginas del panel de control principal.
 -   `src/components/`: Componentes de React reutilizables.
 -   `src/modules/`: El corazón de la aplicación, organizado por funcionalidad.
@@ -39,7 +39,7 @@
 
 ---
 
-## 3. Guía de Módulos (Funcionalidades sin cambios)
+## 3. Guía de Módulos (Funcionalidades)
 
 ### 3.1. Cotizador (`/dashboard/quoter`)
 - **Creación Rápida:** Permite buscar y añadir clientes y productos de forma ágil, con autocompletado y atajos de teclado.

@@ -7,7 +7,7 @@ El diseño de Clic-Tools sigue una filosofía **modular, centrada en el servidor
 -   **Modularidad (Separación de Responsabilidades):** Cada herramienta principal (Cotizador, Planificador, etc.) reside en su propia carpeta dentro de `src/modules/`. Esta carpeta contiene toda la lógica de negocio, la interfaz de usuario y las interacciones con la base de datos específicas de ese módulo.
 -   **Server Actions de Next.js:** Toda la lógica crítica que interactúa con la base de datos o APIs externas se ejecuta exclusivamente en el servidor a través de "Server Actions" (`'use server'`). Esto garantiza la seguridad (las credenciales nunca se exponen al cliente) y el rendimiento.
 -   **Hooks para la Lógica de UI:** La lógica compleja del lado del cliente (manejo de estado, efectos, validaciones de formularios) se abstrae en hooks personalizados (ej: `usePlanner`, `useQuoter`). Esto mantiene los componentes de la página (`page.tsx`) limpios, declarativos y centrados únicamente en la renderización.
--   **Contexto de Autenticación Centralizado:** Se utiliza un `AuthContext` para cargar y proveer datos globales una sola vez por sesión (usuario, roles, clientes, productos). Esto evita la recarga redundante de datos en cada página y mejora drásticamente el rendimiento de la navegación.
+-   **Contexto de Autenticación Centralizado:** Se utiliza un `AuthContext` para cargar y proveer datos globales una sola vez por sesión (usuario, roles, clientes, productos, etc.). Esto evita la recarga redundante de datos en cada página y mejora drásticamente el rendimiento de la navegación.
 
 ## 2. Flujo de Datos y Arquitectura
 
@@ -33,7 +33,7 @@ El flujo de datos sigue un patrón claro y seguro:
     -   Contienen funciones `async` que simplemente llaman a las `Server Actions` correspondientes, pasando los datos necesarios.
     -   Esta capa existe para mantener los componentes de UI (hooks y páginas) completamente agnósticos sobre si una función se ejecuta en el cliente o en el servidor.
 
-4.  **Acciones del Servidor (`db.ts` en cada módulo):**
+4.  **Acciones del Servidor (archivos `db.ts` y `actions.ts` en cada módulo):**
     -   Marcadas con `'use server'`.
     -   Aquí reside toda la interacción con la base de datos (SQLite).
     -   Contienen la lógica de negocio real (cálculos, validaciones complejas, etc.).
