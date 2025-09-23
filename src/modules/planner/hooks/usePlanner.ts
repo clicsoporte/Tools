@@ -414,7 +414,7 @@ export const usePlanner = () => {
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
-
+        
             if (authCompanyData.logoUrl) {
                 try {
                     doc.addImage(authCompanyData.logoUrl, 'PNG', margin, 15, 50, 15);
@@ -426,10 +426,13 @@ export const usePlanner = () => {
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
             doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
+            doc.text(authCompanyData.name, margin, 22);
+            doc.text(authCompanyData.taxId, margin, 28);
     
-            const tableColumn = ["OP", "Cliente", "Producto", "Cant.", "Entrega", "Estado"];
+            const tableColumn = ["OP", "Código", "Cliente", "Producto", "Cant.", "Entrega", "Estado"];
             const tableRows: (string | number)[][] = selectors.filteredOrders.map(order => [
                 order.consecutive,
+                order.productId,
                 order.customerName,
                 order.productDescription,
                 order.quantity,
@@ -443,12 +446,12 @@ export const usePlanner = () => {
                 startY: 40,
                 headStyles: { fillColor: [41, 128, 185], halign: 'left' },
                 didDrawCell: (data) => {
-                    if (data.section === 'head' && data.column.index === 3) {
+                    if (data.section === 'head' && [4].includes(data.column.index)) {
                         data.cell.styles.halign = 'right';
                     }
                 },
                 columnStyles: {
-                    3: { halign: 'right' }
+                    4: { halign: 'right' }
                 },
             });
     
@@ -460,7 +463,7 @@ export const usePlanner = () => {
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
-            let y = 20;
+            let y = 40;
         
             if (authCompanyData.logoUrl) {
                 try {
@@ -477,6 +480,8 @@ export const usePlanner = () => {
             y += 8;
             doc.setFontSize(10);
             doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
+            doc.text(authCompanyData.name, margin, 22);
+            doc.text(authCompanyData.taxId, margin, 28);
             y += 15;
             
             const machineName = state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
@@ -498,7 +503,7 @@ export const usePlanner = () => {
         
             autoTable(doc, {
                 startY: y,
-                body: details,
+                body: details.map(d => [d.title, d.value]),
                 theme: 'plain',
                 styles: { cellPadding: 1, fontSize: 10 },
                 columnStyles: {
