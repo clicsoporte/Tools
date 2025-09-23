@@ -24,7 +24,7 @@ import {
     SelectValue,
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
-import { logError, logWarn, logInfo } from "../../../../modules/core/lib/logger";
+import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
 import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2, Save, LifeBuoy, Trash2 as TrashIcon } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
@@ -100,22 +100,31 @@ export default function MaintenancePage() {
                 formData.append('moduleId', selectedModule);
                 formData.append('backupFile', file);
                 
-                await restoreDatabase(formData);
+                const result = await restoreDatabase(formData);
                 
-                toast({
-                    title: "Restauración Exitosa",
-                    description: `La base de datos para el módulo '${selectedModule}' ha sido restaurada.`,
-                });
+                 if (result?.needsRestart) {
+                    toast({
+                        title: "Restauración Preparada",
+                        description: `El sistema se reiniciará en 5 segundos para aplicar la restauración del módulo '${selectedModule}'.`,
+                        duration: 5000,
+                    });
+                    setTimeout(() => window.location.reload(), 5000);
+                } else {
+                     toast({
+                        title: "Restauración Exitosa",
+                        description: `La base de datos para el módulo '${selectedModule}' ha sido restaurada.`,
+                    });
+                }
             } catch (error: any) {
                 toast({
                     title: "Error de Restauración",
                     description: `No se pudo restaurar la base de datos. Error: ${error.message}`,
                     variant: "destructive"
                 });
-            } finally {
                 setIsProcessing(false);
                 setProcessingAction(null);
             }
+            // Do not set processing to false if a restart is needed
         }
     }, [selectedModule, toast]);
 
@@ -131,19 +140,21 @@ export default function MaintenancePage() {
         setProcessingAction(`backup-${selectedModule}`);
         try {
             const result = await backupDatabase(selectedModule);
+            
             if (result.error || !result.fileName) {
                 throw new Error(result.error || "No se recibió el nombre del archivo de backup.");
             }
 
-            const { fileName } = result;
+            const fileName = result.fileName;
 
             const a = document.createElement('a');
             a.href = `/api/temp-backups?file=${encodeURIComponent(fileName)}`;
             a.download = fileName;
             document.body.appendChild(a);
             a.click();
-            a.remove();
+            document.body.removeChild(a);
 
+            // Clean up the temporary file after a short delay
             setTimeout(() => {
                 deleteTempBackup(fileName);
             }, 5000);
@@ -394,7 +405,7 @@ export default function MaintenancePage() {
                         <CardHeader>
                             <CardTitle>Restaurar Copia de Seguridad</CardTitle>
                             <CardDescription>
-                                Sube un archivo de base de datos (`.db`) para reemplazar los datos actuales. Esta acción es irreversible.
+                                Sube un archivo de base de datos (`.db`) para reemplazar los datos actuales. La aplicación se reiniciará para aplicar los cambios.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>

@@ -64,6 +64,27 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
         fs.mkdirSync(dbDirectory, { recursive: true });
     }
 
+    const restoreFilePath = `${dbPath}_restore.db`;
+    if (fs.existsSync(restoreFilePath)) {
+        console.log(`Restore file found for ${dbFile}. Applying restore...`);
+        try {
+            if (dbConnections.has(dbFile)) {
+                dbConnections.get(dbFile)!.close();
+                dbConnections.delete(dbFile);
+            }
+            if (fs.existsSync(dbPath)) {
+                fs.unlinkSync(dbPath);
+            }
+            fs.renameSync(restoreFilePath, dbPath);
+            await logWarn(`Database for module ${dbFile} was restored from a backup on startup.`);
+        } catch(e: any) {
+            console.error(`Failed to apply restore for ${dbFile}: ${e.message}`);
+            logError(`Failed to apply restore for ${dbFile}`, { error: e.message });
+            if (fs.existsSync(restoreFilePath)) fs.unlinkSync(restoreFilePath);
+        }
+    }
+
+
     let db: Database.Database;
     let dbExistsAndIsValid = false;
 
@@ -79,7 +100,13 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
                 const tableCheck = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(mainTable);
                 if (tableCheck) {
                     dbExistsAndIsValid = true;
+                } else {
+                     console.log(`Main table '${mainTable}' not found in ${dbFile}. DB will be re-initialized.`);
                 }
+            } else {
+                // If we don't have a main table to check, assume it's valid if it opens.
+                // This is a fallback and less safe.
+                dbExistsAndIsValid = true; 
             }
         } catch (error) {
             console.error(`Database ${dbFile} is corrupted or unreadable. It will be re-initialized.`, error);
@@ -748,14 +775,8 @@ export async function backupDatabase(moduleId: string): Promise<{error?: string;
     const tempBackupPath = path.join(backupDir, fileName);
     
     try {
-        if (dbConnections.has(module.dbFile)) {
-            dbConnections.get(module.dbFile)!.close();
-            dbConnections.delete(module.dbFile);
-        }
-        
         fs.copyFileSync(dbPath, tempBackupPath);
-        await connectDb(module.dbFile); // Re-establish connection
-
+        
         const backupDb = new Database(tempBackupPath);
         const result = backupDb.pragma('integrity_check', { simple: true });
         backupDb.close();
@@ -764,7 +785,7 @@ export async function backupDatabase(moduleId: string): Promise<{error?: string;
             throw new Error(`La comprobación de integridad falló: ${result}`);
         }
         await logInfo(`Individual backup created for module`, { moduleId: module.name, file: fileName });
-        return { fileName: fileName };
+        return { fileName };
 
     } catch (e: any) {
         const errorMsg = `La creación o validación del backup falló: ${e.message}`;
@@ -795,21 +816,24 @@ export async function deleteTempBackup(fileName: string): Promise<void> {
 }
 
 
-export async function restoreDatabase(formData: FormData): Promise<void> {
+export async function restoreDatabase(formData: FormData): Promise<{ needsRestart?: boolean }> {
     const moduleId = formData.get('moduleId') as string;
     const backupFile = formData.get('backupFile') as File | null;
 
     if (!backupFile) {
+        await logError("Restore failed: No backup file provided.");
         throw new Error("No se proporcionó archivo de backup.");
     }
     
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) {
+        await logError("Restore failed: Module not found", { moduleId });
         throw new Error("Módulo no encontrado.");
     }
     
     try {
-        const buffer = Buffer.from(await backupFile.arrayBuffer());
+        const blob = new Blob([await (backupFile as any).arrayBuffer()]);
+        const buffer = Buffer.from(await blob.arrayBuffer());
 
         const inMemoryDb = new Database(buffer);
         const result = inMemoryDb.pragma('integrity_check', { simple: true });
@@ -819,22 +843,12 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
             throw new Error(`El archivo de backup está corrupto (integrity check: ${result})`);
         }
 
-        const dbPath = path.join(dbDirectory, module.dbFile);
-        const dbConnection = dbConnections.get(module.dbFile);
-        if (dbConnection && dbConnection.open) {
-            dbConnection.close();
-            dbConnections.delete(module.dbFile);
-        }
+        const restoreFilePath = path.join(dbDirectory, `${module.dbFile}_restore.db`);
+        fs.writeFileSync(restoreFilePath, buffer);
 
-        // Create a backup of the current live db before overwriting
-        if (fs.existsSync(dbPath)) {
-            fs.copyFileSync(dbPath, `${dbPath}.bak`);
-        }
+        await logWarn(`Restore file staged for module ${module.name}. App restart is required.`, { moduleId: module.name, fileName: backupFile.name });
 
-        fs.writeFileSync(dbPath, buffer);
-
-        await connectDb(module.dbFile);
-        await logWarn(`Base de datos restaurada desde backup para el módulo`, { moduleId: module.name, fileName: backupFile.name });
+        return { needsRestart: true };
 
     } catch (error: any) {
         const errorMsg = `La restauración falló: ${error.message}`;
