@@ -148,17 +148,21 @@ export const usePlanner = () => {
     useEffect(() => {
         setTitle("Planificador OP");
         if (isAuthorized) {
-            loadInitialData(state.archivedPage);
+            loadInitialData(0);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setTitle, isAuthorized]);
     
+    // Effect to reload data when pagination or archive view changes
     useEffect(() => {
-        if (isAuthorized && !state.isLoading) { // Only run if not initial load
-             loadInitialData(state.archivedPage);
-        }
+        if (!isAuthorized || state.isLoading) return;
+
+        const reload = async () => {
+            await loadInitialData(state.archivedPage);
+        };
+        reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.archivedPage, state.pageSize, state.viewingArchived]);
+    }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthorized]);
     
     const actions = {
         setNewOrderDialogOpen: (isOpen: boolean) => updateState({ isNewOrderDialogOpen: isOpen }),
@@ -510,7 +514,7 @@ export const usePlanner = () => {
                     0: { fontStyle: 'bold', cellWidth: 40 },
                     1: { cellWidth: 'auto' }
                 },
-                didParseCell: (data) => { data.cell.styles.fillColor = '#ffffff'; }
+                didParseCell: (data) => { (data.cell.styles as any).fillColor = '#ffffff'; }
             });
         
             y = (doc as any).lastAutoTable.finalY + 15;
@@ -547,7 +551,7 @@ export const usePlanner = () => {
 
     const selectors = {
         hasPermission,
-        priorityConfig,
+        priorityConfig: priorityConfig,
         statusConfig: state.dynamicStatusConfig,
         getDaysRemaining: (dateStr: string) => getSimpleDaysRemaining(dateStr),
         getScheduledDaysRemaining: (order: ProductionOrder) => {
@@ -619,3 +623,6 @@ export const usePlanner = () => {
         isAuthorized,
     };
 };
+
+
+    
