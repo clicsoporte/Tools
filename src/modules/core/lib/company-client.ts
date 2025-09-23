@@ -6,16 +6,7 @@
 'use client';
 
 import type { Company } from '../types';
-import { getCompanySettings, saveCompanySettings } from './db';
-
-/**
- * Retrieves the company's general settings from the server.
- * This is a client-side wrapper for the server-side function.
- * @returns {Promise<Company | null>} A promise that resolves to the company object, or null if not found.
- */
-export async function getCompanyData(): Promise<Company | null> {
-    return getCompanySettings();
-}
+import { saveCompanySettings } from './db';
 
 /**
  * Saves the company's general settings via the server.

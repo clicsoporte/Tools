@@ -6,7 +6,7 @@
 
 import { headers } from "next/headers";
 import { AuthForm } from "@/components/auth/auth-form";
-import { getCompanyData } from "@/modules/core/lib/company-client";
+import { getCompanySettings } from "@/modules/core/lib/db";
 import { Network } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import type { Company } from "@/modules/core/types";
@@ -24,7 +24,7 @@ export default async function LoginPage() {
   
   let companyData: Company | null = null;
   try {
-    companyData = await getCompanyData();
+    companyData = await getCompanySettings();
   } catch (error) {
     console.error("Failed to load company data on server:", error);
     // Provide a default object if fetching fails
