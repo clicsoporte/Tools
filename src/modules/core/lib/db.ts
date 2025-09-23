@@ -391,6 +391,17 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
 
     const roleInsert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
+    
+    const initialQueries: ImportQuery[] = [
+        { type: 'customers', query: "SELECT CLIENTE, NOMBRE, DIRECCION, TELEFONO1, CONTRIBUYENTE, MONEDA, LIMITE_CREDITO, CONDICION_PAGO, VENDEDOR, ACTIVO, E_MAIL, EMAIL_DOC_ELECTRONICO FROM SOFTLAND.GAREND.CLIENTE WHERE ACTIVO = 'S'" },
+        { type: 'products', query: "SELECT ARTICULO, DESCRIPCION, CLASIFICACION_2, ULTIMO_INGRESO, ACTIVO, NOTAS, UNIDAD_VENTA, CANASTA_BASICA, CODIGO_HACIENDA FROM SOFTLAND.GAREND.ARTICULO WHERE ACTIVO = 'S'" },
+        { type: 'exemptions', query: "SELECT CODIGO, DESCRIPCION, CLIENTE, NUM_AUTOR, FECHA_RIGE, FECHA_VENCE, PORCENTAJE, TIPO_DOC, NOMBRE_INSTITUCION, CODIGO_INSTITUCION FROM SOFTLAND.GAREND.EXO_CLIENTE" },
+        { type: 'stock', query: "SELECT ARTICULO, BODEGA, CANT_DISPONIBLE FROM SOFTLAND.GAREND.EXISTENCIA_BODEGA WHERE CANT_DISPONIBLE > 0" },
+        { type: 'locations', query: "" },
+        { type: 'cabys', query: "" },
+    ];
+    const queryInsert = db.prepare('INSERT OR IGNORE INTO import_queries (type, query) VALUES (@type, @query)');
+    initialQueries.forEach(q => queryInsert.run(q));
 
     console.log(`Database ${DB_FILE} initialized with default users, company settings, and roles.`);
     await checkAndApplyMigrations(db);
@@ -724,9 +735,9 @@ export async function backupDatabase(moduleId: string): Promise<{error?: string,
 
         await connectDb(module.dbFile);
 
-        const tempDb = new Database(tempBackupPath);
-        const result = tempDb.pragma('integrity_check', { simple: true });
-        tempDb.close();
+        const backupDb = new Database(tempBackupPath);
+        const result = backupDb.pragma('integrity_check', { simple: true });
+        backupDb.close();
 
         if (result !== 'ok') {
             throw new Error(`Integrity check failed: ${result}`);
@@ -1472,6 +1483,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 
