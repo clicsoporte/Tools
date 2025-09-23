@@ -24,7 +24,7 @@ import {
     SelectValue,
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
-import { logError } from "../../../../modules/core/lib/logger";
+import { logError, logWarn, logInfo } from "../../../../modules/core/lib/logger";
 import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2, Save, LifeBuoy, Trash2 as TrashIcon } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
@@ -131,11 +131,11 @@ export default function MaintenancePage() {
         setProcessingAction(`backup-${selectedModule}`);
         try {
             const result = await backupDatabase(selectedModule);
-            if (result.error) {
-                throw new Error(result.error);
+            if (result.error || !result.fileName) {
+                throw new Error(result.error || "No se recibió el nombre del archivo de backup.");
             }
 
-            const { filePath, fileName } = result;
+            const { fileName } = result;
 
             const a = document.createElement('a');
             a.href = `/api/temp-backups?file=${encodeURIComponent(fileName)}`;
@@ -193,11 +193,11 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('full-backup');
         try {
-            const backedUpFiles = await backupAllForUpdate();
+            await backupAllForUpdate();
             await fetchMaintenanceData();
             toast({
                 title: "Backup Completo Creado",
-                description: `Se han respaldado ${backedUpFiles.length} bases de datos para la actualización.`
+                description: `Se creó un nuevo punto de restauración para la actualización.`
             });
         } catch (error: any) {
              toast({
@@ -215,10 +215,10 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('full-restore');
         try {
-            const restoredFiles = await restoreAllFromUpdateBackup();
+            await restoreAllFromUpdateBackup();
             toast({
                 title: "Restauración Completa",
-                description: `Se han restaurado ${restoredFiles.length} bases de datos. La página se recargará.`,
+                description: `Se han restaurado los datos desde el último punto de restauración. La página se recargará.`,
                 duration: 5000,
             });
             setTimeout(() => window.location.reload(), 3000);
@@ -255,7 +255,7 @@ export default function MaintenancePage() {
         }
     };
 
-    const oldBackupsCount = totalBackupCount - dbModules.length > 0 ? totalBackupCount - dbModules.length : 0;
+    const oldBackupsCount = totalBackupCount > dbModules.length ? totalBackupCount - dbModules.length : 0;
     
     if (!isAuthorized) {
         return null;
@@ -472,7 +472,7 @@ export default function MaintenancePage() {
                 </Card>
             </div>
             
-            {isProcessing && (
+            {(isProcessing) && (
                 <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span>Procesando...</span>

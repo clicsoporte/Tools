@@ -235,6 +235,37 @@ export const useQuoter = () => {
     }
   }, [lines.length]);
 
+  const customerOptions = useMemo(() => {
+    if (debouncedCustomerSearch.length < 2) return [];
+    return (customers || [])
+      .filter((c) => 
+        (showInactiveCustomers || c.active === "S") &&
+        (c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) || c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()))
+      )
+      .map((c) => ({ value: c.id, label: `${c.id} - ${c.name}` }));
+  }, [customers, showInactiveCustomers, debouncedCustomerSearch]);
+
+  const productOptions = useMemo(() => {
+    if (debouncedProductSearch.length < 2) return [];
+    const searchLower = debouncedProductSearch.toLowerCase();
+    return (products || [])
+      .filter((p) => {
+        const isActive = showInactiveProducts || p.active === "S";
+        const matchesSearch = p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower);
+        return isActive && matchesSearch;
+      })
+      .map((p) => {
+        const stockInfo = stockLevels.find(s => s.itemId === p.id);
+        const stockLabel = stockInfo ? ` (ERP: ${stockInfo.totalStock.toLocaleString()})` : '';
+        return {
+            value: p.id,
+            label: `${p.id} - ${p.description}${stockLabel}`,
+            className: p.active === "N" ? "text-red-500" : "",
+        }
+      });
+  }, [products, showInactiveProducts, debouncedProductSearch, stockLevels]);
+
+
   // --- ACTIONS ---
   const addLine = (product: Product) => {
     const newLineId = new Date().toISOString();
@@ -259,6 +290,27 @@ export const useQuoter = () => {
       displayPrice: "",
     };
     setLines((prev) => [...prev, newLine]);
+  };
+
+  const handleSelectProduct = (productId: string) => {
+    setProductSearchOpen(false);
+    if (!productId) {
+      setProductSearchTerm("");
+      return;
+    }
+    const product = products.find((p) => p.id === productId);
+    if (product) {
+      addLine(product);
+      setProductSearchTerm("");
+    }
+  };
+
+  const handleProductInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && productOptions.length > 0) { e.preventDefault(); handleSelectProduct(productOptions[0].value); }
+  };
+
+  const handleCustomerInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && customerOptions.length > 0) { e.preventDefault(); handleSelectCustomer(customerOptions[0].value); }
   };
 
   const removeLine = (id: string) => {
@@ -361,19 +413,6 @@ export const useQuoter = () => {
     }
   };
 
-  const handleSelectProduct = (productId: string) => {
-    setProductSearchOpen(false);
-    if (!productId) {
-      setProductSearchTerm("");
-      return;
-    }
-    const product = products.find((p) => p.id === productId);
-    if (product) {
-      addLine(product);
-      setProductSearchTerm("");
-    }
-  };
-
   const incrementAndSaveQuoteNumber = async () => {
     if (!companyData) return;
     const newCompanyData = { ...companyData, nextQuoteNumber: (companyData.nextQuoteNumber || 0) + 1 };
@@ -392,7 +431,7 @@ export const useQuoter = () => {
   
   const generatePDF = () => {
     if (isAuthLoading || !companyData) {
-        toast({ title: "Por favor espere", description: "Los datos aún se están cargando.", variant: "destructive" });
+        toast({ title: "Por favor espere", description: "Los datos de configuración de la empresa aún se están cargando.", variant: "destructive" });
         return;
     }
     setIsProcessing(true);
@@ -702,43 +741,6 @@ export const useQuoter = () => {
     return { subtotal, totalTaxes, total };
   }, [lines, decimalPlaces]);
 
-  const customerOptions = useMemo(() => {
-    if (debouncedCustomerSearch.length < 2) return [];
-    return (customers || [])
-      .filter((c) => 
-        (showInactiveCustomers || c.active === "S") &&
-        (c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) || c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()))
-      )
-      .map((c) => ({ value: c.id, label: `${c.id} - ${c.name}` }));
-  }, [customers, showInactiveCustomers, debouncedCustomerSearch]);
-
-  const productOptions = useMemo(() => {
-    if (debouncedProductSearch.length < 2) return [];
-    const searchLower = debouncedProductSearch.toLowerCase();
-    return (products || [])
-      .filter((p) => {
-        const isActive = showInactiveProducts || p.active === "S";
-        const matchesSearch = p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower);
-        return isActive && matchesSearch;
-      })
-      .map((p) => {
-        const stockInfo = stockLevels.find(s => s.itemId === p.id);
-        const stockLabel = stockInfo ? ` (ERP: ${stockInfo.totalStock.toLocaleString()})` : '';
-        return {
-            value: p.id,
-            label: `${p.id} - ${p.description}${stockLabel}`,
-            className: p.active === "N" ? "text-red-500" : "",
-        }
-      });
-  }, [products, showInactiveProducts, debouncedProductSearch, stockLevels]);
-  
-  const handleProductInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && productOptions.length > 0) { e.preventDefault(); handleSelectProduct(productOptions[0].value); }
-  };
-
-  const handleCustomerInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && customerOptions.length > 0) { e.preventDefault(); handleSelectCustomer(customerOptions[0].value); }
-  };
   
   const selectors = { totals, customerOptions, productOptions };
 

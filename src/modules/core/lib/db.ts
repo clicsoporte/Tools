@@ -881,8 +881,8 @@ const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'st
 }
 
 const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys') => {
-    if (lines.length < 2) {
-        throw new Error("El archivo está vacío o no contiene datos.");
+    if (lines.length < 1) {
+        return [];
     }
     const headerMapping = createHeaderMapping(type);
     const header = lines[0].split('\t').map(h => h.trim().toUpperCase());
@@ -1325,7 +1325,7 @@ export async function getAndCacheExchangeRate(forceRefresh = false): Promise<{ r
     }
 }
 
-export async function backupAllForUpdate(): Promise<string[]> {
+export async function backupAllForUpdate(): Promise<void> {
     const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
     if (!fs.existsSync(backupDir)) {
         fs.mkdirSync(backupDir, { recursive: true });
@@ -1366,10 +1366,9 @@ export async function backupAllForUpdate(): Promise<string[]> {
         }
     }
     await logInfo("Full backup for update created successfully.", { files: backedUpFiles });
-    return backedUpFiles;
 }
 
-export async function restoreAllFromUpdateBackup(): Promise<string[]> {
+export async function restoreAllFromUpdateBackup(): Promise<void> {
     const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
     if (!fs.existsSync(backupDir)) {
         await logError("Restore failed: Update backup directory not found.");
@@ -1411,7 +1410,6 @@ export async function restoreAllFromUpdateBackup(): Promise<string[]> {
     }
 
     await logWarn("Full restore from update backup completed successfully.", { files: restoredFiles });
-    return restoredFiles;
 }
 
 export async function listUpdateBackups(): Promise<UpdateBackupInfo[]> {
@@ -1483,6 +1481,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 

@@ -61,10 +61,10 @@ export async function getAllUsers(): Promise<User[]> {
     }
 }
 
-export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity'>): Promise<User> {
+export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'>): Promise<User> {
   const db = await connectDb();
   
-  const hashedPassword = bcrypt.hashSync(userData.password!, SALT_ROUNDS);
+  const hashedPassword = bcrypt.hashSync(userData.password, SALT_ROUNDS);
 
   const highestIdResult = db.prepare('SELECT MAX(id) as maxId FROM users').get() as { maxId: number | null };
   const nextId = (highestIdResult.maxId || 0) + 1;
