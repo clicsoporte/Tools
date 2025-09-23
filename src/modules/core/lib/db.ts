@@ -55,7 +55,7 @@ let dbConnections = new Map<string, Database.Database>();
  * @returns {Database.Database} The database connection instance.
  */
 export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Database> {
-    if (dbConnections.has(dbFile)) {
+    if (dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
         return dbConnections.get(dbFile)!;
     }
     
@@ -336,7 +336,7 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
 
         CREATE TABLE customers (
             id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT,
-            creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT
+            creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail
         );
 
         CREATE TABLE products (
@@ -800,14 +800,11 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
     const backupFile = formData.get('backupFile') as File | null;
 
     if (!backupFile) {
-        const errorMsg = "No se proporcionó archivo de backup.";
-        await logError("Restore failed: Missing backup file", { moduleId });
-        throw new Error(errorMsg);
+        throw new Error("No se proporcionó archivo de backup.");
     }
     
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) {
-        await logError("Restore failed: Module not found", { moduleId });
         throw new Error("Módulo no encontrado.");
     }
     
@@ -822,12 +819,18 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
             throw new Error(`El archivo de backup está corrupto (integrity check: ${result})`);
         }
 
-        if (dbConnections.has(module.dbFile)) {
-            dbConnections.get(module.dbFile)!.close();
+        const dbPath = path.join(dbDirectory, module.dbFile);
+        const dbConnection = dbConnections.get(module.dbFile);
+        if (dbConnection && dbConnection.open) {
+            dbConnection.close();
             dbConnections.delete(module.dbFile);
         }
 
-        const dbPath = path.join(dbDirectory, module.dbFile);
+        // Create a backup of the current live db before overwriting
+        if (fs.existsSync(dbPath)) {
+            fs.copyFileSync(dbPath, `${dbPath}.bak`);
+        }
+
         fs.writeFileSync(dbPath, buffer);
 
         await connectDb(module.dbFile);
@@ -844,7 +847,6 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
 export async function resetDatabase(moduleId: string): Promise<void> {
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) {
-        await logError(`Reset failed: Module not found`, { moduleId });
         throw new Error("Module not found");
     }
 
@@ -1504,18 +1506,3 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
