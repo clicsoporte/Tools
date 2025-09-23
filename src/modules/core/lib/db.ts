@@ -1243,7 +1243,7 @@ export async function backupAllForUpdate(): Promise<void> {
         fs.mkdirSync(backupDir, { recursive: true });
     }
 
-    const timestamp = new Date().toISOString().replace(/:/g, '-');
+    const timestamp = new Date().toISOString();
     const backedUpFiles: string[] = [];
 
     for (const module of DB_MODULES) {
@@ -1348,10 +1348,9 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
     for (const file of allFiles) {
         const module = DB_MODULES.find(m => file.startsWith(`backup-${m.id}-`));
         if (module) {
-            const timestampMatch = file.match(/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z)/);
+            const timestampMatch = file.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)/);
             if (timestampMatch) {
-                const dateString = timestampMatch[1].replace(/-/g, ':');
-                const isoDate = new Date(dateString).toISOString();
+                const isoDate = timestampMatch[1];
                 backupInfo.push({
                     moduleId: module.id,
                     moduleName: module.name,
@@ -1362,7 +1361,7 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
         }
     }
 
-    return backupInfo.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return backupInfo.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export async function deleteOldUpdateBackups(): Promise<number> {
