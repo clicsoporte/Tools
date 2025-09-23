@@ -6,22 +6,46 @@ import { Button } from "../../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../components/ui/table";
 import { getLogs, clearLogs, logWarn } from "../../../../modules/core/lib/logger";
-import type { LogEntry } from "../../../../modules/core/types";
-import { RefreshCw, Trash2 } from "lucide-react";
+import type { LogEntry, DateRange } from "../../../../modules/core/types";
+import { RefreshCw, Trash2, Calendar as CalendarIcon, FilterX } from "lucide-react";
 import { Badge } from "../../../../components/ui/badge";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { useDebounce } from "use-debounce";
+
+type LogTypeFilter = 'operational' | 'system' | 'all';
 
 export default function LogViewerPage() {
-  const { isAuthorized } = useAuthorization(['admin:logs:read', 'admin:logs:clear']);
+  const { isAuthorized, hasPermission } = useAuthorization(['admin:logs:read']);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { setTitle } = usePageTitle();
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Filter state
+  const [logTypeFilter, setLogTypeFilter] = useState<LogTypeFilter>('operational');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState<DateRange | undefined>({
+    from: new Date(),
+    to: new Date(),
+  });
+  const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
 
   const fetchLogs = async () => {
-    const fetchedLogs = await getLogs();
+    setIsLoading(true);
+    const fetchedLogs = await getLogs({
+        type: logTypeFilter,
+        search: debouncedSearchTerm,
+        dateRange: dateFilter
+    });
     setLogs(fetchedLogs);
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -29,12 +53,19 @@ export default function LogViewerPage() {
     if (isAuthorized) {
         fetchLogs();
     }
-  }, [setTitle, isAuthorized]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setTitle, isAuthorized, logTypeFilter, debouncedSearchTerm, dateFilter]);
 
   const handleClearLogs = async () => {
     await logWarn("System logs cleared by an administrator.");
     await clearLogs();
     await fetchLogs();
+  };
+  
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setDateFilter({ from: new Date(), to: new Date() });
+    setLogTypeFilter('operational');
   };
 
   const getBadgeVariant = (type: LogEntry['type']) => {
@@ -60,19 +91,79 @@ export default function LogViewerPage() {
                   Eventos, advertencias y errores registrados en la aplicación.
                 </CardDescription>
               </div>
-              <div className="flex w-full sm:w-auto gap-2">
-                <Button variant="outline" onClick={fetchLogs} className="flex-1 sm:flex-initial">
-                  <RefreshCw className="mr-2 h-4 w-4" />
+               <div className="flex w-full sm:w-auto gap-2">
+                <Button variant="outline" onClick={fetchLogs} className="flex-1 sm:flex-initial" disabled={isLoading}>
+                  <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
                   Refrescar
                 </Button>
-                <Button variant="destructive" onClick={handleClearLogs} className="flex-1 sm:flex-initial">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Limpiar Registros
-                </Button>
+                {hasPermission('admin:logs:clear') && (
+                    <Button variant="destructive" onClick={handleClearLogs} className="flex-1 sm:flex-initial">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Limpiar
+                    </Button>
+                )}
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+             <div className="flex flex-col gap-4">
+                <Tabs value={logTypeFilter} onValueChange={(value) => setLogTypeFilter(value as LogTypeFilter)}>
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="operational">Operativo</TabsTrigger>
+                        <TabsTrigger value="system">Sistema</TabsTrigger>
+                        <TabsTrigger value="all">Todos</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+                <div className="flex flex-col md:flex-row gap-4">
+                    <Input 
+                        placeholder="Buscar por mensaje o detalles..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="max-w-sm"
+                    />
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                id="date"
+                                variant={"outline"}
+                                className={cn(
+                                "w-full md:w-[300px] justify-start text-left font-normal",
+                                !dateFilter && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateFilter?.from ? (
+                                dateFilter.to ? (
+                                    <>
+                                    {format(dateFilter.from, "LLL dd, y", { locale: es })} -{" "}
+                                    {format(dateFilter.to, "LLL dd, y", { locale: es })}
+                                    </>
+                                ) : (
+                                    format(dateFilter.from, "LLL dd, y", { locale: es })
+                                )
+                                ) : (
+                                <span>Seleccionar fecha</span>
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={dateFilter?.from}
+                                selected={dateFilter}
+                                onSelect={setDateFilter}
+                                numberOfMonths={2}
+                                locale={es}
+                            />
+                        </PopoverContent>
+                    </Popover>
+                    <Button variant="ghost" onClick={handleClearFilters}>
+                        <FilterX className="mr-2 h-4 w-4" />
+                        Limpiar Filtros
+                    </Button>
+                </div>
+            </div>
             <div className="rounded-lg border">
               <Table>
                 <TableHeader>
@@ -83,7 +174,13 @@ export default function LogViewerPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {logs.length > 0 ? (
+                  {isLoading ? (
+                     <TableRow>
+                        <TableCell colSpan={3} className="h-24 text-center">
+                           Cargando registros...
+                        </TableCell>
+                    </TableRow>
+                  ) : logs.length > 0 ? (
                     logs.map((log) => (
                       <TableRow key={log.id}>
                         <TableCell className="font-medium">
@@ -93,7 +190,7 @@ export default function LogViewerPage() {
                           <Badge variant={getBadgeVariant(log.type)}>{log.type}</Badge>
                         </TableCell>
                         <TableCell>
-                            {log.message}
+                            <span className="font-medium">{log.message}</span>
                             {log.details && (
                                 <pre className="mt-2 text-xs text-muted-foreground bg-muted p-2 rounded-md overflow-x-auto">
                                     {JSON.stringify(log.details, null, 2)}
@@ -105,7 +202,7 @@ export default function LogViewerPage() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={3} className="h-24 text-center">
-                        No hay registros para mostrar.
+                        No hay registros para mostrar con los filtros actuales.
                       </TableCell>
                     </TableRow>
                   )}

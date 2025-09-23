@@ -10,7 +10,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { initialUsers, initialCompany, initialRoles } from './data';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, Warehouse, StockSettings, Location, InventoryItem, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, Warehouse, StockSettings, Location, InventoryItem, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, DateRange } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -498,14 +498,54 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
     }
 }
 
-export async function getLogs(): Promise<LogEntry[]> {
+export async function getLogs(filters: {
+    type?: 'operational' | 'system' | 'all';
+    search?: string;
+    dateRange?: DateRange;
+}): Promise<LogEntry[]> {
     const db = await connectDb();
     try {
-      const logs = db.prepare('SELECT * FROM logs ORDER BY timestamp DESC').all() as LogEntry[];
-      return logs.map(log => ({...log, details: log.details ? JSON.parse(log.details) : null}));
+        let query = 'SELECT * FROM logs';
+        const whereClauses: string[] = [];
+        const params: any[] = [];
+
+        if (filters.type === 'operational') {
+            whereClauses.push("type NOT IN ('ERROR')");
+            // This is a simple heuristic. A better way would be to add a category to logs.
+            whereClauses.push("message NOT LIKE '%MIGRATION%' AND message NOT LIKE '%database initialized%'");
+        } else if (filters.type === 'system') {
+            whereClauses.push("type IN ('ERROR', 'WARN') OR message LIKE '%MIGRATION%' OR message LIKE '%database initialized%'");
+        }
+
+        if (filters.search) {
+            whereClauses.push('(message LIKE ? OR details LIKE ?)');
+            params.push(`%${filters.search}%`, `%${filters.search}%`);
+        }
+        
+        if (filters.dateRange?.from) {
+             const fromDate = new Date(filters.dateRange.from);
+             fromDate.setHours(0, 0, 0, 0);
+             whereClauses.push("timestamp >= ?");
+             params.push(fromDate.toISOString());
+        }
+        if (filters.dateRange?.to) {
+            const toDate = new Date(filters.dateRange.to);
+            toDate.setHours(23, 59, 59, 999);
+            whereClauses.push("timestamp <= ?");
+            params.push(toDate.toISOString());
+        }
+
+        if (whereClauses.length > 0) {
+            query += ` WHERE ${whereClauses.join(' AND ')}`;
+        }
+
+        query += ' ORDER BY timestamp DESC LIMIT 200'; // Limit results for performance
+
+        const logs = db.prepare(query).all(...params) as LogEntry[];
+        return logs.map(log => ({...log, details: log.details ? JSON.parse(log.details) : null}));
     } catch (error) {
-      console.error("Failed to get logs from database", error);
-      return [];
+        console.error("Failed to get logs from database", error);
+        return [];
     }
 };
 
