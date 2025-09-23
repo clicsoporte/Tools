@@ -34,6 +34,7 @@ import { useToast } from "../modules/core/hooks/use-toast";
 import { Skeleton } from "../components/ui/skeleton";
 import { login, getAllUsers, saveAllUsers } from "../modules/core/lib/auth-client";
 import { getCompanyData } from "../modules/core/lib/company-client";
+import { logInfo, logWarn } from "@/modules/core/lib/logger";
 
 /**
  * Renders the login page.
@@ -98,6 +99,7 @@ export default function LoginPage() {
    * Starts the password recovery process by finding the user by email.
    */
   const handleRecoveryStart = async () => {
+    await logInfo(`Password recovery initiated for email: ${recoveryEmail}`);
     const allUsers: User[] = await getAllUsers();
     const user = allUsers.find(u => u.email === recoveryEmail);
 
@@ -110,14 +112,16 @@ export default function LoginPage() {
             description: "El correo no fue encontrado o no tiene una pregunta de seguridad configurada.",
             variant: "destructive",
         })
+        await logWarn(`Password recovery failed for email: ${recoveryEmail} (user not found or no security question)`);
     }
   }
 
   /**
    * Verifies the user's answer to the security question.
    */
-  const handleRecoveryAnswer = () => {
+  const handleRecoveryAnswer = async () => {
     if (userForRecovery && securityAnswer.toLowerCase() === userForRecovery.securityAnswer?.toLowerCase()) {
+        await logInfo(`Password recovery security question passed for user: ${userForRecovery.name}`);
         setRecoveryStep(3);
     } else {
         toast({
@@ -125,6 +129,9 @@ export default function LoginPage() {
             description: "La respuesta no coincide. Por favor, inténtalo de nuevo.",
             variant: "destructive",
         });
+        if(userForRecovery) {
+          await logWarn(`Password recovery security question failed for user: ${userForRecovery.name}`);
+        }
     }
   }
 
@@ -151,6 +158,7 @@ export default function LoginPage() {
 
     await saveAllUsers(updatedUsers); 
     
+    await logWarn(`Password for user ${userForRecovery.name} was reset via recovery process.`);
     toast({
         title: "Contraseña Actualizada",
         description: "Tu contraseña ha sido cambiada. Ya puedes iniciar sesión.",

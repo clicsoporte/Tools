@@ -24,7 +24,7 @@ import {
     SelectValue,
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
-import { logError, logInfo } from "../../../../modules/core/lib/logger";
+import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
 import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
@@ -39,10 +39,12 @@ import { es } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/modules/core/hooks/useAuth';
 
 
 export default function MaintenancePage() {
     const { isAuthorized } = useAuthorization(['admin:maintenance:backup', 'admin:maintenance:restore', 'admin:maintenance:reset']);
+    const { user } = useAuth();
     const { toast } = useToast();
     const [isProcessing, setIsProcessing] = useState(false);
     const [processingAction, setProcessingAction] = useState<string | null>(null);
@@ -93,6 +95,7 @@ export default function MaintenancePage() {
 
         try {
             const uploadedCount = await uploadBackupFile(formData);
+            await logInfo(`User ${user?.name} uploaded ${uploadedCount} backup file(s).`, { files: acceptedFiles.map(f => f.name) });
             toast({
                 title: "Archivos Subidos",
                 description: `${uploadedCount} archivo(s) de backup se han subido correctamente.`
@@ -109,7 +112,7 @@ export default function MaintenancePage() {
              setProcessingAction(null);
         }
 
-    }, [fetchMaintenanceData, toast]);
+    }, [fetchMaintenanceData, toast, user]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -126,6 +129,7 @@ export default function MaintenancePage() {
                 title: "Backup Completo Creado",
                 description: `Se creó un nuevo punto de restauración para la actualización.`
             });
+            await logInfo(`User ${user?.name} created a new full backup for update.`);
         } catch (error: any) {
              toast({
                 title: "Error de Backup",
@@ -147,6 +151,7 @@ export default function MaintenancePage() {
         setProcessingAction('full-restore');
         try {
             await restoreAllFromUpdateBackup(selectedRestoreTimestamp);
+            await logWarn(`System restored by ${user?.name} from backup point ${selectedRestoreTimestamp}. The system will restart.`);
             toast({
                 title: "Restauración Completada",
                 description: `Se han restaurado los datos. La página se recargará en 5 segundos.`,
@@ -175,9 +180,10 @@ export default function MaintenancePage() {
         try {
             const count = await deleteOldUpdateBackups();
             await fetchMaintenanceData();
+            await logInfo(`User ${user?.name} cleared ${count} old backup sets.`);
             toast({
                 title: "Limpieza Completada",
-                description: `Se han eliminado ${count} backups antiguos.`
+                description: `Se han eliminado ${count} puntos de restauración antiguos.`
             });
         } catch (error: any) {
              toast({

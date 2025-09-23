@@ -9,6 +9,8 @@
 import { connectDb } from './db';
 import type { User } from '../types';
 import bcrypt from 'bcryptjs';
+import { logInfo, logWarn } from './logger';
+import { headers } from 'next/headers';
 
 const SALT_ROUNDS = 10;
 
@@ -21,6 +23,7 @@ const SALT_ROUNDS = 10;
  */
 export async function login(email: string, passwordProvided: string): Promise<User | null> {
   const db = await connectDb();
+  const clientIp = headers().get('x-forwarded-for') ?? 'Unknown IP';
   try {
     const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
     const user: User | undefined = stmt.get(email) as User | undefined;
@@ -30,12 +33,15 @@ export async function login(email: string, passwordProvided: string): Promise<Us
       if (isMatch) {
         // Do not send the password hash back to the client.
         const { password, ...userWithoutPassword } = user;
+        await logInfo(`User '${user.name}' logged in successfully.`, { email: user.email, ip: clientIp });
         return userWithoutPassword as User;
       }
     }
+    await logWarn(`Failed login attempt for email: ${email}`, { ip: clientIp });
     return null;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Login error:", error);
+    await logWarn(`Login process failed for email: ${email} with error: ${error.message}`, { ip: clientIp });
     return null;
   }
 }
