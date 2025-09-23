@@ -13,6 +13,8 @@ import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'> = {
     deliveryDate: new Date().toISOString().split('T')[0],
@@ -166,7 +168,11 @@ export const usePlanner = () => {
                 updateState({ orderToEdit: null });
                 return;
             }
-            setState(prevState => ({ ...prevState, orderToEdit: prevState.orderToEdit ? { ...prevState.orderToEdit, ...partialOrder } : null }));
+            if (state.orderToEdit) {
+                 updateState({ orderToEdit: { ...state.orderToEdit, ...partialOrder } });
+            } else {
+                 updateState({ orderToEdit: partialOrder as ProductionOrder });
+            }
         },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
@@ -396,6 +402,76 @@ export const usePlanner = () => {
                 updateState({ isSubmitting: false });
             }
         },
+
+        handleExportPDF: () => {
+            if (!authCompanyData) return;
+            const doc = new jsPDF();
+            doc.setFontSize(18);
+            doc.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, 14, 22);
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 30);
+    
+            const tableColumn = ["OP", "Cliente", "Producto", "Cant.", "Entrega", "Estado"];
+            const tableRows: (string | number)[][] = selectors.filteredOrders.map(order => [
+                order.consecutive,
+                order.customerName,
+                order.productDescription,
+                order.quantity,
+                format(parseISO(order.deliveryDate), 'dd/MM/yy'),
+                selectors.statusConfig[order.status]?.label || order.status
+            ]);
+    
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: 35,
+                headStyles: { fillColor: [41, 128, 185] },
+                columnStyles: {
+                    3: { halign: 'right' }
+                },
+                didParseCell: (data) => {
+                    if (data.section === 'head' && data.column.index === 3) {
+                        data.cell.styles.halign = 'right';
+                    }
+                }
+            });
+    
+            doc.save(`ordenes_produccion_${new Date().getTime()}.pdf`);
+        },
+    
+        handleExportSingleOrderPDF: (order: ProductionOrder) => {
+            if (!authCompanyData) return;
+            const doc = new jsPDF();
+    
+            doc.setFontSize(18);
+            doc.text(`Orden de Producción: ${order.consecutive}`, 14, 22);
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 30);
+    
+            autoTable(doc, {
+                startY: 40,
+                head: [['Campo', 'Valor']],
+                body: [
+                    ['Cliente', order.customerName],
+                    ['Producto', `[${order.productId}] ${order.productDescription}`],
+                    ['Cantidad', order.quantity.toLocaleString()],
+                    ['Fecha Solicitud', format(parseISO(order.requestDate), 'dd/MM/yyyy')],
+                    ['Fecha Entrega', format(parseISO(order.deliveryDate), 'dd/MM/yyyy')],
+                    ['Estado', selectors.statusConfig[order.status]?.label || order.status],
+                    ['Prioridad', selectors.priorityConfig[order.priority]?.label || order.priority],
+                    ['Asignación', state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A'],
+                    ['Notas', order.notes || 'N/A'],
+                    ['Solicitado por', order.requestedBy],
+                    ['Aprobado por', order.approvedBy || 'N/A'],
+                    ['Última actualización', order.lastStatusUpdateBy ? `${order.lastStatusUpdateBy} - ${order.lastStatusUpdateNotes}` : 'N/A']
+                ],
+                theme: 'striped'
+            });
+    
+            doc.save(`op_${order.consecutive}.pdf`);
+        }
     };
 
     const selectors = {
