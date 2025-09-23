@@ -8,10 +8,12 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, rejectCancellationRequest } from '@/modules/requests/lib/actions';
-import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company, DateRange, RejectCancellationPayload } from '@/modules/core/types';
-import { differenceInCalendarDays, parseISO } from 'date-fns';
+import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company, DateRange, RejectCancellationPayload } from '../../core/types';
+import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'> = {
     requiredDate: '',
@@ -108,18 +110,18 @@ export const useRequests = () => {
                 getPurchaseRequests({
                     page: viewingArchived ? page : undefined,
                     pageSize: viewingArchived ? pageSize : undefined,
-                    filters: { searchTerm: debouncedSearchTerm, status: statusFilter, classification: classificationFilter, dateRange: dateFilter }
                 })
             ]);
             
             setRequestSettings(settingsData);
-            setCompanyData(authCompanyData);
             
             const useWarehouse = settingsData.useWarehouseReception;
             const activeFilter = (o: PurchaseRequest) => useWarehouse ? o.status !== 'received-in-warehouse' && o.status !== 'canceled' : o.status !== 'received' && o.status !== 'canceled';
             
-            setActiveRequests(requestsData.requests.filter(activeFilter));
-            setArchivedRequests(requestsData.requests.filter(req => !activeFilter(req)));
+            const allRequests = requestsData.requests;
+            
+            setActiveRequests(allRequests.filter(activeFilter));
+            setArchivedRequests(allRequests.filter(req => !activeFilter(req)));
             setTotalArchived(requestsData.totalArchivedCount);
 
         } catch (error) {
@@ -128,7 +130,7 @@ export const useRequests = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [toast, viewingArchived, pageSize, debouncedSearchTerm, statusFilter, classificationFilter, dateFilter, authCompanyData]);
+    }, [toast, viewingArchived, pageSize]);
     
     useEffect(() => {
         setTitle("Solicitud de Compra");
@@ -136,6 +138,10 @@ export const useRequests = () => {
             loadInitialData(archivedPage);
         }
     }, [setTitle, isAuthorized, loadInitialData, archivedPage]);
+
+    useEffect(() => {
+        setCompanyData(authCompanyData);
+    }, [authCompanyData]);
 
     const handleCreateRequest = async () => {
         if (!newRequest.clientId || !newRequest.itemId || !newRequest.quantity || !newRequest.requiredDate || !currentUser) return;
@@ -278,6 +284,140 @@ export const useRequests = () => {
         return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
     };
 
+    const handleExportPDF = () => {
+        if (!companyData) return;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 14;
+    
+        if (companyData.logoUrl) {
+            try {
+                doc.addImage(companyData.logoUrl, 'PNG', margin, 15, 50, 15);
+            } catch(e) { console.error("Error adding logo to PDF:", e) }
+        }
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Lista de Solicitudes (${viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, 22, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
+        doc.text(companyData.name, margin, 22);
+        doc.text(companyData.taxId, margin, 28);
+
+        const tableColumn = ["Solicitud", "Artículo", "Cliente", "Cant.", "Fecha Req.", "Estado"];
+        const tableRows: (string | number)[][] = selectors.filteredRequests.map(request => [
+            request.consecutive,
+            `[${request.itemId}] ${request.itemDescription}`,
+            request.clientName,
+            request.quantity,
+            format(parseISO(request.requiredDate), 'dd/MM/yy'),
+            statusConfig[request.status]?.label || request.status
+        ]);
+
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 40,
+            headStyles: { fillColor: [41, 128, 185], halign: 'left' },
+            didDrawCell: (data) => {
+                if (data.section === 'head' && [3].includes(data.column.index)) {
+                    (data.cell.styles as any).halign = 'right';
+                }
+            },
+            columnStyles: {
+                3: { halign: 'right' }
+            },
+        });
+
+        doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);
+    };
+
+    const handleExportSingleRequestPDF = async (request: PurchaseRequest) => {
+        if (!companyData) return;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 14;
+        let y = 40;
+    
+        if (companyData.logoUrl) {
+            try {
+                doc.addImage(companyData.logoUrl, 'PNG', margin, 15, 50, 15);
+            } catch(e) { console.error("Error adding logo to PDF:", e) }
+        }
+    
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Solicitud de Compra', pageWidth / 2, 22, { align: 'center' });
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${request.consecutive}`, pageWidth - margin, 22, { align: 'right' });
+        y += 8;
+        doc.setFontSize(10);
+        doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
+        doc.text(companyData.name, margin, 22);
+        doc.text(companyData.taxId, margin, 28);
+        y += 15;
+        
+        const details = [
+            { title: 'Cliente:', value: request.clientName },
+            { title: 'Artículo:', value: `[${request.itemId}] ${request.itemDescription}` },
+            { title: 'Cantidad Solicitada:', value: request.quantity.toLocaleString('es-CR') },
+            { title: 'Fecha Solicitud:', value: format(parseISO(request.requestDate), 'dd/MM/yyyy') },
+            { title: 'Fecha Requerida:', value: format(parseISO(request.requiredDate), 'dd/MM/yyyy') },
+            { title: 'Estado:', value: statusConfig[request.status]?.label || request.status },
+            { title: 'Prioridad:', value: priorityConfig[request.priority]?.label || request.priority },
+            { title: 'Ruta:', value: request.route || 'N/A' },
+            { title: 'Método Envío:', value: request.shippingMethod || 'N/A' },
+            { title: 'Proveedor:', value: request.manualSupplier || 'N/A' },
+            { title: 'Notas:', value: request.notes || 'N/A' },
+            { title: 'Solicitado por:', value: request.requestedBy },
+            { title: 'Aprobado por:', value: request.approvedBy || 'N/A' },
+            { title: 'Última actualización:', value: `${request.lastStatusUpdateBy || 'N/A'} - ${request.lastStatusUpdateNotes || ''}` }
+        ];
+    
+        autoTable(doc, {
+            startY: y,
+            body: details.map(d => [d.title, d.value]),
+            theme: 'plain',
+            styles: { cellPadding: 1, fontSize: 10 },
+            columnStyles: {
+                0: { fontStyle: 'bold', cellWidth: 40 },
+                1: { cellWidth: 'auto' }
+            },
+            didParseCell: (data) => { (data.cell.styles as any).fillColor = '#ffffff'; }
+        });
+    
+        y = (doc as any).lastAutoTable.finalY + 15;
+    
+        if (y > 220) { doc.addPage(); y = 20; }
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Historial de Cambios', margin, y);
+        y += 8;
+    
+        const requestHistory = await getRequestHistory(request.id);
+        if (requestHistory.length > 0) {
+            const tableColumn = ["Fecha", "Estado", "Usuario", "Notas"];
+            const tableRows = requestHistory.map(entry => [
+                format(parseISO(entry.timestamp), 'dd/MM/yy HH:mm'),
+                statusConfig[entry.status]?.label || entry.status,
+                entry.updatedBy,
+                entry.notes || ''
+            ]);
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: y,
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            });
+        } else {
+            doc.setFontSize(10);
+            doc.text('No hay historial de cambios para esta solicitud.', margin, y);
+        }
+    
+        doc.save(`sc_${request.consecutive}.pdf`);
+    }
+
     const selectors = {
         hasPermission,
         priorityConfig,
@@ -324,7 +464,7 @@ export const useRequests = () => {
         setReopenDialogOpen, setReopenStep, setReopenConfirmationText, loadInitialData,
         handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
         handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
-        setRequestToUpdate, handleRejectCancellation
+        setRequestToUpdate, handleRejectCancellation, handleExportPDF, handleExportSingleRequestPDF
     };
 
     return {
