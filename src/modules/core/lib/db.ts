@@ -64,48 +64,55 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
         fs.mkdirSync(dbDirectory, { recursive: true });
     }
 
-    const dbExists = fs.existsSync(dbPath);
     let db: Database.Database;
+    let dbExistsAndIsValid = false;
 
-    try {
-        db = new Database(dbPath);
-        // WAL mode can improve performance and concurrency.
-        db.pragma('journal_mode = WAL');
-    } catch (error) {
-        console.error(`Database ${dbFile} is corrupted or unreadable. Deleting and re-initializing.`, error);
-        if (dbConnections.has(dbFile)) {
-            dbConnections.get(dbFile)!.close();
-            dbConnections.delete(dbFile);
+    if (fs.existsSync(dbPath)) {
+        try {
+            db = new Database(dbPath);
+            db.pragma('journal_mode = WAL');
+
+            const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
+            const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'warehouse-management' ? 'locations' : null;
+            
+            if (mainTable) {
+                const tableCheck = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(mainTable);
+                if (tableCheck) {
+                    dbExistsAndIsValid = true;
+                }
+            }
+        } catch (error) {
+            console.error(`Database ${dbFile} is corrupted or unreadable. It will be re-initialized.`, error);
+            if (dbConnections.has(dbFile)) {
+                dbConnections.get(dbFile)!.close();
+            }
+            fs.unlinkSync(dbPath);
+            dbExistsAndIsValid = false;
         }
-        if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    }
+
+
+    if (!dbExistsAndIsValid) {
         db = new Database(dbPath);
         db.pragma('journal_mode = WAL');
-    }
-    
-    const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
-
-    // Check if the main table of the module exists. If not, re-initialize.
-    const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'warehouse-management' ? 'locations' : null;
-    const tableExists = mainTable ? db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(mainTable) : false;
-
-    if (!dbExists || !tableExists) {
-        console.log(`Database ${dbFile} not found or seems empty, creating and initializing...`);
+        console.log(`Database ${dbFile} not found or seems empty/corrupt, creating and initializing...`);
+        const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
         if (moduleConfig?.initFn) {
             await moduleConfig.initFn(db);
         }
-    } else {
-        console.log(`Database ${dbFile} found. Checking for migrations...`);
-        if (moduleConfig?.migrationFn) {
-            try {
-                await moduleConfig.migrationFn(db);
-            } catch (error) {
-                console.error(`Migration failed for ${dbFile}, but continuing. Error:`, error);
-            }
+    }
+
+    const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
+    if (moduleConfig?.migrationFn) {
+        try {
+            await moduleConfig.migrationFn(db!);
+        } catch (error) {
+            console.error(`Migration failed for ${dbFile}, but continuing. Error:`, error);
         }
     }
 
-    dbConnections.set(dbFile, db);
-    return db;
+    dbConnections.set(dbFile, db!);
+    return db!;
 }
 
 
@@ -114,7 +121,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
  * This makes the app more resilient to schema changes over time without data loss.
  * @param {Database.Database} db - The database instance to check.
  */
-async function checkAndApplyMigrations(db: Database.Database) {
+async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
     // Main DB Migrations
     try {
         const companyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='company_settings'`).get();
@@ -720,19 +727,17 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'm
     return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
 }
 
-export async function backupDatabase(moduleId: string): Promise<{error?: string, filePath?: string, fileName?: string}> {
+export async function backupDatabase(moduleId: string): Promise<{error?: string; fileName?: string}> {
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) {
-        const errorMsg = "Module not found";
-        await logError(`Backup failed: ${errorMsg}`, { moduleId });
-        return { error: errorMsg };
+        await logError("Backup failed: Module not found", { moduleId });
+        return { error: "Module not found" };
     }
 
     const dbPath = path.join(dbDirectory, module.dbFile);
     if (!fs.existsSync(dbPath)) {
-        const errorMsg = "Database file not found";
-        await logError(`Backup failed: ${errorMsg}`, { moduleId, path: dbPath });
-        return { error: errorMsg };
+        await logError(`Backup failed: Database file not found`, { moduleId, path: dbPath });
+        return { error: "Database file not found" };
     }
 
     const backupDir = path.join(dbDirectory, TEMP_BACKUP_DIR);
@@ -743,26 +748,24 @@ export async function backupDatabase(moduleId: string): Promise<{error?: string,
     const tempBackupPath = path.join(backupDir, fileName);
     
     try {
-        // Close the connection if it exists to ensure a clean copy
         if (dbConnections.has(module.dbFile)) {
             dbConnections.get(module.dbFile)!.close();
             dbConnections.delete(module.dbFile);
         }
         
-        // Copy the file
         fs.copyFileSync(dbPath, tempBackupPath);
+        await connectDb(module.dbFile); // Re-establish connection
 
-        // Re-establish the connection for the application
-        await connectDb(module.dbFile);
-
-        // Verify the backup
         const backupDb = new Database(tempBackupPath);
         const result = backupDb.pragma('integrity_check', { simple: true });
         backupDb.close();
 
         if (result !== 'ok') {
-            throw new Error(`Integrity check failed: ${result}`);
+            throw new Error(`La comprobación de integridad falló: ${result}`);
         }
+        await logInfo(`Individual backup created for module`, { moduleId: module.name, file: fileName });
+        return { fileName: fileName };
+
     } catch (e: any) {
         const errorMsg = `La creación o validación del backup falló: ${e.message}`;
         await logError("Backup creation or validation failed", { moduleId, error: e.message });
@@ -771,15 +774,16 @@ export async function backupDatabase(moduleId: string): Promise<{error?: string,
         }
         return { error: errorMsg };
     }
-    
-    await logInfo(`Individual backup created for module`, { moduleId: module.name, file: fileName });
-    return { filePath: tempBackupPath, fileName: fileName };
 }
 
 export async function deleteTempBackup(fileName: string): Promise<void> {
     try {
         const backupDir = path.join(dbDirectory, TEMP_BACKUP_DIR);
-        const filePath = path.join(backupDir, fileName);
+        const sanitizedFileName = path.basename(fileName);
+        if (sanitizedFileName !== fileName) {
+            throw new Error("Invalid filename detected.");
+        }
+        const filePath = path.join(backupDir, sanitizedFileName);
 
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
@@ -795,29 +799,27 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
     const moduleId = formData.get('moduleId') as string;
     const backupFile = formData.get('backupFile') as File | null;
 
-    if (!moduleId || !backupFile) {
-        const errorMsg = "Module ID and backup file are required.";
-        await logError("Restore failed: Missing module ID or backup file");
+    if (!backupFile) {
+        const errorMsg = "No se proporcionó archivo de backup.";
+        await logError("Restore failed: Missing backup file", { moduleId });
         throw new Error(errorMsg);
     }
     
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) {
-        const errorMsg = "Module not found";
         await logError("Restore failed: Module not found", { moduleId });
-        throw new Error(errorMsg);
+        throw new Error("Módulo no encontrado.");
     }
     
     try {
-        // Correctly handle the file object from FormData
-        const blob = new Blob([backupFile]);
-        const buffer = Buffer.from(await blob.arrayBuffer());
+        const buffer = Buffer.from(await backupFile.arrayBuffer());
 
         const inMemoryDb = new Database(buffer);
         const result = inMemoryDb.pragma('integrity_check', { simple: true });
         inMemoryDb.close();
+
         if (result !== 'ok') {
-            throw new Error(`Integrity check failed: ${result}`);
+            throw new Error(`El archivo de backup está corrupto (integrity check: ${result})`);
         }
 
         if (dbConnections.has(module.dbFile)) {
@@ -826,20 +828,14 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
         }
 
         const dbPath = path.join(dbDirectory, module.dbFile);
-        const tempPath = dbPath + '.tmp';
-        
-        fs.writeFileSync(tempPath, buffer);
-        fs.renameSync(tempPath, dbPath);
+        fs.writeFileSync(dbPath, buffer);
 
         await connectDb(module.dbFile);
-        await logWarn(`Database restored from individual backup for module`, { moduleId: module.name });
+        await logWarn(`Base de datos restaurada desde backup para el módulo`, { moduleId: module.name, fileName: backupFile.name });
 
     } catch (error: any) {
         const errorMsg = `La restauración falló: ${error.message}`;
         await logError(`Restore failed for module: ${module.name}`, { error: errorMsg });
-        if (error.message.includes('Integrity check failed')) {
-            throw new Error("El archivo de backup es inválido o está corrupto.");
-        }
         throw new Error(errorMsg);
     }
 }
@@ -1508,6 +1504,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 

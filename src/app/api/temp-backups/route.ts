@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
+import { Readable } from 'stream';
 
 const TEMP_BACKUP_DIR = 'temp_backups';
 const dbDirectory = path.join(process.cwd(), 'dbs');
@@ -27,7 +28,6 @@ export async function GET(request: NextRequest) {
     }
 
     // --- Security Check: Prevent path traversal attacks ---
-    // Sanitize the filename to ensure it's just a filename and not a path.
     const sanitizedFileName = path.basename(fileName);
     if (sanitizedFileName !== fileName) {
         return new NextResponse('Invalid filename', { status: 400 });
@@ -43,15 +43,15 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const fileBuffer = fs.readFileSync(filePath);
+        const stats = fs.statSync(filePath);
+        const data: Readable = fs.createReadStream(filePath);
 
-        // Create response with appropriate headers for file download
         const headers = new Headers();
         headers.set('Content-Type', 'application/x-sqlite3');
         headers.set('Content-Disposition', `attachment; filename="${sanitizedFileName}"`);
-        headers.set('Content-Length', String(fileBuffer.length));
+        headers.set('Content-Length', String(stats.size));
 
-        return new NextResponse(fileBuffer, { status: 200, headers });
+        return new NextResponse(data as any, { status: 200, headers });
 
     } catch (error: any) {
         console.error(`Failed to read backup file: ${error.message}`);
