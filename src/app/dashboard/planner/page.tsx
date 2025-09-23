@@ -92,6 +92,7 @@ export default function PlannerPage() {
                                     <DropdownMenuSeparator/>
                                     {canEdit && <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</DropdownMenuItem>}
                                     <DropdownMenuItem onSelect={() => actions.openAddNoteDialog(order)}><MessageSquarePlus className="mr-2" /> Añadir Nota</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => actions.handleExportSingleOrderPDF(order)}><FileDown className="mr-2"/> Exportar a PDF</DropdownMenuItem>
                                     <DropdownMenuSeparator/>
                                     {canReopen && <DropdownMenuItem onSelect={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
                                     {canApprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'approved')} className="text-green-600"><Check className="mr-2"/> Aprobar</DropdownMenuItem>}
