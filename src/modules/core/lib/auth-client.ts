@@ -76,8 +76,9 @@ export async function saveAllUsers(users: User[]): Promise<void> {
  * This is a client-side wrapper for the server-side password comparison.
  * @param {number} userId - The ID of the user whose password hash should be retrieved.
  * @param {string} password - The plaintext password to check.
+ * @param {object} [clientInfo] - Optional client IP and host for logging.
  * @returns {Promise<boolean>} True if the password matches the hash.
  */
-export async function comparePasswords(userId: number, password: string): Promise<boolean> {
-    return await comparePasswordsServer(userId, password);
+export async function comparePasswords(userId: number, password: string, clientInfo?: { ip: string, host: string }): Promise<boolean> {
+    return await comparePasswordsServer(userId, password, clientInfo);
 }

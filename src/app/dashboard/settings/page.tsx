@@ -113,6 +113,11 @@ export default function SettingsPage() {
     };
 
     if (passwords.current || passwords.new || passwords.confirm) {
+      if (!passwords.current || !passwords.new || !passwords.confirm) {
+          toast({ title: "Error", description: "Por favor, complete todos los campos de contraseña para cambiarla.", variant: "destructive" });
+          return;
+      }
+
       const isMatch = await comparePasswords(user.id, passwords.current);
       if (!isMatch) {
         toast({

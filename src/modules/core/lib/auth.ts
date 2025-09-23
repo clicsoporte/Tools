@@ -162,9 +162,10 @@ export async function saveAllUsers(users: User[]): Promise<void> {
  * Securely compares a plaintext password with a user's stored bcrypt hash.
  * @param {number} userId - The ID of the user whose password should be checked.
  * @param {string} password - The plaintext password to check.
+ * @param {object} [clientInfo] - Optional client IP and host for logging.
  * @returns {Promise<boolean>} True if the password matches the hash.
  */
-export async function comparePasswords(userId: number, password: string): Promise<boolean> {
+export async function comparePasswords(userId: number, password: string, clientInfo?: { ip: string, host: string }): Promise<boolean> {
     const db = await connectDb();
     const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId) as User | undefined;
 
@@ -172,5 +173,9 @@ export async function comparePasswords(userId: number, password: string): Promis
         return false;
     }
     
-    return await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      await logWarn('Password comparison failed during settings update/recovery.', clientInfo);
+    }
+    return isMatch;
 }
