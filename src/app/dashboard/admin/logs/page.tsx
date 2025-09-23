@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../components/ui/table";
 import { getLogs, clearLogs, logWarn } from "../../../../modules/core/lib/logger";
 import type { LogEntry, DateRange } from "../../../../modules/core/types";
-import { RefreshCw, Trash2, Calendar as CalendarIcon, FilterX } from "lucide-react";
+import { RefreshCw, Trash2, Calendar as CalendarIcon, FilterX, Download } from "lucide-react";
 import { Badge } from "../../../../components/ui/badge";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -19,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "use-debounce";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type LogTypeFilter = 'operational' | 'system' | 'all';
 
@@ -68,6 +70,25 @@ export default function LogViewerPage() {
     setLogTypeFilter('operational');
   };
 
+  const handleDownloadLogs = () => {
+    const logContent = logs
+      .map(log => {
+        const detailsString = log.details ? `\nDETAILS: ${JSON.stringify(log.details, null, 2)}` : '';
+        return `[${log.type}] ${format(new Date(log.timestamp), 'yyyy-MM-dd HH:mm:ss', { locale: es })} - ${log.message}${detailsString}`;
+      })
+      .join('\n\n' + '-'.repeat(80) + '\n\n');
+    
+    const blob = new Blob([logContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `system-logs-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const getBadgeVariant = (type: LogEntry['type']) => {
     switch (type) {
       case 'ERROR': return 'destructive';
@@ -114,7 +135,7 @@ export default function LogViewerPage() {
                         <TabsTrigger value="all">Todos</TabsTrigger>
                     </TabsList>
                 </Tabs>
-                <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex flex-col md:flex-row flex-wrap gap-4">
                     <Input 
                         placeholder="Buscar por mensaje o detalles..."
                         value={searchTerm}
@@ -158,13 +179,17 @@ export default function LogViewerPage() {
                             />
                         </PopoverContent>
                     </Popover>
+                    <Button variant="outline" onClick={handleDownloadLogs} disabled={logs.length === 0}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Descargar
+                    </Button>
                     <Button variant="ghost" onClick={handleClearFilters}>
                         <FilterX className="mr-2 h-4 w-4" />
                         Limpiar Filtros
                     </Button>
                 </div>
             </div>
-            <div className="rounded-lg border">
+            <ScrollArea className="h-[60vh] rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -208,7 +233,7 @@ export default function LogViewerPage() {
                   )}
                 </TableBody>
               </Table>
-            </div>
+            </ScrollArea>
           </CardContent>
         </Card>
       </main>
