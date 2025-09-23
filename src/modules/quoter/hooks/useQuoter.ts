@@ -219,8 +219,10 @@ export const useQuoter = () => {
 
   useEffect(() => {
       setCompanyData(authCompanyData);
-      setExchangeRate(exchangeRateData.rate);
-      setApiExchangeRate(exchangeRateData.rate);
+      if (exchangeRateData.rate) {
+          setExchangeRate(exchangeRateData.rate);
+          setApiExchangeRate(exchangeRateData.rate);
+      }
   }, [authCompanyData, exchangeRateData]);
 
 
@@ -522,15 +524,27 @@ export const useQuoter = () => {
                 head: [tableColumn],
                 body: tableRows,
                 theme: 'striped',
-                headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+                headStyles: { 
+                    fillColor: [41, 128, 185], 
+                    textColor: 255, 
+                    fontStyle: 'bold',
+                    halign: 'left',
+                },
                 columnStyles: {
-                    0: { cellWidth: 20 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 15, halign: 'right' },
-                    3: { cellWidth: 15 }, 4: { cellWidth: 25 }, 5: { cellWidth: 25, halign: 'right' },
-                    6: { cellWidth: 15, halign: 'center' }, 7: { cellWidth: 25, halign: 'right' },
+                    2: { halign: 'right' }, // Cant.
+                    5: { halign: 'right' }, // Precio
+                    6: { halign: 'center' }, // Imp.
+                    7: { halign: 'right' }, // Total
+                },
+                didDrawCell: (data) => {
+                    // Right align headers for specific columns
+                    if (data.section === 'head' && [2, 5, 7].includes(data.column.index)) {
+                        data.cell.styles.halign = 'right';
+                    }
                 },
                 didDrawPage: (data) => {
-                    if (data.pageNumber > 1) {
-                        doc.addImage(companyData.logoUrl!, 'PNG', 14, 15, 50, 15);
+                    if (data.pageNumber > 1 && companyData.logoUrl) {
+                        doc.addImage(companyData.logoUrl, 'PNG', 14, 15, 50, 15);
                     }
                 }
             });
@@ -555,7 +569,6 @@ export const useQuoter = () => {
                     maximumFractionDigits: decimalPlaces,
                 })}`;
             };
-            
 
             doc.setFontSize(10);
             doc.text(`Subtotal: ${formatCurrencyForPdf(currentTotals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
@@ -594,8 +607,20 @@ export const useQuoter = () => {
             setIsProcessing(false);
         }
     };
-
-    addContent();
+    
+    if (companyData?.logoUrl) {
+        // Pre-fetch logo to avoid canvas tainting issues with cross-origin images
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = addContent;
+        img.onerror = () => {
+            logWarn("Failed to load company logo from URL, proceeding without it.");
+            addContent(); // Proceed without logo if it fails to load
+        };
+        img.src = companyData.logoUrl;
+    } else {
+        addContent();
+    }
   };
 
   const resetQuote = async () => {
