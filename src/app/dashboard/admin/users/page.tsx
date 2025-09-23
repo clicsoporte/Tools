@@ -64,8 +64,12 @@ import { Skeleton } from "../../../../components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "../../../../components/ui/avatar";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 
+type NewUserForm = Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & {
+    password: string;
+};
+
 // Initial state for the "Add User" form.
-const emptyUser: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> = {
+const emptyUser: NewUserForm = {
     name: "",
     email: "",
     password: "",
@@ -97,7 +101,7 @@ export default function UsersPage() {
     const [isEditDialogOpen, setEditDialogOpen] = useState(false);
     const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
     
-    const [newUser, setNewUser] = useState(emptyUser);
+    const [newUser, setNewUser] = useState<NewUserForm>(emptyUser);
     const [currentUserToEdit, setCurrentUserToEdit] = useState<User | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     

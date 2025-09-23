@@ -49,7 +49,7 @@ let dbConnections = new Map<string, Database.Database>();
 
 /**
  * Establishes a connection to a specific SQLite database file.
- * If the database file does not exist, it creates it and initializes the schema and default data.
+ * If the database file does not exist or is malformed, it creates it and initializes the schema and default data.
  * It manages multiple connections in a map to support a multi-database architecture.
  * @param {string} dbFile - The filename of the database to connect to.
  * @returns {Database.Database} The database connection instance.
@@ -65,12 +65,31 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
     }
 
     const dbExists = fs.existsSync(dbPath);
-    const db = new Database(dbPath);
+    let db: Database.Database;
 
+    try {
+        db = new Database(dbPath);
+        // WAL mode can improve performance and concurrency.
+        db.pragma('journal_mode = WAL');
+    } catch (error) {
+        console.error(`Database ${dbFile} is corrupted or unreadable. Deleting and re-initializing.`, error);
+        if (dbConnections.has(dbFile)) {
+            dbConnections.get(dbFile)!.close();
+            dbConnections.delete(dbFile);
+        }
+        if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+        db = new Database(dbPath);
+        db.pragma('journal_mode = WAL');
+    }
+    
     const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
 
-    if (!dbExists) {
-        console.log(`Database ${dbFile} not found, creating and initializing...`);
+    // Check if the main table of the module exists. If not, re-initialize.
+    const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'warehouse-management' ? 'locations' : null;
+    const tableExists = mainTable ? db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(mainTable) : false;
+
+    if (!dbExists || !tableExists) {
+        console.log(`Database ${dbFile} not found or seems empty, creating and initializing...`);
         if (moduleConfig?.initFn) {
             await moduleConfig.initFn(db);
         }
@@ -85,8 +104,6 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
         }
     }
 
-    // WAL mode can improve performance and concurrency.
-    db.pragma('journal_mode = WAL');
     dbConnections.set(dbFile, db);
     return db;
 }
@@ -726,15 +743,19 @@ export async function backupDatabase(moduleId: string): Promise<{error?: string,
     const tempBackupPath = path.join(backupDir, fileName);
     
     try {
+        // Close the connection if it exists to ensure a clean copy
         if (dbConnections.has(module.dbFile)) {
             dbConnections.get(module.dbFile)!.close();
             dbConnections.delete(module.dbFile);
         }
         
+        // Copy the file
         fs.copyFileSync(dbPath, tempBackupPath);
 
+        // Re-establish the connection for the application
         await connectDb(module.dbFile);
 
+        // Verify the backup
         const backupDb = new Database(tempBackupPath);
         const result = backupDb.pragma('integrity_check', { simple: true });
         backupDb.close();
@@ -775,17 +796,20 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
     const backupFile = formData.get('backupFile') as File | null;
 
     if (!moduleId || !backupFile) {
+        const errorMsg = "Module ID and backup file are required.";
         await logError("Restore failed: Missing module ID or backup file");
-        throw new Error("Module ID and backup file are required.");
+        throw new Error(errorMsg);
     }
     
     const module = DB_MODULES.find(m => m.id === moduleId);
     if (!module) {
+        const errorMsg = "Module not found";
         await logError("Restore failed: Module not found", { moduleId });
-        throw new Error("Module not found");
+        throw new Error(errorMsg);
     }
     
     try {
+        // Correctly handle the file object from FormData
         const blob = new Blob([backupFile]);
         const buffer = Buffer.from(await blob.arrayBuffer());
 
@@ -811,11 +835,12 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
         await logWarn(`Database restored from individual backup for module`, { moduleId: module.name });
 
     } catch (error: any) {
-        await logError(`Restore failed for module: ${module.name}`, { error: error.message });
+        const errorMsg = `La restauración falló: ${error.message}`;
+        await logError(`Restore failed for module: ${module.name}`, { error: errorMsg });
         if (error.message.includes('Integrity check failed')) {
             throw new Error("El archivo de backup es inválido o está corrupto.");
         }
-        throw new Error(`La restauración falló: ${error.message}`);
+        throw new Error(errorMsg);
     }
 }
 
@@ -1371,8 +1396,9 @@ export async function backupAllForUpdate(): Promise<void> {
 export async function restoreAllFromUpdateBackup(): Promise<void> {
     const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
     if (!fs.existsSync(backupDir)) {
+        const errorMsg = "No se encontró el directorio de backups de actualización.";
         await logError("Restore failed: Update backup directory not found.");
-        throw new Error("No se encontró el directorio de backups de actualización.");
+        throw new Error(errorMsg);
     }
 
     const restoredFiles: string[] = [];
@@ -1399,8 +1425,9 @@ export async function restoreAllFromUpdateBackup(): Promise<void> {
                 await connectDb(module.dbFile);
             }
         } catch(error: any) {
+             const errorMsg = `Error al restaurar el módulo ${module.name}: ${error.message}`;
              await logError(`Restore failed for module: ${module.name}`, { error: error.message });
-             throw new Error(`Error al restaurar el módulo ${module.name}: ${error.message}`);
+             throw new Error(errorMsg);
         }
     }
 
@@ -1481,6 +1508,7 @@ export async function countAllUpdateBackups(): Promise<number> {
     }
     return fs.readdirSync(backupDir).filter(file => file.endsWith('.db')).length;
 }
+
 
 
 
