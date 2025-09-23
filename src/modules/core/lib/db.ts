@@ -228,8 +228,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
             console.log("MIGRATION: Creating exemptions table.");
             db.exec(`
                 CREATE TABLE exemptions (
-                    code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT,
-                    startDate TEXT, endDate TEXT, percentage REAL, docType TEXT,
+                    code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT, endDate TEXT, percentage REAL, docType TEXT,
                     institutionName TEXT, institutionCode TEXT
                 );
             `);
@@ -1351,11 +1350,13 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
         if (module) {
             const timestampMatch = file.match(/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z)/);
             if (timestampMatch) {
+                const dateString = timestampMatch[1].replace(/-/g, ':');
+                const isoDate = new Date(dateString).toISOString();
                 backupInfo.push({
                     moduleId: module.id,
                     moduleName: module.name,
                     fileName: file,
-                    date: timestampMatch[1],
+                    date: isoDate,
                 });
             }
         }
