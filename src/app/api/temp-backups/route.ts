@@ -11,7 +11,7 @@ import path from 'path';
 import fs from 'fs';
 import { Readable } from 'stream';
 
-const TEMP_BACKUP_DIR = 'temp_backups';
+const UPDATE_BACKUP_DIR = 'update_backups';
 const dbDirectory = path.join(process.cwd(), 'dbs');
 
 /**
@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
         return new NextResponse('Invalid filename', { status: 400 });
     }
 
-    const tempBackupDir = path.join(dbDirectory, TEMP_BACKUP_DIR);
-    const filePath = path.join(tempBackupDir, sanitizedFileName);
+    const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
+    const filePath = path.join(backupDir, sanitizedFileName);
     
     // --- Existence Check ---
     if (!fs.existsSync(filePath)) {

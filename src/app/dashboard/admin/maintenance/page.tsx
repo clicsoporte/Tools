@@ -25,55 +25,51 @@ import {
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logError } from "../../../../modules/core/lib/logger";
-import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2, Save, LifeBuoy, Trash2 as TrashIcon } from "lucide-react";
+import { DatabaseBackup, UploadCloud, RotateCcw, AlertTriangle, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Label } from '../../../../components/ui/label';
-import { Input } from '../../../../components/ui/input';
-import { getDbModules, backupDatabase, restoreDatabase, resetDatabase, backupAllForUpdate, restoreAllFromUpdateBackup, listUpdateBackups, deleteOldUpdateBackups, countAllUpdateBackups, deleteTempBackup } from '../../../../modules/core/lib/db';
+import { getDbModules, backupAllForUpdate, restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile } from '../../../../modules/core/lib/db';
 import type { DatabaseModule, UpdateBackupInfo } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 
 export default function MaintenancePage() {
     const { isAuthorized } = useAuthorization(['admin:maintenance:backup', 'admin:maintenance:restore', 'admin:maintenance:reset']);
     const { toast } = useToast();
     const [dbModules, setDbModules] = useState<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]>([]);
-    const [selectedModule, setSelectedModule] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [processingAction, setProcessingAction] = useState<string | null>(null);
     const { setTitle } = usePageTitle();
 
-    // State for the reset confirmation flow
-    const [resetStep, setResetStep] = useState(0);
-    const [resetConfirmationText, setResetConfirmationText] = useState('');
-
     // State for update backups
     const [updateBackups, setUpdateBackups] = useState<UpdateBackupInfo[]>([]);
-    const [totalBackupCount, setTotalBackupCount] = useState(0);
     const [isRestoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
     const [isClearBackupsConfirmOpen, setClearBackupsConfirmOpen] = useState(false);
+    const [showAllRestorePoints, setShowAllRestorePoints] = useState(false);
+    const [selectedRestoreTimestamp, setSelectedRestoreTimestamp] = useState<string>('');
 
 
     const fetchMaintenanceData = useCallback(async () => {
         setIsProcessing(true);
         setProcessingAction('load');
         try {
-            const [modules, backups, totalBackups] = await Promise.all([
+            const [modules, backups] = await Promise.all([
                 getDbModules(), 
-                listUpdateBackups(),
-                countAllUpdateBackups()
+                listAllUpdateBackups(),
             ]);
             setDbModules(modules);
-            if (modules.length > 0) {
-                setSelectedModule(modules[0].id);
-            }
             setUpdateBackups(backups);
-            setTotalBackupCount(totalBackups);
+            if (backups.length > 0) {
+                const latestTimestamp = backups.reduce((latest, current) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
+                setSelectedRestoreTimestamp(latestTimestamp);
+            }
         } catch(error: any) {
             logError("Error fetching maintenance data", { error: error.message });
             toast({ title: "Error", description: "No se pudieron cargar los datos de mantenimiento.", variant: "destructive" });
@@ -91,108 +87,38 @@ export default function MaintenancePage() {
     }, [setTitle, fetchMaintenanceData, isAuthorized]);
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
-        if (acceptedFiles.length > 0 && selectedModule) {
-            const file = acceptedFiles[0];
-            setIsProcessing(true);
-            setProcessingAction(`restore-${selectedModule}`);
-            try {
-                const formData = new FormData();
-                formData.append('moduleId', selectedModule);
-                formData.append('backupFile', file);
-                
-                const result = await restoreDatabase(formData);
-                
-                 if (result?.needsRestart) {
-                    toast({
-                        title: "Restauración Completada",
-                        description: `El módulo '${dbModules.find(m => m.id === selectedModule)?.name}' fue restaurado. La aplicación se reiniciará en 5 segundos.`,
-                        duration: 5000,
-                    });
-                    setTimeout(() => window.location.reload(), 5000);
-                }
-            } catch (error: any) {
-                toast({
-                    title: "Error de Restauración",
-                    description: `No se pudo restaurar la base de datos. Error: ${error.message}`,
-                    variant: "destructive"
-                });
-                setIsProcessing(false);
-                setProcessingAction(null);
-            }
+        if (acceptedFiles.length === 0) return;
+        setIsProcessing(true);
+        setProcessingAction('upload');
+        const formData = new FormData();
+        acceptedFiles.forEach(file => {
+            formData.append('backupFiles', file);
+        });
+
+        try {
+            const uploadedCount = await uploadBackupFile(formData);
+            toast({
+                title: "Archivos Subidos",
+                description: `${uploadedCount} archivo(s) de backup se han subido correctamente.`
+            });
+            await fetchMaintenanceData();
+        } catch (error: any) {
+             toast({
+                title: "Error al Subir",
+                description: `No se pudieron subir los archivos. Error: ${error.message}`,
+                variant: "destructive"
+            });
+        } finally {
+             setIsProcessing(false);
+             setProcessingAction(null);
         }
-    }, [selectedModule, toast, dbModules]);
+
+    }, [fetchMaintenanceData, toast]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         accept: { 'application/x-sqlite3': ['.db', '.sqlite', '.sqlite3'], 'application/octet-stream': ['.db', '.sqlite', '.sqlite3'] },
-        maxFiles: 1,
     });
-
-    const handleBackup = async () => {
-        if (!selectedModule) return;
-        setIsProcessing(true);
-        setProcessingAction(`backup-${selectedModule}`);
-        try {
-            const result = await backupDatabase(selectedModule);
-            
-            if (result.error || !result.fileName) {
-                throw new Error(result.error || "No se recibió el nombre del archivo de backup.");
-            }
-
-            const fileName = result.fileName;
-
-            const a = document.createElement('a');
-            a.href = `/api/temp-backups?file=${encodeURIComponent(fileName)}`;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-            // Clean up the temporary file after a short delay
-            setTimeout(() => {
-                deleteTempBackup(fileName);
-            }, 5000);
-
-            toast({
-                title: "Copia de Seguridad Exitosa",
-                description: `Se ha descargado la copia de seguridad para '${dbModules.find(m => m.id === selectedModule)?.name}'.`,
-            });
-        } catch (error: any) {
-            toast({
-                title: "Error de Backup",
-                description: `No se pudo crear la copia de seguridad. Error: ${error.message}`,
-                variant: "destructive"
-            });
-        } finally {
-            setIsProcessing(false);
-            setProcessingAction(null);
-        }
-    }
-
-    const handleReset = async () => {
-        if (!selectedModule || resetStep !== 2 || resetConfirmationText !== 'RESET') return;
-        setIsProcessing(true);
-        setProcessingAction(`reset-${selectedModule}`);
-        try {
-            await resetDatabase(selectedModule);
-            toast({
-                title: "Sistema Reseteado",
-                description: `El módulo '${dbModules.find(m => m.id === selectedModule)?.name}' ha sido reseteado a los valores de fábrica.`,
-                variant: 'destructive',
-            });
-        } catch (error: any) {
-             toast({
-                title: "Error de Reseteo",
-                description: `No se pudo resetear el módulo. Error: ${error.message}`,
-                variant: "destructive"
-            });
-        } finally {
-            setIsProcessing(false);
-            setProcessingAction(null);
-            setResetStep(0);
-            setResetConfirmationText('');
-        }
-    }
     
     const handleFullBackup = async () => {
         setIsProcessing(true);
@@ -217,13 +143,17 @@ export default function MaintenancePage() {
     };
     
     const handleFullRestore = async () => {
+        if (!selectedRestoreTimestamp) {
+            toast({ title: "Error", description: "Debe seleccionar un punto de restauración.", variant: "destructive" });
+            return;
+        }
         setIsProcessing(true);
         setProcessingAction('full-restore');
         try {
-            await restoreAllFromUpdateBackup();
+            await restoreAllFromUpdateBackup(selectedRestoreTimestamp);
             toast({
-                title: "Restauración Completa",
-                description: `Se han restaurado los datos desde el último punto de restauración. La página se recargará.`,
+                title: "Restauración Completada",
+                description: `Se han restaurado los datos. La página se recargará.`,
                 duration: 5000,
             });
             setTimeout(() => window.location.reload(), 3000);
@@ -259,8 +189,10 @@ export default function MaintenancePage() {
             setProcessingAction(null);
         }
     };
+    
+    const uniqueTimestamps = [...new Set(updateBackups.map(b => b.date))].sort((a,b) => new Date(b).getTime() - new Date(a).getTime());
 
-    const oldBackupsCount = totalBackupCount > dbModules.length ? totalBackupCount - dbModules.length : 0;
+    const oldBackupsCount = uniqueTimestamps.length > 1 ? uniqueTimestamps.length - 1 : 0;
     
     if (!isAuthorized) {
         return null;
@@ -276,54 +208,56 @@ export default function MaintenancePage() {
                         <div className="flex items-center gap-4">
                             <LifeBuoy className="h-8 w-8 text-primary" />
                             <div>
-                                <CardTitle>Gestión de Actualizaciones</CardTitle>
+                                <CardTitle>Gestión de Backups y Actualizaciones</CardTitle>
                                 <CardDescription>
-                                Herramientas para realizar un backup antes de actualizar y restaurar después.
+                                Herramientas para crear puntos de restauración, restaurar el sistema y gestionar archivos de backup.
                                 </CardDescription>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="grid gap-6 md:grid-cols-2">
-                            <div className="space-y-4">
-                                <h3 className="font-semibold">Paso 1: Crear Backup</h3>
+                            <div className="space-y-4 rounded-lg border p-4">
+                                <h3 className="font-semibold">Crear Backup</h3>
                                 <p className="text-sm text-muted-foreground">
-                                    Presiona este botón para crear una copia de seguridad de todas las bases de datos en una carpeta especial.
+                                    Crea una copia de seguridad de todas las bases de datos en un nuevo punto de restauración. Ideal antes de una actualización.
                                 </p>
                                 <Button onClick={handleFullBackup} disabled={isProcessing} className="w-full">
                                     {processingAction === 'full-backup' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
-                                    Backup para Actualización
+                                    Crear Punto de Restauración
                                 </Button>
                             </div>
-                            <div className="space-y-4">
-                                <h3 className="font-semibold">Paso 2: Restaurar Backup</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Después de actualizar los archivos de la aplicación, presiona este botón para restaurar los datos desde el último backup.
-                                </p>
-                                {updateBackups.length > 0 ? (
-                                    <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                                        {updateBackups.map(b => (
-                                            <li key={b.moduleId}>
-                                                <strong>{b.moduleName}:</strong> {format(parseISO(b.date), "dd/MM/yyyy HH:mm", { locale: es })}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="text-xs text-center py-4 text-muted-foreground">No hay backups de actualización disponibles.</p>
-                                )}
-
+                            <div className="space-y-4 rounded-lg border p-4">
+                                <h3 className="font-semibold">Restaurar Sistema</h3>
+                                 <div className="space-y-2">
+                                    <Label>Punto de Restauración a Usar</Label>
+                                     <Select value={selectedRestoreTimestamp} onValueChange={setSelectedRestoreTimestamp} disabled={isProcessing}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccione un punto de restauración..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {uniqueTimestamps.slice(0, showAllRestorePoints ? undefined : 1).map(ts => (
+                                                <SelectItem key={ts} value={ts}>{format(parseISO(ts), "'dd/MM/yyyy' 'a las' HH:mm:ss", { locale: es })}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <div className="flex items-center space-x-2 pt-1">
+                                        <Checkbox id="show-all-restore-points" checked={showAllRestorePoints} onCheckedChange={(checked) => setShowAllRestorePoints(checked as boolean)} />
+                                        <Label htmlFor="show-all-restore-points" className="text-sm font-normal">Mostrar todos los puntos de restauración</Label>
+                                    </div>
+                                </div>
                                 <AlertDialog open={isRestoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" disabled={isProcessing || updateBackups.length === 0} className="w-full">
+                                        <Button variant="destructive" disabled={isProcessing || !selectedRestoreTimestamp} className="w-full">
                                             {processingAction === 'full-restore' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RotateCcw className="mr-2 h-4 w-4" />}
-                                            Restaurar Último Backup
+                                            Restaurar desde Selección
                                         </Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>¿Confirmar Restauración?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Esta acción reemplazará todas las bases de datos actuales con los datos del último backup. Esta acción no se puede deshacer.
+                                                Esta acción reemplazará todas las bases de datos actuales con los datos del punto de restauración seleccionado. Esta acción no se puede deshacer.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -334,146 +268,65 @@ export default function MaintenancePage() {
                                 </AlertDialog>
                             </div>
                         </div>
-                    </CardContent>
-                     <CardFooter className="border-t pt-4">
-                        <AlertDialog open={isClearBackupsConfirmOpen} onOpenChange={setClearBackupsConfirmOpen}>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="outline" disabled={isProcessing || oldBackupsCount === 0} className="w-full sm:w-auto">
-                                        {processingAction === 'clear-backups' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <TrashIcon className="mr-2 h-4 w-4" />}
-                                        Limpiar {oldBackupsCount > 0 ? `${oldBackupsCount} Backups` : 'Backups'} Antiguos
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Limpiar Backups Antiguos?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Esta acción eliminará todos los backups de actualización excepto el más reciente de cada módulo para liberar espacio. Esta acción no se puede deshacer.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleClearOldBackups}>Sí, limpiar</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                     </CardFooter>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Mantenimiento por Módulo</CardTitle>
-                        <CardDescription>
-                            Elige sobre qué módulo o herramienta deseas realizar la operación individual.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                         <Select value={selectedModule} onValueChange={setSelectedModule} disabled={isProcessing}>
-                            <SelectTrigger className="w-[280px]">
-                                <SelectValue placeholder="Selecciona un módulo..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {dbModules.map(mod => (
-                                     <SelectItem key={mod.id} value={mod.id}>{mod.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </CardContent>
-                </Card>
-
-                <div className="grid gap-6 md:grid-cols-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Copia de Seguridad</CardTitle>
-                            <CardDescription>
-                                Descarga un archivo de la base de datos actual para guardarlo como respaldo.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardFooter>
-                            <Button onClick={handleBackup} disabled={!selectedModule || isProcessing}>
-                                {processingAction === `backup-${selectedModule}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <DatabaseBackup className="mr-2 h-4 w-4" />}
-                                Descargar Copia de Seguridad
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Restaurar Copia de Seguridad</CardTitle>
-                            <CardDescription>
-                                Sube un archivo de base de datos (`.db`) para reemplazar los datos actuales. La aplicación se reiniciará para aplicar los cambios.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div {...getRootProps()} className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}>
-                                <input {...getInputProps()} disabled={!selectedModule || isProcessing}/>
-                                <UploadCloud className="w-12 h-12 text-muted-foreground" />
-                                <p className="mt-4 text-center text-muted-foreground">
-                                    {isDragActive ? "Suelta el archivo aquí..." : "Arrastra un archivo .db o haz clic para seleccionar"}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-                
-                 <Card className="border-destructive">
-                    <CardHeader>
-                        <div className="flex items-center gap-4">
-                            <AlertTriangle className="h-8 w-8 text-destructive" />
-                            <div>
-                                <CardTitle>Zona de Peligro</CardTitle>
-                                <CardDescription>
-                                Estas acciones son destructivas y no se pueden deshacer. Procede con extrema precaución.
-                                </CardDescription>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                       <h3 className="font-semibold">Resetear Módulo a Estado de Fábrica</h3>
-                       <p className="text-sm text-muted-foreground">
-                           Esto borrará todos los datos del módulo seleccionado ({dbModules.find(m => m.id === selectedModule)?.name}) y lo restaurará a su estado inicial.
-                       </p>
-                        {resetStep > 0 && (
-                            <div className="space-y-4 rounded-lg border bg-background p-4">
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox 
-                                        id="confirm-reset"
-                                        checked={resetStep > 1}
-                                        onCheckedChange={(checked) => setResetStep(checked ? 2 : 1)}
-                                     />
-                                    <Label htmlFor="confirm-reset" className="font-medium text-destructive">
-                                        Entiendo que esta acción es irreversible y borrará todos los datos del módulo.
-                                    </Label>
+                         <Card>
+                            <CardHeader>
+                                <CardTitle>Archivos de Backup</CardTitle>
+                                <CardDescription>Sube backups desde tu computadora o descarga los existentes.</CardDescription>
+                            </CardHeader>
+                             <CardContent className="space-y-4">
+                                <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50')}>
+                                    <input {...getInputProps()} disabled={isProcessing}/>
+                                    <UploadCloud className="w-12 h-12 text-muted-foreground" />
+                                    <p className="mt-4 text-center text-muted-foreground">
+                                        {isDragActive ? "Suelta los archivos aquí..." : "Arrastra archivos .db aquí o haz clic para seleccionar"}
+                                    </p>
                                 </div>
-                                {resetStep > 1 && (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="reset-text">Para confirmar, escribe "RESET" en el campo de abajo:</Label>
-                                        <Input
-                                            id="reset-text"
-                                            value={resetConfirmationText}
-                                            onChange={(e) => setResetConfirmationText(e.target.value.toUpperCase())}
-                                            className="border-destructive focus-visible:ring-destructive"
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                                <ScrollArea className="h-60 w-full rounded-md border p-2">
+                                     {updateBackups.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {updateBackups.map(b => (
+                                                <div key={b.fileName} className="flex items-center justify-between rounded-md p-2 hover:bg-muted">
+                                                    <div>
+                                                        <p className="font-semibold text-sm">{b.moduleName}</p>
+                                                        <p className="text-xs text-muted-foreground">{b.fileName}</p>
+                                                    </div>
+                                                    <a href={`/api/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
+                                                        <Button variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
+                                                    </a>
+                                                </div>
+                                            ))}
+                                        </div>
+                                     ) : (
+                                        <div className="flex h-full items-center justify-center">
+                                            <p className="text-muted-foreground text-sm">No hay archivos de backup.</p>
+                                        </div>
+                                     )}
+                                </ScrollArea>
+                            </CardContent>
+                            <CardFooter>
+                                <AlertDialog open={isClearBackupsConfirmOpen} onOpenChange={setClearBackupsConfirmOpen}>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="outline" disabled={isProcessing || oldBackupsCount === 0} className="w-full sm:w-auto">
+                                                {processingAction === 'clear-backups' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <TrashIcon className="mr-2 h-4 w-4" />}
+                                                Limpiar {oldBackupsCount > 0 ? `${oldBackupsCount} Puntos de Restauración` : 'Backups'} Antiguos
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Limpiar Backups Antiguos?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Esta acción eliminará todos los puntos de restauración excepto el más reciente para liberar espacio. Esta acción no se puede deshacer.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleClearOldBackups}>Sí, limpiar</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                             </CardFooter>
+                         </Card>
                     </CardContent>
-                    <CardFooter>
-                         {resetStep === 0 ? (
-                            <Button variant="destructive" onClick={() => setResetStep(1)} disabled={!selectedModule || isProcessing}>
-                                <RotateCcw className="mr-2 h-4 w-4" />
-                                Iniciar Reseteo de Fábrica
-                            </Button>
-                         ) : (
-                             <Button 
-                                variant="destructive" 
-                                onClick={handleReset} 
-                                disabled={resetStep !== 2 || resetConfirmationText !== 'RESET' || isProcessing}
-                            >
-                                {processingAction === `reset-${selectedModule}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RotateCcw className="mr-2 h-4 w-4" />}
-                                Resetear Módulo Ahora
-                            </Button>
-                         )}
-                    </CardFooter>
                 </Card>
             </div>
             
