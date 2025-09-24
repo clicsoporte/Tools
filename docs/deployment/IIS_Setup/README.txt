@@ -1,7 +1,7 @@
 ========================================
 Guía de Despliegue para Clic-Tools en IIS
 ========================================
-v1.4
+v1.5
 
 Este documento explica cómo desplegar la aplicación Clic-Tools (Next.js) en un servidor Windows utilizando Internet Information Services (IIS).
 
@@ -11,11 +11,11 @@ Requisitos Previos
 Antes de comenzar, asegúrate de que tu servidor Windows tenga lo siguiente instalado:
 
 1.  **IIS (Internet Information Services)**: El rol de servidor web de Windows.
-2.  **Node.js**: Instala la versión LTS (Soporte a Largo Plazo, v20.x o superior) desde el sitio web oficial de Node.js.
+2.  **Node.js**: Instala la versión LTS (Soporte a Largo Plazo, v20.x o superior) desde el sitio web oficial de Node.js. Asegúrate de instalarlo en la ruta por defecto (`C:\Program Files\nodejs`).
 3.  **Módulo URL Rewrite**: Un módulo oficial de Microsoft que permite a IIS reescribir URLs. Descárgalo desde la web de IIS.
 4.  **`iisnode`**: Un módulo de IIS que actúa como puente para ejecutar aplicaciones Node.js dentro de IIS. Descarga la última versión desde su repositorio en GitHub.
 
-*Nota Importante: Después de instalar estos componentes, es muy recomendable reiniciar el servicio de IIS o el servidor completo para asegurar que todos los módulos se carguen correctamente.*
+*Nota Importante: Después de instalar estos componentes, es muy recomendable reiniciar el servicio de IIS (`iisreset` en CMD) o el servidor completo para asegurar que todos los módulos se carguen correctamente.*
 
 --------------------
 Pasos de Despliegue
@@ -43,7 +43,7 @@ Si vas a utilizar la conexión directa a SQL Server, este paso es obligatorio.
 
 **Paso 3: Instalar dependencias en el servidor**
 
-1.  Abre una terminal (CMD o PowerShell) en el servidor.
+1.  Abre una terminal (CMD o PowerShell) **como Administrador**.
 2.  Navega a la carpeta donde copiaste los archivos del proyecto (ej: `cd C:\inetpub\wwwroot\clic-tools`).
 3.  Ejecuta el siguiente comando para instalar solo las dependencias necesarias para producción:
     ```bash
@@ -56,7 +56,7 @@ Si vas a utilizar la conexión directa a SQL Server, este paso es obligatorio.
     ```bash
     npm run build
     ```
-    Esto creará una carpeta `.next` con todo lo necesario para producción.
+    Esto creará una carpeta `.next` con el archivo `server.js` y todo lo necesario para producción.
 
 **Paso 5: Configurar el Sitio en IIS**
 
@@ -70,13 +70,14 @@ Si vas a utilizar la conexión directa a SQL Server, este paso es obligatorio.
 **Paso 6: Asegurar el archivo `web.config`**
 
 1.  Verifica que el archivo `web.config` (incluido en la raíz del proyecto) esté presente en la carpeta del servidor.
-2.  Este archivo es crucial, ya que le dice a IIS cómo manejar las solicitudes y pasárselas a Node.js a través de `iisnode`. Si no está, la aplicación no funcionará.
+2.  Este archivo es crucial, ya que le dice a IIS cómo manejar las solicitudes y pasárselas a Node.js a través de `iisnode`. Su nueva versión está optimizada para Next.js 14+.
 
 --------------------
 Solución de Problemas
 --------------------
 
 -   **Permisos de Carpeta**: Asegúrate de que la cuenta de usuario del grupo de aplicaciones de IIS (generalmente `IIS_IUSRS`) tenga permisos de lectura y ejecución sobre la carpeta del proyecto.
--   **Logs de `iisnode`**: Si encuentras errores 500, puedes habilitar el logging en el archivo `web.config` descomentando la sección `<iisnode>`. Esto creará una carpeta `iisnode` en el directorio de tu aplicación con archivos de log que pueden darte pistas sobre el problema.
+-   **Error 500.19 o similar**: Generalmente indica que `iisnode` o `URL Rewrite` no están instalados o no se cargaron correctamente. Reinstálalos y reinicia el servidor.
+-   **Logs de `iisnode`**: Si encuentras errores (ej. `HTTP 500`), el `web.config` ya está configurado para crear una carpeta `iisnode` en el directorio de tu aplicación con archivos de log. Revisa `iisnode-stdout.log` y `iisnode-stderr.log` para obtener pistas sobre el problema.
 
 Una vez completados estos pasos, la aplicación Clic-Tools debería estar funcionando en la dirección y puerto que configuraste en IIS.
