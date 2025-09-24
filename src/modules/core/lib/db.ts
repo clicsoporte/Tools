@@ -1487,39 +1487,32 @@ export async function uploadBackupFile(formData: FormData): Promise<number> {
     return uploadedCount;
 }
 
-export async function factoryReset(): Promise<void> {
-    // Close all connections before deleting files
-    for (const [file, conn] of dbConnections.entries()) {
-        if (conn.open) {
-            conn.close();
-        }
-        dbConnections.delete(file);
+export async function factoryReset(moduleId: string): Promise<void> {
+    const moduleToReset = DB_MODULES.find(m => m.id === moduleId);
+    if (!moduleToReset) {
+        throw new Error(`Module with ID "${moduleId}" not found.`);
     }
 
-    // Delete all module databases
-    for (const module of DB_MODULES) {
-        const dbPath = path.join(dbDirectory, module.dbFile);
-        if (fs.existsSync(dbPath)) {
-            try {
-                fs.unlinkSync(dbPath);
-                console.log(`Deleted database file: ${module.dbFile}`);
-            } catch (error) {
-                console.error(`Failed to delete ${module.dbFile}:`, error);
-                // Log and continue to attempt deleting other files
-                logError(`Failed to delete database file during factory reset: ${module.dbFile}`, { error });
-            }
-        }
+    const dbFile = moduleToReset.dbFile;
+    const dbPath = path.join(dbDirectory, dbFile);
+
+    // Close connection if it exists
+    if (dbConnections.has(dbFile) && dbConnections.get(dbFile)?.open) {
+        dbConnections.get(dbFile)!.close();
+        dbConnections.delete(dbFile);
     }
 
-    // Also clear the update backups directory
-    const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
-    if (fs.existsSync(backupDir)) {
+    // Delete the database file
+    if (fs.existsSync(dbPath)) {
         try {
-            fs.rmSync(backupDir, { recursive: true, force: true });
-            console.log(`Deleted update backups directory.`);
+            fs.unlinkSync(dbPath);
+            console.log(`Deleted database file for module ${moduleId}: ${dbFile}`);
         } catch (error) {
-            console.error(`Failed to delete backups directory:`, error);
-            logError(`Failed to delete update backups directory during factory reset`, { error });
+            console.error(`Failed to delete ${dbFile}:`, error);
+            logError(`Failed to delete database file during factory reset for module ${moduleId}`, { error });
+            throw new Error(`No se pudo eliminar la base de datos para el módulo "${moduleToReset.name}".`);
         }
+    } else {
+        logWarn(`Attempted to reset module ${moduleId}, but database file ${dbFile} did not exist.`);
     }
 }

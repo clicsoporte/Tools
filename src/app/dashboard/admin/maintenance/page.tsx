@@ -31,8 +31,8 @@ import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Label } from '../../../../components/ui/label';
 import { Input } from '../../../../components/ui/input';
-import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile, backupAllForUpdate, factoryReset } from '../../../../modules/core/lib/db';
-import type { UpdateBackupInfo } from '../../../../modules/core/types';
+import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile, backupAllForUpdate, factoryReset, getDbModules } from '../../../../modules/core/lib/db';
+import type { UpdateBackupInfo, DatabaseModule } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format, parseISO } from 'date-fns';
@@ -53,11 +53,13 @@ export default function MaintenancePage() {
 
     // State for update backups
     const [updateBackups, setUpdateBackups] = useState<UpdateBackupInfo[]>([]);
+    const [dbModules, setDbModules] = useState<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]>([]);
     const [isRestoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
     const [isClearBackupsConfirmOpen, setClearBackupsConfirmOpen] = useState(false);
     const [isResetConfirmOpen, setResetConfirmOpen] = useState(false);
     const [resetStep, setResetStep] = useState(0);
     const [resetConfirmationText, setResetConfirmationText] = useState('');
+    const [moduleToReset, setModuleToReset] = useState<string>('');
     const [showAllRestorePoints, setShowAllRestorePoints] = useState(false);
     const [selectedRestoreTimestamp, setSelectedRestoreTimestamp] = useState<string>('');
 
@@ -66,8 +68,12 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('load');
         try {
-            const backups = await listAllUpdateBackups();
+            const [backups, modules] = await Promise.all([
+                listAllUpdateBackups(),
+                getDbModules()
+            ]);
             setUpdateBackups(backups);
+            setDbModules(modules);
             if (backups.length > 0) {
                 const latestTimestamp = backups.reduce((latest, current) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
                 setSelectedRestoreTimestamp(latestTimestamp);
@@ -202,25 +208,26 @@ export default function MaintenancePage() {
     };
 
     const handleFactoryReset = async () => {
-        if (resetStep !== 2 || resetConfirmationText !== 'RESETEAR') {
-            toast({ title: "Confirmación requerida", description: "Debe seguir los pasos para confirmar la acción.", variant: "destructive" });
+        if (resetStep !== 2 || resetConfirmationText !== 'RESETEAR' || !moduleToReset) {
+            toast({ title: "Confirmación requerida", description: "Debe seleccionar un módulo y seguir los pasos para confirmar la acción.", variant: "destructive" });
             return;
         }
 
         setIsProcessing(true);
         setProcessingAction('factory-reset');
         try {
-            await factoryReset();
-            await logWarn(`SYSTEM FACTORY RESET initiated by user ${user?.name}. The application will restart.`);
+            await factoryReset(moduleToReset);
+            const moduleName = dbModules.find(m => m.id === moduleToReset)?.name || moduleToReset;
+            await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. The application will restart.`);
             toast({
-                title: "Sistema Reseteado",
-                description: "Se han eliminado todas las bases de datos. La aplicación se recargará en 5 segundos para reinicializarse.",
+                title: "Módulo Reseteado",
+                description: `Se ha borrado la base de datos de "${moduleName}". La aplicación se recargará en 5 segundos para reinicializarla.`,
                 duration: 5000,
             });
             setTimeout(() => window.location.reload(), 5000);
         } catch (error: any) {
             toast({ title: "Error en el Reseteo", description: error.message, variant: "destructive" });
-            logError("Factory reset failed.", { error: error.message });
+            logError("Factory reset failed.", { error: error.message, module: moduleToReset });
             setIsProcessing(false);
             setProcessingAction(null);
         }
@@ -389,19 +396,32 @@ export default function MaintenancePage() {
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="space-y-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="reset-module-select">Módulo a Resetear</Label>
+                                <Select value={moduleToReset} onValueChange={setModuleToReset}>
+                                    <SelectTrigger id="reset-module-select">
+                                        <SelectValue placeholder="Seleccionar un módulo..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {dbModules.map(m => (
+                                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                             </div>
                              <AlertDialog open={isResetConfirmOpen} onOpenChange={(open) => { setResetConfirmOpen(open); if(!open) { setResetStep(0); setResetConfirmationText(''); }}}>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" disabled={isProcessing}>
+                                    <Button variant="destructive" disabled={isProcessing || !moduleToReset}>
                                         <TrashIcon className="mr-2 h-4 w-4" />
-                                        Resetear Sistema de Fábrica
+                                        Resetear Módulo Seleccionado
                                     </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            Esta es la acción más destructiva posible. Se borrarán **TODAS** las bases de datos (usuarios, órdenes, configuraciones, etc.). La aplicación volverá a su estado inicial. Esta acción no se puede deshacer.
+                                            Esta acción borrará **TODA** la información del módulo seleccionado ("{dbModules.find(m => m.id === moduleToReset)?.name || ''}"). La aplicación lo reinicializará en blanco. Esta acción no se puede deshacer.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                      <div className="py-4 space-y-4">
@@ -420,7 +440,7 @@ export default function MaintenancePage() {
                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                         <AlertDialogAction onClick={handleFactoryReset} disabled={isProcessing || resetStep !== 2 || resetConfirmationText !== 'RESETEAR'}>
                                             {processingAction === 'factory-reset' ? <Loader2 className="mr-2 animate-spin"/> : <TrashIcon className="mr-2"/>}
-                                            Sí, Borrar Todo
+                                            Sí, Borrar Módulo
                                         </AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
