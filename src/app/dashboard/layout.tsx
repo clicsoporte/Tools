@@ -79,7 +79,7 @@ export default function DashboardLayout({
             <div className="flex min-h-screen">
               <AppSidebar />
               <SidebarInset className="flex-1 flex flex-col">
-                <DashboardContent>{children}</DashboardContent>
+                 <DashboardContent>{children}</DashboardContent>
               </SidebarInset>
             </div>
           </SidebarProvider>

@@ -169,7 +169,7 @@ export function AppSidebar() {
   ];
 
   return (
-      <Sidebar collapsible="icon" className="border-r">
+      <Sidebar collapsible="icon" className="border-r z-20">
         <SidebarHeader>
           <Button variant="ghost" size="icon" className="size-10" asChild>
             <Link href="/dashboard" onClick={handleLinkClick}>
