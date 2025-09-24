@@ -1488,31 +1488,40 @@ export async function uploadBackupFile(formData: FormData): Promise<number> {
 }
 
 export async function factoryReset(moduleId: string): Promise<void> {
-    const moduleToReset = DB_MODULES.find(m => m.id === moduleId);
-    if (!moduleToReset) {
-        throw new Error(`Module with ID "${moduleId}" not found.`);
-    }
+    let modulesToReset: Omit<DatabaseModule, 'initFn' | 'migrationFn'>[] = [];
 
-    const dbFile = moduleToReset.dbFile;
-    const dbPath = path.join(dbDirectory, dbFile);
-
-    // Close connection if it exists
-    if (dbConnections.has(dbFile) && dbConnections.get(dbFile)?.open) {
-        dbConnections.get(dbFile)!.close();
-        dbConnections.delete(dbFile);
-    }
-
-    // Delete the database file
-    if (fs.existsSync(dbPath)) {
-        try {
-            fs.unlinkSync(dbPath);
-            console.log(`Deleted database file for module ${moduleId}: ${dbFile}`);
-        } catch (error) {
-            console.error(`Failed to delete ${dbFile}:`, error);
-            logError(`Failed to delete database file during factory reset for module ${moduleId}`, { error });
-            throw new Error(`No se pudo eliminar la base de datos para el módulo "${moduleToReset.name}".`);
-        }
+    if (moduleId === '__all__') {
+        modulesToReset = DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
     } else {
-        logWarn(`Attempted to reset module ${moduleId}, but database file ${dbFile} did not exist.`);
+        const moduleToReset = DB_MODULES.find(m => m.id === moduleId);
+        if (!moduleToReset) {
+            throw new Error(`Module with ID "${moduleId}" not found.`);
+        }
+        modulesToReset.push(moduleToReset);
+    }
+    
+    for (const module of modulesToReset) {
+        const dbFile = module.dbFile;
+        const dbPath = path.join(dbDirectory, dbFile);
+
+        // Close connection if it exists
+        if (dbConnections.has(dbFile) && dbConnections.get(dbFile)?.open) {
+            dbConnections.get(dbFile)!.close();
+            dbConnections.delete(dbFile);
+        }
+
+        // Delete the database file
+        if (fs.existsSync(dbPath)) {
+            try {
+                fs.unlinkSync(dbPath);
+                console.log(`Deleted database file for module ${module.id}: ${dbFile}`);
+            } catch (error) {
+                console.error(`Failed to delete ${dbFile}:`, error);
+                logError(`Failed to delete database file during factory reset for module ${module.id}`, { error });
+                throw new Error(`No se pudo eliminar la base de datos para el módulo "${module.name}".`);
+            }
+        } else {
+            logWarn(`Attempted to reset module ${module.id}, but database file ${dbFile} did not exist.`);
+        }
     }
 }
