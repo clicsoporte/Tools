@@ -73,18 +73,18 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthProvider>
-        <AuthWrapper>
-            <PageTitleProvider initialTitle="Panel">
-                <SidebarProvider>
-                    <div className="flex">
-                        <AppSidebar />
-                        <SidebarInset>
-                            <DashboardContent>{children}</DashboardContent>
-                        </SidebarInset>
-                    </div>
-                </SidebarProvider>
-            </PageTitleProvider>
-        </AuthWrapper>
+      <AuthWrapper>
+        <PageTitleProvider initialTitle="Panel">
+          <SidebarProvider>
+            <div className="flex min-h-screen">
+              <AppSidebar />
+              <SidebarInset className="flex-1 flex flex-col">
+                <DashboardContent>{children}</DashboardContent>
+              </SidebarInset>
+            </div>
+          </SidebarProvider>
+        </PageTitleProvider>
+      </AuthWrapper>
     </AuthProvider>
   );
 }
