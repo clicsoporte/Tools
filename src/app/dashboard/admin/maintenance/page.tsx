@@ -25,12 +25,13 @@ import {
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
-import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download } from "lucide-react";
+import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Label } from '../../../../components/ui/label';
-import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile, backupAllForUpdate } from '../../../../modules/core/lib/db';
+import { Input } from '../../../../components/ui/input';
+import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile, backupAllForUpdate, factoryReset } from '../../../../modules/core/lib/db';
 import type { UpdateBackupInfo } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -43,7 +44,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 
 
 export default function MaintenancePage() {
-    const { isAuthorized } = useAuthorization(['admin:maintenance:backup', 'admin:maintenance:restore', 'admin:maintenance:reset']);
+    const { isAuthorized, hasPermission } = useAuthorization(['admin:maintenance:backup', 'admin:maintenance:restore', 'admin:maintenance:reset']);
     const { user } = useAuth();
     const { toast } = useToast();
     const [isProcessing, setIsProcessing] = useState(false);
@@ -54,6 +55,9 @@ export default function MaintenancePage() {
     const [updateBackups, setUpdateBackups] = useState<UpdateBackupInfo[]>([]);
     const [isRestoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
     const [isClearBackupsConfirmOpen, setClearBackupsConfirmOpen] = useState(false);
+    const [isResetConfirmOpen, setResetConfirmOpen] = useState(false);
+    const [resetStep, setResetStep] = useState(0);
+    const [resetConfirmationText, setResetConfirmationText] = useState('');
     const [showAllRestorePoints, setShowAllRestorePoints] = useState(false);
     const [selectedRestoreTimestamp, setSelectedRestoreTimestamp] = useState<string>('');
 
@@ -196,6 +200,31 @@ export default function MaintenancePage() {
             setProcessingAction(null);
         }
     };
+
+    const handleFactoryReset = async () => {
+        if (resetStep !== 2 || resetConfirmationText !== 'RESETEAR') {
+            toast({ title: "Confirmación requerida", description: "Debe seguir los pasos para confirmar la acción.", variant: "destructive" });
+            return;
+        }
+
+        setIsProcessing(true);
+        setProcessingAction('factory-reset');
+        try {
+            await factoryReset();
+            await logWarn(`SYSTEM FACTORY RESET initiated by user ${user?.name}. The application will restart.`);
+            toast({
+                title: "Sistema Reseteado",
+                description: "Se han eliminado todas las bases de datos. La aplicación se recargará en 5 segundos para reinicializarse.",
+                duration: 5000,
+            });
+            setTimeout(() => window.location.reload(), 5000);
+        } catch (error: any) {
+            toast({ title: "Error en el Reseteo", description: error.message, variant: "destructive" });
+            logError("Factory reset failed.", { error: error.message });
+            setIsProcessing(false);
+            setProcessingAction(null);
+        }
+    }
     
     const uniqueTimestamps = [...new Set(updateBackups.map(b => b.date))].sort((a,b) => new Date(b).getTime() - new Date(a).getTime());
 
@@ -347,6 +376,58 @@ export default function MaintenancePage() {
                          </Card>
                     </CardContent>
                 </Card>
+                 {hasPermission('admin:maintenance:reset') && (
+                     <Card className="border-destructive">
+                        <CardHeader>
+                             <div className="flex items-center gap-4">
+                                <Skull className="h-8 w-8 text-destructive" />
+                                <div>
+                                    <CardTitle>Zona de Peligro</CardTitle>
+                                    <CardDescription>
+                                    Acciones críticas e irreversibles. Usar con extrema precaución.
+                                    </CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                             <AlertDialog open={isResetConfirmOpen} onOpenChange={(open) => { setResetConfirmOpen(open); if(!open) { setResetStep(0); setResetConfirmationText(''); }}}>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" disabled={isProcessing}>
+                                        <TrashIcon className="mr-2 h-4 w-4" />
+                                        Resetear Sistema de Fábrica
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta es la acción más destructiva posible. Se borrarán **TODAS** las bases de datos (usuarios, órdenes, configuraciones, etc.). La aplicación volverá a su estado inicial. Esta acción no se puede deshacer.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                     <div className="py-4 space-y-4">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox id="reset-confirm-checkbox" onCheckedChange={(checked) => setResetStep(checked ? 1 : 0)} />
+                                            <Label htmlFor="reset-confirm-checkbox" className="font-medium text-destructive">Entiendo las consecuencias y deseo continuar.</Label>
+                                        </div>
+                                        {resetStep > 0 && (
+                                            <div className="space-y-2">
+                                                <Label htmlFor="reset-confirmation-text">Para confirmar, escribe "RESETEAR" en el campo:</Label>
+                                                <Input id="reset-confirmation-text" value={resetConfirmationText} onChange={(e) => { setResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR') {setResetStep(2);} else {setResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleFactoryReset} disabled={isProcessing || resetStep !== 2 || resetConfirmationText !== 'RESETEAR'}>
+                                            {processingAction === 'factory-reset' ? <Loader2 className="mr-2 animate-spin"/> : <TrashIcon className="mr-2"/>}
+                                            Sí, Borrar Todo
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </CardContent>
+                     </Card>
+                 )}
             </div>
             
             {(isProcessing) && (

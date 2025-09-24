@@ -1486,3 +1486,40 @@ export async function uploadBackupFile(formData: FormData): Promise<number> {
     
     return uploadedCount;
 }
+
+export async function factoryReset(): Promise<void> {
+    // Close all connections before deleting files
+    for (const [file, conn] of dbConnections.entries()) {
+        if (conn.open) {
+            conn.close();
+        }
+        dbConnections.delete(file);
+    }
+
+    // Delete all module databases
+    for (const module of DB_MODULES) {
+        const dbPath = path.join(dbDirectory, module.dbFile);
+        if (fs.existsSync(dbPath)) {
+            try {
+                fs.unlinkSync(dbPath);
+                console.log(`Deleted database file: ${module.dbFile}`);
+            } catch (error) {
+                console.error(`Failed to delete ${module.dbFile}:`, error);
+                // Log and continue to attempt deleting other files
+                logError(`Failed to delete database file during factory reset: ${module.dbFile}`, { error });
+            }
+        }
+    }
+
+    // Also clear the update backups directory
+    const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
+    if (fs.existsSync(backupDir)) {
+        try {
+            fs.rmSync(backupDir, { recursive: true, force: true });
+            console.log(`Deleted update backups directory.`);
+        } catch (error) {
+            console.error(`Failed to delete backups directory:`, error);
+            logError(`Failed to delete update backups directory during factory reset`, { error });
+        }
+    }
+}
