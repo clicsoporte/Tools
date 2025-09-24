@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Main layout for the authenticated dashboard section of the application.
  * It handles session verification, ensuring only logged-in users can access this area.
@@ -76,12 +75,14 @@ export default function DashboardLayout({
     <AuthProvider>
         <AuthWrapper>
             <PageTitleProvider initialTitle="Panel">
-            <SidebarProvider>
-                <AppSidebar />
-                <SidebarInset>
-                <DashboardContent>{children}</DashboardContent>
-                </SidebarInset>
-            </SidebarProvider>
+                <SidebarProvider>
+                    <div className="flex">
+                        <AppSidebar />
+                        <SidebarInset>
+                            <DashboardContent>{children}</DashboardContent>
+                        </SidebarInset>
+                    </div>
+                </SidebarProvider>
             </PageTitleProvider>
         </AuthWrapper>
     </AuthProvider>
