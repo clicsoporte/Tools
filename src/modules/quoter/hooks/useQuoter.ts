@@ -442,7 +442,7 @@ export const useQuoter = () => {
             img.crossOrigin = "Anonymous";
             const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
                 img.onload = () => resolve(img);
-                img.onerror = reject;
+                img.onerror = () => reject(new Error("Image load failed"));
             });
             img.src = companyData.logoUrl;
             
@@ -463,69 +463,72 @@ export const useQuoter = () => {
     const doc = new jsPDF();
     const currentQuoteNumber = quoteNumber;
 
-    const addHeaderAndFooter = (docInstance: jsPDF, isFirstPage: boolean) => {
+    const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
         const pageWidth = docInstance.internal.pageSize.getWidth();
         const margin = 14;
+        let companyInfoY = 22;
 
-        if (isFirstPage && logoDataUrl) {
+        if (logoDataUrl) {
             try {
                 const logoHeight = 15;
                 const originalWidth = (docInstance as any).getImageProperties(logoDataUrl).width;
                 const originalHeight = (docInstance as any).getImageProperties(logoDataUrl).height;
                 const logoAspectRatio = originalWidth / originalHeight;
                 const logoWidth = logoHeight * logoAspectRatio;
-                docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
+                docInstance.addImage(logoDataUrl, 'PNG', margin, 18, logoWidth, logoHeight);
+                companyInfoY = 38; 
             } catch(e) { console.error("Error adding logo image to PDF:", e); }
         }
 
-        const textStartX = logoDataUrl && isFirstPage ? 14 + (15 * ((docInstance as any).getImageProperties(logoDataUrl).width / (docInstance as any).getImageProperties(logoDataUrl).height)) + 5 : margin;
-
         docInstance.setFontSize(11);
         docInstance.setFont('helvetica', 'bold');
-        docInstance.text(companyData.name, textStartX, 20);
+        docInstance.text(companyData.name, margin, companyInfoY);
+        companyInfoY += 6;
         docInstance.setFont('helvetica', 'normal');
         docInstance.setFontSize(9);
-        docInstance.text(`Cédula: ${companyData.taxId}`, textStartX, 26);
-        docInstance.text(`Tel: ${companyData.phone}`, textStartX, 31);
-        
-        let startY = 22;
+        docInstance.text(`Cédula: ${companyData.taxId}`, margin, companyInfoY);
+        companyInfoY += 5;
+        const addressLines = docInstance.splitTextToSize(companyData.address, 80);
+        docInstance.text(addressLines, margin, companyInfoY);
+        companyInfoY += (addressLines.length * 4.5);
+        docInstance.text(`Tel: ${companyData.phone}`, margin, companyInfoY);
+        companyInfoY += 5;
+        docInstance.text(`Email: ${companyData.email}`, margin, companyInfoY);
+
         docInstance.setFontSize(18);
         docInstance.setFont('helvetica', 'bold');
-        docInstance.text("COTIZACIÓN", pageWidth / 2, startY, { align: 'center' });
-        docInstance.setFontSize(12);
+        docInstance.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
+
+        let rightColumnY = 22;
         docInstance.setFont('helvetica', 'normal');
-        docInstance.text(`Nº: ${currentQuoteNumber}`, pageWidth - margin, startY, { align: 'right' });
-        
-        startY += 6;
+        docInstance.setFontSize(12);
+        docInstance.text(`Nº: ${currentQuoteNumber}`, pageWidth - margin, rightColumnY, { align: 'right' });
+        rightColumnY += 6;
         docInstance.setFontSize(10);
-        docInstance.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, startY, { align: 'right' });
+        docInstance.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, rightColumnY, { align: 'right' });
+        rightColumnY += 6;
+        docInstance.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, rightColumnY, { align: 'right' });
 
-        startY += 6;
-        docInstance.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, startY, { align: 'right' });
-
-        if (purchaseOrderNumber) {
-            startY += 6;
-            docInstance.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, startY, { align: 'right' });
-        }
-        
-        let sellerStartY = 46;
+        rightColumnY += 10;
         docInstance.setFont('helvetica', 'bold');
-        docInstance.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
-        sellerStartY += 6;
+        docInstance.text("Vendedor:", pageWidth - margin, rightColumnY, { align: 'right' });
+        rightColumnY += 6;
         docInstance.setFont('helvetica', 'normal');
         if (sellerType === 'user' && currentUser) {
-            docInstance.text(currentUser.name, pageWidth - margin, sellerStartY, { align: 'right' });
-            sellerStartY += 5;
-            if (currentUser.phone) docInstance.text(`Tel: ${currentUser.phone}`, pageWidth - margin, sellerStartY, { align: 'right' });
-            sellerStartY += 5;
-            docInstance.text(currentUser.email, pageWidth - margin, sellerStartY, { align: 'right' });
+            docInstance.text(currentUser.name, pageWidth - margin, rightColumnY, { align: 'right' });
+            rightColumnY += 5;
+            if (currentUser.phone) docInstance.text(`Tel: ${currentUser.phone}`, pageWidth - margin, rightColumnY, { align: 'right' });
+            rightColumnY += 5;
+            if (currentUser.whatsapp) docInstance.text(`WhatsApp: ${currentUser.whatsapp}`, pageWidth - margin, rightColumnY, { align: 'right' });
+            rightColumnY += 5;
+            docInstance.text(currentUser.email, pageWidth - margin, rightColumnY, { align: 'right' });
         } else {
-            docInstance.text(sellerName, pageWidth - margin, sellerStartY, { align: 'right' });
+            docInstance.text(sellerName, pageWidth - margin, rightColumnY, { align: 'right' });
         }
 
         const pageHeight = docInstance.internal.pageSize.getHeight();
         docInstance.setFontSize(8);
-        docInstance.text(`Página ${docInstance.internal.getCurrentPageInfo().pageNumber} de ${(docInstance.internal as any).getNumberOfPages()}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+        docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
     };
     
     try {
@@ -576,8 +579,8 @@ export const useQuoter = () => {
         
         if (bottomContentY > doc.internal.pageSize.getHeight() - 40) {
             doc.addPage();
-            addHeaderAndFooter(doc, doc.getNumberOfPages(), doc.getNumberOfPages());
             bottomContentY = 20;
+            addHeaderAndFooter(doc, doc.getNumberOfPages(), doc.getNumberOfPages());
         }
 
         doc.setFontSize(10);
@@ -589,17 +592,25 @@ export const useQuoter = () => {
         doc.setFont('helvetica', 'bold');
         doc.text(`Total: ${formatCurrency(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
 
+        let leftBottomY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
+         if (leftBottomY > doc.internal.pageSize.getHeight() - 40) {
+            leftBottomY = 20;
+         }
+
         const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.text('Condiciones de Pago:', margin, bottomContentY - 14);
+        doc.text('Condiciones de Pago:', margin, leftBottomY);
         doc.setFont('helvetica', 'normal');
-        doc.text(paymentInfo, margin, bottomContentY - 8);
+        leftBottomY +=6;
+        doc.text(paymentInfo, margin, leftBottomY);
+        leftBottomY +=8;
         doc.setFont('helvetica', 'bold');
-        doc.text('Notas:', margin, bottomContentY);
+        doc.text('Notas:', margin, leftBottomY);
+        leftBottomY +=6;
         doc.setFont('helvetica', 'normal');
         const splitNotes = doc.splitTextToSize(notes, 100);
-        doc.text(splitNotes, margin, bottomContentY + 6);
+        doc.text(splitNotes, margin, leftBottomY);
         
         for (let i = 1; i <= doc.getNumberOfPages(); i++) {
             doc.setPage(i);
