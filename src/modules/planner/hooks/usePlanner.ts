@@ -40,8 +40,10 @@ const priorityConfig = {
 const baseStatusConfig: { [key: string]: { label: string, color: string } } = {
     pending: { label: "Pendiente", color: "bg-yellow-500" },
     approved: { label: "Aprobada", color: "bg-green-500" },
+    'in-queue': { label: "En Cola", color: "bg-cyan-500"},
     'in-progress': { label: "En Progreso", color: "bg-blue-500" },
     'on-hold': { label: "En Espera", color: "bg-gray-500" },
+    'unapproval-request': { label: "Sol. Desaprobación", color: "bg-orange-400" },
     'cancellation-request': { label: "Sol. Cancelación", color: "bg-orange-500" },
     completed: { label: "Completada", color: "bg-teal-500" },
     'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
@@ -491,20 +493,20 @@ export const usePlanner = () => {
                 docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
             };
         
-            const allPossibleColumns: { [key: string]: { header: string; halign?: 'right' } } = {
-                'consecutive': { header: 'OP' },
-                'customerName': { header: 'Cliente' },
-                'productDescription': { header: 'Producto' },
-                'quantity': { header: 'Cant.', halign: 'right' },
-                'deliveryDate': { header: 'Entrega' },
-                'scheduledDate': { header: 'Fecha Prog.' },
-                'status': { header: 'Estado' },
-                'machineId': { header: state.plannerSettings.assignmentLabel || 'Asignación' },
-                'priority': { header: 'Prioridad' }
-            };
+            const allPossibleColumns: { id: string; header: string; }[] = [
+                { id: 'consecutive', header: 'OP' },
+                { id: 'customerName', header: 'Cliente' },
+                { id: 'productDescription', header: 'Producto' },
+                { id: 'quantity', header: 'Cant.'},
+                { id: 'deliveryDate', header: 'Entrega' },
+                { id: 'scheduledDate', header: 'Fecha Prog.' },
+                { id: 'status', header: 'Estado' },
+                { id: 'machineId', header: state.plannerSettings.assignmentLabel || 'Asignación' },
+                { id: 'priority', header: 'Prioridad' },
+            ];
         
             const selectedColumnIds = state.plannerSettings.pdfExportColumns || [];
-            const tableHeaders = selectedColumnIds.map(id => allPossibleColumns[id as keyof typeof allPossibleColumns]?.header || id);
+            const tableHeaders = selectedColumnIds.map(id => allPossibleColumns.find(c => c.id === id)?.header || id);
             
             const tableRows = selectors.filteredOrders.map(order => {
                 return selectedColumnIds.map(id => {
@@ -531,13 +533,6 @@ export const usePlanner = () => {
                 startY: 50,
                 headStyles: { fillColor: [41, 128, 185], font: 'Helvetica', fontStyle: 'bold' },
                 styles: { fontSize: tableFontSize, cellPadding: 2, font: 'Helvetica' },
-                columnStyles: selectedColumnIds.reduce((acc, id, index) => {
-                    const columnConfig = allPossibleColumns[id as keyof typeof allPossibleColumns];
-                    if (columnConfig && 'halign' in columnConfig && columnConfig.halign === 'right') {
-                        (acc as any)[index] = { halign: 'right' };
-                    }
-                    return acc;
-                }, {} as { [key: number]: { halign: 'right' } }),
                 didDrawPage: (data) => addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages()),
             });
         

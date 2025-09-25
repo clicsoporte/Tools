@@ -9,7 +9,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { CellDef } from "jspdf-autotable";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import type { Customer, Product, Company, User, QuoteDraft, QuoteLine, Exemption, HaciendaExemptionApiResponse, ExemptionLaw, StockInfo } from "@/modules/core/types";
 import { logError, logInfo, logWarn } from "@/modules/core/lib/logger";
@@ -513,6 +513,10 @@ export const useQuoter = () => {
         docInstance.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, rightY, { align: 'right' });
         rightY += 6;
         docInstance.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, rightY, { align: 'right' });
+        if(purchaseOrderNumber) {
+            rightY += 6;
+            docInstance.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, rightY, { align: 'right' });
+        }
 
         rightY += 8;
         docInstance.setFont('Helvetica', 'bold');
@@ -521,9 +525,9 @@ export const useQuoter = () => {
         docInstance.setFont('Helvetica', 'normal');
         docInstance.text(sellerName, pageWidth - margin, rightY, { align: 'right' });
         if (sellerType === 'user' && currentUser) {
-            if (currentUser.phone) { rightY += 6; docInstance.text(`Tel: ${currentUser.phone}`, pageWidth - margin, rightY, { align: 'right' }); }
-            if (currentUser.whatsapp) { rightY += 6; docInstance.text(`WhatsApp: ${currentUser.whatsapp}`, pageWidth - margin, rightY, { align: 'right' }); }
-            rightY += 6;
+            if (currentUser.phone) { rightY += 5; docInstance.text(`Tel: ${currentUser.phone}`, pageWidth - margin, rightY, { align: 'right' }); }
+            if (currentUser.whatsapp) { rightY += 5; docInstance.text(`WhatsApp: ${currentUser.whatsapp}`, pageWidth - margin, rightY, { align: 'right' }); }
+            rightY += 5;
             docInstance.text(currentUser.email, pageWidth - margin, rightY, { align: 'right' });
         }
 
@@ -549,7 +553,7 @@ export const useQuoter = () => {
       didDrawPage: (data) => {
         addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
         // Set startY for client block only on first page
-        if(data.pageNumber === 1) {
+        if(data.pageNumber === 1 && (doc as any).lastAutoTable) {
           (doc as any).lastAutoTable.finalY = 85;
         }
       },
@@ -570,10 +574,12 @@ export const useQuoter = () => {
         tableWidth: 'auto',
     });
 
+    const didDrawClientTable = (doc as any).lastAutoTable;
+
     autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
-        startY: (doc as any).lastAutoTable.finalY + 5,
+        startY: didDrawClientTable ? didDrawClientTable.finalY + 5 : 100,
         theme: 'striped',
         headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'left', font: 'Helvetica' },
         styles: { font: 'Helvetica', fontSize: 9 },
@@ -596,7 +602,9 @@ export const useQuoter = () => {
         },
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY;
+    const didDrawMainTable = (doc as any).lastAutoTable;
+    const finalY = didDrawMainTable ? didDrawMainTable.finalY : clientBlockY + 20;
+
     let currentY = finalY > 240 ? 20 : finalY + 10;
     if (finalY > 240) {
         doc.addPage();

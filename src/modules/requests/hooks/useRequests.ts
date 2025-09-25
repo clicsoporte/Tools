@@ -40,6 +40,7 @@ const statusConfig: { [key: string]: { label: string, color: string } } = {
     approved: { label: "Aprobada", color: "bg-green-500" },
     ordered: { label: "Ordenada", color: "bg-blue-500" },
     received: { label: "Recibida", color: "bg-teal-500" },
+    'unapproval-request': { label: "Sol. Desaprobación", color: "bg-orange-400" },
     'cancellation-request': { label: "Sol. Cancelación", color: "bg-orange-500" },
     'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
     canceled: { label: "Cancelada", color: "bg-red-700" }
@@ -374,26 +375,45 @@ export const useRequests = () => {
             docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
         };
     
-        const tableColumn = ["Solicitud", "Artículo", "Cliente", "Cant.", "Fecha Req.", "Estado"];
-        const tableRows: (string | number)[][] = selectors.filteredRequests.map(request => [
-            request.consecutive,
-            `[${request.itemId}] ${request.itemDescription}`,
-            request.clientName,
-            request.quantity,
-            format(parseISO(request.requiredDate), 'dd/MM/yy'),
-            statusConfig[request.status]?.label || request.status
-        ]);
+        const allPossibleColumns: { id: string, header: string }[] = [
+            { id: 'consecutive', header: 'Solicitud' },
+            { id: 'itemDescription', header: 'Artículo' },
+            { id: 'clientName', header: 'Cliente' },
+            { id: 'quantity', header: 'Cant.' },
+            { id: 'requiredDate', header: 'Fecha Req.' },
+            { id: 'status', header: 'Estado' },
+            { id: 'requestedBy', header: 'Solicitante' },
+            { id: 'purchaseOrder', header: 'OC Cliente' },
+            { id: 'manualSupplier', header: 'Proveedor' },
+        ];
+        
+        const selectedColumnIds = requestSettings.pdfExportColumns || [];
+        const tableHeaders = selectedColumnIds.map(id => allPossibleColumns.find(c => c.id === id)?.header || id);
+        
+        const tableRows = selectors.filteredRequests.map(request => {
+            return selectedColumnIds.map(id => {
+                switch (id) {
+                    case 'consecutive': return request.consecutive;
+                    case 'itemDescription': return `[${request.itemId}] ${request.itemDescription}`;
+                    case 'clientName': return request.clientName;
+                    case 'quantity': return request.quantity.toLocaleString('es-CR');
+                    case 'requiredDate': return format(parseISO(request.requiredDate), 'dd/MM/yy');
+                    case 'status': return statusConfig[request.status]?.label || request.status;
+                    case 'requestedBy': return request.requestedBy;
+                    case 'purchaseOrder': return request.purchaseOrder || 'N/A';
+                    case 'manualSupplier': return request.manualSupplier || 'N/A';
+                    default: return '';
+                }
+            });
+        });
     
         autoTable(doc, {
-            head: [tableColumn],
+            head: [tableHeaders],
             body: tableRows,
             startY: 50,
             headStyles: { fillColor: [41, 128, 185], halign: 'left', font: 'Helvetica', fontStyle: 'bold' },
             didDrawPage: (data) => {
                 addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
-            },
-            columnStyles: {
-                3: { halign: 'right' }
             },
             styles: { font: 'Helvetica' }
         });
