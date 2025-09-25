@@ -24,7 +24,7 @@ export function Header({ title }: HeaderProps) {
         <SidebarTrigger className="md:hidden" />
         <h1 className="text-2xl font-semibold">{title}</h1>
       </div>
-      <div className="ml-auto hidden items-center gap-4 md:flex">
+      <div className="ml-auto flex items-center gap-4">
         <UserNav />
       </div>
     </header>

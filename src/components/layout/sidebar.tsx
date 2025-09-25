@@ -229,9 +229,9 @@ export function AppSidebar() {
                 </SidebarMenuItem>
             )}
           </SidebarMenu>
-          <div className="flex items-center gap-2 p-2 mt-4 border-t border-sidebar-border">
+          <div className="flex items-center gap-2 p-2 mt-4 border-t border-sidebar-border group-data-[collapsible=icon]:hidden">
             <UserNav user={currentUser} />
-            <div className="flex flex-col text-sm group-data-[collapsible=icon]:hidden">
+            <div className="flex flex-col text-sm">
               <span className="font-semibold text-sidebar-foreground">
                 {currentUser?.name}
               </span>

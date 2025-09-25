@@ -43,7 +43,9 @@ export default function DashboardPage() {
       let tools = [...mainTools];
       
       // Add the admin tool if the user is an admin
-      if (user.role === 'admin') {
+      const hasAdminAccess = user.role === 'admin' || user.permissions?.some(p => p.startsWith('admin:'));
+
+      if (hasAdminAccess) {
         tools.push({
           id: "admin",
           name: "Configuración",

@@ -26,13 +26,13 @@ export function ToolCard({ tool }: ToolCardProps) {
   return (
     <Link href={tool.href} className="block h-full">
       <Card className="group h-full transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-        <CardHeader className="flex flex-row items-center gap-4">
+        <CardHeader className="flex flex-col sm:flex-row items-center gap-4">
           {Icon && (
             <div className={cn("flex h-12 w-12 items-center justify-center rounded-lg", tool.bgColor)}>
                 <Icon className={cn("h-6 w-6 text-white")} />
             </div>
           )}
-          <div>
+          <div className="text-center sm:text-left">
             <CardTitle className="text-lg">{tool.name}</CardTitle>
             <CardDescription className="line-clamp-2">{tool.description}</CardDescription>
           </div>
