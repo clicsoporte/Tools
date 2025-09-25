@@ -432,11 +432,12 @@ export const usePlanner = () => {
                     startY += 6;
                     docInstance.setFont('helvetica', 'normal');
                     docInstance.text(authCompanyData.taxId, margin, startY);
+                    startY += 8; // Add space
                 }
 
                 docInstance.setFontSize(18);
                 docInstance.setFont('helvetica', 'bold');
-                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, 22, { align: 'center' });
+                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, startY, { align: 'center' });
                 
                 docInstance.setFontSize(10);
                 docInstance.setFont('helvetica', 'normal');
