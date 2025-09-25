@@ -418,13 +418,15 @@ export const usePlanner = () => {
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
-
+        
             const addHeader = (docInstance: jsPDF) => {
-                 let startY = 22;
+                let startY = 22;
                 if (authCompanyData.logoUrl) {
                     try {
                         docInstance.addImage(authCompanyData.logoUrl, 'PNG', margin, 15, 50, 15);
-                    } catch(e) { console.error("Error adding logo to PDF:", e); }
+                    } catch (e) {
+                        console.error("Error adding logo to PDF:", e);
+                    }
                 } else {
                     docInstance.setFontSize(11);
                     docInstance.setFont('helvetica', 'bold');
@@ -432,16 +434,17 @@ export const usePlanner = () => {
                     startY += 6;
                     docInstance.setFont('helvetica', 'normal');
                     docInstance.text(authCompanyData.taxId, margin, startY);
-                    startY += 8; // Add space
                 }
-
+        
+                startY = 35; // Set a consistent start Y for title regardless of logo
                 docInstance.setFontSize(18);
                 docInstance.setFont('helvetica', 'bold');
                 docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, startY, { align: 'center' });
-                
+        
+                startY += 8;
                 docInstance.setFontSize(10);
                 docInstance.setFont('helvetica', 'normal');
-                docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 35, { align: 'right' });
+                docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, startY, { align: 'right' });
             };
     
             const tableColumn = ["OP", "Código", "Cliente", "Producto", "Cant.", "Entrega", "Estado"];
