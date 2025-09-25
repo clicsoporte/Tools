@@ -64,16 +64,19 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
         { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
     ];
 
+    const defaultPdfColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
+
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('nextOrderNumber', '1')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('useWarehouseReception', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('machines', '[]')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('requireMachineForStart', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('assignmentLabel', 'Máquina Asignada')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
     
     console.log(`Database ${PLANNER_DB_FILE} initialized for Production Planner.`);
     
-    // Apply migrations right after initialization to ensure schema is up-to-date
     await runPlannerMigrations(db);
 }
 
@@ -114,7 +117,6 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
          `);
     }
 
-    // Migration for custom statuses
     const customStatusesRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'customStatuses'`).get() as { value: string } | undefined;
     if (!customStatusesRow) {
         console.log("MIGRATION (planner.db): Adding customStatuses to settings.");
@@ -125,6 +127,19 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
             { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
         ];
         db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
+    }
+
+    const pdfPaperSizeRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfPaperSize'`).get() as { value: string } | undefined;
+    if (!pdfPaperSizeRow) {
+        console.log("MIGRATION (planner.db): Adding pdfPaperSize to settings.");
+        db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
+    }
+
+    const pdfExportColumnsRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfExportColumns'`).get() as { value: string } | undefined;
+    if (!pdfExportColumnsRow) {
+        console.log("MIGRATION (planner.db): Adding pdfExportColumns to settings.");
+        const defaultColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
+        db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultColumns));
     }
 }
 
@@ -140,6 +155,8 @@ export async function getSettings(): Promise<PlannerSettings> {
         requireMachineForStart: false,
         assignmentLabel: 'Máquina Asignada',
         customStatuses: [],
+        pdfPaperSize: 'letter',
+        pdfExportColumns: [],
     };
 
     for (const row of settingsRows) {
@@ -162,6 +179,14 @@ export async function getSettings(): Promise<PlannerSettings> {
                 settings.customStatuses = JSON.parse(row.value);
             } catch {
                 settings.customStatuses = [];
+            }
+        } else if (row.key === 'pdfPaperSize') {
+            settings.pdfPaperSize = row.value as 'letter' | 'legal';
+        } else if (row.key === 'pdfExportColumns') {
+             try {
+                settings.pdfExportColumns = JSON.parse(row.value);
+            } catch {
+                settings.pdfExportColumns = [];
             }
         }
     }
@@ -189,6 +214,12 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
         }
         if (settingsToUpdate.customStatuses !== undefined) {
             db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('customStatuses', JSON.stringify(settingsToUpdate.customStatuses));
+        }
+        if (settingsToUpdate.pdfPaperSize !== undefined) {
+            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('pdfPaperSize', settingsToUpdate.pdfPaperSize);
+        }
+        if (settingsToUpdate.pdfExportColumns !== undefined) {
+            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('pdfExportColumns', JSON.stringify(settingsToUpdate.pdfExportColumns));
         }
     });
 
