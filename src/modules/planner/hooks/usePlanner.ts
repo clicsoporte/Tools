@@ -415,7 +415,7 @@ export const usePlanner = () => {
 
         handleExportPDF: async () => {
             if (!authCompanyData || !state.plannerSettings) return;
-        
+
             let logoDataUrl: string | null = null;
             if (authCompanyData.logoUrl) {
                 try {
@@ -423,10 +423,10 @@ export const usePlanner = () => {
                     img.crossOrigin = "Anonymous";
                     const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
                         img.onload = () => resolve(img);
-                        img.onerror = (e) => reject(e);
+                        img.onerror = reject;
                     });
                     img.src = authCompanyData.logoUrl;
-        
+
                     const loadedImg = await imgPromise;
                     const canvas = document.createElement('canvas');
                     canvas.width = loadedImg.naturalWidth;
@@ -441,15 +441,15 @@ export const usePlanner = () => {
                     toast({ title: "Advertencia", description: "No se pudo cargar el logo, se generará el PDF sin él.", variant: "default" });
                 }
             }
-        
+
             const paperSize = state.plannerSettings.pdfPaperSize || 'letter';
             const doc = new jsPDF({ orientation: 'landscape', format: paperSize });
-        
+
             const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
                 const pageWidth = docInstance.internal.pageSize.getWidth();
                 const margin = 14;
                 let y = 15;
-        
+
                 if (logoDataUrl) {
                     try {
                         const logoHeight = 15;
@@ -471,60 +471,57 @@ export const usePlanner = () => {
                     docInstance.text(authCompanyData.taxId, margin, y + 7);
                     y += 10;
                 }
-        
-                const titleX = margin;
-                const titleY = y;
+
+                const titleX = pageWidth / 2;
+                const titleY = logoDataUrl ? 22 : y;
                 
                 docInstance.setFontSize(18);
                 docInstance.setFont('helvetica', 'bold');
-                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY);
+                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY, { align: 'center'});
                 
-                const dateY = titleY;
                 docInstance.setFontSize(10);
                 docInstance.setFont('helvetica', 'normal');
-                docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, dateY, { align: 'right' });
+                docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, titleY, { align: 'right' });
         
                 const pageHeight = docInstance.internal.pageSize.getHeight();
                 docInstance.setFontSize(8);
                 docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
             };
-        
-            const selectedColumns = state.plannerSettings.pdfExportColumns || [];
+
             const allPossibleColumns = [
                 { id: 'consecutive', header: 'OP', data: (o: ProductionOrder) => o.consecutive },
-                { id: 'productDescription', header: 'Producto', data: (o: ProductionOrder) => `[${o.productId}] ${o.productDescription}` },
                 { id: 'customerName', header: 'Cliente', data: (o: ProductionOrder) => o.customerName },
-                { id: 'quantity', header: 'Cant.', data: (o: ProductionOrder) => o.quantity },
+                { id: 'productDescription', header: 'Producto', data: (o: ProductionOrder) => `[${o.productId}] ${o.productDescription}` },
+                { id: 'quantity', header: 'Cant.', data: (o: ProductionOrder) => o.quantity.toLocaleString('es-CR') },
                 { id: 'deliveryDate', header: 'Entrega', data: (o: ProductionOrder) => format(parseISO(o.deliveryDate), 'dd/MM/yy') },
                 { id: 'scheduledDate', header: 'Fecha Prog.', data: (o: ProductionOrder) => (o.scheduledStartDate && o.scheduledEndDate) ? `${format(parseISO(o.scheduledStartDate), 'dd/MM/yy')} - ${format(parseISO(o.scheduledEndDate), 'dd/MM/yy')}` : 'N/A' },
                 { id: 'status', header: 'Estado', data: (o: ProductionOrder) => selectors.statusConfig[o.status]?.label || o.status },
                 { id: 'machineId', header: 'Asignación', data: (o: ProductionOrder) => state.plannerSettings?.machines.find(m => m.id === o.machineId)?.name || 'N/A' },
                 { id: 'priority', header: 'Prioridad', data: (o: ProductionOrder) => selectors.priorityConfig[o.priority]?.label || o.priority }
             ];
-        
+
+            const selectedColumns = state.plannerSettings.pdfExportColumns || [];
             const tableColumns = allPossibleColumns.filter(c => selectedColumns.includes(c.id));
             const tableHeaders = tableColumns.map(c => c.header);
             const tableRows = selectors.filteredOrders.map(order => tableColumns.map(c => c.data(order)));
-        
-            // Reduce font size if there are too many columns to avoid overflow
-            const tableFontSize = tableColumns.length > 7 ? 7 : 8;
 
+            const tableFontSize = Math.max(6, 10 - Math.max(0, tableHeaders.length - 6));
+        
             autoTable(doc, {
                 head: [tableHeaders],
                 body: tableRows,
                 startY: 50,
-                headStyles: { fillColor: [41, 128, 185], halign: 'left' },
+                headStyles: { fillColor: [41, 128, 185], halign: 'left', fontSize: tableFontSize },
                 didDrawPage: (data) => {
                     addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
                 },
                 theme: 'grid',
-                styles: { fontSize: tableFontSize }
+                styles: { fontSize: tableFontSize, cellPadding: 2 }
             });
         
             const totalPages = (doc.internal as any).getNumberOfPages();
             for (let i = 1; i <= totalPages; i++) {
                 doc.setPage(i);
-                // Re-draw footer as autotable might overwrite it
                 addHeaderAndFooter(doc, i, totalPages);
             }
         
@@ -549,7 +546,9 @@ export const usePlanner = () => {
                     img.src = authCompanyData.logoUrl;
                     const loadedImg = await imgPromise as HTMLImageElement;
                     const logoHeight = 15;
-                    const logoAspectRatio = loadedImg.naturalWidth / loadedImg.naturalHeight;
+                    const originalWidth = loadedImg.naturalWidth;
+                    const originalHeight = loadedImg.naturalHeight;
+                    const logoAspectRatio = originalWidth / originalHeight;
                     const logoWidth = logoHeight * logoAspectRatio;
                     doc.addImage(loadedImg, 'PNG', margin, 15, logoWidth, logoHeight);
                 } catch(e) { console.error("Error adding logo to PDF:", e) }
@@ -704,4 +703,3 @@ export const usePlanner = () => {
 
 
     
-
