@@ -284,36 +284,61 @@ export const useRequests = () => {
         return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
     };
 
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
         if (!companyData) return;
-        const doc = new jsPDF();
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 14;
+        const doc = new jsPDF({ orientation: 'landscape' });
+        
+        const addHeaderAndFooter = async (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
+            const pageWidth = docInstance.internal.pageSize.getWidth();
+            const margin = 14;
+            let y = 22;
     
-        const addHeader = (docInstance: jsPDF) => {
-            let startY = 22;
+            let logoRendered = false;
             if (companyData.logoUrl) {
                 try {
-                    docInstance.addImage(companyData.logoUrl, 'PNG', margin, 15, 50, 15);
-                } catch(e) { console.error("Error adding logo to PDF:", e); }
-            } else {
-                 docInstance.setFontSize(11);
-                 docInstance.setFont('helvetica', 'bold');
-                 docInstance.text(companyData.name, margin, startY);
-                 startY += 6;
-                 docInstance.setFont('helvetica', 'normal');
-                 docInstance.text(companyData.taxId, margin, startY);
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    const imgPromise = new Promise((resolve, reject) => {
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                    });
+                    img.src = companyData.logoUrl;
+    
+                    const loadedImg = await imgPromise as HTMLImageElement;
+                    const logoHeight = 15;
+                    const logoWidth = (loadedImg.naturalWidth / loadedImg.naturalHeight) * logoHeight;
+                    docInstance.addImage(loadedImg, 'PNG', margin, 15, logoWidth, logoHeight);
+                    logoRendered = true;
+                } catch (e) {
+                    console.error("Error loading or adding image to PDF:", e);
+                }
             }
+    
+            if (!logoRendered) {
+                y = 15;
+                docInstance.setFontSize(11);
+                docInstance.setFont('helvetica', 'bold');
+                docInstance.text(companyData.name, margin, y);
+                y += 6;
+                docInstance.setFont('helvetica', 'normal');
+                docInstance.text(companyData.taxId, margin, y);
+            }
+    
+            const titleX = logoRendered ? margin + 60 : pageWidth / 2;
+            const titleAlign = logoRendered ? 'left' : 'center';
             docInstance.setFontSize(18);
             docInstance.setFont('helvetica', 'bold');
-            docInstance.text(`Lista de Solicitudes de Compra (${viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, 22, { align: 'center' });
+            docInstance.text(`Lista de Solicitudes de Compra (${viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, 22, { align: titleAlign });
             
             docInstance.setFontSize(10);
             docInstance.setFont('helvetica', 'normal');
             docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 35, { align: 'right' });
+    
+            const pageHeight = docInstance.internal.pageSize.getHeight();
+            docInstance.setFontSize(8);
+            docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
         };
-        
-
+    
         const tableColumn = ["Solicitud", "Artículo", "Cliente", "Cant.", "Fecha Req.", "Estado"];
         const tableRows: (string | number)[][] = selectors.filteredRequests.map(request => [
             request.consecutive,
@@ -329,10 +354,10 @@ export const useRequests = () => {
             body: tableRows,
             startY: 50,
             headStyles: { fillColor: [41, 128, 185], halign: 'left' },
-            didDrawPage: (data) => {
-                addHeader(doc);
+            didDrawPage: async (data) => {
+                await addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
             },
-            didDrawCell: (data) => {
+            didParseCell: (data) => {
                 if (data.section === 'head' && [3].includes(data.column.index)) {
                     (data.cell.styles as any).halign = 'right';
                 }
@@ -342,6 +367,12 @@ export const useRequests = () => {
             },
         });
 
+        const totalPages = (doc.internal as any).getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            await addHeaderAndFooter(doc, i, totalPages);
+        }
+    
         doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);
     };
 
@@ -354,7 +385,17 @@ export const useRequests = () => {
     
         if (companyData.logoUrl) {
             try {
-                doc.addImage(companyData.logoUrl, 'PNG', margin, 15, 50, 15);
+                 const img = new Image();
+                img.crossOrigin = "Anonymous";
+                const imgPromise = new Promise((resolve, reject) => {
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                });
+                img.src = companyData.logoUrl;
+                const loadedImg = await imgPromise as HTMLImageElement;
+                const logoHeight = 15;
+                const logoWidth = (loadedImg.naturalWidth / loadedImg.naturalHeight) * logoHeight;
+                doc.addImage(loadedImg, 'PNG', margin, 15, logoWidth, logoHeight);
             } catch(e) { console.error("Error adding logo to PDF:", e) }
         }
     

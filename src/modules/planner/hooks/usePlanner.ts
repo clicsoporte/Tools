@@ -438,11 +438,15 @@ export const usePlanner = () => {
                         canvas.width = loadedImg.naturalWidth;
                         canvas.height = loadedImg.naturalHeight;
                         const ctx = canvas.getContext('2d');
-                        ctx?.drawImage(loadedImg, 0, 0);
-                        const dataUrl = canvas.toDataURL('image/png');
+                        if (ctx) {
+                            ctx.drawImage(loadedImg, 0, 0);
+                            const dataUrl = canvas.toDataURL('image/png');
         
-                        docInstance.addImage(dataUrl, 'PNG', margin, 15, 50, 15);
-                        logoRendered = true;
+                            const logoHeight = 15;
+                            const logoWidth = (loadedImg.naturalWidth / loadedImg.naturalHeight) * logoHeight;
+                            docInstance.addImage(dataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
+                            logoRendered = true;
+                        }
                     } catch (e) {
                         console.error("Error loading or adding image to PDF:", e);
                     }
@@ -455,21 +459,21 @@ export const usePlanner = () => {
                     y += 6;
                     docInstance.setFont('helvetica', 'normal');
                     docInstance.text(authCompanyData.taxId, margin, y);
+                    y += 4;
                 }
         
-                y = 22; // Reset Y for titles
-                docInstance.setFontSize(18);
-                docInstance.setFont('helvetica', 'bold');
                 const titleX = logoRendered ? margin + 60 : pageWidth / 2;
                 const titleAlign = logoRendered ? 'left' : 'center';
-                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, y, { align: titleAlign });
+                
+                docInstance.setFontSize(18);
+                docInstance.setFont('helvetica', 'bold');
+                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, 22, { align: titleAlign });
         
-                y = 35; // Position date below title
+                y = 35;
                 docInstance.setFontSize(10);
                 docInstance.setFont('helvetica', 'normal');
                 docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, y, { align: 'right' });
         
-                // Footer
                 const pageHeight = docInstance.internal.pageSize.getHeight();
                 docInstance.setFontSize(8);
                 docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
@@ -528,7 +532,17 @@ export const usePlanner = () => {
         
             if (authCompanyData.logoUrl) {
                 try {
-                    doc.addImage(authCompanyData.logoUrl, 'PNG', margin, 15, 50, 15);
+                     const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    const imgPromise = new Promise((resolve, reject) => {
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                    });
+                    img.src = authCompanyData.logoUrl;
+                    const loadedImg = await imgPromise as HTMLImageElement;
+                    const logoHeight = 15;
+                    const logoWidth = (loadedImg.naturalWidth / loadedImg.naturalHeight) * logoHeight;
+                    doc.addImage(loadedImg, 'PNG', margin, 15, logoWidth, logoHeight);
                 } catch(e) { console.error("Error adding logo to PDF:", e) }
             }
         
