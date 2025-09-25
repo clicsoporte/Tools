@@ -32,6 +32,7 @@ const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' |
     inventory: 0,
     priority: 'medium',
     purchaseType: 'single',
+    arrivalDate: '',
 };
 
 const statusConfig: { [key: string]: { label: string, color: string } } = {
@@ -39,6 +40,7 @@ const statusConfig: { [key: string]: { label: string, color: string } } = {
     approved: { label: "Aprobada", color: "bg-green-500" },
     ordered: { label: "Ordenada", color: "bg-blue-500" },
     received: { label: "Recibida", color: "bg-teal-500" },
+    'cancellation-request': { label: "Sol. Cancelación", color: "bg-orange-500" },
     'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
     canceled: { label: "Cancelada", color: "bg-red-700" }
 };
@@ -101,6 +103,8 @@ export const useRequests = () => {
     const [isReopenDialogOpen, setReopenDialogOpen] = useState(false);
     const [reopenStep, setReopenStep] = useState(0);
     const [reopenConfirmationText, setReopenConfirmationText] = useState('');
+    const [arrivalDate, setArrivalDate] = useState('');
+
 
     const loadInitialData = useCallback(async (page = 0) => {
         setIsLoading(true);
@@ -189,6 +193,7 @@ export const useRequests = () => {
         setNewStatus(status);
         setStatusUpdateNotes(".");
         setDeliveredQuantity(status === 'received' ? request.quantity : "");
+        setArrivalDate(''); // Reset arrival date when opening
         setStatusDialogOpen(true);
     };
     
@@ -196,7 +201,15 @@ export const useRequests = () => {
         if (!requestToUpdate || !newStatus || !currentUser) return;
         setIsSubmitting(true);
         try {
-            await updatePurchaseRequestStatus({ requestId: requestToUpdate.id, status: newStatus, notes: statusUpdateNotes, updatedBy: currentUser.name, reopen: false, deliveredQuantity: newStatus === 'received' ? Number(deliveredQuantity) : undefined });
+            await updatePurchaseRequestStatus({ 
+                requestId: requestToUpdate.id, 
+                status: newStatus, 
+                notes: statusUpdateNotes, 
+                updatedBy: currentUser.name, 
+                reopen: false, 
+                deliveredQuantity: newStatus === 'received' ? Number(deliveredQuantity) : undefined,
+                arrivalDate: newStatus === 'ordered' ? arrivalDate : undefined
+            });
             toast({ title: "Estado Actualizado" });
             setStatusDialogOpen(false);
             await loadInitialData(viewingArchived ? archivedPage : 0);
@@ -334,6 +347,7 @@ export const useRequests = () => {
                     const logoAspectRatio = originalWidth / originalHeight;
                     const logoWidth = logoHeight * logoAspectRatio;
                     docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
+                    textStartX = margin + logoWidth + 5;
                 } catch (e) { console.error("Error adding image to PDF page:", e); }
             }
     
@@ -429,6 +443,7 @@ export const useRequests = () => {
                     const logoAspectRatio = originalWidth / originalHeight;
                     const logoWidth = logoHeight * logoAspectRatio;
                     docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
+                    textStartX = margin + logoWidth + 5;
                 } catch (e) { console.error("Error adding image to PDF page:", e); }
             }
             
@@ -569,7 +584,8 @@ export const useRequests = () => {
         setReopenDialogOpen, setReopenStep, setReopenConfirmationText, loadInitialData,
         handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
         handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
-        setRequestToUpdate, handleRejectCancellation, handleExportPDF, handleExportSingleRequestPDF
+        setRequestToUpdate, handleRejectCancellation, handleExportPDF, handleExportSingleRequestPDF,
+        setArrivalDate
     };
 
     return {
@@ -581,7 +597,7 @@ export const useRequests = () => {
             itemSearchTerm, isItemSearchOpen, isStatusDialogOpen, requestToUpdate, newStatus,
             statusUpdateNotes, deliveredQuantity, isHistoryDialogOpen, historyRequest,
             history, isHistoryLoading, isReopenDialogOpen, reopenStep, reopenConfirmationText,
-            companyData,
+            companyData, arrivalDate,
         },
         actions,
         selectors,

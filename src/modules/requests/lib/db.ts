@@ -71,75 +71,40 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
 
 
 export async function runRequestMigrations(db: import('better-sqlite3').Database) {
-    // Ensure all tables exist before trying to alter them.
     const requestsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='purchase_requests'`).get();
     if (!requestsTable) {
-        // If the main table is missing, the DB is likely uninitialized or corrupt.
-        // Let the standard initialization handle it.
         return;
     }
 
     const tableInfo = db.prepare(`PRAGMA table_info(purchase_requests)`).all() as { name: string }[];
     const columns = new Set(tableInfo.map(c => c.name));
 
-    if (!columns.has('shippingMethod')) {
-        console.log("MIGRATION (requests.db): Adding shippingMethod column to purchase_requests.");
-        db.exec(`ALTER TABLE purchase_requests ADD COLUMN shippingMethod TEXT`);
-    }
-    if (!columns.has('deliveredQuantity')) {
-        console.log("MIGRATION (requests.db): Adding deliveredQuantity column to purchase_requests.");
-        db.exec(`ALTER TABLE purchase_requests ADD COLUMN deliveredQuantity REAL;`);
-    }
-    if (!columns.has('receivedInWarehouseBy')) {
-         console.log("MIGRATION (requests.db): Adding receivedInWarehouseBy column to purchase_requests.");
-         db.exec(`ALTER TABLE purchase_requests ADD COLUMN receivedInWarehouseBy TEXT;`);
-    }
-    if (!columns.has('inventory')) {
-         console.log("MIGRATION (requests.db): Adding inventory column to purchase_requests.");
-         db.exec(`ALTER TABLE purchase_requests ADD COLUMN inventory REAL;`);
-    }
-    if (!columns.has('priority')) {
-         console.log("MIGRATION (requests.db): Adding priority column to purchase_requests.");
-         db.exec(`ALTER TABLE purchase_requests ADD COLUMN priority TEXT DEFAULT 'medium'`);
-    }
-     if (!columns.has('receivedDate')) {
-         console.log("MIGRATION (requests.db): Adding receivedDate column to purchase_requests.");
-         db.exec(`ALTER TABLE purchase_requests ADD COLUMN receivedDate TEXT`);
-    }
-     if (!columns.has('previousStatus')) {
-        console.log("MIGRATION (requests.db): Adding previousStatus column to purchase_requests.");
-        db.exec(`ALTER TABLE purchase_requests ADD COLUMN previousStatus TEXT`);
-    }
-    if (!columns.has('purchaseType')) {
-        console.log("MIGRATION (requests.db): Adding purchaseType column to purchase_requests.");
-        db.exec(`ALTER TABLE purchase_requests ADD COLUMN purchaseType TEXT DEFAULT 'single'`);
-    }
-    if (!columns.has('arrivalDate')) {
-        console.log("MIGRATION (requests.db): Adding arrivalDate column to purchase_requests.");
-        db.exec(`ALTER TABLE purchase_requests ADD COLUMN arrivalDate TEXT`);
-    }
-    if (!columns.has('purchaseOrder')) {
-        console.log("MIGRATION (requests.db): Adding purchaseOrder column to purchase_requests.");
-        db.exec(`ALTER TABLE purchase_requests ADD COLUMN purchaseOrder TEXT`);
-    }
-    if (!columns.has('unitSalePrice')) {
-        console.log("MIGRATION (requests.db): Adding unitSalePrice column to purchase_requests.");
-        db.exec(`ALTER TABLE purchase_requests ADD COLUMN unitSalePrice REAL`);
-    }
-    if (!columns.has('erpOrderNumber')) {
-        console.log("MIGRATION (requests.db): Adding erpOrderNumber column to purchase_requests.");
-        db.exec(`ALTER TABLE purchase_requests ADD COLUMN erpOrderNumber TEXT`);
-    }
-    if (!columns.has('manualSupplier')) {
-        console.log("MIGRATION (requests.db): Adding manualSupplier column to purchase_requests.");
-        db.exec(`ALTER TABLE purchase_requests ADD COLUMN manualSupplier TEXT`);
-    }
+    if (!columns.has('shippingMethod')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN shippingMethod TEXT`);
+    if (!columns.has('deliveredQuantity')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN deliveredQuantity REAL;`);
+    if (!columns.has('receivedInWarehouseBy')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN receivedInWarehouseBy TEXT;`);
+    if (!columns.has('inventory')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN inventory REAL;`);
+    if (!columns.has('priority')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN priority TEXT DEFAULT 'medium'`);
+    if (!columns.has('receivedDate')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN receivedDate TEXT`);
+    if (!columns.has('previousStatus')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN previousStatus TEXT`);
+    if (!columns.has('purchaseType')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN purchaseType TEXT DEFAULT 'single'`);
+    if (!columns.has('arrivalDate')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN arrivalDate TEXT`);
+    if (!columns.has('purchaseOrder')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN purchaseOrder TEXT`);
+    if (!columns.has('unitSalePrice')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN unitSalePrice REAL`);
+    if (!columns.has('erpOrderNumber')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN erpOrderNumber TEXT`);
+    if (!columns.has('manualSupplier')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN manualSupplier TEXT`);
+    
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='request_settings'`).get();
     if(settingsTable){
         const pdfTopLegendRow = db.prepare(`SELECT value FROM request_settings WHERE key = 'pdfTopLegend'`).get() as { value: string } | undefined;
         if (!pdfTopLegendRow) {
             console.log("MIGRATION (requests.db): Adding pdfTopLegend to settings.");
             db.prepare(`INSERT INTO request_settings (key, value) VALUES ('pdfTopLegend', '')`).run();
+        }
+         const pdfExportColumnsRow = db.prepare(`SELECT value FROM request_settings WHERE key = 'pdfExportColumns'`).get() as { value: string } | undefined;
+        if (!pdfExportColumnsRow) {
+            console.log("MIGRATION (requests.db): Adding pdfExportColumns to settings.");
+            const defaultColumns = ['consecutive', 'itemDescription', 'quantity', 'clientName', 'requiredDate', 'status'];
+            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultColumns));
         }
     }
 }
@@ -155,28 +120,16 @@ export async function getSettings(): Promise<RequestSettings> {
         shippingMethods: [],
         useWarehouseReception: false,
         pdfTopLegend: '',
+        pdfExportColumns: [],
     };
 
     for (const row of settingsRows) {
-        if (row.key === 'nextRequestNumber') {
-            settings.nextRequestNumber = Number(row.value);
-        } else if (row.key === 'routes') {
-            try {
-                settings.routes = JSON.parse(row.value);
-            } catch {
-                settings.routes = [];
-            }
-        } else if (row.key === 'shippingMethods') {
-             try {
-                settings.shippingMethods = JSON.parse(row.value);
-            } catch {
-                settings.shippingMethods = [];
-            }
-        } else if (row.key === 'useWarehouseReception') {
-            settings.useWarehouseReception = row.value === 'true';
-        } else if (row.key === 'pdfTopLegend') {
-            settings.pdfTopLegend = row.value;
-        }
+        if (row.key === 'nextRequestNumber') settings.nextRequestNumber = Number(row.value);
+        else if (row.key === 'routes') settings.routes = JSON.parse(row.value);
+        else if (row.key === 'shippingMethods') settings.shippingMethods = JSON.parse(row.value);
+        else if (row.key === 'useWarehouseReception') settings.useWarehouseReception = row.value === 'true';
+        else if (row.key === 'pdfTopLegend') settings.pdfTopLegend = row.value;
+        else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
     }
     return settings;
 }
@@ -185,21 +138,12 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        if (settingsToUpdate.nextRequestNumber !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('nextRequestNumber', settingsToUpdate.nextRequestNumber.toString());
-        }
-        if (settingsToUpdate.routes !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('routes', JSON.stringify(settingsToUpdate.routes));
-        }
-        if (settingsToUpdate.shippingMethods !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('shippingMethods', JSON.stringify(settingsToUpdate.shippingMethods));
-        }
-        if (settingsToUpdate.useWarehouseReception !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('useWarehouseReception', settingsToUpdate.useWarehouseReception.toString());
-        }
-        if (settingsToUpdate.pdfTopLegend !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('pdfTopLegend', settingsToUpdate.pdfTopLegend);
-        }
+        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('nextRequestNumber', String(settingsToUpdate.nextRequestNumber));
+        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('routes', JSON.stringify(settingsToUpdate.routes));
+        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('shippingMethods', JSON.stringify(settingsToUpdate.shippingMethods));
+        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('useWarehouseReception', String(settingsToUpdate.useWarehouseReception));
+        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('pdfTopLegend', settingsToUpdate.pdfTopLegend || '');
+        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('pdfExportColumns', JSON.stringify(settingsToUpdate.pdfExportColumns || []));
     });
 
     transaction(settings);
@@ -225,11 +169,9 @@ export async function getRequests(options: {
     if (filters && page !== undefined && pageSize !== undefined) {
         const { searchTerm, status, dateRange } = filters;
 
-        // Build the WHERE clause dynamically
         const whereClauses: string[] = [];
         const params: any[] = [];
         
-        // This query will only target archived items
         const settings = await getSettings();
         const archivedStatuses = settings.useWarehouseReception
             ? ['received-in-warehouse', 'canceled']
@@ -264,7 +206,6 @@ export async function getRequests(options: {
         allRequests = db.prepare(query).all(...params, pageSize, page * pageSize) as PurchaseRequest[];
 
     } else {
-        // Default behavior: fetch all requests
         allRequests = db.prepare(`SELECT * FROM purchase_requests ORDER BY requestDate DESC`).all() as PurchaseRequest[];
         const settings = await getSettings();
         const archivedStatuses = settings.useWarehouseReception
@@ -296,11 +237,11 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         INSERT INTO purchase_requests (
             consecutive, requestDate, requiredDate, clientId, clientName,
             itemId, itemDescription, quantity, unitSalePrice, erpOrderNumber, manualSupplier, route, shippingMethod, purchaseOrder,
-            status, notes, requestedBy, reopened, inventory, priority, purchaseType
+            status, notes, requestedBy, reopened, inventory, priority, purchaseType, arrivalDate
         ) VALUES (
             @consecutive, @requestDate, @requiredDate, @clientId, @clientName,
             @itemId, @itemDescription, @quantity, @unitSalePrice, @erpOrderNumber, @manualSupplier, @route, @shippingMethod, @purchaseOrder,
-            @status, @notes, @requestedBy, @reopened, @inventory, @priority, @purchaseType
+            @status, @notes, @requestedBy, @reopened, @inventory, @priority, @purchaseType, @arrivalDate
         )
     `);
 
@@ -316,6 +257,7 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         inventory: newRequest.inventory ?? null,
         reopened: newRequest.reopened ? 1 : 0,
         purchaseType: newRequest.purchaseType || 'single',
+        arrivalDate: newRequest.arrivalDate || null,
     };
 
     const info = stmt.run(preparedRequest);
@@ -357,7 +299,8 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
                 notes = @notes,
                 inventory = @inventory,
                 priority = @priority,
-                purchaseType = @purchaseType
+                purchaseType = @purchaseType,
+                arrivalDate = @arrivalDate
             WHERE id = @requestId
         `).run({ requestId, ...dataToUpdate });
 
@@ -395,9 +338,11 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
     }
     
     let previousStatus = currentRequest.previousStatus;
-    if (status === 'canceled' && currentRequest.status !== 'canceled') {
+    if ((status === 'canceled' || status === 'cancellation-request') && (currentRequest.status !== 'canceled' && currentRequest.status !== 'cancellation-request')) {
         previousStatus = currentRequest.status;
-    } else if (status !== 'canceled') {
+    } else if (status === 'approved' && currentRequest.status === 'ordered') {
+        // Allow reverting from ordered to approved
+    } else if (status !== 'canceled' && status !== 'cancellation-request') {
         previousStatus = null;
     }
 
@@ -455,8 +400,8 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
     const { entityId: requestId, notes, updatedBy } = payload;
 
     const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest | undefined;
-    if (!currentRequest || currentRequest.status !== 'canceled') { // Assuming 'canceled' is the state to revert from
-        throw new Error("La solicitud no está en un estado que se pueda revertir.");
+    if (!currentRequest || currentRequest.status !== 'cancellation-request') { 
+        throw new Error("La solicitud no está en estado de solicitud de cancelación.");
     }
 
     const statusToRevertTo = currentRequest.previousStatus || 'approved'; 
