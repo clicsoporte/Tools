@@ -395,10 +395,10 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
     }
     
     let previousStatus = currentOrder.previousStatus;
-    if (status === 'cancellation-request' && currentOrder.status !== 'cancellation-request') {
+    if (['cancellation-request', 'unapproval-request'].includes(status) && !['cancellation-request', 'unapproval-request'].includes(currentOrder.status)) {
         previousStatus = currentOrder.status;
-    } else if (status !== 'cancellation-request') {
-        previousStatus = null; // Clear previous status if we are moving out of cancellation request
+    } else if (!['cancellation-request', 'unapproval-request'].includes(status)) {
+        previousStatus = null; // Clear previous status if we are moving to a normal state
     }
 
     const transaction = db.transaction(() => {

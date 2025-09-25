@@ -338,14 +338,13 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
     }
     
     let previousStatus = currentRequest.previousStatus;
-    if ((status === 'canceled' || status === 'cancellation-request') && (currentRequest.status !== 'canceled' && currentRequest.status !== 'cancellation-request')) {
+    if ((['canceled', 'cancellation-request', 'unapproval-request'].includes(status)) && !(['canceled', 'cancellation-request', 'unapproval-request'].includes(currentRequest.status))) {
         previousStatus = currentRequest.status;
     } else if (status === 'approved' && currentRequest.status === 'ordered') {
         // Allow reverting from ordered to approved
-    } else if (status !== 'canceled' && status !== 'cancellation-request') {
+    } else if (!['canceled', 'cancellation-request', 'unapproval-request'].includes(status)) {
         previousStatus = null;
     }
-
 
     const transaction = db.transaction(() => {
         const stmt = db.prepare(`

@@ -220,7 +220,7 @@ export type ExemptionLaw = {
 
 // --- Production Planner Types ---
 
-export type ProductionOrderStatus = 'pending' | 'approved' | 'in-progress' | 'on-hold' | 'cancellation-request' | 'completed' | 'received-in-warehouse' | 'canceled' | 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
+export type ProductionOrderStatus = 'pending' | 'approved' | 'in-progress' | 'on-hold' | 'cancellation-request' | 'unapproval-request' | 'completed' | 'received-in-warehouse' | 'canceled' | 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
 export type ProductionOrderPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export type ProductionOrder = {
@@ -312,7 +312,7 @@ export type UpdateOrderDetailsPayload = {
 
 // --- Purchase Request Types ---
 
-export type PurchaseRequestStatus = 'pending' | 'approved' | 'ordered' | 'received' | 'received-in-warehouse' | 'canceled';
+export type PurchaseRequestStatus = 'pending' | 'approved' | 'ordered' | 'received' | 'received-in-warehouse' | 'canceled' | 'cancellation-request' | 'unapproval-request';
 export type PurchaseRequestPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type PurchaseType = 'single' | 'multiple';
 
@@ -369,6 +369,7 @@ export type RequestSettings = {
     shippingMethods: string[];
     useWarehouseReception: boolean;
     pdfTopLegend?: string;
+    pdfExportColumns: string[];
 };
 
 export type UpdateRequestStatusPayload = {
