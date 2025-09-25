@@ -435,8 +435,6 @@ export const useQuoter = () => {
     setIsProcessing(true);
 
     const doc = new jsPDF({ putOnlyUsedFonts: true });
-    // This is the key change: Set a font that supports the Colón symbol.
-    // Standard PDF fonts like 'helvetica' often do not. 'Helvetica' is kept as a fallback.
     try {
       doc.setFont("Helvetica"); 
     } catch(e) {
@@ -444,7 +442,6 @@ export const useQuoter = () => {
     }
     const currentQuoteNumber = quoteNumber;
 
-    // Use CRC in PDF to avoid font issues, but use ₡ in UI.
     const formatCurrencyForPdf = (amount: number, places?: number) => {
         const prefix = currency === "CRC" ? "CRC " : "$ ";
         return `${prefix}${amount.toLocaleString("es-CR", {
@@ -480,18 +477,19 @@ export const useQuoter = () => {
                 const imgHeight = 15;
                 const imgWidth = imgHeight * aspectRatio;
                 docInstance.addImage(logoData, 'PNG', margin, 15, imgWidth, imgHeight);
-                startY = 15 + imgHeight + 5; // Start text below logo
+                startY = 15 + imgHeight + 5;
             } catch (e) { 
                 console.error("Error adding logo image to PDF:", e);
                 docInstance.setFont('Helvetica', 'bold');
                 docInstance.text(companyData.name, margin, startY);
                 startY += 6;
             }
+        } else {
+             docInstance.setFont('Helvetica', 'bold');
+             docInstance.text(companyData.name, margin, startY);
+             startY += 6;
         }
         
-        docInstance.setFont('Helvetica', 'bold');
-        docInstance.text(companyData.name, margin, startY);
-        startY += 6;
         docInstance.setFont('Helvetica', 'normal');
         docInstance.setFontSize(9);
         docInstance.text(`Cédula: ${companyData.taxId}`, margin, startY);
@@ -537,7 +535,7 @@ export const useQuoter = () => {
     const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
     const tableRows = lines.map(line => [
         line.product.id,
-        { content: line.product.description, styles: { cellWidth: 'auto' } },
+        { content: line.product.description, styles: { cellWidth: 'wrap' } },
         line.quantity.toLocaleString('es-CR'),
         line.product.unit,
         line.product.cabys,
@@ -548,12 +546,19 @@ export const useQuoter = () => {
     const formattedDeliveryDate = deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A';
 
     autoTable(doc, {
-      didDrawPage: (data) => addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages()),
+      didDrawPage: (data) => {
+        addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
+        // Set startY for client block only on first page
+        if(data.pageNumber === 1) {
+          (doc as any).lastAutoTable.finalY = 85;
+        }
+      },
       startY: 85,
     });
-
+    
+    // Use a fixed Y position for the client block on the first page
     const clientBlockY = 85;
-
+    
     autoTable(doc, {
         body: [
             [{ content: 'Cliente', styles: { fontStyle: 'bold' } }, { content: 'Entrega', styles: { fontStyle: 'bold' } }],
@@ -585,7 +590,9 @@ export const useQuoter = () => {
         margin: { bottom: 40 },
         didDrawPage: (data) => {
             const totalPages = (doc.internal as any).getNumberOfPages();
-            addHeaderAndFooter(doc, data.pageNumber, totalPages);
+            if (data.pageNumber > 1) {
+              addHeaderAndFooter(doc, data.pageNumber, totalPages);
+            }
         },
     });
 
