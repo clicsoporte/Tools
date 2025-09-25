@@ -57,6 +57,11 @@ export async function getAllUsers(): Promise<User[]> {
     return getAllUsersServer();
 }
 
+/**
+ * Adds a new user via a server action.
+ * @param userData - The new user's data.
+ * @returns The created user object.
+ */
 export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string }): Promise<User> {
     return addUserServer(userData);
 }

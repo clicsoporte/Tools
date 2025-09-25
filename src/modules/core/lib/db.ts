@@ -17,14 +17,14 @@ import { executeQuery } from './sql-service';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
-import { getExchangeRate as fetchExchangeRateFromApi } from './api-actions';
+import { getExchangeRate as fetchExchangeRateFromApi } from '../../hacienda/lib/actions';
 import { getSqlConfig } from './config-db';
 import { logError, logInfo, logWarn } from './logger';
 
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
-const CABYS_FILE_PATH = path.join(process.cwd(), 'public', 'data', 'cabys.csv');
+const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
 const UPDATE_BACKUP_DIR = 'update_backups';
 
 

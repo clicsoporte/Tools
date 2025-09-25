@@ -124,24 +124,24 @@ export const mainTools: Tool[] = [
     bgColor: "bg-teal-600",
     textColor: "text-white",
   },
-  {
-    id: "hacienda-query",
-    name: "Consultas Hacienda",
-    description: "Verificar situación tributaria y exoneraciones.",
-    href: "/dashboard/hacienda",
-    icon: Search,
-    bgColor: "bg-blue-600",
-    textColor: "text-white",
-  },
-  {
-    id: "help",
-    name: "Centro de Ayuda",
-    description: "Consultar la documentación y guías de uso del sistema.",
-    href: "/dashboard/help",
-    icon: LifeBuoy,
-    bgColor: "bg-orange-500",
-    textColor: "text-white",
-  },
+     {
+      id: "hacienda-query",
+      name: "Consultas Hacienda",
+      description: "Verificar situación tributaria y exoneraciones.",
+      href: "/dashboard/hacienda",
+      icon: Search,
+      bgColor: "bg-blue-600",
+      textColor: "text-white",
+    },
+    {
+      id: "help",
+      name: "Centro de Ayuda",
+      description: "Consultar la documentación y guías de uso del sistema.",
+      href: "/dashboard/help",
+      icon: LifeBuoy,
+      bgColor: "bg-orange-500",
+      textColor: "text-white",
+    },
 ];
 
 /**

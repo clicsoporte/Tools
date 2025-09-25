@@ -9,7 +9,7 @@
 import { AppSidebar } from "../../components/layout/sidebar";
 import { Header } from "../../components/layout/header";
 import { SidebarInset, SidebarProvider } from "../../components/ui/sidebar";
-import { AuthProvider, useAuth } from "../../modules/core/hooks/useAuth"; // Import AuthProvider and useAuth
+import { useAuth } from "../../modules/core/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -72,19 +72,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthProvider>
-      <AuthWrapper>
-        <PageTitleProvider initialTitle="Panel">
-          <SidebarProvider>
-            <div className="flex min-h-screen bg-muted/40">
-              <AppSidebar />
-              <SidebarInset className="flex-1 flex flex-col">
-                 <DashboardContent>{children}</DashboardContent>
-              </SidebarInset>
-            </div>
-          </SidebarProvider>
-        </PageTitleProvider>
-      </AuthWrapper>
-    </AuthProvider>
+    <AuthWrapper>
+      <PageTitleProvider initialTitle="Panel">
+        <SidebarProvider>
+          <div className="flex min-h-screen bg-muted/40">
+            <AppSidebar />
+            <SidebarInset className="flex-1 flex flex-col">
+                <DashboardContent>{children}</DashboardContent>
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
+      </PageTitleProvider>
+    </AuthWrapper>
   );
 }

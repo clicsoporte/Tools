@@ -19,7 +19,7 @@ import {
   getAllExemptions,
   getExemptionLaws,
 } from "@/modules/core/lib/db";
-import { getExemptionStatus } from "@/modules/core/lib/api-actions";
+import { getExemptionStatus } from "@/modules/hacienda/lib/actions";
 import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -452,13 +452,25 @@ export const useQuoter = () => {
     }
     
     const formatCurrencyForPdf = (amount: number, places?: number) => {
-        const prefix = "CRC "; // Always use CRC for PDF to avoid font issues
+        // Always use CRC for the PDF text to avoid font encoding issues with symbols
+        const prefix = "CRC ";
         return `${prefix}${amount.toLocaleString("es-CR", {
             minimumFractionDigits: places ?? decimalPlaces,
             maximumFractionDigits: places ?? decimalPlaces,
         })}`;
     };
 
+    const tableRows = lines.map(line => [
+        line.product.id,
+        line.product.description,
+        line.quantity.toLocaleString('es-CR'),
+        line.product.unit,
+        line.product.cabys,
+        formatCurrencyForPdf(line.price, decimalPlaces),
+        `${(line.tax * 100).toFixed(0)}%`,
+        formatCurrencyForPdf(line.quantity * line.price * (1 + line.tax), decimalPlaces),
+    ]);
+    
     const doc = generateDocument({
         docTitle: "COTIZACIÓN",
         docId: quoteNumber,
@@ -481,19 +493,10 @@ export const useQuoter = () => {
         ],
         table: {
             columns: ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"],
-            rows: lines.map(line => [
-                line.product.id,
-                line.product.description,
-                line.quantity.toLocaleString('es-CR'),
-                line.product.unit,
-                line.product.cabys,
-                formatCurrencyForPdf(line.price, decimalPlaces),
-                `${(line.tax * 100).toFixed(0)}%`,
-                formatCurrencyForPdf(line.quantity * line.price * (1 + line.tax), decimalPlaces),
-            ]),
+            rows: tableRows,
             columnStyles: {
                 0: { cellWidth: 50 },
-                1: { cellWidth: 'auto' },
+                1: { cellWidth: 'auto' }, // Use 'auto' and let the library handle it
                 2: { cellWidth: 40, halign: 'right' },
                 3: { cellWidth: 40 },
                 4: { cellWidth: 60 },

@@ -26,7 +26,7 @@
 ## 2. Estructura del Proyecto
 
 -   `src/app/`: Contiene las rutas y páginas de la aplicación.
-    -   `page.tsx`: Página de inicio de sesión.
+    -   `(auth)/`: Páginas de autenticación (login).
     -   `dashboard/`: Layout y páginas del panel de control principal.
 -   `src/components/`: Componentes de React reutilizables.
 -   `src/modules/`: El corazón de la aplicación, organizado por funcionalidad.
@@ -34,7 +34,7 @@
     -   `quoter/`, `planner/`, `requests/`, `warehouse/`: Módulos de cada herramienta.
 -   `src/lib/`: Utilidades generales.
 -   `dbs/`: **Directorio persistente** donde se almacenan todos los archivos de base de datos (`.db`).
--   `docs/`: Documentación del proyecto.
+-   `docs/`: Documentación del proyecto y archivos de ejemplo.
 -   `.env.local`: Archivo **NO COMPARTIDO** donde se almacenan las credenciales de SQL Server.
 
 ---
@@ -118,7 +118,7 @@ Esta es una de las funcionalidades más críticas y flexibles, gestionada desde 
     npm run build
     npm run start
     ```
-    Se recomienda usar un gestor de procesos como **PM2** para mantener la aplicación en ejecución. Los scripts de despliegue para Windows (IIS) y Ubuntu (PM2) se encuentran en `/docs/deployment/`.
+    Se recomienda usar un gestor de procesos como **PM2** (para Linux) o configurar el sitio en **IIS** (para Windows) para mantener la aplicación en ejecución. Los scripts y guías de despliegue se encuentran en `/docs/deployment/`.
 
 ---
 
@@ -156,4 +156,12 @@ Actualizar la aplicación a una nueva versión sin perder datos es un proceso cr
 
 ## 7. Créditos y Licencia
 
-Este proyecto se distribuye bajo la **Licencia MIT**.
+Este proyecto es desarrollado y mantenido por CLIC SOPORTE Y CLIC TIENDA S.R.L. y se distribuye bajo la **Licencia MIT**.
+
+Copyright (c) 2024 CLIC SOPORTE Y CLIC TIENDA S.R.L.
+
+Se concede permiso, por la presente, de forma gratuita, a cualquier persona que obtenga una copia de este software y de los archivos de documentación asociados (el "Software"), para tratar el Software sin restricción, incluyendo, sin limitación, los derechos de uso, copia, modificación, fusión, publicación, distribución, sublicencia y/o venta de copias del Software, y para permitir a las personas a las que se les proporcione el Software que lo hagan, sujeto a las siguientes condiciones:
+
+El aviso de copyright anterior y este aviso de permiso se incluirán en todas las copias o porciones sustanciales del Software.
+
+EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O IMPLÍCITA, INCLUYENDO PERO NO LIMITADO A GARANTÍAS DE COMERCIABILIDAD, IDONEIDAD PARA UN PROPÓSITO PARTICULAR Y NO INFRACCIÓN. EN NINGÚN CASO LOS AUTORES O TITULARES DEL COPYRIGHT SERÁN RESPONSABLES DE NINGUNA RECLAMACIÓN, DAÑO U OTRA RESPONSABILIDAD, YA SEA EN UNA ACCIÓN DE CONTRATO, AGRAVIO O DE OTRO MODO, QUE SURJA DE, O EN CONEXIÓN CON EL SOFTWARE O EL USO U OTROS TRATOS EN EL SOFTWARE.

@@ -174,4 +174,3 @@ export async function getEnrichedExemptionStatus(authNumber: string): Promise<En
         enrichedCabys,
     };
 }
-

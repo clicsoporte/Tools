@@ -70,6 +70,11 @@ export async function getAllUsers(): Promise<User[]> {
     }
 }
 
+/**
+ * Adds a new user to the database.
+ * @param userData - The data for the new user, including a plaintext password.
+ * @returns The newly created user object, without the password hash.
+ */
 export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string }): Promise<User> {
   const db = await connectDb();
   
