@@ -12,7 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import Papa from 'papaparse';
 
-const CABYS_FILE_PATH = path.join(process.cwd(), 'public', 'data', 'cabys.csv');
+const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
 
 let cabysCache: Map<string, string> | null = null;
 

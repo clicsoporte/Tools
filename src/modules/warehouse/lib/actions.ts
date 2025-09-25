@@ -1,5 +1,7 @@
-
-
+/**
+ * @fileoverview Client-side functions for interacting with the warehouse module's server-side DB functions.
+ * This abstraction layer ensures components only call client-safe functions.
+ */
 'use server';
 
 import {
@@ -18,7 +20,7 @@ import {
     getWarehouseData as getWarehouseDataServer,
     getMovements as getMovementsServer,
 } from './db';
-import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, StockSettings } from '../../core/types';
+import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation } from '../../core/types';
 
 export const getWarehouseSettings = async (): Promise<WarehouseSettings> => getWarehouseSettingsServer();
 export const saveWarehouseSettings = async (settings: WarehouseSettings): Promise<void> => saveWarehouseSettingsServer(settings);
@@ -38,6 +40,3 @@ export const unassignItemFromLocation = async (itemLocationId: number): Promise<
 // --- Page-specific data loaders ---
 export const getWarehouseData = async () => getWarehouseDataServer();
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);
-
-
-    
