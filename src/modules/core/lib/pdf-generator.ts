@@ -2,11 +2,12 @@
  * @fileoverview Centralized PDF generation service for the entire application.
  * This module provides a single, configurable function to create consistent and
  * professional-looking PDF documents for quotes, production orders, and purchase requests.
+ * This is a client-side utility as jsPDF runs in the browser.
  */
-'use server';
+'use client';
 
 import jsPDF from "jspdf";
-import autoTable, { RowInput } from "jspdf-autotable";
+import autoTable, { type RowInput } from "jspdf-autotable";
 import { format } from 'date-fns';
 import type { Company } from '../types';
 
@@ -154,7 +155,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         didDrawPage: didDrawPage,
     });
     
-    finalY = (doc as any).lastAutoTable.finalY || finalY;
+    finalY = (doc as any).lastAutoTable?.finalY || finalY;
     
     if (finalY > doc.internal.pageSize.getHeight() - 120) {
         doc.addPage();
