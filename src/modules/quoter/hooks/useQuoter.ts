@@ -445,8 +445,8 @@ export const useQuoter = () => {
                 img.onerror = reject;
             });
             img.src = companyData.logoUrl;
-            const loadedImg = await imgPromise;
             
+            const loadedImg = await imgPromise;
             const canvas = document.createElement('canvas');
             canvas.width = loadedImg.naturalWidth;
             canvas.height = loadedImg.naturalHeight;
@@ -463,13 +463,11 @@ export const useQuoter = () => {
     const doc = new jsPDF();
     const currentQuoteNumber = quoteNumber;
 
-    const addHeader = (docInstance: jsPDF, isFirstPage: boolean) => {
+    const addHeaderAndFooter = (docInstance: jsPDF, isFirstPage: boolean) => {
         const pageWidth = docInstance.internal.pageSize.getWidth();
         const margin = 14;
-        let startY = 22;
-        let textStartX = margin;
 
-        if (logoDataUrl && isFirstPage) {
+        if (isFirstPage && logoDataUrl) {
             try {
                 const logoHeight = 15;
                 const originalWidth = (docInstance as any).getImageProperties(logoDataUrl).width;
@@ -477,9 +475,10 @@ export const useQuoter = () => {
                 const logoAspectRatio = originalWidth / originalHeight;
                 const logoWidth = logoHeight * logoAspectRatio;
                 docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
-                textStartX += logoWidth + 5;
             } catch(e) { console.error("Error adding logo image to PDF:", e); }
         }
+
+        const textStartX = logoDataUrl && isFirstPage ? 14 + (15 * ((docInstance as any).getImageProperties(logoDataUrl).width / (docInstance as any).getImageProperties(logoDataUrl).height)) + 5 : margin;
 
         docInstance.setFontSize(11);
         docInstance.setFont('helvetica', 'bold');
@@ -489,10 +488,10 @@ export const useQuoter = () => {
         docInstance.text(`Cédula: ${companyData.taxId}`, textStartX, 26);
         docInstance.text(`Tel: ${companyData.phone}`, textStartX, 31);
         
+        let startY = 22;
         docInstance.setFontSize(18);
         docInstance.setFont('helvetica', 'bold');
         docInstance.text("COTIZACIÓN", pageWidth / 2, startY, { align: 'center' });
-        
         docInstance.setFontSize(12);
         docInstance.setFont('helvetica', 'normal');
         docInstance.text(`Nº: ${currentQuoteNumber}`, pageWidth - margin, startY, { align: 'right' });
@@ -500,7 +499,7 @@ export const useQuoter = () => {
         startY += 6;
         docInstance.setFontSize(10);
         docInstance.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, startY, { align: 'right' });
-        
+
         startY += 6;
         docInstance.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, startY, { align: 'right' });
 
@@ -508,7 +507,7 @@ export const useQuoter = () => {
             startY += 6;
             docInstance.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, startY, { align: 'right' });
         }
-
+        
         let sellerStartY = 46;
         docInstance.setFont('helvetica', 'bold');
         docInstance.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
@@ -523,13 +522,10 @@ export const useQuoter = () => {
         } else {
             docInstance.text(sellerName, pageWidth - margin, sellerStartY, { align: 'right' });
         }
-    };
-    
-    const addFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
+
         const pageHeight = docInstance.internal.pageSize.getHeight();
-        const pageWidth = docInstance.internal.pageSize.getWidth();
         docInstance.setFontSize(8);
-        docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
+        docInstance.text(`Página ${docInstance.internal.getCurrentPageInfo().pageNumber} de ${(docInstance.internal as any).getNumberOfPages()}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
     };
     
     try {
@@ -565,7 +561,7 @@ export const useQuoter = () => {
                 2: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'center' }, 7: { halign: 'right' },
             },
             margin: { top: 80, bottom: 30 },
-            didDrawPage: (data) => addHeader(doc, data.pageNumber === 1),
+            didDrawPage: (data) => addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages()),
         });
 
         const finalY = (doc as any).lastAutoTable.finalY;
@@ -580,7 +576,7 @@ export const useQuoter = () => {
         
         if (bottomContentY > doc.internal.pageSize.getHeight() - 40) {
             doc.addPage();
-            addHeader(doc, false);
+            addHeaderAndFooter(doc, doc.getNumberOfPages(), doc.getNumberOfPages());
             bottomContentY = 20;
         }
 
@@ -592,11 +588,6 @@ export const useQuoter = () => {
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text(`Total: ${formatCurrency(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
-
-        let leftBottomY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
-         if (leftBottomY > doc.internal.pageSize.getHeight() - 40) {
-            // This condition is a bit tricky, might need to be synced with the right side's addPage logic
-         }
 
         const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
         doc.setFontSize(10);
@@ -612,7 +603,7 @@ export const useQuoter = () => {
         
         for (let i = 1; i <= doc.getNumberOfPages(); i++) {
             doc.setPage(i);
-            addFooter(doc, i, doc.getNumberOfPages());
+            addHeaderAndFooter(doc, i, doc.getNumberOfPages());
         }
         
         doc.save(`${currentQuoteNumber}.pdf`);
