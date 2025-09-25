@@ -413,131 +413,110 @@ export const usePlanner = () => {
             }
         },
 
-        handleExportPDF: () => {
+        handleExportPDF: async () => {
             if (!authCompanyData) return;
             const doc = new jsPDF({ orientation: 'landscape' });
-            
-            const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
+        
+            const addHeaderAndFooter = async (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
                 const pageWidth = docInstance.internal.pageSize.getWidth();
-                const pageHeight = docInstance.internal.pageSize.getHeight();
                 const margin = 14;
                 let y = 22;
         
-                if (pageNumber === 1 && authCompanyData.logoUrl) {
+                let logoRendered = false;
+                if (authCompanyData.logoUrl) {
                     try {
                         const img = new Image();
+                        img.crossOrigin = "Anonymous";
+                        const imgPromise = new Promise((resolve, reject) => {
+                            img.onload = () => resolve(img);
+                            img.onerror = reject;
+                        });
                         img.src = authCompanyData.logoUrl;
-                        // This assumes the image is already loaded or is a data URI
-                        // A more robust solution would use img.onload
-                        docInstance.addImage(img, 'PNG', margin, 15, 50, 15);
+        
+                        const loadedImg = await imgPromise as HTMLImageElement;
+                        const canvas = document.createElement('canvas');
+                        canvas.width = loadedImg.naturalWidth;
+                        canvas.height = loadedImg.naturalHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx?.drawImage(loadedImg, 0, 0);
+                        const dataUrl = canvas.toDataURL('image/png');
+        
+                        docInstance.addImage(dataUrl, 'PNG', margin, 15, 50, 15);
+                        logoRendered = true;
                     } catch (e) {
-                        console.error("Error adding logo to PDF, rendering text fallback:", e);
-                        docInstance.setFontSize(11);
-                        docInstance.setFont('helvetica', 'bold');
-                        docInstance.text(authCompanyData.name, margin, y);
-                        y += 6;
-                        docInstance.setFont('helvetica', 'normal');
-                        docInstance.text(authCompanyData.taxId, margin, y);
+                        console.error("Error loading or adding image to PDF:", e);
                     }
-                } else if (!authCompanyData.logoUrl) {
-                     docInstance.setFontSize(11);
-                     docInstance.setFont('helvetica', 'bold');
-                     docInstance.text(authCompanyData.name, margin, y);
-                     y += 6;
-                     docInstance.setFont('helvetica', 'normal');
-                     docInstance.text(authCompanyData.taxId, margin, y);
+                }
+        
+                if (!logoRendered) {
+                    docInstance.setFontSize(11);
+                    docInstance.setFont('helvetica', 'bold');
+                    docInstance.text(authCompanyData.name, margin, y);
+                    y += 6;
+                    docInstance.setFont('helvetica', 'normal');
+                    docInstance.text(authCompanyData.taxId, margin, y);
                 }
         
                 y = 22; // Reset Y for titles
                 docInstance.setFontSize(18);
                 docInstance.setFont('helvetica', 'bold');
-                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, y, { align: 'center' });
+                const titleX = logoRendered ? margin + 60 : pageWidth / 2;
+                const titleAlign = logoRendered ? 'left' : 'center';
+                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, y, { align: titleAlign });
         
-                y += 13;
+                y = 35; // Position date below title
                 docInstance.setFontSize(10);
                 docInstance.setFont('helvetica', 'normal');
                 docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, y, { align: 'right' });
-
+        
                 // Footer
+                const pageHeight = docInstance.internal.pageSize.getHeight();
                 docInstance.setFontSize(8);
                 docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
             };
-
-            const processPdf = () => {
-                const tableColumn = ["OP", "Cliente", "Producto", "Cant.", "Entrega", "Estado", "Asignación", "Prioridad"];
-                const tableRows: (string | number)[][] = selectors.filteredOrders.map(order => {
-                    const machineName = state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
-                    return [
-                        order.consecutive,
-                        order.customerName,
-                        `[${order.productId}] ${order.productDescription}`,
-                        order.quantity,
-                        format(parseISO(order.deliveryDate), 'dd/MM/yy'),
-                        selectors.statusConfig[order.status]?.label || order.status,
-                        machineName,
-                        selectors.priorityConfig[order.priority]?.label || order.priority
-                    ];
-                });
         
-                autoTable(doc, {
-                    head: [tableColumn],
-                    body: tableRows,
-                    startY: 50,
-                    headStyles: { fillColor: [41, 128, 185], halign: 'left' },
-                    didDrawPage: (data) => {
-                        addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
-                    },
-                     columnStyles: {
-                        0: { cellWidth: 20 },
-                        1: { cellWidth: 'auto' },
-                        2: { cellWidth: 'auto' },
-                        3: { halign: 'right', cellWidth: 15 },
-                        4: { cellWidth: 20 },
-                        5: { cellWidth: 25 },
-                        6: { cellWidth: 30 },
-                        7: { cellWidth: 20 },
-                    },
-                });
-
-                // Finalize page numbering
-                const totalPages = (doc.internal as any).getNumberOfPages();
-                for (let i = 1; i <= totalPages; i++) {
-                    doc.setPage(i);
-                    // Re-draw footer with correct total pages
-                     doc.setFontSize(8);
-                    doc.text(`Página ${i} de ${totalPages}`, doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 10, { align: 'right' });
-                }
+            const tableColumn = ["OP", "Cliente", "Producto", "Cant.", "Entrega", "Estado", "Asignación", "Prioridad"];
+            const tableRows: (string | number)[][] = selectors.filteredOrders.map(order => {
+                const machineName = state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
+                return [
+                    order.consecutive,
+                    order.customerName,
+                    `[${order.productId}] ${order.productDescription}`,
+                    order.quantity,
+                    format(parseISO(order.deliveryDate), 'dd/MM/yy'),
+                    selectors.statusConfig[order.status]?.label || order.status,
+                    machineName,
+                    selectors.priorityConfig[order.priority]?.label || order.priority
+                ];
+            });
         
-                doc.save(`ordenes_produccion_${new Date().getTime()}.pdf`);
-            };
-            
-            // Robust image loading
-            if (authCompanyData.logoUrl) {
-                const img = new Image();
-                img.crossOrigin = "Anonymous";
-                img.onload = function() {
-                    try {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = this.naturalWidth;
-                        canvas.height = this.naturalHeight;
-                        const ctx = canvas.getContext('2d');
-                        ctx?.drawImage(this, 0, 0);
-                        const dataUrl = canvas.toDataURL('image/png');
-                        doc.addImage(dataUrl, 'PNG', 14, 15, 50, 15);
-                        processPdf();
-                    } catch(e) {
-                         console.error("Error processing and adding image to PDF:", e);
-                         processPdf();
-                    }
-                };
-                img.onerror = function() {
-                    console.error("Failed to load PDF logo image.");
-                    processPdf();
-                };
-                img.src = authCompanyData.logoUrl;
-            } else {
-                processPdf();
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: 50,
+                headStyles: { fillColor: [41, 128, 185], halign: 'left' },
+                didDrawPage: async (data) => {
+                    await addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
+                },
+                 columnStyles: {
+                    0: { cellWidth: 20 },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 'auto' },
+                    3: { halign: 'right', cellWidth: 15 },
+                    4: { cellWidth: 20 },
+                    5: { cellWidth: 25 },
+                    6: { cellWidth: 30 },
+                    7: { cellWidth: 20 },
+                },
+            });
+        
+            const totalPages = (doc.internal as any).getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                await addHeaderAndFooter(doc, i, totalPages);
             }
+        
+            doc.save(`ordenes_produccion_${new Date().getTime()}.pdf`);
         },
 
         handleExportSingleOrderPDF: async (order: ProductionOrder) => {
