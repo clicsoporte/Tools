@@ -24,6 +24,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
+import { RowInput } from "jspdf-autotable";
 
 /**
  * Defines the initial state for a new quote.
@@ -452,15 +453,15 @@ export const useQuoter = () => {
     }
     
     const formatCurrencyForPdf = (amount: number, places?: number) => {
-        // Always use CRC for the PDF text to avoid font encoding issues with symbols
-        const prefix = "CRC ";
+        // Use a consistent prefix that won't cause encoding issues, then rely on totals label for currency.
+        const prefix = ""; 
         return `${prefix}${amount.toLocaleString("es-CR", {
             minimumFractionDigits: places ?? decimalPlaces,
             maximumFractionDigits: places ?? decimalPlaces,
         })}`;
     };
 
-    const tableRows = lines.map(line => [
+    const tableRows: RowInput = lines.map(line => [
         line.product.id,
         line.product.description,
         line.quantity.toLocaleString('es-CR'),
@@ -496,7 +497,7 @@ export const useQuoter = () => {
             rows: tableRows,
             columnStyles: {
                 0: { cellWidth: 50 },
-                1: { cellWidth: 'auto' }, // Use 'auto' and let the library handle it
+                1: { cellWidth: 'wrap' },
                 2: { cellWidth: 40, halign: 'right' },
                 3: { cellWidth: 40 },
                 4: { cellWidth: 60 },
@@ -510,7 +511,7 @@ export const useQuoter = () => {
         totals: [
             { label: 'Subtotal', value: formatCurrencyForPdf(totals.subtotal, decimalPlaces) },
             { label: 'Impuestos', value: formatCurrencyForPdf(totals.totalTaxes, decimalPlaces) },
-            { label: 'Total', value: formatCurrencyForPdf(totals.total, decimalPlaces) },
+            { label: `Total ${currency}`, value: formatCurrencyForPdf(totals.total, decimalPlaces) },
         ]
     });
     
@@ -680,7 +681,7 @@ export const useQuoter = () => {
       generatePDF, resetQuote, saveDraft, loadDrafts, handleLoadDraft, handleDeleteDraft, handleNumericInputBlur,
       handleCustomerDetailsChange, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown, handleCustomerInputKeyDown,
     },
-    refs: { productInputRef, customerInputRef },
+    refs: { productInputRef, customerInputRef, lineInputRefs },
     selectors,
   };
 };

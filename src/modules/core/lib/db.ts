@@ -17,7 +17,7 @@ import { executeQuery } from './sql-service';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
-import { getExchangeRate as fetchExchangeRateFromApi } from '../../hacienda/lib/actions';
+import { getExchangeRate as fetchExchangeRateFromApi } from '../lib/api-actions';
 import { getSqlConfig } from './config-db';
 import { logError, logInfo, logWarn } from './logger';
 
