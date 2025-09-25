@@ -6,8 +6,8 @@
 'use server';
 
 import jsPDF from "jspdf";
-import autoTable, { CellDef, RowInput, UserOptions } from "jspdf-autotable";
-import { format, parseISO } from 'date-fns';
+import autoTable, { RowInput } from "jspdf-autotable";
+import { format } from 'date-fns';
 import type { Company } from '../types';
 
 interface DocumentData {
@@ -28,7 +28,7 @@ interface DocumentData {
     }[];
     table: {
         columns: any[];
-        rows: RowInput;
+        rows: RowInput[];
         columnStyles: { [key: string]: any };
     };
     notes?: string;
@@ -130,7 +130,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     };
 
     // First AutoTable for Client/Delivery Blocks
-    autoTable(doc, {
+    const clientBlockResult = autoTable(doc, {
         startY: finalY,
         head: [data.blocks.map(b => b.title)],
         body: [data.blocks.map(b => b.content)],
@@ -139,8 +139,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         headStyles: { fontStyle: 'bold' },
         didDrawPage: didDrawPage,
     });
-
-    finalY = (doc as any).lastAutoTable.finalY + 10;
+    
+    finalY = clientBlockResult.lastAutoTable.finalY + 10;
     
     // Main Content Table
     autoTable(doc, {

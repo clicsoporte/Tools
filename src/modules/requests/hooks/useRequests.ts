@@ -13,7 +13,7 @@ import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { RowInput } from "jspdf-autotable";
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 
 const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'> = {
@@ -389,6 +389,23 @@ export const useRequests = () => {
         }
         
         const history = await getRequestHistory(request.id);
+        const details = [
+                { title: 'Cliente:', content: request.clientName },
+                { title: 'Artículo:', content: `[${request.itemId}] ${request.itemDescription}` },
+                { title: 'Cantidad Solicitada:', content: request.quantity.toLocaleString('es-CR') },
+                { title: 'Fecha Solicitud:', content: format(parseISO(request.requestDate), 'dd/MM/yyyy') },
+                { title: 'Fecha Requerida:', content: format(parseISO(request.requiredDate), 'dd/MM/yyyy') },
+                { title: 'Estado:', content: statusConfig[request.status]?.label || request.status },
+                { title: 'Prioridad:', content: priorityConfig[request.priority]?.label || request.priority },
+                { title: 'Ruta:', content: request.route || 'N/A' },
+                { title: 'Método Envío:', content: request.shippingMethod || 'N/A' },
+                { title: 'Proveedor:', content: request.manualSupplier || 'N/A' },
+                { title: 'Notas:', content: request.notes || 'N/A' },
+                { title: 'Solicitado por:', content: request.requestedBy },
+                { title: 'Aprobado por:', content: request.approvedBy || 'N/A' },
+                { title: 'Última actualización:', content: `${request.lastStatusUpdateBy || 'N/A'} - ${request.lastStatusUpdateNotes || ''}` }
+            ];
+
         const doc = generateDocument({
             docTitle: 'Solicitud de Compra',
             docId: request.consecutive,
@@ -396,21 +413,8 @@ export const useRequests = () => {
             logoDataUrl,
             meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
             blocks: [
-                { title: 'Cliente:', value: request.clientName },
-                { title: 'Artículo:', value: `[${request.itemId}] ${request.itemDescription}` },
-                { title: 'Cantidad Solicitada:', value: request.quantity.toLocaleString('es-CR') },
-                { title: 'Fecha Solicitud:', value: format(parseISO(request.requestDate), 'dd/MM/yyyy') },
-                { title: 'Fecha Requerida:', value: format(parseISO(request.requiredDate), 'dd/MM/yyyy') },
-                { title: 'Estado:', value: statusConfig[request.status]?.label || request.status },
-                { title: 'Prioridad:', value: priorityConfig[request.priority]?.label || request.priority },
-                { title: 'Ruta:', value: request.route || 'N/A' },
-                { title: 'Método Envío:', value: request.shippingMethod || 'N/A' },
-                { title: 'Proveedor:', value: request.manualSupplier || 'N/A' },
-                { title: 'Notas:', value: request.notes || 'N/A' },
-                { title: 'Solicitado por:', value: request.requestedBy },
-                { title: 'Aprobado por:', value: request.approvedBy || 'N/A' },
-                { title: 'Última actualización:', value: `${request.lastStatusUpdateBy || 'N/A'} - ${request.lastStatusUpdateNotes || ''}` }
-            ].map(d => ({ title: d.title, content: d.value })),
+                { title: "Detalles de la Solicitud", content: details.map(d => `${d.title} ${d.content}`).join('\n') },
+            ],
             table: {
                 columns: ["Fecha", "Estado", "Usuario", "Notas"],
                 rows: history.map(entry => [
