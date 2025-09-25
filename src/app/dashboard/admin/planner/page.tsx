@@ -29,6 +29,7 @@ const availableColumns = [
     { id: 'productDescription', label: 'Producto' },
     { id: 'quantity', label: 'Cantidad' },
     { id: 'deliveryDate', label: 'Fecha Entrega' },
+    { id: 'scheduledDate', label: 'Fecha Programada' },
     { id: 'status', label: 'Estado' },
     { id: 'machineId', label: 'Asignación' },
     { id: 'priority', label: 'Prioridad' },

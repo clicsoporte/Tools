@@ -414,26 +414,27 @@ export const usePlanner = () => {
         },
 
         handleExportPDF: async () => {
-            if (!authCompanyData) return;
-            const doc = new jsPDF({ orientation: 'landscape' });
+            if (!authCompanyData || !state.plannerSettings) return;
+            
+            const paperSize = state.plannerSettings.pdfPaperSize || 'letter';
+            const doc = new jsPDF({ orientation: 'landscape', format: paperSize });
         
             const addHeaderAndFooter = async (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
                 const pageWidth = docInstance.internal.pageSize.getWidth();
                 const margin = 14;
                 let y = 22;
         
-                let logoRendered = false;
                 if (authCompanyData.logoUrl) {
                     try {
                         const img = new Image();
                         img.crossOrigin = "Anonymous";
-                        const imgPromise = new Promise((resolve, reject) => {
+                        const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
                             img.onload = () => resolve(img);
                             img.onerror = reject;
                         });
                         img.src = authCompanyData.logoUrl;
         
-                        const loadedImg = await imgPromise as HTMLImageElement;
+                        const loadedImg = await imgPromise;
                         const canvas = document.createElement('canvas');
                         canvas.width = loadedImg.naturalWidth;
                         canvas.height = loadedImg.naturalHeight;
@@ -441,35 +442,24 @@ export const usePlanner = () => {
                         if (ctx) {
                             ctx.drawImage(loadedImg, 0, 0);
                             const dataUrl = canvas.toDataURL('image/png');
-        
                             const logoHeight = 15;
-                            const logoWidth = (loadedImg.naturalWidth / loadedImg.naturalHeight) * logoHeight;
+                            const logoAspectRatio = loadedImg.naturalWidth / loadedImg.naturalHeight;
+                            const logoWidth = logoHeight * logoAspectRatio;
                             docInstance.addImage(dataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
-                            logoRendered = true;
                         }
                     } catch (e) {
                         console.error("Error loading or adding image to PDF:", e);
                     }
                 }
-        
-                if (!logoRendered) {
-                    docInstance.setFontSize(11);
-                    docInstance.setFont('helvetica', 'bold');
-                    docInstance.text(authCompanyData.name, margin, y);
-                    y += 6;
-                    docInstance.setFont('helvetica', 'normal');
-                    docInstance.text(authCompanyData.taxId, margin, y);
-                    y += 4;
-                }
-        
-                const titleX = logoRendered ? margin + 60 : pageWidth / 2;
-                const titleAlign = logoRendered ? 'left' : 'center';
+
+                y = 15;
+                const titleX = authCompanyData.logoUrl ? margin + 60 : margin;
                 
                 docInstance.setFontSize(18);
                 docInstance.setFont('helvetica', 'bold');
-                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, 22, { align: titleAlign });
-        
-                y = 35;
+                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, y + 7);
+                
+                y += 15;
                 docInstance.setFontSize(10);
                 docInstance.setFont('helvetica', 'normal');
                 docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, y, { align: 'right' });
@@ -478,40 +468,34 @@ export const usePlanner = () => {
                 docInstance.setFontSize(8);
                 docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
             };
-        
-            const tableColumn = ["OP", "Cliente", "Producto", "Cant.", "Entrega", "Estado", "Asignación", "Prioridad"];
-            const tableRows: (string | number)[][] = selectors.filteredOrders.map(order => {
-                const machineName = state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
-                return [
-                    order.consecutive,
-                    order.customerName,
-                    `[${order.productId}] ${order.productDescription}`,
-                    order.quantity,
-                    format(parseISO(order.deliveryDate), 'dd/MM/yy'),
-                    selectors.statusConfig[order.status]?.label || order.status,
-                    machineName,
-                    selectors.priorityConfig[order.priority]?.label || order.priority
-                ];
-            });
+
+            const selectedColumns = state.plannerSettings.pdfExportColumns || [];
+            const allPossibleColumns = [
+                { id: 'consecutive', header: 'OP', data: (o: ProductionOrder) => o.consecutive },
+                { id: 'customerName', header: 'Cliente', data: (o: ProductionOrder) => o.customerName },
+                { id: 'productDescription', header: 'Producto', data: (o: ProductionOrder) => `[${o.productId}] ${o.productDescription}` },
+                { id: 'quantity', header: 'Cant.', data: (o: ProductionOrder) => o.quantity },
+                { id: 'deliveryDate', header: 'Entrega', data: (o: ProductionOrder) => format(parseISO(o.deliveryDate), 'dd/MM/yy') },
+                { id: 'scheduledDate', header: 'Fecha Prog.', data: (o: ProductionOrder) => (o.scheduledStartDate && o.scheduledEndDate) ? `${format(parseISO(o.scheduledStartDate), 'dd/MM/yy')} - ${format(parseISO(o.scheduledEndDate), 'dd/MM/yy')}` : 'N/A' },
+                { id: 'status', header: 'Estado', data: (o: ProductionOrder) => selectors.statusConfig[o.status]?.label || o.status },
+                { id: 'machineId', header: 'Asignación', data: (o: ProductionOrder) => state.plannerSettings?.machines.find(m => m.id === o.machineId)?.name || 'N/A' },
+                { id: 'priority', header: 'Prioridad', data: (o: ProductionOrder) => selectors.priorityConfig[o.priority]?.label || o.priority }
+            ];
+
+            const tableColumns = allPossibleColumns.filter(c => selectedColumns.includes(c.id));
+            const tableHeaders = tableColumns.map(c => c.header);
+            const tableRows = selectors.filteredOrders.map(order => tableColumns.map(c => c.data(order)));
         
             autoTable(doc, {
-                head: [tableColumn],
+                head: [tableHeaders],
                 body: tableRows,
                 startY: 50,
                 headStyles: { fillColor: [41, 128, 185], halign: 'left' },
                 didDrawPage: async (data) => {
                     await addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
                 },
-                 columnStyles: {
-                    0: { cellWidth: 20 },
-                    1: { cellWidth: 'auto' },
-                    2: { cellWidth: 'auto' },
-                    3: { halign: 'right', cellWidth: 15 },
-                    4: { cellWidth: 20 },
-                    5: { cellWidth: 25 },
-                    6: { cellWidth: 30 },
-                    7: { cellWidth: 20 },
-                },
+                theme: 'grid',
+                styles: { fontSize: 8 }
             });
         
             const totalPages = (doc.internal as any).getNumberOfPages();
@@ -534,14 +518,15 @@ export const usePlanner = () => {
                 try {
                      const img = new Image();
                     img.crossOrigin = "Anonymous";
-                    const imgPromise = new Promise((resolve, reject) => {
+                    const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
                         img.onload = () => resolve(img);
                         img.onerror = reject;
                     });
                     img.src = authCompanyData.logoUrl;
-                    const loadedImg = await imgPromise as HTMLImageElement;
+                    const loadedImg = await imgPromise;
                     const logoHeight = 15;
-                    const logoWidth = (loadedImg.naturalWidth / loadedImg.naturalHeight) * logoHeight;
+                    const logoAspectRatio = loadedImg.naturalWidth / loadedImg.naturalHeight;
+                    const logoWidth = logoHeight * logoAspectRatio;
                     doc.addImage(loadedImg, 'PNG', margin, 15, logoWidth, logoHeight);
                 } catch(e) { console.error("Error adding logo to PDF:", e) }
             }
