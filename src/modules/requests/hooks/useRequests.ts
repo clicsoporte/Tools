@@ -291,10 +291,18 @@ export const useRequests = () => {
         const margin = 14;
     
         const addHeader = (docInstance: jsPDF) => {
+            let startY = 22;
             if (companyData.logoUrl) {
                 try {
                     docInstance.addImage(companyData.logoUrl, 'PNG', margin, 15, 50, 15);
                 } catch(e) { console.error("Error adding logo to PDF:", e); }
+            } else {
+                 docInstance.setFontSize(11);
+                 docInstance.setFont('helvetica', 'bold');
+                 docInstance.text(companyData.name, margin, startY);
+                 startY += 6;
+                 docInstance.setFont('helvetica', 'normal');
+                 docInstance.text(companyData.taxId, margin, startY);
             }
             docInstance.setFontSize(18);
             docInstance.setFont('helvetica', 'bold');
@@ -302,12 +310,6 @@ export const useRequests = () => {
             
             docInstance.setFontSize(10);
             docInstance.setFont('helvetica', 'normal');
-            
-            let startY = 35;
-            docInstance.text(companyData.name, margin, startY);
-            startY += 5;
-            docInstance.text(companyData.taxId, margin, startY);
-
             docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 35, { align: 'right' });
         };
         
@@ -348,7 +350,7 @@ export const useRequests = () => {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const margin = 14;
-        let y = 35;
+        let y = 22;
     
         if (companyData.logoUrl) {
             try {
@@ -358,13 +360,14 @@ export const useRequests = () => {
     
         doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
-        doc.text('Solicitud de Compra', pageWidth / 2, 22, { align: 'center' });
+        doc.text('Solicitud de Compra', pageWidth / 2, y, { align: 'center' });
+        y += 6;
         doc.setFontSize(12);
         doc.setFont('helvetica', 'normal');
         doc.text(`${request.consecutive}`, pageWidth - margin, 22, { align: 'right' });
         doc.setFontSize(10);
         doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
-        y += 15;
+        y = 50;
         
         const details = [
             { title: 'Cliente:', value: request.clientName },
@@ -492,4 +495,3 @@ export const useRequests = () => {
         isAuthorized
     };
 };
-

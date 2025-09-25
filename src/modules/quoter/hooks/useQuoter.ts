@@ -343,11 +343,11 @@ export const useQuoter = () => {
     await logInfo(`Currency changed to ${newCurrency}`);
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, places?: number) => {
     const prefix = currency === "CRC" ? "CRC " : "$ ";
     return `${prefix}${amount.toLocaleString("es-CR", {
-      minimumFractionDigits: decimalPlaces,
-      maximumFractionDigits: decimalPlaces,
+      minimumFractionDigits: places ?? decimalPlaces,
+      maximumFractionDigits: places ?? decimalPlaces,
     })}`;
   };
 
@@ -438,62 +438,64 @@ export const useQuoter = () => {
     const doc = new jsPDF();
     const currentQuoteNumber = quoteNumber;
 
+    const addHeader = (docInstance: jsPDF, isFirstPage: boolean) => {
+        const pageWidth = docInstance.internal.pageSize.getWidth();
+        const margin = 14;
+        let startY = 22;
+
+        if (companyData.logoUrl && isFirstPage) {
+            try {
+                docInstance.addImage(companyData.logoUrl, 'PNG', margin, 15, 50, 15);
+            } catch(e) {
+                console.error("Error adding logo to PDF, continuing without it.", e);
+            }
+        }
+        
+        docInstance.setFontSize(18);
+        docInstance.setFont('helvetica', 'bold');
+        docInstance.text("COTIZACIÓN", pageWidth / 2, startY, { align: 'center' });
+        
+        docInstance.setFontSize(12);
+        docInstance.setFont('helvetica', 'normal');
+        docInstance.text(`Nº: ${currentQuoteNumber}`, pageWidth - margin, startY, { align: 'right' });
+        
+        startY += 6;
+        docInstance.setFontSize(10);
+        docInstance.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, startY, { align: 'right' });
+        
+        startY += 6;
+        docInstance.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, startY, { align: 'right' });
+
+        if (purchaseOrderNumber) {
+            startY += 6;
+            docInstance.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, startY, { align: 'right' });
+        }
+
+        let sellerStartY = 46;
+        docInstance.setFont('helvetica', 'bold');
+        docInstance.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
+        sellerStartY += 6;
+        docInstance.setFont('helvetica', 'normal');
+        if (sellerType === 'user' && currentUser) {
+            docInstance.text(currentUser.name, pageWidth - margin, sellerStartY, { align: 'right' });
+            sellerStartY += 5;
+            if (currentUser.phone) docInstance.text(`Tel: ${currentUser.phone}`, pageWidth - margin, sellerStartY, { align: 'right' });
+            sellerStartY += 5;
+            docInstance.text(currentUser.email, pageWidth - margin, sellerStartY, { align: 'right' });
+        } else {
+            docInstance.text(sellerName, pageWidth - margin, sellerStartY, { align: 'right' });
+        }
+    };
+    
+    const addFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
+        const pageHeight = docInstance.internal.pageSize.getHeight();
+        const pageWidth = docInstance.internal.pageSize.getWidth();
+        docInstance.setFontSize(8);
+        docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
+    };
+    
     const addContent = () => {
         try {
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 14;
-            
-            doc.setFontSize(18);
-            doc.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(12);
-            doc.text(`Nº: ${currentQuoteNumber}`, pageWidth - margin, 22, { align: 'right' });
-            doc.setFontSize(10);
-            doc.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, 28, { align: 'right' });
-            doc.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, 34, { align: 'right' });
-            if (purchaseOrderNumber) doc.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, 40, { align: 'right' });
-            
-            let startY = 40;
-            if(companyData.logoUrl) {
-                doc.addImage(companyData.logoUrl, 'PNG', 14, 15, 50, 15);
-                startY = 46;
-            } else {
-                doc.setFontSize(11);
-                doc.setFont('helvetica', 'bold');
-                doc.text(companyData.name, margin, startY);
-                startY += 6;
-                doc.setFont('helvetica', 'normal');
-                doc.text(`Cédula: ${companyData.taxId}`, margin, startY);
-            }
-
-            let sellerStartY = 46;
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
-            sellerStartY += 6;
-            doc.setFont('helvetica', 'normal');
-            if (sellerType === 'user' && currentUser) {
-                doc.text(currentUser.name, pageWidth - margin, sellerStartY, { align: 'right' });
-                sellerStartY += 6;
-                if (currentUser.phone) doc.text(`Tel: ${currentUser.phone}`, pageWidth - margin, sellerStartY, { align: 'right' });
-                sellerStartY += 6;
-                if (currentUser.whatsapp) doc.text(`WhatsApp: ${currentUser.whatsapp}`, pageWidth - margin, sellerStartY, { align: 'right' });
-                sellerStartY += 6;
-                doc.text(currentUser.email, pageWidth - margin, sellerStartY, { align: 'right' });
-            } else {
-                doc.text(sellerName, pageWidth - margin, sellerStartY, { align: 'right' });
-            }
-            
-            const formattedDeliveryDate = deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A';
-            autoTable(doc, {
-                startY: 95,
-                head: [['Cliente', 'Entrega']],
-                body: [[customerDetails, `Dirección: ${deliveryAddress}\nFecha Entrega: ${formattedDeliveryDate}`]],
-                theme: 'plain',
-                styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
-                headStyles: { fontStyle: 'bold' }
-            });
-
             const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
             const tableRows: any[][] = lines.map(line => {
                 return [
@@ -507,51 +509,42 @@ export const useQuoter = () => {
                     formatCurrency(line.quantity * line.price * (1 + line.tax), decimalPlaces),
                 ];
             });
+
+            const formattedDeliveryDate = deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A';
             
-            const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
-                const pageHeight = doc.internal.pageSize.getHeight();
-                doc.setFontSize(8);
-                doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-            };
+            autoTable(doc, {
+                head: [['Cliente', 'Entrega']],
+                body: [[customerDetails, `Dirección: ${deliveryAddress}\nFecha Entrega: ${formattedDeliveryDate}`]],
+                startY: 85,
+                theme: 'plain',
+                styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
+                headStyles: { fontStyle: 'bold' }
+            });
 
             autoTable(doc, {
                 head: [tableColumn],
                 body: tableRows,
                 theme: 'striped',
-                headStyles: { 
-                    fillColor: [41, 128, 185], 
-                    textColor: 255, 
-                    fontStyle: 'bold',
-                    halign: 'left',
-                },
+                headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'left' },
                 columnStyles: {
-                    2: { halign: 'right' }, // Cant.
-                    5: { halign: 'right' }, // Precio
-                    6: { halign: 'center' }, // Imp.
-                    7: { halign: 'right' }, // Total
+                    2: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'center' }, 7: { halign: 'right' },
                 },
-                didDrawCell: (data) => {
-                    if (data.section === 'head' && [2, 5, 7].includes(data.column.index)) {
-                        data.cell.styles.halign = 'right';
-                    }
-                },
-                didDrawPage: (data) => {
-                    if (data.pageNumber > 1 && companyData.logoUrl) {
-                        doc.addImage(companyData.logoUrl, 'PNG', 14, 15, 50, 15);
-                    }
-                }
+                didDrawPage: (data) => addHeader(doc, data.pageNumber === 1),
             });
 
             const finalY = (doc as any).lastAutoTable.finalY;
             const totalPages = doc.getNumberOfPages();
             doc.setPage(totalPages);
 
+            const margin = 14;
+            const pageWidth = doc.internal.pageSize.getWidth();
             const totalsX = pageWidth - margin;
             const currentTotals = totals;
             let bottomContentY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
             
             if (bottomContentY > doc.internal.pageSize.getHeight() - 40) {
                 doc.addPage();
+                addHeader(doc, false);
                 bottomContentY = 20;
             }
 
@@ -593,12 +586,7 @@ export const useQuoter = () => {
         }
     };
     
-    if (companyData?.logoUrl) {
-        // This is a simplified approach to avoid canvas tainting issues in some environments.
-        addContent();
-    } else {
-        addContent();
-    }
+    addContent();
   };
 
   const resetQuote = async () => {
@@ -764,4 +752,3 @@ export const useQuoter = () => {
     selectors,
   };
 };
-
