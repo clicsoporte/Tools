@@ -287,6 +287,7 @@ export type PlannerSettings = {
     customStatuses: CustomStatus[];
     pdfPaperSize: 'letter' | 'legal';
     pdfExportColumns: string[];
+    pdfTopLegend?: string;
 };
 
 export type UpdateStatusPayload = {
@@ -367,6 +368,7 @@ export type RequestSettings = {
     routes: string[];
     shippingMethods: string[];
     useWarehouseReception: boolean;
+    pdfTopLegend?: string;
 };
 
 export type UpdateRequestStatusPayload = {

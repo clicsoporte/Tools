@@ -141,6 +141,12 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
         const defaultColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
         db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultColumns));
     }
+
+    const pdfTopLegendRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfTopLegend'`).get() as { value: string } | undefined;
+    if (!pdfTopLegendRow) {
+        console.log("MIGRATION (planner.db): Adding pdfTopLegend to settings.");
+        db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfTopLegend', '')`).run();
+    }
 }
 
 
@@ -157,6 +163,7 @@ export async function getSettings(): Promise<PlannerSettings> {
         customStatuses: [],
         pdfPaperSize: 'letter',
         pdfExportColumns: [],
+        pdfTopLegend: '',
     };
 
     for (const row of settingsRows) {
@@ -188,6 +195,8 @@ export async function getSettings(): Promise<PlannerSettings> {
             } catch {
                 settings.pdfExportColumns = [];
             }
+        } else if (row.key === 'pdfTopLegend') {
+            settings.pdfTopLegend = row.value;
         }
     }
     return settings;
@@ -220,6 +229,9 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
         }
         if (settingsToUpdate.pdfExportColumns !== undefined) {
             db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('pdfExportColumns', JSON.stringify(settingsToUpdate.pdfExportColumns));
+        }
+        if (settingsToUpdate.pdfTopLegend !== undefined) {
+            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('pdfTopLegend', settingsToUpdate.pdfTopLegend);
         }
     });
 

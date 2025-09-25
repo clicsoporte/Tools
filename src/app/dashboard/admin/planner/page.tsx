@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -191,7 +192,7 @@ export default function PlannerSettingsPage() {
                     </CardContent>
                 </Card>
 
-                <Accordion type="multiple" className="w-full space-y-6">
+                <Accordion type="multiple" defaultValue={['assignments', 'custom-statuses', 'pdf-export']} className="w-full space-y-6">
                     <Card>
                         <AccordionItem value="assignments">
                             <AccordionTrigger className="p-6">
@@ -309,6 +310,15 @@ export default function PlannerSettingsPage() {
                             <AccordionContent className="p-6 pt-0">
                                 <CardDescription className="mb-4">Personaliza el contenido y formato de los reportes PDF del planificador.</CardDescription>
                                 <div className="space-y-6">
+                                     <div className="space-y-2">
+                                        <Label htmlFor="pdf-top-legend">Leyenda Superior del PDF (Opcional)</Label>
+                                        <Input
+                                            id="pdf-top-legend"
+                                            value={settings.pdfTopLegend || ''}
+                                            onChange={(e) => setSettings(prev => prev ? { ...prev, pdfTopLegend: e.target.value } : null)}
+                                            placeholder="Ej: Documento Controlado - Versión 1.0"
+                                        />
+                                    </div>
                                     <div className="space-y-2">
                                         <Label>Tamaño del Papel</Label>
                                         <RadioGroup

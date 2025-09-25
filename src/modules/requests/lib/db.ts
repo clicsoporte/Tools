@@ -134,6 +134,14 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
         console.log("MIGRATION (requests.db): Adding manualSupplier column to purchase_requests.");
         db.exec(`ALTER TABLE purchase_requests ADD COLUMN manualSupplier TEXT`);
     }
+    const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='request_settings'`).get();
+    if(settingsTable){
+        const pdfTopLegendRow = db.prepare(`SELECT value FROM request_settings WHERE key = 'pdfTopLegend'`).get() as { value: string } | undefined;
+        if (!pdfTopLegendRow) {
+            console.log("MIGRATION (requests.db): Adding pdfTopLegend to settings.");
+            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('pdfTopLegend', '')`).run();
+        }
+    }
 }
 
 
@@ -146,6 +154,7 @@ export async function getSettings(): Promise<RequestSettings> {
         routes: [],
         shippingMethods: [],
         useWarehouseReception: false,
+        pdfTopLegend: '',
     };
 
     for (const row of settingsRows) {
@@ -165,6 +174,8 @@ export async function getSettings(): Promise<RequestSettings> {
             }
         } else if (row.key === 'useWarehouseReception') {
             settings.useWarehouseReception = row.value === 'true';
+        } else if (row.key === 'pdfTopLegend') {
+            settings.pdfTopLegend = row.value;
         }
     }
     return settings;
@@ -185,6 +196,9 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
         }
         if (settingsToUpdate.useWarehouseReception !== undefined) {
             db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('useWarehouseReception', settingsToUpdate.useWarehouseReception.toString());
+        }
+        if (settingsToUpdate.pdfTopLegend !== undefined) {
+            db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('pdfTopLegend', settingsToUpdate.pdfTopLegend);
         }
     });
 

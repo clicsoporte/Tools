@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -149,6 +150,19 @@ export default function RequestSettingsPage() {
                         <p className="text-sm text-muted-foreground mt-2">
                             Si se activa, las solicitudes recibidas necesitarán un paso adicional para ser archivadas.
                         </p>
+                        <Separator className="my-6" />
+                        <div className="space-y-2">
+                            <Label htmlFor="pdf-top-legend">Leyenda Superior del PDF (Opcional)</Label>
+                            <Input
+                                id="pdf-top-legend"
+                                value={settings.pdfTopLegend || ''}
+                                onChange={(e) => setSettings(prev => prev ? { ...prev, pdfTopLegend: e.target.value } : null)}
+                                placeholder="Ej: Documento Controlado - Versión 1.0"
+                            />
+                            <p className="text-sm text-muted-foreground pt-1">
+                                Este texto aparecerá en la parte superior de los reportes PDF.
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
 
