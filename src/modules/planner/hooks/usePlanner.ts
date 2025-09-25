@@ -418,51 +418,71 @@ export const usePlanner = () => {
             
             const paperSize = state.plannerSettings.pdfPaperSize || 'letter';
             const doc = new jsPDF({ orientation: 'landscape', format: paperSize });
+
+            let logoDataUrl: string | null = null;
+            if (authCompanyData.logoUrl) {
+                try {
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                    });
+                    img.src = authCompanyData.logoUrl;
+
+                    const loadedImg = await imgPromise;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = loadedImg.naturalWidth;
+                    canvas.height = loadedImg.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.drawImage(loadedImg, 0, 0);
+                        logoDataUrl = canvas.toDataURL('image/png');
+                    }
+                } catch (e) {
+                    console.error("Error processing logo for PDF:", e);
+                }
+            }
         
-            const addHeaderAndFooter = async (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
+            const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
                 const pageWidth = docInstance.internal.pageSize.getWidth();
                 const margin = 14;
-                let y = 22;
+                let y = 15;
         
-                if (authCompanyData.logoUrl) {
+                if (logoDataUrl) {
                     try {
                         const img = new Image();
-                        img.crossOrigin = "Anonymous";
-                        const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
-                            img.onload = () => resolve(img);
-                            img.onerror = reject;
-                        });
-                        img.src = authCompanyData.logoUrl;
-        
-                        const loadedImg = await imgPromise;
-                        const canvas = document.createElement('canvas');
-                        canvas.width = loadedImg.naturalWidth;
-                        canvas.height = loadedImg.naturalHeight;
-                        const ctx = canvas.getContext('2d');
-                        if (ctx) {
-                            ctx.drawImage(loadedImg, 0, 0);
-                            const dataUrl = canvas.toDataURL('image/png');
-                            const logoHeight = 15;
-                            const logoAspectRatio = loadedImg.naturalWidth / loadedImg.naturalHeight;
-                            const logoWidth = logoHeight * logoAspectRatio;
-                            docInstance.addImage(dataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
-                        }
+                        img.src = logoDataUrl;
+                        const logoHeight = 15;
+                        const logoAspectRatio = img.width / img.height;
+                        const logoWidth = logoHeight * logoAspectRatio;
+                        docInstance.addImage(logoDataUrl, 'PNG', margin, y, logoWidth, logoHeight);
+                        y += logoHeight;
                     } catch (e) {
-                        console.error("Error loading or adding image to PDF:", e);
+                        console.error("Error adding image to PDF:", e);
                     }
+                } else {
+                     docInstance.setFontSize(11);
+                    docInstance.setFont('helvetica', 'bold');
+                    docInstance.text(authCompanyData.name, margin, y + 7);
+                    docInstance.setFont('helvetica', 'normal');
+                    y += 6;
+                    docInstance.text(authCompanyData.taxId, margin, y + 7);
+                    y += 6;
                 }
 
-                y = 15;
-                const titleX = authCompanyData.logoUrl ? margin + 60 : margin;
+                const titleX = logoDataUrl ? margin : pageWidth / 2;
+                const titleAlign = logoDataUrl ? 'left' : 'center';
+                const titleY = logoDataUrl ? 22 : y + 10;
                 
                 docInstance.setFontSize(18);
                 docInstance.setFont('helvetica', 'bold');
-                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, y + 7);
+                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY, { align: titleAlign });
                 
-                y += 15;
+                const dateY = logoDataUrl ? 35 : y + 15;
                 docInstance.setFontSize(10);
                 docInstance.setFont('helvetica', 'normal');
-                docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, y, { align: 'right' });
+                docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, dateY, { align: 'right' });
         
                 const pageHeight = docInstance.internal.pageSize.getHeight();
                 docInstance.setFontSize(8);
@@ -491,8 +511,8 @@ export const usePlanner = () => {
                 body: tableRows,
                 startY: 50,
                 headStyles: { fillColor: [41, 128, 185], halign: 'left' },
-                didDrawPage: async (data) => {
-                    await addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
+                didDrawPage: (data) => {
+                    addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
                 },
                 theme: 'grid',
                 styles: { fontSize: 8 }
@@ -501,7 +521,7 @@ export const usePlanner = () => {
             const totalPages = (doc.internal as any).getNumberOfPages();
             for (let i = 1; i <= totalPages; i++) {
                 doc.setPage(i);
-                await addHeaderAndFooter(doc, i, totalPages);
+                addHeaderAndFooter(doc, i, totalPages);
             }
         
             doc.save(`ordenes_produccion_${new Date().getTime()}.pdf`);
@@ -518,12 +538,12 @@ export const usePlanner = () => {
                 try {
                      const img = new Image();
                     img.crossOrigin = "Anonymous";
-                    const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
+                    const imgPromise = new Promise((resolve, reject) => {
                         img.onload = () => resolve(img);
                         img.onerror = reject;
                     });
                     img.src = authCompanyData.logoUrl;
-                    const loadedImg = await imgPromise;
+                    const loadedImg = await imgPromise as HTMLImageElement;
                     const logoHeight = 15;
                     const logoAspectRatio = loadedImg.naturalWidth / loadedImg.naturalHeight;
                     const logoWidth = logoHeight * logoAspectRatio;
