@@ -464,6 +464,7 @@ export const usePlanner = () => {
                         const logoAspectRatio = originalWidth / originalHeight;
                         const logoWidth = logoHeight * logoAspectRatio;
                         docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
+                        textStartX = margin + logoWidth + 5;
                     } catch (e) { console.error("Error adding image to PDF page:", e); }
                 }
 
@@ -490,7 +491,7 @@ export const usePlanner = () => {
                 docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
             };
         
-            const allPossibleColumns = {
+            const allPossibleColumns: { [key: string]: { header: string; halign?: 'right' } } = {
                 'consecutive': { header: 'OP' },
                 'customerName': { header: 'Cliente' },
                 'productDescription': { header: 'Producto' },
@@ -503,7 +504,7 @@ export const usePlanner = () => {
             };
         
             const selectedColumnIds = state.plannerSettings.pdfExportColumns || [];
-            const tableHeaders = selectedColumnIds.map(id => allPossibleColumns[id as keyof typeof allPossibleColumns].header);
+            const tableHeaders = selectedColumnIds.map(id => allPossibleColumns[id as keyof typeof allPossibleColumns]?.header || id);
             
             const tableRows = selectors.filteredOrders.map(order => {
                 return selectedColumnIds.map(id => {
@@ -532,8 +533,8 @@ export const usePlanner = () => {
                 styles: { fontSize: tableFontSize, cellPadding: 2, font: 'Helvetica' },
                 columnStyles: selectedColumnIds.reduce((acc, id, index) => {
                     const columnConfig = allPossibleColumns[id as keyof typeof allPossibleColumns];
-                    if (columnConfig && columnConfig.halign === 'right') {
-                        acc[index] = { halign: 'right' };
+                    if (columnConfig && 'halign' in columnConfig && columnConfig.halign === 'right') {
+                        (acc as any)[index] = { halign: 'right' };
                     }
                     return acc;
                 }, {} as { [key: number]: { halign: 'right' } }),
@@ -585,6 +586,7 @@ export const usePlanner = () => {
                         const logoAspectRatio = originalWidth / originalHeight;
                         const logoWidth = logoHeight * logoAspectRatio;
                         docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
+                        textStartX = margin + logoWidth + 5;
                     } catch (e) { console.error("Error adding image to PDF page:", e); }
                 }
                 
@@ -594,7 +596,7 @@ export const usePlanner = () => {
                 docInstance.setFont('Helvetica', 'normal');
                 docInstance.setFontSize(9);
                 docInstance.text(authCompanyData.taxId, textStartX, 28);
-        
+    
                 const titleX = pageWidth / 2;
                 const titleY = 22;
                 
@@ -613,7 +615,7 @@ export const usePlanner = () => {
                 docInstance.setFontSize(10);
                 docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
             };
-
+    
             addHeaderAndFooter(doc);
 
             let y = 50;

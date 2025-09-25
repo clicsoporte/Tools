@@ -428,208 +428,200 @@ export const useQuoter = () => {
   };
   
   const generatePDF = async () => {
-      if (isAuthLoading || !companyData) {
-          toast({ title: "Por favor espere", description: "Los datos de configuración de la empresa aún se están cargando.", variant: "destructive" });
-          return;
-      }
-      setIsProcessing(true);
-  
-      let logoDataUrl: string | null = null;
-      if (companyData.logoUrl) {
-          try {
-              const img = new Image();
-              img.crossOrigin = "Anonymous";
-              const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
-                  img.onload = () => resolve(img);
-                  img.onerror = () => reject(new Error("Image load failed"));
-              });
-              img.src = companyData.logoUrl;
-  
-              const loadedImg = await imgPromise;
-              const canvas = document.createElement('canvas');
-              canvas.width = loadedImg.naturalWidth;
-              canvas.height = loadedImg.naturalHeight;
-              const ctx = canvas.getContext('2d');
-              if (ctx) {
-                  ctx.drawImage(loadedImg, 0, 0);
-                  logoDataUrl = canvas.toDataURL('image/png');
-              }
-          } catch (e) {
-              console.error("Error processing logo for PDF:", e);
-          }
-      }
-  
-      const doc = new jsPDF();
-      doc.setFont("Helvetica");
-      
-      const currentQuoteNumber = quoteNumber;
-  
-      const formatCurrencyForPdf = (amount: number, places?: number) => {
+    if (isAuthLoading || !companyData) {
+        toast({ title: "Por favor espere", description: "Los datos de configuración de la empresa aún se están cargando.", variant: "destructive" });
+        return;
+    }
+    setIsProcessing(true);
+
+    const doc = new jsPDF({ putOnlyUsedFonts: true });
+    doc.setFont("Helvetica");
+    const currentQuoteNumber = quoteNumber;
+
+    const formatCurrencyForPdf = (amount: number, places?: number) => {
         const prefix = currency === "CRC" ? "CRC " : "$ ";
         return `${prefix}${amount.toLocaleString("es-CR", {
             minimumFractionDigits: places ?? decimalPlaces,
             maximumFractionDigits: places ?? decimalPlaces,
         })}`;
-      };
-  
-      const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
-          const pageWidth = docInstance.internal.pageSize.getWidth();
-          const margin = 14;
-  
-          if (logoDataUrl) {
+    };
+
+    let logoData: string | null = null;
+    if (companyData.logoUrl) {
+        try {
+            const response = await fetch(companyData.logoUrl);
+            const blob = await response.blob();
+            logoData = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+            });
+        } catch (e) {
+            console.error("Failed to fetch and process logo:", e);
+        }
+    }
+
+    const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
+        const pageWidth = docInstance.internal.pageSize.getWidth();
+        const margin = 14;
+        let companyInfoY = 22;
+
+        if (logoData) {
             try {
-                docInstance.addImage(logoDataUrl, 'PNG', margin, 15, 50, 15);
-            } catch (e) { 
-                console.error("Error adding image to PDF page:", e);
-            }
-          }
-          let companyInfoStartY = logoDataUrl ? 32 : 15;
-          docInstance.setFontSize(11);
-          docInstance.setFont('Helvetica', 'bold');
-          docInstance.text(companyData.name, margin, companyInfoStartY);
-          companyInfoStartY += 6;
-          docInstance.setFont('Helvetica', 'normal');
-          docInstance.setFontSize(9);
-          docInstance.text(`Cédula: ${companyData.taxId}`, margin, companyInfoStartY);
-          companyInfoStartY += 5;
-          docInstance.text(`Tel: ${companyData.phone}`, margin, companyInfoStartY);
-          companyInfoStartY += 5;
-          docInstance.text(`Email: ${companyData.email}`, margin, companyInfoStartY);
+                const imgProps = docInstance.getImageProperties(logoData);
+                const aspectRatio = imgProps.width / imgProps.height;
+                const imgHeight = 15;
+                const imgWidth = imgHeight * aspectRatio;
+                docInstance.addImage(logoData, 'PNG', margin, 15, imgWidth, imgHeight);
+                companyInfoY = 15 + imgHeight + 5;
+            } catch (e) { console.error("Error adding logo image to PDF:", e); }
+        }
 
-          docInstance.setFontSize(18);
-          docInstance.setFont('Helvetica', 'bold');
-          docInstance.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
-  
-          let rightY = 22;
-          docInstance.setFont('Helvetica', 'normal');
-          docInstance.setFontSize(12);
-          docInstance.text(`${currentQuoteNumber}`, pageWidth - margin, rightY, { align: 'right' });
-          rightY += 6;
-          docInstance.setFontSize(10);
-          docInstance.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, rightY, { align: 'right' });
-          rightY += 6;
-          docInstance.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, rightY, { align: 'right' });
-          
-          if (purchaseOrderNumber) {
-              rightY += 6;
-              docInstance.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, rightY, { align: 'right' });
-          }
+        docInstance.setFontSize(11);
+        docInstance.setFont('Helvetica', 'bold');
+        docInstance.text(companyData.name, margin, companyInfoY);
+        companyInfoY += 6;
+        docInstance.setFont('Helvetica', 'normal');
+        docInstance.setFontSize(9);
+        docInstance.text(`Cédula: ${companyData.taxId}`, margin, companyInfoY);
+        companyInfoY += 5;
+        docInstance.text(companyData.address, margin, companyInfoY);
+        companyInfoY += 5;
+        docInstance.text(`Tel: ${companyData.phone}`, margin, companyInfoY);
+        companyInfoY += 5;
+        docInstance.text(`Email: ${companyData.email}`, margin, companyInfoY);
 
-          rightY += 8;
-          doc.setFont('Helvetica', 'bold');
-          doc.text("Vendedor:", pageWidth - margin, rightY, { align: 'right' });
-          rightY += 6;
-          doc.setFont('Helvetica', 'normal');
-          doc.text(sellerName, pageWidth - margin, rightY, { align: 'right' });
-          if (currentUser && sellerType === 'user' && currentUser.phone) {
+        docInstance.setFontSize(18);
+        docInstance.setFont('Helvetica', 'bold');
+        docInstance.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
+
+        let rightY = 22;
+        docInstance.setFont('Helvetica', 'normal');
+        docInstance.setFontSize(12);
+        docInstance.text(`Nº: ${currentQuoteNumber}`, pageWidth - margin, rightY, { align: 'right' });
+        rightY += 6;
+        docInstance.setFontSize(10);
+        docInstance.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, rightY, { align: 'right' });
+        rightY += 6;
+        docInstance.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, rightY, { align: 'right' });
+
+        rightY += 8;
+        docInstance.setFont('Helvetica', 'bold');
+        docInstance.text("Vendedor:", pageWidth - margin, rightY, { align: 'right' });
+        rightY += 6;
+        docInstance.setFont('Helvetica', 'normal');
+        docInstance.text(sellerName, pageWidth - margin, rightY, { align: 'right' });
+        if (sellerType === 'user' && currentUser) {
+            if (currentUser.phone) { rightY += 6; docInstance.text(`Tel: ${currentUser.phone}`, pageWidth - margin, rightY, { align: 'right' }); }
+            if (currentUser.whatsapp) { rightY += 6; docInstance.text(`WhatsApp: ${currentUser.whatsapp}`, pageWidth - margin, rightY, { align: 'right' }); }
             rightY += 6;
-            doc.text(`Tel: ${currentUser.phone}`, pageWidth - margin, rightY, { align: 'right' });
-          }
-          
-          const pageHeight = docInstance.internal.pageSize.getHeight();
-          docInstance.setFontSize(8);
-          docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-      };
-  
-      try {
-          const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
-          const tableRows = lines.map(line => [
-            line.product.id,
-            { content: line.product.description, styles: { cellWidth: 'auto' } },
-            line.quantity.toLocaleString('es-CR'),
-            line.product.unit,
-            line.product.cabys,
-            formatCurrencyForPdf(line.price),
-            `${(line.tax * 100).toFixed(0)}%`,
-            formatCurrencyForPdf(line.quantity * line.price * (1 + line.tax)),
-          ]);
-      
-          const formattedDeliveryDate = deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A';
-      
-          autoTable(doc, {
-            head: [['Cliente', 'Entrega']],
-            body: [[customerDetails, `Dirección: ${deliveryAddress}\nFecha Entrega: ${formattedDeliveryDate}`]],
-            startY: 85,
-            theme: 'plain',
-            styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, font: 'Helvetica', fontStyle: 'normal' },
-            headStyles: { fontStyle: 'bold' }
-          });
-      
-          autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'striped',
-            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'left', font: 'Helvetica' },
-            styles: { font: 'Helvetica' },
-            columnStyles: {
-                0: { cellWidth: 20 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 15, halign: 'right' },
-                3: { cellWidth: 15 }, 4: { cellWidth: 22 }, 5: { cellWidth: 28, halign: 'right' },
-                6: { cellWidth: 15, halign: 'center' }, 7: { cellWidth: 28, halign: 'right' },
-            },
-            margin: { top: 80, bottom: 30 },
-            didDrawPage: (data) => addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages()),
-          });
-      
-          const finalY = (doc as any).lastAutoTable.finalY;
-          const totalPages = doc.getNumberOfPages();
-          doc.setPage(totalPages);
-      
-          const margin = 14;
-          const pageWidth = doc.internal.pageSize.getWidth();
-          const totalsX = pageWidth - margin;
-          const currentTotals = totals;
-          let bottomContentY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
-      
-          if (bottomContentY > doc.internal.pageSize.getHeight() - 40) {
-            doc.addPage();
-            addHeaderAndFooter(doc, doc.getNumberOfPages(), doc.getNumberOfPages());
-            bottomContentY = 20;
-          }
-      
-          doc.setFontSize(10);
-          doc.text(`Subtotal: ${formatCurrencyForPdf(currentTotals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
-          bottomContentY += 6;
-          doc.text(`Impuestos: ${formatCurrencyForPdf(currentTotals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
-          bottomContentY += 8;
-          doc.setFontSize(12);
-          doc.setFont('Helvetica', 'bold');
-          doc.text(`Total: ${formatCurrencyForPdf(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
-      
-          let leftBottomY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
-          if (leftBottomY > doc.internal.pageSize.getHeight() - 40) {
-            leftBottomY = 20;
-          }
-      
-          const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
-          doc.setFontSize(10);
-          doc.setFont('Helvetica', 'bold');
-          doc.text('Condiciones de Pago:', margin, leftBottomY);
-          doc.setFont('Helvetica', 'normal');
-          leftBottomY += 6;
-          doc.text(paymentInfo, margin, leftBottomY);
-          leftBottomY += 8;
-          doc.setFont('Helvetica', 'bold');
-          doc.text('Notas:', margin, leftBottomY);
-          leftBottomY += 6;
-          doc.setFont('Helvetica', 'normal');
-          const splitNotes = doc.splitTextToSize(notes, 100);
-          doc.text(splitNotes, margin, leftBottomY);
-      
-          for (let i = 1; i <= totalPages; i++) {
-            doc.setPage(i);
-            if (i > 1) addHeaderAndFooter(doc, i, doc.getNumberOfPages());
-          }
-      
-          doc.save(`${currentQuoteNumber}.pdf`);
-          toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${currentQuoteNumber} ha sido descargado.` });
-          logInfo(`Cotización generada: ${currentQuoteNumber}`, { customer: selectedCustomer?.name, total: currentTotals.total });
-          incrementAndSaveQuoteNumber();
-      } catch (e: any) {
-        logError("Error generating PDF", { error: e.message });
-        toast({ title: "Error al generar PDF", description: "No se pudo crear el documento.", variant: "destructive" });
-      } finally {
-        setIsProcessing(false);
-      }
+            docInstance.text(currentUser.email, pageWidth - margin, rightY, { align: 'right' });
+        }
+
+        const pageHeight = docInstance.internal.pageSize.getHeight();
+        docInstance.setFontSize(8);
+        docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+    };
+
+    const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
+    const tableRows = lines.map(line => [
+        line.product.id,
+        { content: line.product.description, styles: { cellWidth: 'auto' } },
+        line.quantity.toLocaleString('es-CR'),
+        line.product.unit,
+        line.product.cabys,
+        formatCurrencyForPdf(line.price, decimalPlaces),
+        `${(line.tax * 100).toFixed(0)}%`,
+        formatCurrencyForPdf(line.quantity * line.price * (1 + line.tax), decimalPlaces),
+    ]);
+    const formattedDeliveryDate = deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A';
+
+    autoTable(doc, {
+      didDrawPage: (data) => addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages(), logoData),
+      startY: 85,
+    });
+
+    const finalTableY = (doc as any).lastAutoTable.finalY;
+    
+    // Resetting Y for client/delivery info to be consistent
+    const clientBlockY = 85;
+
+    autoTable(doc, {
+        body: [
+            [{ content: 'Cliente', styles: { fontStyle: 'bold' } }, { content: 'Entrega', styles: { fontStyle: 'bold' } }],
+            [{ content: customerDetails }, { content: `Dirección: ${deliveryAddress}\nFecha Entrega: ${formattedDeliveryDate}` }],
+        ],
+        startY: clientBlockY,
+        theme: 'plain',
+        styles: { fontSize: 10 },
+        tableWidth: 'auto',
+    });
+
+    autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: (doc as any).lastAutoTable.finalY + 5,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'left', font: 'Helvetica' },
+        styles: { font: 'Helvetica', fontSize: 9 },
+        columnStyles: {
+            0: { cellWidth: 20 },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 15, halign: 'right' },
+            3: { cellWidth: 15 },
+            4: { cellWidth: 22 },
+            5: { cellWidth: 28, halign: 'right' },
+            6: { cellWidth: 15, halign: 'center' },
+            7: { cellWidth: 28, halign: 'right' },
+        },
+        margin: { bottom: 40 },
+        didDrawPage: (data) => {
+            const totalPages = (doc.internal as any).getNumberOfPages();
+            addHeaderAndFooter(doc, data.pageNumber, totalPages, logoData);
+        },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY;
+    let currentY = finalY > 240 ? 20 : finalY + 10;
+    if (finalY > 240) {
+        doc.addPage();
+        const totalPages = (doc.internal as any).getNumberOfPages();
+        addHeaderAndFooter(doc, totalPages, totalPages, logoData);
+    }
+    
+    doc.setPage(doc.getNumberOfPages()); // Work on the last page
+
+    const margin = 14;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const totalsX = pageWidth - margin;
+    const notesX = margin;
+    
+    // Notes and payment terms on the left
+    const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
+    doc.setFontSize(10);
+    doc.setFont('Helvetica', 'bold');
+    doc.text('Condiciones de Pago:', notesX, currentY);
+    doc.setFont('Helvetica', 'normal');
+    doc.text(paymentInfo, notesX, currentY + 6);
+    doc.setFont('Helvetica', 'bold');
+    doc.text('Notas:', notesX, currentY + 14);
+    doc.setFont('Helvetica', 'normal');
+    const splitNotes = doc.splitTextToSize(notes, 80);
+    doc.text(splitNotes, notesX, currentY + 20);
+
+    // Totals on the right, aligned with the notes
+    doc.setFontSize(10);
+    doc.text(`Subtotal: ${formatCurrencyForPdf(totals.subtotal, decimalPlaces)}`, totalsX, currentY + 6, { align: 'right' });
+    doc.text(`Impuestos: ${formatCurrencyForPdf(totals.totalTaxes, decimalPlaces)}`, totalsX, currentY + 12, { align: 'right' });
+    doc.setFontSize(12);
+    doc.setFont('Helvetica', 'bold');
+    doc.text(`Total: ${formatCurrencyForPdf(totals.total, decimalPlaces)}`, totalsX, currentY + 20, { align: 'right' });
+
+    doc.save(`${currentQuoteNumber}.pdf`);
+    toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${currentQuoteNumber} ha sido descargado.` });
+    logInfo(`Cotización generada: ${currentQuoteNumber}`, { customer: selectedCustomer?.name, total: totals.total });
+    await incrementAndSaveQuoteNumber();
+    setIsProcessing(false);
   };
 
   const resetQuote = async () => {
