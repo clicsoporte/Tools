@@ -285,9 +285,8 @@ export const useRequests = () => {
     };
 
     const handleExportPDF = async () => {
-        if (!companyData) return;
-        const doc = new jsPDF({ orientation: 'landscape' });
-    
+        if (!companyData || !requestSettings) return;
+
         let logoDataUrl: string | null = null;
         if (companyData.logoUrl) {
             try {
@@ -314,10 +313,13 @@ export const useRequests = () => {
             }
         }
     
+        const doc = new jsPDF({ orientation: 'landscape' });
+    
         const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
             const pageWidth = docInstance.internal.pageSize.getWidth();
             const margin = 14;
             let y = 15;
+            let textStartX = margin;
     
             if (logoDataUrl) {
                 try {
@@ -327,23 +329,28 @@ export const useRequests = () => {
                     const logoAspectRatio = originalWidth / originalHeight;
                     const logoWidth = logoHeight * logoAspectRatio;
                     docInstance.addImage(logoDataUrl, 'PNG', margin, y, logoWidth, logoHeight);
-                    y += logoHeight + 2; 
+                    textStartX += logoWidth + 5;
                 } catch (e) {
                     console.error("Error adding image to PDF:", e);
                 }
-            } else {
-                docInstance.setFontSize(11);
-                docInstance.setFont('helvetica', 'bold');
-                docInstance.text(companyData.name, margin, y + 7);
-                docInstance.setFont('helvetica', 'normal');
-                y += 6;
-                docInstance.text(companyData.taxId, margin, y + 7);
-                y += 10;
             }
+
+            docInstance.setFontSize(11);
+            docInstance.setFont('helvetica', 'bold');
+            docInstance.text(companyData.name, textStartX, y + 7);
+            docInstance.setFont('helvetica', 'normal');
+            docInstance.setFontSize(9);
+            docInstance.text(companyData.taxId, textStartX, y + 13);
     
             const titleX = pageWidth / 2;
-            const titleY = logoDataUrl ? 22 : y;
+            const titleY = logoDataUrl ? 22 : y + 10;
             
+            if (requestSettings.pdfTopLegend) {
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'italic');
+                doc.text(requestSettings.pdfTopLegend, titleX, 12, { align: 'center' });
+            }
+
             docInstance.setFontSize(18);
             docInstance.setFont('helvetica', 'bold');
             docInstance.text(`Lista de Solicitudes de Compra (${viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY, { align: 'center'});
@@ -399,8 +406,9 @@ export const useRequests = () => {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const margin = 14;
-        let y = 22;
+        let y = 15;
     
+        let logoDataUrl: string | null = null;
         if (companyData.logoUrl) {
             try {
                  const img = new Image();
@@ -413,8 +421,41 @@ export const useRequests = () => {
                 const loadedImg = await imgPromise as HTMLImageElement;
                 const logoHeight = 15;
                 const logoWidth = (loadedImg.naturalWidth / loadedImg.naturalHeight) * logoHeight;
-                doc.addImage(loadedImg, 'PNG', margin, 15, logoWidth, logoHeight);
+                const canvas = document.createElement('canvas');
+                canvas.width = loadedImg.naturalWidth;
+                canvas.height = loadedImg.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                if(ctx) {
+                    ctx.drawImage(loadedImg, 0, 0);
+                    logoDataUrl = canvas.toDataURL('image/png');
+                }
             } catch(e) { console.error("Error adding logo to PDF:", e) }
+        }
+        
+        let textStartX = margin;
+        if (logoDataUrl) {
+            const logoHeight = 15;
+            const originalWidth = (doc as any).getImageProperties(logoDataUrl).width;
+            const originalHeight = (doc as any).getImageProperties(logoDataUrl).height;
+            const logoAspectRatio = originalWidth / originalHeight;
+            const logoWidth = logoHeight * logoAspectRatio;
+            doc.addImage(logoDataUrl, 'PNG', margin, y, logoWidth, logoHeight);
+            textStartX += logoWidth + 5;
+        }
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(companyData.name, textStartX, y + 7);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(companyData.taxId, textStartX, y + 13);
+        
+        y = 22;
+
+        if (requestSettings?.pdfTopLegend) {
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            doc.text(requestSettings.pdfTopLegend, pageWidth / 2, 12, { align: 'center' });
         }
     
         doc.setFontSize(18);
