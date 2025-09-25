@@ -415,15 +415,8 @@ export const usePlanner = () => {
 
         handleExportPDF: async () => {
             if (!authCompanyData || !state.plannerSettings) return;
-
-            let fontData: ArrayBuffer | null = null;
-            let logoDataUrl: string | null = null;
-
-            try {
-                const fontResponse = await fetch('/fonts/Inter-Regular.ttf');
-                if(fontResponse.ok) fontData = await fontResponse.arrayBuffer();
-            } catch(e) { console.error("Could not fetch font", e); }
         
+            let logoDataUrl: string | null = null;
             if (authCompanyData.logoUrl) {
                 try {
                     const img = new Image();
@@ -435,7 +428,8 @@ export const usePlanner = () => {
                     img.src = authCompanyData.logoUrl;
                     const loadedImg = await imgPromise;
                     const canvas = document.createElement('canvas');
-                    canvas.width = loadedImg.naturalWidth; canvas.height = loadedImg.naturalHeight;
+                    canvas.width = loadedImg.naturalWidth;
+                    canvas.height = loadedImg.naturalHeight;
                     const ctx = canvas.getContext('2d');
                     if (ctx) {
                         ctx.drawImage(loadedImg, 0, 0);
@@ -448,20 +442,13 @@ export const usePlanner = () => {
         
             const paperSize = state.plannerSettings.pdfPaperSize || 'letter';
             const doc = new jsPDF({ orientation: 'landscape', format: paperSize });
+            doc.setFont('Helvetica');
 
-            if(fontData) {
-                const fontBytes = new Uint8Array(fontData);
-                doc.addFileToVFS('Inter-Regular.ttf', btoa(String.fromCharCode.apply(null, Array.from(fontBytes))));
-                doc.addFont('Inter-Regular.ttf', 'Inter', 'normal');
-                doc.setFont('Inter');
-            }
-        
             const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
                 const pageWidth = docInstance.internal.pageSize.getWidth();
                 const margin = 14;
-                let y = 15;
                 let textStartX = margin;
-
+        
                 if (logoDataUrl) {
                     try {
                         const logoHeight = 15;
@@ -469,33 +456,33 @@ export const usePlanner = () => {
                         const originalHeight = (docInstance as any).getImageProperties(logoDataUrl).height;
                         const logoAspectRatio = originalWidth / originalHeight;
                         const logoWidth = logoHeight * logoAspectRatio;
-                        docInstance.addImage(logoDataUrl, 'PNG', margin, y, logoWidth, logoHeight);
+                        docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
                         textStartX += logoWidth + 5;
-                    } catch (e) { console.error("Error adding image to PDF:", e); }
+                    } catch (e) { console.error("Error adding image to PDF page:", e); }
                 }
-
+        
                 docInstance.setFontSize(11);
-                docInstance.setFont('Inter', 'bold');
-                docInstance.text(authCompanyData.name, textStartX, y + 7);
-                docInstance.setFont('Inter', 'normal');
+                docInstance.setFont('Helvetica', 'bold');
+                docInstance.text(authCompanyData.name, textStartX, 22);
+                docInstance.setFont('Helvetica', 'normal');
                 docInstance.setFontSize(9);
-                docInstance.text(authCompanyData.taxId, textStartX, y + 13);
+                docInstance.text(authCompanyData.taxId, textStartX, 28);
         
                 const titleX = pageWidth / 2;
-                const titleY = logoDataUrl ? 22 : y + 10;
+                const titleY = 22;
                 
                 if (state.plannerSettings?.pdfTopLegend) {
                     doc.setFontSize(8);
-                    doc.setFont('Inter', 'italic');
+                    doc.setFont('Helvetica', 'italic');
                     doc.text(state.plannerSettings.pdfTopLegend, titleX, 12, { align: 'center' });
                 }
 
                 docInstance.setFontSize(18);
-                docInstance.setFont('Inter', 'bold');
+                docInstance.setFont('Helvetica', 'bold');
                 docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY, { align: 'center'});
                 
                 docInstance.setFontSize(10);
-                docInstance.setFont('Inter', 'normal');
+                docInstance.setFont('Helvetica', 'normal');
                 docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, titleY, { align: 'right' });
         
                 const pageHeight = docInstance.internal.pageSize.getHeight();
@@ -503,40 +490,54 @@ export const usePlanner = () => {
                 docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
             };
         
-            const allPossibleColumns = [
-                { id: 'consecutive', header: 'OP', data: (o: ProductionOrder) => o.consecutive },
-                { id: 'customerName', header: 'Cliente', data: (o: ProductionOrder) => o.customerName },
-                { id: 'productDescription', header: 'Producto', data: (o: ProductionOrder) => `[${o.productId}] ${o.productDescription}` },
-                { id: 'quantity', header: 'Cant.', data: (o: ProductionOrder) => o.quantity.toLocaleString('es-CR') },
-                { id: 'deliveryDate', header: 'Entrega', data: (o: ProductionOrder) => format(parseISO(o.deliveryDate), 'dd/MM/yy') },
-                { id: 'scheduledDate', header: 'Fecha Prog.', data: (o: ProductionOrder) => (o.scheduledStartDate && o.scheduledEndDate) ? `${format(parseISO(o.scheduledStartDate), 'dd/MM/yy')} - ${format(parseISO(o.scheduledEndDate), 'dd/MM/yy')}` : 'N/A' },
-                { id: 'status', header: 'Estado', data: (o: ProductionOrder) => selectors.statusConfig[o.status]?.label || o.status },
-                { id: 'machineId', header: 'Asignación', data: (o: ProductionOrder) => state.plannerSettings?.machines.find(m => m.id === o.machineId)?.name || 'N/A' },
-                { id: 'priority', header: 'Prioridad', data: (o: ProductionOrder) => selectors.priorityConfig[o.priority]?.label || o.priority }
-            ];
+            const allPossibleColumns = {
+                'consecutive': { header: 'OP' },
+                'customerName': { header: 'Cliente' },
+                'productDescription': { header: 'Producto' },
+                'quantity': { header: 'Cant.', halign: 'right' },
+                'deliveryDate': { header: 'Entrega' },
+                'scheduledDate': { header: 'Fecha Prog.' },
+                'status': { header: 'Estado' },
+                'machineId': { header: state.plannerSettings.assignmentLabel || 'Asignación' },
+                'priority': { header: 'Prioridad' }
+            };
         
-            const selectedColumnsIds = state.plannerSettings.pdfExportColumns || [];
-            const tableColumns = allPossibleColumns.filter(c => selectedColumnsIds.includes(c.id));
-            const tableHeaders = tableColumns.map(c => c.header);
-            const tableRows = selectors.filteredOrders.map(order => tableColumns.map(c => c.data(order)));
-        
+            const selectedColumnIds = state.plannerSettings.pdfExportColumns || [];
+            const tableHeaders = selectedColumnIds.map(id => allPossibleColumns[id as keyof typeof allPossibleColumns].header);
+            
+            const tableRows = selectors.filteredOrders.map(order => {
+                return selectedColumnIds.map(id => {
+                    switch (id) {
+                        case 'consecutive': return order.consecutive;
+                        case 'customerName': return order.customerName;
+                        case 'productDescription': return `[${order.productId}] ${order.productDescription}`;
+                        case 'quantity': return order.quantity.toLocaleString('es-CR');
+                        case 'deliveryDate': return format(parseISO(order.deliveryDate), 'dd/MM/yy');
+                        case 'scheduledDate': return (order.scheduledStartDate && order.scheduledEndDate) ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${format(parseISO(order.scheduledEndDate), 'dd/MM/yy')}` : 'N/A';
+                        case 'status': return selectors.statusConfig[order.status]?.label || order.status;
+                        case 'machineId': return state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
+                        case 'priority': return selectors.priorityConfig[order.priority]?.label || order.priority;
+                        default: return '';
+                    }
+                });
+            });
+            
             const tableFontSize = Math.max(6, 10 - Math.max(0, tableHeaders.length - 7));
-        
+            
             autoTable(doc, {
                 head: [tableHeaders],
                 body: tableRows,
                 startY: 50,
-                headStyles: { fillColor: [41, 128, 185], halign: 'left', fontSize: tableFontSize, font: 'Inter' },
+                headStyles: { fillColor: [41, 128, 185] },
+                styles: { fontSize: tableFontSize, cellPadding: 2, font: 'Helvetica' },
+                columnStyles: selectedColumnIds.reduce((acc, id, index) => {
+                    if (allPossibleColumns[id as keyof typeof allPossibleColumns].halign === 'right') {
+                        acc[index] = { halign: 'right' };
+                    }
+                    return acc;
+                }, {} as { [key: number]: { halign: 'right' } }),
                 didDrawPage: (data) => addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages()),
-                theme: 'grid',
-                styles: { fontSize: tableFontSize, cellPadding: 2, font: 'Inter' }
             });
-        
-            const totalPages = (doc.internal as any).getNumberOfPages();
-            for (let i = 1; i <= totalPages; i++) {
-                doc.setPage(i);
-                addHeaderAndFooter(doc, i, totalPages);
-            }
         
             doc.save(`ordenes_produccion_${new Date().getTime()}.pdf`);
         },
@@ -544,20 +545,8 @@ export const usePlanner = () => {
         handleExportSingleOrderPDF: async (order: ProductionOrder) => {
             if (!authCompanyData) return;
             const doc = new jsPDF();
-            let fontData: ArrayBuffer | null = null;
-
-            try {
-                const fontResponse = await fetch('/fonts/Inter-Regular.ttf');
-                if(fontResponse.ok) fontData = await fontResponse.arrayBuffer();
-            } catch(e) { console.error("Could not fetch font", e); }
-
-            if(fontData) {
-                const fontBytes = new Uint8Array(fontData);
-                doc.addFileToVFS('Inter-Regular.ttf', btoa(String.fromCharCode.apply(null, Array.from(fontBytes))));
-                doc.addFont('Inter-Regular.ttf', 'Inter', 'normal');
-                doc.setFont('Inter');
-            }
-
+            doc.setFont('Helvetica');
+        
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
             let y = 15;
@@ -565,16 +554,14 @@ export const usePlanner = () => {
             let logoDataUrl: string | null = null;
             if (authCompanyData.logoUrl) {
                 try {
-                     const img = new Image();
+                    const img = new Image();
                     img.crossOrigin = "Anonymous";
-                    const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
+                    const imgPromise = new Promise((resolve, reject) => {
                         img.onload = () => resolve(img);
                         img.onerror = reject;
                     });
                     img.src = authCompanyData.logoUrl;
-                    const loadedImg = await imgPromise;
-                    const logoHeight = 15;
-                    const logoWidth = (loadedImg.naturalWidth / loadedImg.naturalHeight) * logoHeight;
+                    const loadedImg = await imgPromise as HTMLImageElement;
                     const canvas = document.createElement('canvas');
                     canvas.width = loadedImg.naturalWidth;
                     canvas.height = loadedImg.naturalHeight;
@@ -598,9 +585,9 @@ export const usePlanner = () => {
             }
             
             doc.setFontSize(11);
-            doc.setFont('Inter', 'bold');
+            doc.setFont('Helvetica', 'bold');
             doc.text(authCompanyData.name, textStartX, y + 7);
-            doc.setFont('Inter', 'normal');
+            doc.setFont('Helvetica', 'normal');
             doc.setFontSize(9);
             doc.text(authCompanyData.taxId, textStartX, y + 13);
             
@@ -608,16 +595,16 @@ export const usePlanner = () => {
 
             if (state.plannerSettings?.pdfTopLegend) {
                 doc.setFontSize(8);
-                doc.setFont('Inter', 'italic');
+                doc.setFont('Helvetica', 'italic');
                 doc.text(state.plannerSettings.pdfTopLegend, pageWidth / 2, 12, { align: 'center' });
             }
     
             doc.setFontSize(18);
-            doc.setFont('Inter', 'bold');
+            doc.setFont('Helvetica', 'bold');
             doc.text('Orden de Producción', pageWidth / 2, y, { align: 'center' });
             y += 6;
             doc.setFontSize(12);
-            doc.setFont('Inter', 'normal');
+            doc.setFont('Helvetica', 'normal');
             doc.text(`${order.consecutive}`, pageWidth - margin, 22, { align: 'right' });
             doc.setFontSize(10);
             doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
@@ -644,7 +631,7 @@ export const usePlanner = () => {
                 startY: y,
                 body: details.map(d => [d.title, d.value]),
                 theme: 'plain',
-                styles: { cellPadding: 1, fontSize: 10, font: 'Inter' },
+                styles: { cellPadding: 1, fontSize: 10, font: 'Helvetica' },
                 columnStyles: {
                     0: { fontStyle: 'bold', cellWidth: 40 },
                     1: { cellWidth: 'auto' }
@@ -656,7 +643,7 @@ export const usePlanner = () => {
     
             if (y > 220) { doc.addPage(); y = 20; }
             doc.setFontSize(14);
-            doc.setFont('Inter', 'bold');
+            doc.setFont('Helvetica', 'bold');
             doc.text('Historial de Cambios', margin, y);
             y += 8;
     
@@ -673,8 +660,8 @@ export const usePlanner = () => {
                     head: [tableColumn],
                     body: tableRows,
                     startY: y,
-                    headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Inter' },
-                    styles: { font: 'Inter' }
+                    headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                    styles: { font: 'Helvetica' }
                 });
             } else {
                 doc.setFontSize(10);

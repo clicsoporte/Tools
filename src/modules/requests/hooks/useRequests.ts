@@ -287,14 +287,7 @@ export const useRequests = () => {
     const handleExportPDF = async () => {
         if (!companyData || !requestSettings) return;
 
-        let fontData: ArrayBuffer | null = null;
         let logoDataUrl: string | null = null;
-
-        try {
-            const fontResponse = await fetch('/fonts/Inter-Regular.ttf');
-            if(fontResponse.ok) fontData = await fontResponse.arrayBuffer();
-        } catch(e) { console.error("Could not fetch font", e); }
-    
         if (companyData.logoUrl) {
             try {
                 const img = new Image();
@@ -304,7 +297,6 @@ export const useRequests = () => {
                     img.onerror = reject;
                 });
                 img.src = companyData.logoUrl;
-    
                 const loadedImg = await imgPromise;
                 const canvas = document.createElement('canvas');
                 canvas.width = loadedImg.naturalWidth;
@@ -321,18 +313,11 @@ export const useRequests = () => {
         }
     
         const doc = new jsPDF({ orientation: 'landscape' });
+        doc.setFont('Helvetica');
 
-        if(fontData) {
-            const fontBytes = new Uint8Array(fontData);
-            doc.addFileToVFS('Inter-Regular.ttf', btoa(String.fromCharCode.apply(null, Array.from(fontBytes))));
-            doc.addFont('Inter-Regular.ttf', 'Inter', 'normal');
-            doc.setFont('Inter');
-        }
-    
         const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
             const pageWidth = docInstance.internal.pageSize.getWidth();
             const margin = 14;
-            let y = 15;
             let textStartX = margin;
     
             if (logoDataUrl) {
@@ -342,34 +327,33 @@ export const useRequests = () => {
                     const originalHeight = (docInstance as any).getImageProperties(logoDataUrl).height;
                     const logoAspectRatio = originalWidth / originalHeight;
                     const logoWidth = logoHeight * logoAspectRatio;
-                    docInstance.addImage(logoDataUrl, 'PNG', margin, y, logoWidth, logoHeight);
-                } catch (e) {
-                    console.error("Error adding image to PDF:", e);
-                }
+                    docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
+                    textStartX += logoWidth + 5;
+                } catch (e) { console.error("Error adding image to PDF page:", e); }
             }
-            
+    
             docInstance.setFontSize(11);
-            docInstance.setFont('Inter', 'bold');
-            docInstance.text(companyData.name, textStartX, y + 7);
-            docInstance.setFont('Inter', 'normal');
+            docInstance.setFont('Helvetica', 'bold');
+            docInstance.text(companyData.name, textStartX, 22);
+            docInstance.setFont('Helvetica', 'normal');
             docInstance.setFontSize(9);
-            docInstance.text(companyData.taxId, textStartX, y + 13);
+            docInstance.text(companyData.taxId, textStartX, 28);
     
             const titleX = pageWidth / 2;
-            const titleY = logoDataUrl ? 22 : y + 10;
+            const titleY = 22;
             
             if (requestSettings.pdfTopLegend) {
                 doc.setFontSize(8);
-                doc.setFont('Inter', 'italic');
+                doc.setFont('Helvetica', 'italic');
                 doc.text(requestSettings.pdfTopLegend, titleX, 12, { align: 'center' });
             }
 
             docInstance.setFontSize(18);
-            docInstance.setFont('Inter', 'bold');
+            docInstance.setFont('Helvetica', 'bold');
             docInstance.text(`Lista de Solicitudes de Compra (${viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY, { align: 'center'});
             
             docInstance.setFontSize(10);
-            docInstance.setFont('Inter', 'normal');
+            docInstance.setFont('Helvetica', 'normal');
             docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, titleY, { align: 'right' });
     
             const pageHeight = docInstance.internal.pageSize.getHeight();
@@ -391,7 +375,7 @@ export const useRequests = () => {
             head: [tableColumn],
             body: tableRows,
             startY: 50,
-            headStyles: { fillColor: [41, 128, 185], halign: 'left', font: 'Inter' },
+            headStyles: { fillColor: [41, 128, 185], halign: 'left', font: 'Helvetica' },
             didDrawPage: (data) => {
                 addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
             },
@@ -403,7 +387,7 @@ export const useRequests = () => {
             columnStyles: {
                 3: { halign: 'right' }
             },
-            styles: { font: 'Inter' }
+            styles: { font: 'Helvetica' }
         });
     
         doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);
@@ -412,19 +396,7 @@ export const useRequests = () => {
     const handleExportSingleRequestPDF = async (request: PurchaseRequest) => {
         if (!companyData) return;
         const doc = new jsPDF();
-        let fontData: ArrayBuffer | null = null;
-
-        try {
-            const fontResponse = await fetch('/fonts/Inter-Regular.ttf');
-            if(fontResponse.ok) fontData = await fontResponse.arrayBuffer();
-        } catch(e) { console.error("Could not fetch font", e); }
-
-        if(fontData) {
-            const fontBytes = new Uint8Array(fontData);
-            doc.addFileToVFS('Inter-Regular.ttf', btoa(String.fromCharCode.apply(null, Array.from(fontBytes))));
-            doc.addFont('Inter-Regular.ttf', 'Inter', 'normal');
-            doc.setFont('Inter');
-        }
+        doc.setFont('Helvetica');
 
         const pageWidth = doc.internal.pageSize.getWidth();
         const margin = 14;
@@ -462,12 +434,13 @@ export const useRequests = () => {
             const logoAspectRatio = originalWidth / originalHeight;
             const logoWidth = logoHeight * logoAspectRatio;
             doc.addImage(logoDataUrl, 'PNG', margin, y, logoWidth, logoHeight);
+            textStartX += logoWidth + 5;
         }
         
         doc.setFontSize(11);
-        doc.setFont('Inter', 'bold');
+        doc.setFont('Helvetica', 'bold');
         doc.text(companyData.name, textStartX, y + 7);
-        doc.setFont('Inter', 'normal');
+        doc.setFont('Helvetica', 'normal');
         doc.setFontSize(9);
         doc.text(companyData.taxId, textStartX, y + 13);
         
@@ -475,16 +448,16 @@ export const useRequests = () => {
 
         if (requestSettings?.pdfTopLegend) {
             doc.setFontSize(8);
-            doc.setFont('Inter', 'italic');
+            doc.setFont('Helvetica', 'italic');
             doc.text(requestSettings.pdfTopLegend, pageWidth / 2, 12, { align: 'center' });
         }
     
         doc.setFontSize(18);
-        doc.setFont('Inter', 'bold');
+        doc.setFont('Helvetica', 'bold');
         doc.text('Solicitud de Compra', pageWidth / 2, y, { align: 'center' });
         y += 6;
         doc.setFontSize(12);
-        doc.setFont('Inter', 'normal');
+        doc.setFont('Helvetica', 'normal');
         doc.text(`${request.consecutive}`, pageWidth - margin, 22, { align: 'right' });
         doc.setFontSize(10);
         doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
@@ -511,7 +484,7 @@ export const useRequests = () => {
             startY: y,
             body: details.map(d => [d.title, d.value]),
             theme: 'plain',
-            styles: { cellPadding: 1, fontSize: 10, font: 'Inter' },
+            styles: { cellPadding: 1, fontSize: 10, font: 'Helvetica' },
             columnStyles: {
                 0: { fontStyle: 'bold', cellWidth: 40 },
                 1: { cellWidth: 'auto' }
@@ -523,7 +496,7 @@ export const useRequests = () => {
     
         if (y > 220) { doc.addPage(); y = 20; }
         doc.setFontSize(14);
-        doc.setFont('Inter', 'bold');
+        doc.setFont('Helvetica', 'bold');
         doc.text('Historial de Cambios', margin, y);
         y += 8;
     
@@ -540,8 +513,8 @@ export const useRequests = () => {
                 head: [tableColumn],
                 body: tableRows,
                 startY: y,
-                headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Inter' },
-                styles: { font: 'Inter' }
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                styles: { font: 'Helvetica' }
             });
         } else {
             doc.setFontSize(10);
