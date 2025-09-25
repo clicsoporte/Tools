@@ -243,19 +243,17 @@ export default function WarehouseSettingsPage() {
                     </CardFooter>
                 </Card>
 
-                 <Accordion type="multiple" className="w-full" defaultValue={['item-1', 'item-2']}>
-                    <AccordionItem value="item-1">
-                        <AccordionTrigger>
-                            <CardTitle>Paso 1: Definir Jerarquía del Almacén (El Molde)</CardTitle>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                             <Card className="border-none shadow-none">
-                                <CardHeader className="pt-0">
-                                    <CardDescription>
-                                        Aquí defines los **nombres** para cada nivel de tu organización. Esto es como crear una plantilla. Por ejemplo: Bodega, Pasillo, Rack, Estante, Casilla.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
+                 <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full space-y-6">
+                    <Card>
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger className="p-6">
+                                <CardTitle>Paso 1: Definir Jerarquía del Almacén (El Molde)</CardTitle>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-6 pt-0">
+                                <CardDescription className="mb-4">
+                                    Aquí defines los **nombres** para cada nivel de tu organización. Esto es como crear una plantilla. Por ejemplo: Bodega, Pasillo, Rack, Estante, Casilla.
+                                </CardDescription>
+                                <div className="space-y-4">
                                     {settings.locationLevels?.map((level, index) => (
                                         <div key={index} className="flex items-center justify-between rounded-lg border p-3">
                                             <p className="font-medium">Nivel {index + 1}: {level.name}</p>
@@ -274,35 +272,33 @@ export default function WarehouseSettingsPage() {
                                             <PlusCircle className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                </CardContent>
-                                <CardFooter>
+                                </div>
+                                <div className="mt-6">
                                     <Button onClick={handleSaveSettings}><Save className="mr-2"/> Guardar Niveles</Button>
-                                </CardFooter>
-                            </Card>
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="item-2">
-                        <AccordionTrigger>
-                           <CardTitle>Paso 2: Crear Ubicaciones Reales (El Árbol)</CardTitle>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                             <Card className="border-none shadow-none">
-                                <CardHeader className="pt-0">
-                                     <div className="flex items-center justify-between">
-                                        <CardDescription>
-                                            Usa los niveles que definiste en el Paso 1 para construir la estructura real de tu almacén. Por ejemplo, crea una `Bodega` llamada "Bodega Principal", luego un `Pasillo` dentro de ella.
-                                        </CardDescription>
-                                         <Button onClick={() => openLocationForm()}>
-                                            <PlusCircle className="mr-2"/> Añadir Ubicación
-                                        </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Card>
+                    <Card>
+                        <AccordionItem value="item-2">
+                            <AccordionTrigger className="p-6">
+                            <CardTitle>Paso 2: Crear Ubicaciones Reales (El Árbol)</CardTitle>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-6 pt-0">
+                                <div className="flex items-center justify-between mb-4">
+                                    <CardDescription>
+                                        Usa los niveles que definiste en el Paso 1 para construir la estructura real de tu almacén. Por ejemplo, crea una `Bodega` llamada "Bodega Principal", luego un `Pasillo` dentro de ella.
+                                    </CardDescription>
+                                    <Button onClick={() => openLocationForm()}>
+                                        <PlusCircle className="mr-2"/> Añadir Ubicación
+                                    </Button>
+                                </div>
+                                <div>
                                     <LocationTree locations={locations} onEdit={openLocationForm} onDelete={setLocationToDelete} />
-                                </CardContent>
-                            </Card>
-                        </AccordionContent>
-                    </AccordionItem>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Card>
                 </Accordion>
 
                  <Dialog open={isLocationFormOpen} onOpenChange={setLocationFormOpen}>

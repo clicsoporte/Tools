@@ -272,19 +272,17 @@ export default function ImportDataPage() {
             )}
 
             {companyData?.importMode === 'sql' && hasPermission('admin:import:sql-config') && (
-                <Accordion type="single" collapsible className="w-full" defaultValue="sql-config">
-                    <AccordionItem value="sql-config">
-                        <AccordionTrigger>
-                            <CardTitle>Configuración de Conexión a SQL Server</CardTitle>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                             <Card className="border-none shadow-none">
-                                <CardHeader className="pt-0">
-                                    <CardDescription>
-                                        Introduce los datos para conectar con la base de datos de tu ERP. Estos datos se guardan de forma segura en el archivo .env del servidor.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
+                <Accordion type="multiple" defaultValue={['sql-config', 'query-manager']} className="w-full space-y-6">
+                    <Card>
+                        <AccordionItem value="sql-config">
+                            <AccordionTrigger className="p-6">
+                                <CardTitle>Configuración de Conexión a SQL Server</CardTitle>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-6 pt-0">
+                                <CardDescription className="mb-4">
+                                    Introduce los datos para conectar con la base de datos de tu ERP. Estos datos se guardan de forma segura en el archivo .env del servidor.
+                                </CardDescription>
+                                <div className="space-y-4">
                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="sql-host">Servidor (Host o IP)</Label>
@@ -307,28 +305,26 @@ export default function ImportDataPage() {
                                             <Input id="sql-password" type="password" value={sqlConfig.password || ''} onChange={e => handleSqlConfigChange('password', e.target.value)} />
                                         </div>
                                     </div>
-                                </CardContent>
-                                <CardFooter>
+                                </div>
+                                <div className="mt-6">
                                     <Button type="button" onClick={handleTestConnection} disabled={isSaving} variant="secondary">
                                         {isSaving && processingType !== 'test-connection' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
                                         Probar Conexión
                                     </Button>
-                                </CardFooter>
-                             </Card>
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="query-manager">
-                        <AccordionTrigger>
-                            <CardTitle>Gestión de Consultas SQL</CardTitle>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                             <Card className="border-none shadow-none">
-                                 <CardHeader className="pt-0">
-                                    <CardDescription>
-                                        Define la consulta SELECT para cada tipo de dato. El sistema mapeará las columnas automáticamente según los nombres definidos en la documentación.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Card>
+                    <Card>
+                        <AccordionItem value="query-manager">
+                            <AccordionTrigger className="p-6">
+                                <CardTitle>Gestión de Consultas SQL</CardTitle>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-6 pt-0">
+                                 <CardDescription className="mb-4">
+                                    Define la consulta SELECT para cada tipo de dato. El sistema mapeará las columnas automáticamente según los nombres definidos en la documentación.
+                                </CardDescription>
+                                <div className="space-y-4">
                                     {importTypes.map(type => (
                                         <div key={type} className="space-y-2">
                                             <Label htmlFor={`query-${type}`}>Consulta para {importTypeTranslations[type]}</Label>
@@ -342,10 +338,10 @@ export default function ImportDataPage() {
                                             />
                                         </div>
                                     ))}
-                                </CardContent>
-                             </Card>
-                        </AccordionContent>
-                    </AccordionItem>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Card>
                 </Accordion>
             )}
 
