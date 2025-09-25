@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
  * based on user permissions.
  */
 export default function DashboardPage() {
-  const { user, companyData, isLoading: isAuthLoading, refreshAuth, exchangeRateData, refreshExchangeRate } = useAuth();
+  const { user, userRole, companyData, isLoading: isAuthLoading, refreshAuth, exchangeRateData, refreshExchangeRate } = useAuth();
   const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const { setTitle } = usePageTitle();
   const { hasPermission } = useAuthorization(['admin:import:run']);
@@ -38,12 +38,12 @@ export default function DashboardPage() {
   useEffect(() => {
     setTitle("Panel Principal");
     
-    if (user) {
+    if (user && userRole) {
       // Start with the main tools
       let tools = [...mainTools];
       
       // Add the admin tool if the user is an admin
-      const hasAdminAccess = user.role === 'admin' || user.permissions?.some(p => p.startsWith('admin:'));
+      const hasAdminAccess = userRole.id === 'admin' || userRole.permissions?.some(p => p.startsWith('admin:'));
 
       if (hasAdminAccess) {
         tools.push({
@@ -58,7 +58,7 @@ export default function DashboardPage() {
       }
       setVisibleTools(tools);
     }
-  }, [setTitle, user]);
+  }, [setTitle, user, userRole]);
 
   useEffect(() => {
     // This effect runs only on the client-side, after hydration.

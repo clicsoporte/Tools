@@ -2,7 +2,6 @@
   "name": "clic-tools",
   "version": "1.5.0",
   "private": true,
-  "description": "Clic-Tools - CLIC SOPORTE Y CLIC TIENDA S.R.L",
   "scripts": {
     "dev": "next dev -p 9003",
     "build": "next build",
