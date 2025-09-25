@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -185,7 +186,7 @@ export default function HelpPage() {
                             <strong>Paso 3: Gestionar Estados y Asignaciones.</strong>
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                                 <li>Asigna cada orden a una máquina o proceso específico desde un menú desplegable. Puedes configurar estas máquinas en el panel de administración.</li>
-                                <li>Cambia el estado de la orden (Aprobada, En Progreso, En Espera, Completada) para reflejar su avance en tiempo real.</li>
+                                <li>Cambia el estado de la orden (Aprobada, En Cola, En Progreso, En Espera, Completada) para reflejar su avance en tiempo real.</li>
                                 <li><strong>Estados Personalizados:</strong> Define hasta 4 estados adicionales en la configuración para adaptar el flujo a tu proceso exacto (ej: "En Diseño", "Esperando Material").</li>
                             </ul>
                         </li>

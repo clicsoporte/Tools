@@ -6,9 +6,9 @@
 'use server';
 
 import jsPDF from "jspdf";
-import autoTable, { CellDef, UserOptions } from "jspdf-autotable";
+import autoTable, { CellDef, RowInput, UserOptions } from "jspdf-autotable";
 import { format, parseISO } from 'date-fns';
-import type { Company, User } from '../types';
+import type { Company } from '../types';
 
 interface DocumentData {
     docTitle: string;
@@ -28,7 +28,7 @@ interface DocumentData {
     }[];
     table: {
         columns: any[];
-        rows: any[];
+        rows: RowInput;
         columnStyles: { [key: string]: any };
     };
     notes?: string;
@@ -123,18 +123,21 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     const margin = 39.68; // approx 14mm in points
     let finalY = 85;
 
+    // This callback is crucial for adding headers/footers to every page, including the first one.
+    const didDrawPage = (hookData: any) => {
+        addHeader(doc, data);
+        addFooter(doc, hookData.pageNumber, (doc.internal as any).getNumberOfPages());
+    };
+
     // First AutoTable for Client/Delivery Blocks
-    const blockTableResult = autoTable(doc, {
+    autoTable(doc, {
         startY: finalY,
         head: [data.blocks.map(b => b.title)],
         body: [data.blocks.map(b => b.content)],
         theme: 'plain',
         styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
         headStyles: { fontStyle: 'bold' },
-        didDrawPage: (hookData) => {
-            addHeader(doc, data);
-            addFooter(doc, hookData.pageNumber, (doc.internal as any).getNumberOfPages());
-        },
+        didDrawPage: didDrawPage,
     });
 
     finalY = (doc as any).lastAutoTable.finalY + 10;
@@ -149,15 +152,17 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
         styles: { font: 'Helvetica', fontSize: 9 },
         columnStyles: data.table.columnStyles,
-        didDrawPage: (hookData) => {
-             if (hookData.pageNumber > 1) { // Only add header/footer on subsequent pages for the main table
-                addHeader(doc, data);
-                addFooter(doc, hookData.pageNumber, (doc.internal as any).getNumberOfPages());
-            }
-        },
+        didDrawPage: didDrawPage,
     });
 
-    finalY = (doc as any).lastAutoTable.finalY || finalY;
+    // Check if autoTable returned `false` which indicates an error (like content not fitting)
+    if (!mainTableResult) {
+        console.error("jspdf-autotable failed to render the main table, likely due to content width issues.");
+        // We still need to draw the rest of the document, so we'll use a fallback Y position
+        finalY = doc.internal.pageSize.height - 120; // Position footer content near the bottom
+    } else {
+        finalY = (doc as any).lastAutoTable.finalY || finalY;
+    }
     
     // Check if we need a new page for the footer content
     if (finalY > doc.internal.pageSize.getHeight() - 120) {
@@ -209,8 +214,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.text(splitNotes, margin, leftY);
     }
     
-    // Redraw footers on all pages
-    const totalPages = doc.getNumberOfPages();
+    // Redraw footers on all pages to ensure the page count is correct
+    const totalPages = (doc.internal as any).getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         addFooter(doc, i, totalPages);

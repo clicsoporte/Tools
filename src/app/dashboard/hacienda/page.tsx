@@ -10,7 +10,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { getContributorInfo, getEnrichedExemptionStatus } from '@/modules/hacienda/lib/actions';
-import { getAllCustomers, getAllExemptions } from '@/modules/core/lib/db';
+import { getAllExemptions } from '@/modules/core/lib/db';
 import type { Customer, Exemption, HaciendaContributorInfo, EnrichedExemptionInfo } from '@/modules/core/types';
 import { Loader2, Search, ShieldCheck, ShieldX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -295,7 +295,7 @@ export default function HaciendaQueryPage() {
     const executeUnifiedSearch = async (customerId: string) => {
         setUnifiedSearchOpen(false);
         setIsUnifiedLoading(true);
-        // Reset API-dependent states, but not the ERP one initially
+        // Reset all data states before starting a new search
         setUnifiedContributorData(null);
         setUnifiedExemptionData(null);
         setUnifiedErpExemption(null);
@@ -305,7 +305,6 @@ export default function HaciendaQueryPage() {
             setUnifiedSearchInput(`${customer.id} - ${customer.name}`);
         }
 
-        // Find and set ERP data first, regardless of what happens next.
         const customerExemption = customer ? exemptions.find(ex => ex.customer === customer.id) : null;
         setUnifiedErpExemption(customerExemption || null);
         
@@ -425,7 +424,8 @@ export default function HaciendaQueryPage() {
                                     {isTaxpayerLoading ? <Loader2 className="animate-spin" /> : <Search />}
                                 </Button>
                             </div>
-                            {contributorData && <ContributorInfoCard data={contributorData} />}
+                            {isTaxpayerLoading && <div className="flex justify-center py-4"><Loader2 className="animate-spin" /></div>}
+                            {!isTaxpayerLoading && contributorData && <ContributorInfoCard data={contributorData} />}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -449,7 +449,8 @@ export default function HaciendaQueryPage() {
                                      {isExemptionLoading ? <Loader2 className="animate-spin" /> : <Search />}
                                 </Button>
                             </div>
-                            {exemptionData && <HaciendaExemptionCard data={exemptionData} />}
+                            {isExemptionLoading && <div className="flex justify-center py-4"><Loader2 className="animate-spin" /></div>}
+                            {!isExemptionLoading && exemptionData && <HaciendaExemptionCard data={exemptionData} />}
                         </CardContent>
                     </Card>
                 </TabsContent>
