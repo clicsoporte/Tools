@@ -163,6 +163,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            suppressHydrationWarning={true}
             />
         </div>
         <div className="space-y-2">
@@ -244,7 +245,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
                     </DialogContent>
                 </Dialog>
             </div>
-            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required suppressHydrationWarning={true} />
         </div>
         </CardContent>
         <CardFooter>
