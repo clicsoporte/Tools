@@ -25,6 +25,7 @@ import { getExemptionStatus } from "@/modules/core/lib/api-actions";
 import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
+import { interFont } from "@/modules/core/lib/inter-font";
 
 /**
  * Defines the initial state for a new quote.
@@ -460,10 +461,14 @@ export const useQuoter = () => {
               toast({ title: "Advertencia", description: "No se pudo cargar el logo, se generará el PDF sin él.", variant: "default" });
           }
       }
-  
+      
       const doc = new jsPDF();
-      doc.setFont('Helvetica');
-  
+      
+      // Embed font
+      doc.addFileToVFS('Inter-Regular.ttf', interFont);
+      doc.addFont('Inter-Regular.ttf', 'Inter', 'normal');
+      doc.setFont('Inter', 'normal');
+
       const currentQuoteNumber = quoteNumber;
   
       const formatCurrencyForPdf = (amount: number, places?: number) => {
@@ -478,23 +483,25 @@ export const useQuoter = () => {
           const pageWidth = docInstance.internal.pageSize.getWidth();
           const margin = 14;
           
+          let y = 15;
+          let logoHeight = 0;
           if (logoDataUrl) {
               try {
-                  const logoHeight = 15;
+                  logoHeight = 15;
                   const originalWidth = (docInstance as any).getImageProperties(logoDataUrl).width;
                   const originalHeight = (docInstance as any).getImageProperties(logoDataUrl).height;
                   const logoAspectRatio = originalWidth / originalHeight;
                   const logoWidth = logoHeight * logoAspectRatio;
-                  docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
+                  docInstance.addImage(logoDataUrl, 'PNG', margin, y, logoWidth, logoHeight);
               } catch (e) { console.error("Error adding logo to PDF page:", e); }
           }
   
-          let textY = 35;
+          let textY = y + (logoDataUrl ? logoHeight + 2 : 0);
           docInstance.setFontSize(11);
-          docInstance.setFont('Helvetica', 'bold');
+          docInstance.setFont('Inter', 'bold');
           docInstance.text(companyData.name, margin, textY);
           textY += 6;
-          docInstance.setFont('Helvetica', 'normal');
+          docInstance.setFont('Inter', 'normal');
           docInstance.setFontSize(9);
           docInstance.text(`Cédula: ${companyData.taxId}`, margin, textY);
           textY += 5;
@@ -505,12 +512,13 @@ export const useQuoter = () => {
           textY += 5;
           docInstance.text(`Email: ${companyData.email}`, margin, textY);
           
-          docInstance.setFontSize(18);
-          docInstance.setFont('Helvetica', 'bold');
-          docInstance.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
-          
           let rightColumnY = 22;
-          docInstance.setFont('Helvetica', 'normal');
+          docInstance.setFontSize(18);
+          docInstance.setFont('Inter', 'bold');
+          docInstance.text("COTIZACIÓN", pageWidth / 2, rightColumnY, { align: 'center' });
+          rightColumnY -= 6; // Adjust to align with the first line on the right
+          
+          docInstance.setFont('Inter', 'normal');
           docInstance.setFontSize(12);
           docInstance.text(`${currentQuoteNumber}`, pageWidth - margin, rightColumnY, { align: 'right' });
           rightColumnY += 6;
@@ -524,17 +532,18 @@ export const useQuoter = () => {
           }
 
           let sellerStartY = rightColumnY + 10;
-          doc.setFont('Helvetica', 'bold');
+          doc.setFont('Inter', 'bold');
           doc.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
           sellerStartY += 6;
-          doc.setFont('Helvetica', 'normal');
+          doc.setFont('Inter', 'normal');
           doc.text(sellerName, pageWidth - margin, sellerStartY, { align: 'right' });
-          if (currentUser && sellerType === 'user' && currentUser.phone) {
-            sellerStartY += 6;
-            doc.text(`Tel: ${currentUser.phone}`, pageWidth - margin, sellerStartY, { align: 'right' });
+          if (currentUser && sellerType === 'user') {
+            if (currentUser.phone) {
+                sellerStartY += 6;
+                doc.text(`Tel: ${currentUser.phone}`, pageWidth - margin, sellerStartY, { align: 'right' });
+            }
           }
   
-          // Footer
           const pageHeight = docInstance.internal.pageSize.getHeight();
           docInstance.setFontSize(8);
           docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
@@ -560,7 +569,7 @@ export const useQuoter = () => {
             body: [[customerDetails, `Dirección: ${deliveryAddress}\nFecha Entrega: ${formattedDeliveryDate}`]],
             startY: 85,
             theme: 'plain',
-            styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
+            styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, font: 'Inter', fontStyle: 'normal' },
             headStyles: { fontStyle: 'bold' }
           });
       
@@ -568,11 +577,12 @@ export const useQuoter = () => {
             head: [tableColumn],
             body: tableRows,
             theme: 'striped',
-            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'left' },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'left', font: 'Inter' },
+            styles: { font: 'Inter' },
             columnStyles: {
                 0: { cellWidth: 20 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 15, halign: 'right' },
                 3: { cellWidth: 15 }, 4: { cellWidth: 22 }, 5: { cellWidth: 28, halign: 'right' },
-                6: { cellWidth: 15, halign: 'center' }, 7: { cellWidth: 25, halign: 'right' },
+                6: { cellWidth: 15, halign: 'center' }, 7: { cellWidth: 28, halign: 'right' },
             },
             margin: { top: 80, bottom: 30 },
             didDrawPage: (data) => addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages()),
@@ -600,7 +610,7 @@ export const useQuoter = () => {
           doc.text(`Impuestos: ${formatCurrencyForPdf(currentTotals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
           bottomContentY += 8;
           doc.setFontSize(12);
-          doc.setFont('Helvetica', 'bold');
+          doc.setFont('Inter', 'bold');
           doc.text(`Total: ${formatCurrencyForPdf(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
       
           let leftBottomY = finalY > doc.internal.pageSize.getHeight() - 70 ? 20 : finalY + 10;
@@ -610,16 +620,16 @@ export const useQuoter = () => {
       
           const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
           doc.setFontSize(10);
-          doc.setFont('Helvetica', 'bold');
+          doc.setFont('Inter', 'bold');
           doc.text('Condiciones de Pago:', margin, leftBottomY);
-          doc.setFont('Helvetica', 'normal');
+          doc.setFont('Inter', 'normal');
           leftBottomY += 6;
           doc.text(paymentInfo, margin, leftBottomY);
           leftBottomY += 8;
-          doc.setFont('Helvetica', 'bold');
+          doc.setFont('Inter', 'bold');
           doc.text('Notas:', margin, leftBottomY);
           leftBottomY += 6;
-          doc.setFont('Helvetica', 'normal');
+          doc.setFont('Inter', 'normal');
           const splitNotes = doc.splitTextToSize(notes, 100);
           doc.text(splitNotes, margin, leftBottomY);
       

@@ -15,6 +15,8 @@ import { useDebounce } from 'use-debounce';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { interFont } from '@/modules/core/lib/inter-font';
+
 
 const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'> = {
     deliveryDate: new Date().toISOString().split('T')[0],
@@ -442,13 +444,17 @@ export const usePlanner = () => {
         
             const paperSize = state.plannerSettings.pdfPaperSize || 'letter';
             const doc = new jsPDF({ orientation: 'landscape', format: paperSize });
-            doc.setFont('Helvetica');
+
+            // Embed font
+            doc.addFileToVFS('Inter-Regular.ttf', interFont);
+            doc.addFont('Inter-Regular.ttf', 'Inter', 'normal');
+            doc.setFont('Inter');
 
             const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
                 const pageWidth = docInstance.internal.pageSize.getWidth();
                 const margin = 14;
-                let textStartX = margin;
         
+                let textStartX = margin;
                 if (logoDataUrl) {
                     try {
                         const logoHeight = 15;
@@ -462,9 +468,9 @@ export const usePlanner = () => {
                 }
         
                 docInstance.setFontSize(11);
-                docInstance.setFont('Helvetica', 'bold');
+                docInstance.setFont('Inter', 'bold');
                 docInstance.text(authCompanyData.name, textStartX, 22);
-                docInstance.setFont('Helvetica', 'normal');
+                docInstance.setFont('Inter', 'normal');
                 docInstance.setFontSize(9);
                 docInstance.text(authCompanyData.taxId, textStartX, 28);
         
@@ -473,16 +479,16 @@ export const usePlanner = () => {
                 
                 if (state.plannerSettings?.pdfTopLegend) {
                     doc.setFontSize(8);
-                    doc.setFont('Helvetica', 'italic');
+                    doc.setFont('Inter', 'italic');
                     doc.text(state.plannerSettings.pdfTopLegend, titleX, 12, { align: 'center' });
                 }
 
                 docInstance.setFontSize(18);
-                docInstance.setFont('Helvetica', 'bold');
+                docInstance.setFont('Inter', 'bold');
                 docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY, { align: 'center'});
                 
                 docInstance.setFontSize(10);
-                docInstance.setFont('Helvetica', 'normal');
+                docInstance.setFont('Inter', 'normal');
                 docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, titleY, { align: 'right' });
         
                 const pageHeight = docInstance.internal.pageSize.getHeight();
@@ -528,10 +534,11 @@ export const usePlanner = () => {
                 head: [tableHeaders],
                 body: tableRows,
                 startY: 50,
-                headStyles: { fillColor: [41, 128, 185] },
-                styles: { fontSize: tableFontSize, cellPadding: 2, font: 'Helvetica' },
+                headStyles: { fillColor: [41, 128, 185], font: 'Inter', fontStyle: 'bold' },
+                styles: { fontSize: tableFontSize, cellPadding: 2, font: 'Inter' },
                 columnStyles: selectedColumnIds.reduce((acc, id, index) => {
-                    if (allPossibleColumns[id as keyof typeof allPossibleColumns].halign === 'right') {
+                    const columnConfig = allPossibleColumns[id as keyof typeof allPossibleColumns];
+                    if (columnConfig && columnConfig.halign === 'right') {
                         acc[index] = { halign: 'right' };
                     }
                     return acc;
@@ -545,7 +552,11 @@ export const usePlanner = () => {
         handleExportSingleOrderPDF: async (order: ProductionOrder) => {
             if (!authCompanyData) return;
             const doc = new jsPDF();
-            doc.setFont('Helvetica');
+            
+            // Embed font
+            doc.addFileToVFS('Inter-Regular.ttf', interFont);
+            doc.addFont('Inter-Regular.ttf', 'Inter', 'normal');
+            doc.setFont('Inter');
         
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
@@ -554,7 +565,7 @@ export const usePlanner = () => {
             let logoDataUrl: string | null = null;
             if (authCompanyData.logoUrl) {
                 try {
-                    const img = new Image();
+                     const img = new Image();
                     img.crossOrigin = "Anonymous";
                     const imgPromise = new Promise((resolve, reject) => {
                         img.onload = () => resolve(img);
@@ -562,6 +573,8 @@ export const usePlanner = () => {
                     });
                     img.src = authCompanyData.logoUrl;
                     const loadedImg = await imgPromise as HTMLImageElement;
+                    const logoHeight = 15;
+                    const logoWidth = (loadedImg.naturalWidth / loadedImg.naturalHeight) * logoHeight;
                     const canvas = document.createElement('canvas');
                     canvas.width = loadedImg.naturalWidth;
                     canvas.height = loadedImg.naturalHeight;
@@ -585,9 +598,9 @@ export const usePlanner = () => {
             }
             
             doc.setFontSize(11);
-            doc.setFont('Helvetica', 'bold');
+            doc.setFont('Inter', 'bold');
             doc.text(authCompanyData.name, textStartX, y + 7);
-            doc.setFont('Helvetica', 'normal');
+            doc.setFont('Inter', 'normal');
             doc.setFontSize(9);
             doc.text(authCompanyData.taxId, textStartX, y + 13);
             
@@ -595,16 +608,16 @@ export const usePlanner = () => {
 
             if (state.plannerSettings?.pdfTopLegend) {
                 doc.setFontSize(8);
-                doc.setFont('Helvetica', 'italic');
+                doc.setFont('Inter', 'italic');
                 doc.text(state.plannerSettings.pdfTopLegend, pageWidth / 2, 12, { align: 'center' });
             }
     
             doc.setFontSize(18);
-            doc.setFont('Helvetica', 'bold');
+            doc.setFont('Inter', 'bold');
             doc.text('Orden de Producción', pageWidth / 2, y, { align: 'center' });
             y += 6;
             doc.setFontSize(12);
-            doc.setFont('Helvetica', 'normal');
+            doc.setFont('Inter', 'normal');
             doc.text(`${order.consecutive}`, pageWidth - margin, 22, { align: 'right' });
             doc.setFontSize(10);
             doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
@@ -631,7 +644,7 @@ export const usePlanner = () => {
                 startY: y,
                 body: details.map(d => [d.title, d.value]),
                 theme: 'plain',
-                styles: { cellPadding: 1, fontSize: 10, font: 'Helvetica' },
+                styles: { cellPadding: 1, fontSize: 10, font: 'Inter' },
                 columnStyles: {
                     0: { fontStyle: 'bold', cellWidth: 40 },
                     1: { cellWidth: 'auto' }
@@ -643,7 +656,7 @@ export const usePlanner = () => {
     
             if (y > 220) { doc.addPage(); y = 20; }
             doc.setFontSize(14);
-            doc.setFont('Helvetica', 'bold');
+            doc.setFont('Inter', 'bold');
             doc.text('Historial de Cambios', margin, y);
             y += 8;
     
@@ -660,8 +673,8 @@ export const usePlanner = () => {
                     head: [tableColumn],
                     body: tableRows,
                     startY: y,
-                    headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-                    styles: { font: 'Helvetica' }
+                    headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Inter', fontStyle: 'bold' },
+                    styles: { font: 'Inter' }
                 });
             } else {
                 doc.setFontSize(10);
