@@ -38,13 +38,13 @@ interface DocumentData {
 
 /**
  * Adds a consistent header to each page of the PDF document.
- * This version uses a 3-column layout to prevent overlapping.
+ * This version uses absolute positioning for pixel-perfect layout replication.
  * @param doc - The jsPDF instance.
  * @param data - The document data containing header information.
  */
 const addHeader = (doc: jsPDF, data: DocumentData) => {
     const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 39.68; // approx 14mm in points
+    const margin = 39.68; // ~14mm
     let startY = 22;
 
     // --- Column 1: Logo ---
@@ -61,7 +61,7 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
     }
 
     // --- Column 2: Company Info ---
-    const companyX = margin + 60; // Positioned right of the logo
+    const companyX = margin + (data.logoDataUrl ? 55 : 0);
     let companyY = startY;
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(11);
@@ -70,8 +70,6 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(9);
     doc.text(`Cédula: ${data.companyData.taxId}`, companyX, companyY);
-    companyY += 5;
-    doc.text(data.companyData.address, companyX, companyY);
     companyY += 5;
     doc.text(`Tel: ${data.companyData.phone}`, companyX, companyY);
     companyY += 5;
@@ -100,7 +98,7 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
 
     // Seller Info block (with space in between)
     if (data.sellerInfo) {
-        rightY += 6; // Extra space
+        rightY += 6; 
         doc.setFont('Helvetica', 'bold');
         doc.text("Vendedor:", rightColX, rightY, { align: 'right' });
         rightY += 6;
@@ -111,6 +109,7 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
         if (data.sellerInfo.email) { rightY += 5; doc.text(data.sellerInfo.email, rightColX, rightY, { align: 'right' }); }
     }
 };
+
 
 /**
  * Adds a consistent footer to each page of the PDF document.
@@ -143,21 +142,19 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     // Draw header and footer on first page manually before autoTable
     didDrawPage({ pageNumber: 1 });
     
-    if (data.blocks.length > 0) {
-        autoTable(doc, {
-            startY: finalY,
-            body: data.blocks.map(b => ([{ content: b.title, styles: { fontStyle: 'bold' } }, { content: b.content, styles: { fontStyle: 'normal' } }])),
-            theme: 'plain',
-            styles: { fontSize: 10, cellPadding: {top: 1, right: 0, bottom: 1, left: 0} },
-            didParseCell: (data) => {
-                if (data.column.index === 0) {
-                    data.cell.styles.minCellWidth = 70;
-                }
-            },
-            margin: { left: margin, right: margin }
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 10;
-    }
+    // Draw info blocks (Client, Delivery, etc.)
+    finalY = 85;
+    autoTable(doc, {
+        startY: finalY,
+        body: data.blocks.map(b => ([
+            { content: b.title, styles: { fontStyle: 'bold', cellWidth: 70 } },
+            { content: b.content, styles: { fontStyle: 'normal' } }
+        ])),
+        theme: 'plain',
+        styles: { fontSize: 10, cellPadding: {top: 1, right: 0, bottom: 1, left: 0} },
+        margin: { left: margin, right: margin }
+    });
+    finalY = (doc as any).lastAutoTable.finalY + 15;
     
     autoTable(doc, {
         head: [data.table.columns],

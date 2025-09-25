@@ -459,7 +459,7 @@ export const useQuoter = () => {
         }
     }
     
-    const tableRows: RowInput[] = lines.map(line => [
+    const tableRows: RowInput = lines.map(line => [
         line.product.id,
         line.product.description,
         line.quantity.toLocaleString('es-CR'),
