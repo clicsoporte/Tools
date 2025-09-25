@@ -343,7 +343,7 @@ export const useQuoter = () => {
   };
 
   const formatCurrency = (amount: number, places?: number) => {
-    const prefix = currency === "CRC" ? "CRC " : "$";
+    const prefix = currency === "CRC" ? "CRC " : "$ ";
     return `${prefix}${amount.toLocaleString("es-CR", {
       minimumFractionDigits: places ?? decimalPlaces,
       maximumFractionDigits: places ?? decimalPlaces,
@@ -456,17 +456,16 @@ export const useQuoter = () => {
               }
           } catch (e) {
               console.error("Error processing logo for PDF:", e);
-              toast({ title: "Advertencia", description: "No se pudo cargar el logo, se generará el PDF sin él.", variant: "default" });
           }
       }
-      
+  
       const doc = new jsPDF();
-      doc.setFont("Helvetica"); // Use a standard font that supports the colon symbol
+      doc.setFont("Helvetica");
       
       const currentQuoteNumber = quoteNumber;
   
       const formatCurrencyForPdf = (amount: number, places?: number) => {
-        const prefix = currency === "CRC" ? "CRC " : "$";
+        const prefix = currency === "CRC" ? "CRC " : "$ ";
         return `${prefix}${amount.toLocaleString("es-CR", {
             minimumFractionDigits: places ?? decimalPlaces,
             maximumFractionDigits: places ?? decimalPlaces,
@@ -476,71 +475,57 @@ export const useQuoter = () => {
       const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
           const pageWidth = docInstance.internal.pageSize.getWidth();
           const margin = 14;
-          
-          let y = 22;
-          
-          // --- Center Title ---
-          docInstance.setFontSize(18);
-          docInstance.setFont('Helvetica', 'bold');
-          docInstance.text("COTIZACIÓN", pageWidth / 2, y, { align: 'center' });
-          
-          // --- Left Column (Company Info) ---
-          y = 22;
-          let textStartX = margin;
+  
           if (logoDataUrl) {
             try {
-              const logoHeight = 15;
-              const originalWidth = (docInstance as any).getImageProperties(logoDataUrl).width;
-              const originalHeight = (docInstance as any).getImageProperties(logoDataUrl).height;
-              const logoAspectRatio = originalWidth / originalHeight;
-              const logoWidth = logoHeight * logoAspectRatio;
-              docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
-              textStartX = margin + logoWidth + 5; // Move text to the right of the logo
+                docInstance.addImage(logoDataUrl, 'PNG', margin, 15, 50, 15);
             } catch (e) { 
                 console.error("Error adding image to PDF page:", e);
-                textStartX = margin;
             }
           }
-
+          let companyInfoStartY = logoDataUrl ? 32 : 15;
           docInstance.setFontSize(11);
           docInstance.setFont('Helvetica', 'bold');
-          docInstance.text(companyData.name, textStartX, 22);
+          docInstance.text(companyData.name, margin, companyInfoStartY);
+          companyInfoStartY += 6;
           docInstance.setFont('Helvetica', 'normal');
           docInstance.setFontSize(9);
-          docInstance.text(`Cédula: ${companyData.taxId}`, textStartX, 28);
-          docInstance.text(`Tel: ${companyData.phone}`, textStartX, 33);
-          docInstance.text(`Email: ${companyData.email}`, textStartX, 38);
+          docInstance.text(`Cédula: ${companyData.taxId}`, margin, companyInfoStartY);
+          companyInfoStartY += 5;
+          docInstance.text(`Tel: ${companyData.phone}`, margin, companyInfoStartY);
+          companyInfoStartY += 5;
+          docInstance.text(`Email: ${companyData.email}`, margin, companyInfoStartY);
 
-
-          // --- Right Column (Quote Details) ---
-          y = 22;
+          docInstance.setFontSize(18);
+          docInstance.setFont('Helvetica', 'bold');
+          docInstance.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
+  
+          let rightY = 22;
           docInstance.setFont('Helvetica', 'normal');
           docInstance.setFontSize(12);
-          docInstance.text(`${currentQuoteNumber}`, pageWidth - margin, y, { align: 'right' });
-          y += 6;
+          docInstance.text(`${currentQuoteNumber}`, pageWidth - margin, rightY, { align: 'right' });
+          rightY += 6;
           docInstance.setFontSize(10);
-          docInstance.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, y, { align: 'right' });
-          y += 6;
-          docInstance.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, y, { align: 'right' });
-          if (purchaseOrderNumber) {
-              y += 6;
-              docInstance.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, y, { align: 'right' });
-          }
+          docInstance.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, rightY, { align: 'right' });
+          rightY += 6;
+          docInstance.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, rightY, { align: 'right' });
           
-          let sellerStartY = y + 8;
-          doc.setFont('Helvetica', 'bold');
-          doc.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
-          sellerStartY += 6;
-          doc.setFont('Helvetica', 'normal');
-          doc.text(sellerName, pageWidth - margin, sellerStartY, { align: 'right' });
-          if (currentUser && sellerType === 'user') {
-            if (currentUser.phone) {
-                sellerStartY += 6;
-                doc.text(`Tel: ${currentUser.phone}`, pageWidth - margin, sellerStartY, { align: 'right' });
-            }
+          if (purchaseOrderNumber) {
+              rightY += 6;
+              docInstance.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, rightY, { align: 'right' });
           }
 
-          // --- Footer ---
+          rightY += 8;
+          doc.setFont('Helvetica', 'bold');
+          doc.text("Vendedor:", pageWidth - margin, rightY, { align: 'right' });
+          rightY += 6;
+          doc.setFont('Helvetica', 'normal');
+          doc.text(sellerName, pageWidth - margin, rightY, { align: 'right' });
+          if (currentUser && sellerType === 'user' && currentUser.phone) {
+            rightY += 6;
+            doc.text(`Tel: ${currentUser.phone}`, pageWidth - margin, rightY, { align: 'right' });
+          }
+          
           const pageHeight = docInstance.internal.pageSize.getHeight();
           docInstance.setFontSize(8);
           docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });

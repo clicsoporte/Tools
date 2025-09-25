@@ -449,6 +449,12 @@ export const usePlanner = () => {
                 const pageWidth = docInstance.internal.pageSize.getWidth();
                 const margin = 14;
         
+                if (state.plannerSettings?.pdfTopLegend) {
+                    doc.setFontSize(8);
+                    doc.setFont('Helvetica', 'italic');
+                    doc.text(state.plannerSettings.pdfTopLegend, pageWidth / 2, 12, { align: 'center' });
+                }
+
                 let textStartX = margin;
                 if (logoDataUrl) {
                     try {
@@ -458,7 +464,6 @@ export const usePlanner = () => {
                         const logoAspectRatio = originalWidth / originalHeight;
                         const logoWidth = logoHeight * logoAspectRatio;
                         docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
-                        textStartX += logoWidth + 5;
                     } catch (e) { console.error("Error adding image to PDF page:", e); }
                 }
 
@@ -472,12 +477,6 @@ export const usePlanner = () => {
                 const titleX = pageWidth / 2;
                 const titleY = 22;
                 
-                if (state.plannerSettings?.pdfTopLegend) {
-                    doc.setFontSize(8);
-                    doc.setFont('Helvetica', 'italic');
-                    doc.text(state.plannerSettings.pdfTopLegend, titleX, 12, { align: 'center' });
-                }
-
                 docInstance.setFontSize(18);
                 docInstance.setFont('Helvetica', 'bold');
                 docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY, { align: 'center'});
@@ -549,10 +548,6 @@ export const usePlanner = () => {
             const doc = new jsPDF();
             doc.setFont('Helvetica');
         
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 14;
-            let y = 15;
-    
             let logoDataUrl: string | null = null;
             if (authCompanyData.logoUrl) {
                 try {
@@ -577,42 +572,51 @@ export const usePlanner = () => {
                 } catch(e) { console.error("Error adding logo to PDF:", e) }
             }
             
-            let textStartX = margin;
-            if (logoDataUrl) {
-                const logoHeight = 15;
-                const originalWidth = (doc as any).getImageProperties(logoDataUrl).width;
-                const originalHeight = (doc as any).getImageProperties(logoDataUrl).height;
-                const logoAspectRatio = originalWidth / originalHeight;
-                const logoWidth = logoHeight * logoAspectRatio;
-                doc.addImage(logoDataUrl, 'PNG', margin, y, logoWidth, logoHeight);
-                textStartX += logoWidth + 5;
-            }
+            const addHeaderAndFooter = (docInstance: jsPDF) => {
+                const pageWidth = docInstance.internal.pageSize.getWidth();
+                const margin = 14;
+                let textStartX = margin;
+                
+                if (logoDataUrl) {
+                    try {
+                        const logoHeight = 15;
+                        const originalWidth = (docInstance as any).getImageProperties(logoDataUrl).width;
+                        const originalHeight = (docInstance as any).getImageProperties(logoDataUrl).height;
+                        const logoAspectRatio = originalWidth / originalHeight;
+                        const logoWidth = logoHeight * logoAspectRatio;
+                        docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
+                    } catch (e) { console.error("Error adding image to PDF page:", e); }
+                }
+                
+                docInstance.setFontSize(11);
+                docInstance.setFont('Helvetica', 'bold');
+                docInstance.text(authCompanyData.name, textStartX, 22);
+                docInstance.setFont('Helvetica', 'normal');
+                docInstance.setFontSize(9);
+                docInstance.text(authCompanyData.taxId, textStartX, 28);
+        
+                const titleX = pageWidth / 2;
+                const titleY = 22;
+                
+                if (state.plannerSettings?.pdfTopLegend) {
+                    doc.setFontSize(8);
+                    doc.setFont('Helvetica', 'italic');
+                    doc.text(state.plannerSettings.pdfTopLegend, titleX, 12, { align: 'center' });
+                }
             
-            doc.setFontSize(11);
-            doc.setFont('Helvetica', 'bold');
-            doc.text(authCompanyData.name, textStartX, y + 7);
-            doc.setFont('Helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.text(authCompanyData.taxId, textStartX, y + 13);
-            
-            y = 22;
+                docInstance.setFontSize(18);
+                docInstance.setFont('Helvetica', 'bold');
+                docInstance.text('Orden de Producción', titleX, titleY, { align: 'center' });
+                docInstance.setFontSize(12);
+                docInstance.setFont('Helvetica', 'normal');
+                docInstance.text(`${order.consecutive}`, pageWidth - margin, 22, { align: 'right' });
+                docInstance.setFontSize(10);
+                docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
+            };
 
-            if (state.plannerSettings?.pdfTopLegend) {
-                doc.setFontSize(8);
-                doc.setFont('Helvetica', 'italic');
-                doc.text(state.plannerSettings.pdfTopLegend, pageWidth / 2, 12, { align: 'center' });
-            }
-    
-            doc.setFontSize(18);
-            doc.setFont('Helvetica', 'bold');
-            doc.text('Orden de Producción', pageWidth / 2, y, { align: 'center' });
-            y += 6;
-            doc.setFontSize(12);
-            doc.setFont('Helvetica', 'normal');
-            doc.text(`${order.consecutive}`, pageWidth - margin, 22, { align: 'right' });
-            doc.setFontSize(10);
-            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
-            y = 50;
+            addHeaderAndFooter(doc);
+
+            let y = 50;
             
             const machineName = state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
     
@@ -645,10 +649,10 @@ export const usePlanner = () => {
     
             y = (doc as any).lastAutoTable.finalY + 15;
     
-            if (y > 220) { doc.addPage(); y = 20; }
+            if (y > 220) { doc.addPage(); y = 20; addHeaderAndFooter(doc); }
             doc.setFontSize(14);
             doc.setFont('Helvetica', 'bold');
-            doc.text('Historial de Cambios', margin, y);
+            doc.text('Historial de Cambios', 14, y);
             y += 8;
     
             const orderHistory = await getOrderHistory(order.id);
@@ -669,7 +673,7 @@ export const usePlanner = () => {
                 });
             } else {
                 doc.setFontSize(10);
-                doc.text('No hay historial de cambios para esta orden.', margin, y);
+                doc.text('No hay historial de cambios para esta orden.', 14, y);
             }
     
             doc.save(`op_${order.consecutive}.pdf`);
@@ -750,6 +754,3 @@ export const usePlanner = () => {
         isAuthorized,
     };
 };
-
-
-    

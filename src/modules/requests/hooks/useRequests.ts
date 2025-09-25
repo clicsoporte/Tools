@@ -286,7 +286,7 @@ export const useRequests = () => {
 
     const handleExportPDF = async () => {
         if (!companyData || !requestSettings) return;
-
+    
         let logoDataUrl: string | null = null;
         if (companyData.logoUrl) {
             try {
@@ -314,12 +314,18 @@ export const useRequests = () => {
     
         const doc = new jsPDF({ orientation: 'landscape' });
         doc.setFont('Helvetica');
-
+    
         const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
             const pageWidth = docInstance.internal.pageSize.getWidth();
             const margin = 14;
-            let textStartX = margin;
     
+            if (requestSettings.pdfTopLegend) {
+                doc.setFontSize(8);
+                doc.setFont('Helvetica', 'italic');
+                doc.text(requestSettings.pdfTopLegend, pageWidth / 2, 12, { align: 'center' });
+            }
+
+            let textStartX = margin;
             if (logoDataUrl) {
                 try {
                     const logoHeight = 15;
@@ -328,7 +334,6 @@ export const useRequests = () => {
                     const logoAspectRatio = originalWidth / originalHeight;
                     const logoWidth = logoHeight * logoAspectRatio;
                     docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
-                    textStartX += logoWidth + 5;
                 } catch (e) { console.error("Error adding image to PDF page:", e); }
             }
     
@@ -341,13 +346,7 @@ export const useRequests = () => {
     
             const titleX = pageWidth / 2;
             const titleY = 22;
-            
-            if (requestSettings.pdfTopLegend) {
-                doc.setFontSize(8);
-                doc.setFont('Helvetica', 'italic');
-                doc.text(requestSettings.pdfTopLegend, titleX, 12, { align: 'center' });
-            }
-
+    
             docInstance.setFontSize(18);
             docInstance.setFont('Helvetica', 'bold');
             docInstance.text(`Lista de Solicitudes de Compra (${viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY, { align: 'center'});
@@ -370,7 +369,7 @@ export const useRequests = () => {
             format(parseISO(request.requiredDate), 'dd/MM/yy'),
             statusConfig[request.status]?.label || request.status
         ]);
-
+    
         autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
@@ -393,10 +392,6 @@ export const useRequests = () => {
         const doc = new jsPDF();
         doc.setFont('Helvetica');
 
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 14;
-        let y = 15;
-    
         let logoDataUrl: string | null = null;
         if (companyData.logoUrl) {
             try {
@@ -421,42 +416,51 @@ export const useRequests = () => {
             } catch(e) { console.error("Error adding logo to PDF:", e) }
         }
         
-        let textStartX = margin;
-        if (logoDataUrl) {
-            const logoHeight = 15;
-            const originalWidth = (doc as any).getImageProperties(logoDataUrl).width;
-            const originalHeight = (doc as any).getImageProperties(logoDataUrl).height;
-            const logoAspectRatio = originalWidth / originalHeight;
-            const logoWidth = logoHeight * logoAspectRatio;
-            doc.addImage(logoDataUrl, 'PNG', margin, y, logoWidth, logoHeight);
-            textStartX += logoWidth + 5;
-        }
-        
-        doc.setFontSize(11);
-        doc.setFont('Helvetica', 'bold');
-        doc.text(companyData.name, textStartX, y + 7);
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.text(companyData.taxId, textStartX, y + 13);
-        
-        y = 22;
-
-        if (requestSettings?.pdfTopLegend) {
-            doc.setFontSize(8);
-            doc.setFont('Helvetica', 'italic');
-            doc.text(requestSettings.pdfTopLegend, pageWidth / 2, 12, { align: 'center' });
-        }
+        const addHeaderAndFooter = (docInstance: jsPDF) => {
+            const pageWidth = docInstance.internal.pageSize.getWidth();
+            const margin = 14;
+            let textStartX = margin;
+            
+            if (logoDataUrl) {
+                try {
+                    const logoHeight = 15;
+                    const originalWidth = (docInstance as any).getImageProperties(logoDataUrl).width;
+                    const originalHeight = (docInstance as any).getImageProperties(logoDataUrl).height;
+                    const logoAspectRatio = originalWidth / originalHeight;
+                    const logoWidth = logoHeight * logoAspectRatio;
+                    docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
+                } catch (e) { console.error("Error adding image to PDF page:", e); }
+            }
+            
+            docInstance.setFontSize(11);
+            docInstance.setFont('Helvetica', 'bold');
+            docInstance.text(companyData.name, textStartX, 22);
+            docInstance.setFont('Helvetica', 'normal');
+            docInstance.setFontSize(9);
+            docInstance.text(companyData.taxId, textStartX, 28);
     
-        doc.setFontSize(18);
-        doc.setFont('Helvetica', 'bold');
-        doc.text('Solicitud de Compra', pageWidth / 2, y, { align: 'center' });
-        y += 6;
-        doc.setFontSize(12);
-        doc.setFont('Helvetica', 'normal');
-        doc.text(`${request.consecutive}`, pageWidth - margin, 22, { align: 'right' });
-        doc.setFontSize(10);
-        doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
-        y = 50;
+            const titleX = pageWidth / 2;
+            const titleY = 22;
+            
+            if (requestSettings?.pdfTopLegend) {
+                doc.setFontSize(8);
+                doc.setFont('Helvetica', 'italic');
+                doc.text(requestSettings.pdfTopLegend, titleX, 12, { align: 'center' });
+            }
+        
+            docInstance.setFontSize(18);
+            docInstance.setFont('Helvetica', 'bold');
+            docInstance.text('Solicitud de Compra', titleX, titleY, { align: 'center' });
+            docInstance.setFontSize(12);
+            docInstance.setFont('Helvetica', 'normal');
+            docInstance.text(`${request.consecutive}`, pageWidth - margin, 22, { align: 'right' });
+            docInstance.setFontSize(10);
+            docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
+        };
+    
+        addHeaderAndFooter(doc);
+
+        let y = 50;
         
         const details = [
             { title: 'Cliente:', value: request.clientName },
@@ -489,10 +493,10 @@ export const useRequests = () => {
     
         y = (doc as any).lastAutoTable.finalY + 15;
     
-        if (y > 220) { doc.addPage(); y = 20; }
+        if (y > 220) { doc.addPage(); y = 20; addHeaderAndFooter(doc); }
         doc.setFontSize(14);
         doc.setFont('Helvetica', 'bold');
-        doc.text('Historial de Cambios', margin, y);
+        doc.text('Historial de Cambios', 14, y);
         y += 8;
     
         const requestHistory = await getRequestHistory(request.id);
@@ -513,7 +517,7 @@ export const useRequests = () => {
             });
         } else {
             doc.setFontSize(10);
-            doc.text('No hay historial de cambios para esta solicitud.', margin, y);
+            doc.text('No hay historial de cambios para esta solicitud.', 14, y);
         }
     
         doc.save(`sc_${request.consecutive}.pdf`);
