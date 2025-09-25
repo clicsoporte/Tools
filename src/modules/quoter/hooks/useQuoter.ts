@@ -459,23 +459,15 @@ export const useQuoter = () => {
         }
     }
     
-    const formatCurrencyForPdf = (amount: number, places?: number) => {
-        const prefix = currency === "CRC" ? "CRC " : "$ ";
-        return `${prefix}${amount.toLocaleString("es-CR", {
-            minimumFractionDigits: places ?? decimalPlaces,
-            maximumFractionDigits: places ?? decimalPlaces,
-        })}`;
-    };
-
     const tableRows: RowInput[] = lines.map(line => [
         line.product.id,
         line.product.description,
         line.quantity.toLocaleString('es-CR'),
         line.product.unit,
         line.product.cabys,
-        formatCurrency(line.price, decimalPlaces),
+        formatCurrency(line.price),
         `${(line.tax * 100).toFixed(0)}%`,
-        formatCurrency(line.quantity * line.price * (1 + line.tax), decimalPlaces),
+        formatCurrency(line.quantity * line.price * (1 + line.tax)),
     ]);
     
     const doc = generateDocument({
@@ -503,11 +495,11 @@ export const useQuoter = () => {
             rows: tableRows,
             columnStyles: {
                 0: { cellWidth: 50 },
-                1: { cellWidth: 'wrap' },
+                1: { cellWidth: 'auto' },
                 2: { cellWidth: 40, halign: 'right' },
-                3: { cellWidth: 40 },
-                4: { cellWidth: 60 },
-                5: { cellWidth: 70, halign: 'right' },
+                3: { cellWidth: 35 },
+                4: { cellWidth: 65 },
+                5: { cellWidth: 65, halign: 'right' },
                 6: { cellWidth: 30, halign: 'center' },
                 7: { cellWidth: 70, halign: 'right' },
             }
@@ -515,9 +507,9 @@ export const useQuoter = () => {
         notes: notes,
         paymentInfo: paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado',
         totals: [
-            { label: 'Subtotal', value: formatCurrency(totals.subtotal, decimalPlaces) },
-            { label: 'Impuestos', value: formatCurrency(totals.totalTaxes, decimalPlaces) },
-            { label: `Total ${currency}`, value: formatCurrency(totals.total, decimalPlaces) },
+            { label: 'Subtotal', value: formatCurrency(totals.subtotal) },
+            { label: 'Impuestos', value: formatCurrency(totals.totalTaxes) },
+            { label: `Total ${currency}`, value: formatCurrency(totals.total) },
         ]
     });
     

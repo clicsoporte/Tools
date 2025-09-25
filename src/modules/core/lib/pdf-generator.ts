@@ -51,8 +51,8 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
         try {
             const imgProps = doc.getImageProperties(data.logoDataUrl);
             const aspectRatio = imgProps.width / imgProps.height;
-            const imgHeight = 42; // Increased logo size
-            const imgWidth = imgHeight * aspectRatio;
+            const imgHeight = 42; 
+            const imgWidth = Math.min(imgHeight * aspectRatio, 80); // Limit max logo width
             doc.addImage(data.logoDataUrl, 'PNG', margin, 15, imgWidth, imgHeight);
             textStartX = margin + imgWidth + 10;
         } catch (e) {
@@ -87,7 +87,7 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
     });
 
     if (data.sellerInfo) {
-        rightY = 48; // Align with bottom of company info
+        rightY += 10; // Extra space
         doc.setFont('Helvetica', 'bold');
         doc.text("Vendedor:", pageWidth - margin, rightY, { align: 'right' });
         rightY += 6;
@@ -130,16 +130,15 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     if (data.blocks.length > 0) {
         autoTable(doc, {
             startY: finalY,
-            head: [data.blocks.map(b => b.title)],
-            body: [data.blocks.map(b => b.content)],
+            body: data.blocks.map(b => [{ content: b.content, styles: { fontStyle: 'normal' } }]),
+            columnStyles: { 0: { fontStyle: 'bold' } },
             theme: 'plain',
-            styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
-            headStyles: { fontStyle: 'bold' },
+            styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0} },
+            head: [data.blocks.map(b => b.title)],
             didDrawPage: (hookData) => { if (hookData.pageNumber === 1) didDrawPage(hookData); }
         });
         finalY = (doc as any).lastAutoTable.finalY + 10;
     } else {
-        // If there are no blocks, we need to draw the header for the first page manually before the main table.
         didDrawPage({ pageNumber: 1 });
     }
     
