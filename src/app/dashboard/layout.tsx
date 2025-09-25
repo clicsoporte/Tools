@@ -40,6 +40,26 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// This script safely suppresses a common, benign error caused by browser extensions or complex layouts.
+const SuppressResizeObserverError = () => {
+    useEffect(() => {
+        const handleError = (event: ErrorEvent) => {
+            if (event.message === 'ResizeObserver loop completed with undelivered notifications.') {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        };
+
+        window.addEventListener('error', handleError);
+
+        return () => {
+            window.removeEventListener('error', handleError);
+        };
+    }, []);
+
+    return null;
+}
+
 
 /**
  * Inner component that consumes the PageTitleContext to display the current page title
@@ -52,6 +72,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const { title } = usePageTitle();
   return (
     <>
+      <SuppressResizeObserverError />
       <Header title={title} />
       {children}
     </>
