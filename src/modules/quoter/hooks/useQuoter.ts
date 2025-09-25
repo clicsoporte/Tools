@@ -476,6 +476,7 @@ export const useQuoter = () => {
         companyData,
         logoDataUrl,
         meta: [
+            { label: 'Nº', value: quoteNumber },
             { label: 'Fecha', value: format(parseISO(quoteDate), "dd/MM/yyyy") },
             { label: 'Válida hasta', value: format(parseISO(validUntilDate), "dd/MM/yyyy") },
             ...(purchaseOrderNumber ? [{ label: 'Nº OC', value: purchaseOrderNumber }] : [])

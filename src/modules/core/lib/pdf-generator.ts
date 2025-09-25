@@ -6,7 +6,7 @@
 'use client';
 
 import jsPDF from "jspdf";
-import autoTable, { type RowInput, type CellInput } from "jspdf-autotable";
+import autoTable, { type RowInput } from "jspdf-autotable";
 import { format } from 'date-fns';
 import type { Company } from '../types';
 
@@ -28,7 +28,7 @@ interface DocumentData {
     }[];
     table: {
         columns: any[];
-        rows: RowInput[];
+        rows: RowInput;
         columnStyles: { [key: string]: any };
     };
     notes?: string;
@@ -44,10 +44,9 @@ interface DocumentData {
  */
 const addHeader = (doc: jsPDF, data: DocumentData) => {
     const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 39.68; // ~14mm
+    const margin = 39.68;
     let startY = 22;
 
-    // --- Column 1: Logo ---
     if (data.logoDataUrl) {
         try {
             const imgProps = doc.getImageProperties(data.logoDataUrl);
@@ -60,9 +59,8 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
         }
     }
 
-    // --- Column 2: Company Info ---
-    const companyX = margin + (data.logoDataUrl ? 55 : 0);
-    let companyY = startY;
+    const companyX = margin;
+    let companyY = 55;
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(11);
     doc.text(data.companyData.name, companyX, companyY);
@@ -75,30 +73,26 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
     companyY += 5;
     doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
 
-    // --- Column 3: Quote & Seller Info ---
     const rightColX = pageWidth - margin;
-    let rightY = startY;
-
-    // Quote Info block
+    let rightY = 22;
     doc.setFontSize(18);
     doc.setFont('Helvetica', 'bold');
     doc.text(data.docTitle, rightColX, rightY, { align: 'right' });
-
     rightY += 8;
+
     doc.setFontSize(10);
-    doc.setFont('Helvetica', 'bold');
-    doc.text(`${data.docId}`, rightColX, rightY, { align: 'right' });
-    
-    rightY += 6;
     doc.setFont('Helvetica', 'normal');
     data.meta.forEach(item => {
-        doc.text(`${item.label}: ${item.value}`, rightColX, rightY, { align: 'right' });
+        const labelWidth = doc.getStringUnitWidth(item.label + ":") * doc.getFontSize();
+        doc.setFont('Helvetica', 'bold');
+        doc.text(item.label + ":", rightColX - 35, rightY, { align: 'left' });
+        doc.setFont('Helvetica', 'normal');
+        doc.text(item.value, rightColX, rightY, { align: 'right' });
         rightY += 5;
     });
 
-    // Seller Info block (with space in between)
     if (data.sellerInfo) {
-        rightY += 6; 
+        rightY += 6;
         doc.setFont('Helvetica', 'bold');
         doc.text("Vendedor:", rightColX, rightY, { align: 'right' });
         rightY += 6;
@@ -110,13 +104,6 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
     }
 };
 
-
-/**
- * Adds a consistent footer to each page of the PDF document.
- * @param doc - The jsPDF instance.
- * @param pageNumber - The current page number.
- * @param totalPages - The total number of pages.
- */
 const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -124,11 +111,6 @@ const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
     doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
 };
 
-/**
- * Generates a complete PDF document from structured data.
- * @param data - The structured data for the document.
- * @returns A jsPDF instance representing the final document.
- */
 export const generateDocument = (data: DocumentData): jsPDF => {
     const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: 'p', unit: 'pt', format: 'letter' });
     const margin = 39.68; 
@@ -139,11 +121,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         addFooter(doc, hookData.pageNumber, (doc.internal as any).getNumberOfPages());
     };
     
-    // Draw header and footer on first page manually before autoTable
     didDrawPage({ pageNumber: 1 });
     
-    // Draw info blocks (Client, Delivery, etc.)
-    finalY = 85;
     autoTable(doc, {
         startY: finalY,
         body: data.blocks.map(b => ([
@@ -170,7 +149,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     
     finalY = (doc as any).lastAutoTable?.finalY || finalY;
     
-    if (finalY > doc.internal.pageSize.getHeight() - 120) {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    if (finalY > pageHeight - 120) {
         doc.addPage();
         finalY = 40;
     } else {
@@ -184,22 +164,21 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     let leftY = finalY;
     let rightY = finalY;
 
-    // --- Right Column: Totals ---
     const totalsX = pageWidth - margin;
     doc.setFontSize(10);
     data.totals.forEach((total, index) => {
         const isLast = index === data.totals.length - 1;
         if(isLast) {
-             rightY += 4; // More space for the total line
+             rightY += 4;
         }
         doc.setFontSize(isLast ? 12 : 10);
         doc.setFont('Helvetica', isLast ? 'bold' : 'normal');
+        const labelWidth = doc.getStringUnitWidth(total.label + ":") * doc.getFontSize() / doc.internal.scaleFactor;
         doc.text(`${total.label}:`, totalsX - 85, rightY, { align: 'right' });
         doc.text(total.value, totalsX, rightY, { align: 'right' });
         rightY += isLast ? 18 : 14;
     });
 
-    // --- Left Column: Payment & Notes ---
     doc.setFontSize(10);
     if (data.paymentInfo) {
         doc.setFont('Helvetica', 'bold');
@@ -218,7 +197,6 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.text(splitNotes, margin, leftY);
     }
     
-    // Ensure footer is on the last page if content was added
     addFooter(doc, totalPages, totalPages);
 
     return doc;
