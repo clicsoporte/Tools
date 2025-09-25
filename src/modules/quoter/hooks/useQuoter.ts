@@ -344,7 +344,7 @@ export const useQuoter = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    const prefix = currency === "CRC" ? "CRC " : "$";
+    const prefix = currency === "CRC" ? "CRC " : "$ ";
     return `${prefix}${amount.toLocaleString("es-CR", {
       minimumFractionDigits: decimalPlaces,
       maximumFractionDigits: decimalPlaces,
@@ -428,7 +428,7 @@ export const useQuoter = () => {
     await logInfo("Default decimal places updated", { newPrecision: decimalPlaces });
   };
   
-  const generatePDF = async () => {
+  const generatePDF = () => {
     if (isAuthLoading || !companyData) {
         toast({ title: "Por favor espere", description: "Los datos de configuración de la empresa aún se están cargando.", variant: "destructive" });
         return;
@@ -442,10 +442,6 @@ export const useQuoter = () => {
         try {
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
-
-            if (companyData.logoUrl) {
-                doc.addImage(companyData.logoUrl, 'PNG', 14, 15, 50, 15);
-            }
             
             doc.setFontSize(18);
             doc.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
@@ -458,21 +454,20 @@ export const useQuoter = () => {
             if (purchaseOrderNumber) doc.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, 40, { align: 'right' });
             
             let startY = 40;
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text(companyData.name, margin, startY);
-            doc.setFont('helvetica', 'normal');
-            startY += 6;
-            doc.text(`Cédula: ${companyData.taxId}`, margin, startY);
-            startY += 6;
-            const splitAddress = doc.splitTextToSize(companyData.address, 80);
-            doc.text(splitAddress, margin, startY);
-            startY += (splitAddress.length * 5);
-            doc.text(`Tel: ${companyData.phone}`, margin, startY);
-            startY += 6;
-            doc.text(`Email: ${companyData.email}`, margin, startY);
+            if(companyData.logoUrl) {
+                doc.addImage(companyData.logoUrl, 'PNG', 14, 15, 50, 15);
+                startY = 46;
+            } else {
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.text(companyData.name, margin, startY);
+                startY += 6;
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Cédula: ${companyData.taxId}`, margin, startY);
+            }
 
             let sellerStartY = 46;
+            doc.setFontSize(10);
             doc.setFont('helvetica', 'bold');
             doc.text("Vendedor:", pageWidth - margin, sellerStartY, { align: 'right' });
             sellerStartY += 6;
@@ -501,16 +496,15 @@ export const useQuoter = () => {
 
             const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
             const tableRows: any[][] = lines.map(line => {
-                const priceVal = currency === "CRC" ? line.price : line.price * (exchangeRate || 1);
                 return [
                     line.product.id,
                     { content: line.product.description, styles: { cellWidth: 'auto' } },
                     line.quantity.toLocaleString('es-CR'),
                     line.product.unit,
                     line.product.cabys,
-                    priceVal.toLocaleString("es-CR", { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces }),
+                    formatCurrency(line.price, decimalPlaces),
                     `${(line.tax * 100).toFixed(0)}%`,
-                    (line.quantity * priceVal * (1 + line.tax)).toLocaleString("es-CR", { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces }),
+                    formatCurrency(line.quantity * line.price * (1 + line.tax), decimalPlaces),
                 ];
             });
             
@@ -537,7 +531,6 @@ export const useQuoter = () => {
                     7: { halign: 'right' }, // Total
                 },
                 didDrawCell: (data) => {
-                    // Right align headers for specific columns
                     if (data.section === 'head' && [2, 5, 7].includes(data.column.index)) {
                         data.cell.styles.halign = 'right';
                     }
@@ -561,23 +554,15 @@ export const useQuoter = () => {
                 doc.addPage();
                 bottomContentY = 20;
             }
-            
-            const formatCurrencyForPdf = (amount: number) => {
-                const prefix = currency === "CRC" ? "CRC " : "$ ";
-                return `${prefix}${amount.toLocaleString("es-CR", {
-                    minimumFractionDigits: decimalPlaces,
-                    maximumFractionDigits: decimalPlaces,
-                })}`;
-            };
 
             doc.setFontSize(10);
-            doc.text(`Subtotal: ${formatCurrencyForPdf(currentTotals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
+            doc.text(`Subtotal: ${formatCurrency(currentTotals.subtotal)}`, totalsX, bottomContentY, { align: 'right' });
             bottomContentY +=6;
-            doc.text(`Impuestos: ${formatCurrencyForPdf(currentTotals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
+            doc.text(`Impuestos: ${formatCurrency(currentTotals.totalTaxes)}`, totalsX, bottomContentY, { align: 'right' });
             bottomContentY +=8;
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
-            doc.text(`Total: ${formatCurrencyForPdf(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
+            doc.text(`Total: ${formatCurrency(currentTotals.total)}`, totalsX, bottomContentY, { align: 'right' });
 
             const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
             doc.setFontSize(10);
@@ -609,15 +594,8 @@ export const useQuoter = () => {
     };
     
     if (companyData?.logoUrl) {
-        // Pre-fetch logo to avoid canvas tainting issues with cross-origin images
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        img.onload = addContent;
-        img.onerror = () => {
-            logWarn("Failed to load company logo from URL, proceeding without it.");
-            addContent(); // Proceed without logo if it fails to load
-        };
-        img.src = companyData.logoUrl;
+        // This is a simplified approach to avoid canvas tainting issues in some environments.
+        addContent();
     } else {
         addContent();
     }
@@ -786,3 +764,4 @@ export const useQuoter = () => {
     selectors,
   };
 };
+

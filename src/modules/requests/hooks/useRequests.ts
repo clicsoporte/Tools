@@ -290,19 +290,27 @@ export const useRequests = () => {
         const pageWidth = doc.internal.pageSize.getWidth();
         const margin = 14;
     
-        if (companyData.logoUrl) {
-            try {
-                doc.addImage(companyData.logoUrl, 'PNG', margin, 15, 50, 15);
-            } catch(e) { console.error("Error adding logo to PDF:", e) }
-        }
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Lista de Solicitudes (${viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, 22, { align: 'center' });
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
-        doc.text(companyData.name, margin, 22);
-        doc.text(companyData.taxId, margin, 28);
+        const addHeader = (docInstance: jsPDF) => {
+            if (companyData.logoUrl) {
+                try {
+                    docInstance.addImage(companyData.logoUrl, 'PNG', margin, 15, 50, 15);
+                } catch(e) { console.error("Error adding logo to PDF:", e); }
+            }
+            docInstance.setFontSize(18);
+            docInstance.setFont('helvetica', 'bold');
+            docInstance.text(`Lista de Solicitudes de Compra (${viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, 22, { align: 'center' });
+            
+            docInstance.setFontSize(10);
+            docInstance.setFont('helvetica', 'normal');
+            
+            let startY = 35;
+            docInstance.text(companyData.name, margin, startY);
+            startY += 5;
+            docInstance.text(companyData.taxId, margin, startY);
+
+            docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 35, { align: 'right' });
+        };
+        
 
         const tableColumn = ["Solicitud", "Artículo", "Cliente", "Cant.", "Fecha Req.", "Estado"];
         const tableRows: (string | number)[][] = selectors.filteredRequests.map(request => [
@@ -317,8 +325,11 @@ export const useRequests = () => {
         autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
-            startY: 40,
+            startY: 50,
             headStyles: { fillColor: [41, 128, 185], halign: 'left' },
+            didDrawPage: (data) => {
+                addHeader(doc);
+            },
             didDrawCell: (data) => {
                 if (data.section === 'head' && [3].includes(data.column.index)) {
                     (data.cell.styles as any).halign = 'right';
@@ -337,7 +348,7 @@ export const useRequests = () => {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const margin = 14;
-        let y = 40;
+        let y = 35;
     
         if (companyData.logoUrl) {
             try {
@@ -351,11 +362,8 @@ export const useRequests = () => {
         doc.setFontSize(12);
         doc.setFont('helvetica', 'normal');
         doc.text(`${request.consecutive}`, pageWidth - margin, 22, { align: 'right' });
-        y += 8;
         doc.setFontSize(10);
         doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
-        doc.text(companyData.name, margin, 22);
-        doc.text(companyData.taxId, margin, 28);
         y += 15;
         
         const details = [
@@ -484,3 +492,4 @@ export const useRequests = () => {
         isAuthorized
     };
 };
+

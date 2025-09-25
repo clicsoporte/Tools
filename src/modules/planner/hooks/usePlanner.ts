@@ -418,20 +418,27 @@ export const usePlanner = () => {
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
-        
-            if (authCompanyData.logoUrl) {
-                try {
-                    doc.addImage(authCompanyData.logoUrl, 'PNG', margin, 15, 50, 15);
-                } catch(e) { console.error("Error adding logo to PDF:", e) }
-            }
-            doc.setFontSize(18);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, 22, { align: 'center' });
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
-            doc.text(authCompanyData.name, margin, 22);
-            doc.text(authCompanyData.taxId, margin, 28);
+
+            const addHeader = (docInstance: jsPDF) => {
+                if (authCompanyData.logoUrl) {
+                    try {
+                        docInstance.addImage(authCompanyData.logoUrl, 'PNG', margin, 15, 50, 15);
+                    } catch(e) { console.error("Error adding logo to PDF:", e); }
+                }
+                docInstance.setFontSize(18);
+                docInstance.setFont('helvetica', 'bold');
+                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, 22, { align: 'center' });
+                
+                docInstance.setFontSize(10);
+                docInstance.setFont('helvetica', 'normal');
+                
+                let startY = 35;
+                docInstance.text(authCompanyData.name, margin, startY);
+                startY += 5;
+                docInstance.text(authCompanyData.taxId, margin, startY);
+                
+                docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 35, { align: 'right' });
+            };
     
             const tableColumn = ["OP", "Código", "Cliente", "Producto", "Cant.", "Entrega", "Estado"];
             const tableRows: (string | number)[][] = selectors.filteredOrders.map(order => [
@@ -447,8 +454,11 @@ export const usePlanner = () => {
             autoTable(doc, {
                 head: [tableColumn],
                 body: tableRows,
-                startY: 40,
+                startY: 50,
                 headStyles: { fillColor: [41, 128, 185], halign: 'left' },
+                didDrawPage: (data) => {
+                    addHeader(doc);
+                },
                 didDrawCell: (data) => {
                     if (data.section === 'head' && [4].includes(data.column.index)) {
                         data.cell.styles.halign = 'right';
@@ -467,7 +477,7 @@ export const usePlanner = () => {
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
-            let y = 40;
+            let y = 35;
         
             if (authCompanyData.logoUrl) {
                 try {
@@ -481,11 +491,8 @@ export const usePlanner = () => {
             doc.setFontSize(12);
             doc.setFont('helvetica', 'normal');
             doc.text(`${order.consecutive}`, pageWidth - margin, 22, { align: 'right' });
-            y += 8;
             doc.setFontSize(10);
             doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
-            doc.text(authCompanyData.name, margin, 22);
-            doc.text(authCompanyData.taxId, margin, 28);
             y += 15;
             
             const machineName = state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
