@@ -415,20 +415,22 @@ export const usePlanner = () => {
 
         handleExportPDF: () => {
             if (!authCompanyData) return;
-            const doc = new jsPDF();
+            const doc = new jsPDF({ orientation: 'landscape' });
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
         
             const addHeader = (docInstance: jsPDF) => {
                 let y = 22;
-
+        
                 if (authCompanyData.logoUrl) {
                     try {
                         docInstance.addImage(authCompanyData.logoUrl, 'PNG', margin, 15, 50, 15);
                     } catch (e) {
                         console.error("Error adding logo to PDF:", e);
                     }
-                } else {
+                }
+                
+                if (!authCompanyData.logoUrl) {
                     docInstance.setFontSize(11);
                     docInstance.setFont('helvetica', 'bold');
                     docInstance.text(authCompanyData.name, margin, y);
@@ -437,27 +439,32 @@ export const usePlanner = () => {
                     docInstance.text(authCompanyData.taxId, margin, y);
                 }
         
-                y = 35; 
+                y = 22; // Reset Y for titles
                 docInstance.setFontSize(18);
                 docInstance.setFont('helvetica', 'bold');
                 docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, pageWidth / 2, y, { align: 'center' });
         
-                y += 8;
+                y += 13;
                 docInstance.setFontSize(10);
                 docInstance.setFont('helvetica', 'normal');
                 docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, y, { align: 'right' });
             };
     
-            const tableColumn = ["OP", "Código", "Cliente", "Producto", "Cant.", "Entrega", "Estado"];
-            const tableRows: (string | number)[][] = selectors.filteredOrders.map(order => [
-                order.consecutive,
-                order.productId,
-                order.customerName,
-                order.productDescription,
-                order.quantity,
-                format(parseISO(order.deliveryDate), 'dd/MM/yy'),
-                selectors.statusConfig[order.status]?.label || order.status
-            ]);
+            const tableColumn = ["OP", "Código", "Cliente", "Producto", "Cant.", "Entrega", "Estado", "Asignación", "Prioridad"];
+            const tableRows: (string | number)[][] = selectors.filteredOrders.map(order => {
+                const machineName = state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
+                return [
+                    order.consecutive,
+                    order.productId,
+                    order.customerName,
+                    order.productDescription,
+                    order.quantity,
+                    format(parseISO(order.deliveryDate), 'dd/MM/yy'),
+                    selectors.statusConfig[order.status]?.label || order.status,
+                    machineName,
+                    selectors.priorityConfig[order.priority]?.label || order.priority
+                ];
+            });
     
             autoTable(doc, {
                 head: [tableColumn],
@@ -467,13 +474,16 @@ export const usePlanner = () => {
                 didDrawPage: (data) => {
                     addHeader(doc);
                 },
-                didDrawCell: (data) => {
-                    if (data.section === 'head' && [4].includes(data.column.index)) {
-                        (data.cell.styles as any).halign = 'right';
-                    }
-                },
-                columnStyles: {
-                    4: { halign: 'right' }
+                 columnStyles: {
+                    0: { cellWidth: 20 },
+                    1: { cellWidth: 20 },
+                    2: { cellWidth: 'auto' },
+                    3: { cellWidth: 'auto' },
+                    4: { halign: 'right', cellWidth: 15 },
+                    5: { cellWidth: 20 },
+                    6: { cellWidth: 25 },
+                    7: { cellWidth: 30 },
+                    8: { cellWidth: 20 },
                 },
             });
     
@@ -642,3 +652,4 @@ export const usePlanner = () => {
 
 
     
+
