@@ -415,10 +415,7 @@ export const usePlanner = () => {
 
         handleExportPDF: async () => {
             if (!authCompanyData || !state.plannerSettings) return;
-            
-            const paperSize = state.plannerSettings.pdfPaperSize || 'letter';
-            const doc = new jsPDF({ orientation: 'landscape', format: paperSize });
-
+        
             let logoDataUrl: string | null = null;
             if (authCompanyData.logoUrl) {
                 try {
@@ -426,10 +423,10 @@ export const usePlanner = () => {
                     img.crossOrigin = "Anonymous";
                     const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
                         img.onload = () => resolve(img);
-                        img.onerror = reject;
+                        img.onerror = (e) => reject(e);
                     });
                     img.src = authCompanyData.logoUrl;
-
+        
                     const loadedImg = await imgPromise;
                     const canvas = document.createElement('canvas');
                     canvas.width = loadedImg.naturalWidth;
@@ -441,8 +438,12 @@ export const usePlanner = () => {
                     }
                 } catch (e) {
                     console.error("Error processing logo for PDF:", e);
+                    toast({ title: "Advertencia", description: "No se pudo cargar el logo, se generará el PDF sin él.", variant: "default" });
                 }
             }
+        
+            const paperSize = state.plannerSettings.pdfPaperSize || 'letter';
+            const doc = new jsPDF({ orientation: 'landscape', format: paperSize });
         
             const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
                 const pageWidth = docInstance.internal.pageSize.getWidth();
@@ -451,35 +452,34 @@ export const usePlanner = () => {
         
                 if (logoDataUrl) {
                     try {
-                        const img = new Image();
-                        img.src = logoDataUrl;
                         const logoHeight = 15;
-                        const logoAspectRatio = img.width / img.height;
+                        const originalWidth = (docInstance as any).getImageProperties(logoDataUrl).width;
+                        const originalHeight = (docInstance as any).getImageProperties(logoDataUrl).height;
+                        const logoAspectRatio = originalWidth / originalHeight;
                         const logoWidth = logoHeight * logoAspectRatio;
                         docInstance.addImage(logoDataUrl, 'PNG', margin, y, logoWidth, logoHeight);
-                        y += logoHeight;
+                        y += logoHeight + 2; 
                     } catch (e) {
                         console.error("Error adding image to PDF:", e);
                     }
                 } else {
-                     docInstance.setFontSize(11);
+                    docInstance.setFontSize(11);
                     docInstance.setFont('helvetica', 'bold');
                     docInstance.text(authCompanyData.name, margin, y + 7);
                     docInstance.setFont('helvetica', 'normal');
                     y += 6;
                     docInstance.text(authCompanyData.taxId, margin, y + 7);
-                    y += 6;
+                    y += 10;
                 }
-
-                const titleX = logoDataUrl ? margin : pageWidth / 2;
-                const titleAlign = logoDataUrl ? 'left' : 'center';
-                const titleY = logoDataUrl ? 22 : y + 10;
+        
+                const titleX = margin;
+                const titleY = y;
                 
                 docInstance.setFontSize(18);
                 docInstance.setFont('helvetica', 'bold');
-                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY, { align: titleAlign });
+                docInstance.text(`Lista de Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY);
                 
-                const dateY = logoDataUrl ? 35 : y + 15;
+                const dateY = titleY;
                 docInstance.setFontSize(10);
                 docInstance.setFont('helvetica', 'normal');
                 docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, dateY, { align: 'right' });
@@ -488,12 +488,12 @@ export const usePlanner = () => {
                 docInstance.setFontSize(8);
                 docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
             };
-
+        
             const selectedColumns = state.plannerSettings.pdfExportColumns || [];
             const allPossibleColumns = [
                 { id: 'consecutive', header: 'OP', data: (o: ProductionOrder) => o.consecutive },
-                { id: 'customerName', header: 'Cliente', data: (o: ProductionOrder) => o.customerName },
                 { id: 'productDescription', header: 'Producto', data: (o: ProductionOrder) => `[${o.productId}] ${o.productDescription}` },
+                { id: 'customerName', header: 'Cliente', data: (o: ProductionOrder) => o.customerName },
                 { id: 'quantity', header: 'Cant.', data: (o: ProductionOrder) => o.quantity },
                 { id: 'deliveryDate', header: 'Entrega', data: (o: ProductionOrder) => format(parseISO(o.deliveryDate), 'dd/MM/yy') },
                 { id: 'scheduledDate', header: 'Fecha Prog.', data: (o: ProductionOrder) => (o.scheduledStartDate && o.scheduledEndDate) ? `${format(parseISO(o.scheduledStartDate), 'dd/MM/yy')} - ${format(parseISO(o.scheduledEndDate), 'dd/MM/yy')}` : 'N/A' },
@@ -501,11 +501,14 @@ export const usePlanner = () => {
                 { id: 'machineId', header: 'Asignación', data: (o: ProductionOrder) => state.plannerSettings?.machines.find(m => m.id === o.machineId)?.name || 'N/A' },
                 { id: 'priority', header: 'Prioridad', data: (o: ProductionOrder) => selectors.priorityConfig[o.priority]?.label || o.priority }
             ];
-
+        
             const tableColumns = allPossibleColumns.filter(c => selectedColumns.includes(c.id));
             const tableHeaders = tableColumns.map(c => c.header);
             const tableRows = selectors.filteredOrders.map(order => tableColumns.map(c => c.data(order)));
         
+            // Reduce font size if there are too many columns to avoid overflow
+            const tableFontSize = tableColumns.length > 7 ? 7 : 8;
+
             autoTable(doc, {
                 head: [tableHeaders],
                 body: tableRows,
@@ -515,12 +518,13 @@ export const usePlanner = () => {
                     addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
                 },
                 theme: 'grid',
-                styles: { fontSize: 8 }
+                styles: { fontSize: tableFontSize }
             });
         
             const totalPages = (doc.internal as any).getNumberOfPages();
             for (let i = 1; i <= totalPages; i++) {
                 doc.setPage(i);
+                // Re-draw footer as autotable might overwrite it
                 addHeaderAndFooter(doc, i, totalPages);
             }
         
@@ -533,7 +537,7 @@ export const usePlanner = () => {
             const pageWidth = doc.internal.pageSize.getWidth();
             const margin = 14;
             let y = 22;
-        
+    
             if (authCompanyData.logoUrl) {
                 try {
                      const img = new Image();
@@ -550,7 +554,7 @@ export const usePlanner = () => {
                     doc.addImage(loadedImg, 'PNG', margin, 15, logoWidth, logoHeight);
                 } catch(e) { console.error("Error adding logo to PDF:", e) }
             }
-        
+    
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
             doc.text('Orden de Producción', pageWidth / 2, y, { align: 'center' });
@@ -563,7 +567,7 @@ export const usePlanner = () => {
             y = 50;
             
             const machineName = state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
-        
+    
             const details = [
                 { title: 'Cliente:', value: order.customerName },
                 { title: 'Producto:', value: `[${order.productId}] ${order.productDescription}` },
@@ -578,7 +582,7 @@ export const usePlanner = () => {
                 { title: 'Aprobado por:', value: order.approvedBy || 'N/A' },
                 { title: 'Última actualización:', value: `${order.lastStatusUpdateBy || 'N/A'} - ${order.lastStatusUpdateNotes || ''}` }
             ];
-        
+    
             autoTable(doc, {
                 startY: y,
                 body: details.map(d => [d.title, d.value]),
@@ -590,15 +594,15 @@ export const usePlanner = () => {
                 },
                 didParseCell: (data) => { (data.cell.styles as any).fillColor = '#ffffff'; }
             });
-        
+    
             y = (doc as any).lastAutoTable.finalY + 15;
-        
+    
             if (y > 220) { doc.addPage(); y = 20; }
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
             doc.text('Historial de Cambios', margin, y);
             y += 8;
-        
+    
             const orderHistory = await getOrderHistory(order.id);
             if (orderHistory.length > 0) {
                 const tableColumn = ["Fecha", "Estado", "Usuario", "Notas"];
@@ -618,7 +622,7 @@ export const usePlanner = () => {
                 doc.setFontSize(10);
                 doc.text('No hay historial de cambios para esta orden.', margin, y);
             }
-        
+    
             doc.save(`op_${order.consecutive}.pdf`);
         }
     };
@@ -700,3 +704,4 @@ export const usePlanner = () => {
 
 
     
+
