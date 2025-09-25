@@ -285,6 +285,8 @@ export type PlannerSettings = {
     requireMachineForStart: boolean;
     assignmentLabel: string;
     customStatuses: CustomStatus[];
+    pdfPaperSize: 'letter' | 'legal';
+    pdfExportColumns: string[];
 };
 
 export type UpdateStatusPayload = {

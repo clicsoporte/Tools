@@ -18,8 +18,22 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const defaultColors = [ '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#ff7300', '#0088fe', '#00c49f', '#ffbb28' ];
+
+const availableColumns = [
+    { id: 'consecutive', label: 'Nº Orden (OP)' },
+    { id: 'customerName', label: 'Cliente' },
+    { id: 'productDescription', label: 'Producto' },
+    { id: 'quantity', label: 'Cantidad' },
+    { id: 'deliveryDate', label: 'Fecha Entrega' },
+    { id: 'status', label: 'Estado' },
+    { id: 'machineId', label: 'Asignación' },
+    { id: 'priority', label: 'Prioridad' },
+];
+
 
 export default function PlannerSettingsPage() {
     const { isAuthorized } = useAuthorization(['admin:settings:planner']);
@@ -44,6 +58,12 @@ export default function PlannerSettingsPage() {
                     { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
                     { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
                 ];
+            }
+            if (!currentSettings.pdfPaperSize) {
+                currentSettings.pdfPaperSize = 'letter';
+            }
+            if (!currentSettings.pdfExportColumns || currentSettings.pdfExportColumns.length === 0) {
+                currentSettings.pdfExportColumns = availableColumns.map(c => c.id);
             }
             setSettings(currentSettings);
             setIsLoading(false);
@@ -80,6 +100,18 @@ export default function PlannerSettingsPage() {
                 cs.id === id ? { ...cs, [field]: value } : cs
             );
             return { ...prev, customStatuses: updatedStatuses };
+        });
+    };
+
+    const handlePdfColumnChange = (columnId: string, checked: boolean) => {
+        if (!settings) return;
+        setSettings(prev => {
+            if (!prev) return null;
+            const currentColumns = prev.pdfExportColumns || [];
+            const newColumns = checked 
+                ? [...currentColumns, columnId]
+                : currentColumns.filter(id => id !== columnId);
+            return { ...prev, pdfExportColumns: newColumns };
         });
     };
 
@@ -255,6 +287,47 @@ export default function PlannerSettingsPage() {
                                 </div>
                             </div>
                         ))}
+                    </CardContent>
+                </Card>
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Configuración de Exportación a PDF</CardTitle>
+                        <CardDescription>Personaliza el contenido y formato de los reportes PDF del planificador.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="space-y-2">
+                            <Label>Tamaño del Papel</Label>
+                             <RadioGroup
+                                value={settings.pdfPaperSize}
+                                onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfPaperSize: value as 'letter' | 'legal' } : null)}
+                                className="flex items-center gap-4"
+                            >
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="letter" id="r-letter" />
+                                    <Label htmlFor="r-letter">Carta</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="legal" id="r-legal" />
+                                    <Label htmlFor="r-legal">Oficio (Legal)</Label>
+                                </div>
+                            </RadioGroup>
+                        </div>
+                        <div className="space-y-4">
+                            <Label>Columnas a Incluir en el Reporte</Label>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 border rounded-md">
+                                {availableColumns.map(col => (
+                                    <div key={col.id} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`pdf-col-${col.id}`}
+                                            checked={settings.pdfExportColumns.includes(col.id)}
+                                            onCheckedChange={(checked) => handlePdfColumnChange(col.id, checked as boolean)}
+                                        />
+                                        <Label htmlFor={`pdf-col-${col.id}`} className="font-normal">{col.label}</Label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
 
