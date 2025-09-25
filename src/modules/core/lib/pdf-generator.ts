@@ -6,7 +6,7 @@
 'use client';
 
 import jsPDF from "jspdf";
-import autoTable, { type RowInput } from "jspdf-autotable";
+import autoTable, { type RowInput, type CellInput } from "jspdf-autotable";
 import { format } from 'date-fns';
 import type { Company } from '../types';
 
@@ -38,6 +38,7 @@ interface DocumentData {
 
 /**
  * Adds a consistent header to each page of the PDF document.
+ * This version uses a 3-column layout to prevent overlapping.
  * @param doc - The jsPDF instance.
  * @param data - The document data containing header information.
  */
@@ -46,8 +47,7 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
     const margin = 39.68; // approx 14mm in points
     let startY = 22;
 
-    // --- Logo (Column 1) ---
-    let textStartX = margin;
+    // --- Column 1: Logo ---
     if (data.logoDataUrl) {
         try {
             const imgProps = doc.getImageProperties(data.logoDataUrl);
@@ -55,55 +55,60 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
             const imgHeight = 28;
             const imgWidth = Math.min(imgHeight * aspectRatio, 50);
             doc.addImage(data.logoDataUrl, 'PNG', margin, 15, imgWidth, imgHeight);
-            textStartX += imgWidth + 10;
         } catch (e) {
             console.error("Error adding logo image to PDF:", e);
         }
     }
 
-    // --- Company Info (Column 2) ---
+    // --- Column 2: Company Info ---
+    const companyX = margin + 60; // Positioned right of the logo
+    let companyY = startY;
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text(data.companyData.name, textStartX, startY);
-    startY += 6;
+    doc.text(data.companyData.name, companyX, companyY);
+    companyY += 6;
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Cédula: ${data.companyData.taxId}`, textStartX, startY);
-    startY += 5;
-    doc.text(data.companyData.address, textStartX, startY);
-    startY += 5;
-    doc.text(`Tel: ${data.companyData.phone}`, textStartX, startY);
-    startY += 5;
-    doc.text(`Email: ${data.companyData.email}`, textStartX, startY);
+    doc.text(`Cédula: ${data.companyData.taxId}`, companyX, companyY);
+    companyY += 5;
+    doc.text(data.companyData.address, companyX, companyY);
+    companyY += 5;
+    doc.text(`Tel: ${data.companyData.phone}`, companyX, companyY);
+    companyY += 5;
+    doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
 
-    // --- Quote Info (Column 3) ---
-    let rightY = 22;
+    // --- Column 3: Quote & Seller Info ---
+    const rightColX = pageWidth - margin;
+    let rightY = startY;
+
+    // Quote Info block
     doc.setFontSize(18);
     doc.setFont('Helvetica', 'bold');
-    doc.text(data.docTitle, pageWidth - margin, rightY, { align: 'right' });
+    doc.text(data.docTitle, rightColX, rightY, { align: 'right' });
 
     rightY += 8;
     doc.setFontSize(10);
     doc.setFont('Helvetica', 'bold');
-    doc.text(`${data.docId}`, pageWidth - margin, rightY, { align: 'right' });
+    doc.text(`${data.docId}`, rightColX, rightY, { align: 'right' });
     
     rightY += 6;
     doc.setFont('Helvetica', 'normal');
     data.meta.forEach(item => {
-        doc.text(`${item.label}: ${item.value}`, pageWidth - margin, rightY, { align: 'right' });
+        doc.text(`${item.label}: ${item.value}`, rightColX, rightY, { align: 'right' });
         rightY += 5;
     });
 
+    // Seller Info block (with space in between)
     if (data.sellerInfo) {
-        rightY += 5; // Extra space
+        rightY += 6; // Extra space
         doc.setFont('Helvetica', 'bold');
-        doc.text("Vendedor:", pageWidth - margin, rightY, { align: 'right' });
+        doc.text("Vendedor:", rightColX, rightY, { align: 'right' });
         rightY += 6;
         doc.setFont('Helvetica', 'normal');
-        doc.text(data.sellerInfo.name, pageWidth - margin, rightY, { align: 'right' });
-        if (data.sellerInfo.phone) { rightY += 5; doc.text(`Tel: ${data.sellerInfo.phone}`, pageWidth - margin, rightY, { align: 'right' }); }
-        if (data.sellerInfo.whatsapp) { rightY += 5; doc.text(`WhatsApp: ${data.sellerInfo.whatsapp}`, pageWidth - margin, rightY, { align: 'right' }); }
-        if (data.sellerInfo.email) { rightY += 5; doc.text(data.sellerInfo.email, pageWidth - margin, rightY, { align: 'right' }); }
+        doc.text(data.sellerInfo.name, rightColX, rightY, { align: 'right' });
+        if (data.sellerInfo.phone) { rightY += 5; doc.text(`Tel: ${data.sellerInfo.phone}`, rightColX, rightY, { align: 'right' }); }
+        if (data.sellerInfo.whatsapp) { rightY += 5; doc.text(`WhatsApp: ${data.sellerInfo.whatsapp}`, rightColX, rightY, { align: 'right' }); }
+        if (data.sellerInfo.email) { rightY += 5; doc.text(data.sellerInfo.email, rightColX, rightY, { align: 'right' }); }
     }
 };
 
@@ -141,11 +146,14 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     if (data.blocks.length > 0) {
         autoTable(doc, {
             startY: finalY,
-            body: data.blocks.map(b => [{ content: b.content, styles: { fontStyle: 'normal' } }]),
-            head: [data.blocks.map(b => b.title)],
+            body: data.blocks.map(b => ([{ content: b.title, styles: { fontStyle: 'bold' } }, { content: b.content, styles: { fontStyle: 'normal' } }])),
             theme: 'plain',
-            styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
-            headStyles: { fontStyle: 'bold' },
+            styles: { fontSize: 10, cellPadding: {top: 1, right: 0, bottom: 1, left: 0} },
+            didParseCell: (data) => {
+                if (data.column.index === 0) {
+                    data.cell.styles.minCellWidth = 70;
+                }
+            },
             margin: { left: margin, right: margin }
         });
         finalY = (doc as any).lastAutoTable.finalY + 10;
@@ -179,6 +187,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     let leftY = finalY;
     let rightY = finalY;
 
+    // --- Right Column: Totals ---
     const totalsX = pageWidth - margin;
     doc.setFontSize(10);
     data.totals.forEach((total, index) => {
@@ -193,6 +202,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         rightY += isLast ? 18 : 14;
     });
 
+    // --- Left Column: Payment & Notes ---
     doc.setFontSize(10);
     if (data.paymentInfo) {
         doc.setFont('Helvetica', 'bold');
@@ -207,7 +217,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.text('Notas:', margin, leftY);
         leftY += 14;
         doc.setFont('Helvetica', 'normal');
-        const splitNotes = doc.splitTextToSize(data.notes, (pageWidth / 2) - margin * 2);
+        const splitNotes = doc.splitTextToSize(data.notes, (pageWidth / 2) - margin);
         doc.text(splitNotes, margin, leftY);
     }
     
