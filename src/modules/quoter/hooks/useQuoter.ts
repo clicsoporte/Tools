@@ -561,7 +561,14 @@ export const useQuoter = () => {
             theme: 'striped',
             headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'left' },
             columnStyles: {
-                2: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'center' }, 7: { halign: 'right' },
+                0: { cellWidth: 20 }, 
+                1: { cellWidth: 'auto' }, 
+                2: { cellWidth: 15, halign: 'right' },
+                3: { cellWidth: 15 }, 
+                4: { cellWidth: 22 }, 
+                5: { cellWidth: 28, halign: 'right' },
+                6: { cellWidth: 15, halign: 'center' }, 
+                7: { cellWidth: 25, halign: 'right' },
             },
             margin: { top: 80, bottom: 30 },
             didDrawPage: (data) => addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages()),
@@ -612,7 +619,7 @@ export const useQuoter = () => {
         const splitNotes = doc.splitTextToSize(notes, 100);
         doc.text(splitNotes, margin, leftBottomY);
         
-        for (let i = 1; i <= doc.getNumberOfPages(); i++) {
+        for (let i = 1; i <= totalPages; i++) {
             doc.setPage(i);
             addHeaderAndFooter(doc, i, doc.getNumberOfPages());
         }
