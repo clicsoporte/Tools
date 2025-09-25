@@ -343,7 +343,7 @@ export const useQuoter = () => {
   };
 
   const formatCurrency = (amount: number, places?: number) => {
-    const prefix = currency === "CRC" ? "CRC " : "$ ";
+    const prefix = currency === "CRC" ? "₡" : "$";
     return `${prefix}${amount.toLocaleString("es-CR", {
       minimumFractionDigits: places ?? decimalPlaces,
       maximumFractionDigits: places ?? decimalPlaces,
@@ -435,9 +435,16 @@ export const useQuoter = () => {
     setIsProcessing(true);
 
     const doc = new jsPDF({ putOnlyUsedFonts: true });
-    doc.setFont("Helvetica");
+    // This is the key change: Set a font that supports the Colón symbol.
+    // Standard PDF fonts like 'helvetica' often do not. 'Helvetica' is kept as a fallback.
+    try {
+      doc.setFont("Helvetica"); 
+    } catch(e) {
+      console.error("Font could not be set, using default", e);
+    }
     const currentQuoteNumber = quoteNumber;
 
+    // Use CRC in PDF to avoid font issues, but use ₡ in UI.
     const formatCurrencyForPdf = (amount: number, places?: number) => {
         const prefix = currency === "CRC" ? "CRC " : "$ ";
         return `${prefix}${amount.toLocaleString("es-CR", {
@@ -445,7 +452,7 @@ export const useQuoter = () => {
             maximumFractionDigits: places ?? decimalPlaces,
         })}`;
     };
-
+    
     let logoData: string | null = null;
     if (companyData.logoUrl) {
         try {
@@ -464,7 +471,7 @@ export const useQuoter = () => {
     const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
         const pageWidth = docInstance.internal.pageSize.getWidth();
         const margin = 14;
-        let companyInfoY = 22;
+        let startY = 22;
 
         if (logoData) {
             try {
@@ -473,28 +480,32 @@ export const useQuoter = () => {
                 const imgHeight = 15;
                 const imgWidth = imgHeight * aspectRatio;
                 docInstance.addImage(logoData, 'PNG', margin, 15, imgWidth, imgHeight);
-                companyInfoY = 15 + imgHeight + 5;
-            } catch (e) { console.error("Error adding logo image to PDF:", e); }
+                startY = 15 + imgHeight + 5; // Start text below logo
+            } catch (e) { 
+                console.error("Error adding logo image to PDF:", e);
+                docInstance.setFont('Helvetica', 'bold');
+                docInstance.text(companyData.name, margin, startY);
+                startY += 6;
+            }
         }
-
-        docInstance.setFontSize(11);
+        
         docInstance.setFont('Helvetica', 'bold');
-        docInstance.text(companyData.name, margin, companyInfoY);
-        companyInfoY += 6;
+        docInstance.text(companyData.name, margin, startY);
+        startY += 6;
         docInstance.setFont('Helvetica', 'normal');
         docInstance.setFontSize(9);
-        docInstance.text(`Cédula: ${companyData.taxId}`, margin, companyInfoY);
-        companyInfoY += 5;
-        docInstance.text(companyData.address, margin, companyInfoY);
-        companyInfoY += 5;
-        docInstance.text(`Tel: ${companyData.phone}`, margin, companyInfoY);
-        companyInfoY += 5;
-        docInstance.text(`Email: ${companyData.email}`, margin, companyInfoY);
-
+        docInstance.text(`Cédula: ${companyData.taxId}`, margin, startY);
+        startY += 5;
+        docInstance.text(companyData.address, margin, startY);
+        startY += 5;
+        docInstance.text(`Tel: ${companyData.phone}`, margin, startY);
+        startY += 5;
+        docInstance.text(`Email: ${companyData.email}`, margin, startY);
+        
         docInstance.setFontSize(18);
         docInstance.setFont('Helvetica', 'bold');
         docInstance.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
-
+        
         let rightY = 22;
         docInstance.setFont('Helvetica', 'normal');
         docInstance.setFontSize(12);
@@ -537,13 +548,10 @@ export const useQuoter = () => {
     const formattedDeliveryDate = deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A';
 
     autoTable(doc, {
-      didDrawPage: (data) => addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages(), logoData),
+      didDrawPage: (data) => addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages()),
       startY: 85,
     });
 
-    const finalTableY = (doc as any).lastAutoTable.finalY;
-    
-    // Resetting Y for client/delivery info to be consistent
     const clientBlockY = 85;
 
     autoTable(doc, {
@@ -553,7 +561,7 @@ export const useQuoter = () => {
         ],
         startY: clientBlockY,
         theme: 'plain',
-        styles: { fontSize: 10 },
+        styles: { fontSize: 10, font: 'Helvetica' },
         tableWidth: 'auto',
     });
 
@@ -577,7 +585,7 @@ export const useQuoter = () => {
         margin: { bottom: 40 },
         didDrawPage: (data) => {
             const totalPages = (doc.internal as any).getNumberOfPages();
-            addHeaderAndFooter(doc, data.pageNumber, totalPages, logoData);
+            addHeaderAndFooter(doc, data.pageNumber, totalPages);
         },
     });
 
@@ -586,17 +594,16 @@ export const useQuoter = () => {
     if (finalY > 240) {
         doc.addPage();
         const totalPages = (doc.internal as any).getNumberOfPages();
-        addHeaderAndFooter(doc, totalPages, totalPages, logoData);
+        addHeaderAndFooter(doc, totalPages, totalPages);
     }
     
-    doc.setPage(doc.getNumberOfPages()); // Work on the last page
+    doc.setPage(doc.getNumberOfPages()); 
 
     const margin = 14;
     const pageWidth = doc.internal.pageSize.getWidth();
     const totalsX = pageWidth - margin;
     const notesX = margin;
     
-    // Notes and payment terms on the left
     const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
     doc.setFontSize(10);
     doc.setFont('Helvetica', 'bold');
@@ -609,7 +616,6 @@ export const useQuoter = () => {
     const splitNotes = doc.splitTextToSize(notes, 80);
     doc.text(splitNotes, notesX, currentY + 20);
 
-    // Totals on the right, aligned with the notes
     doc.setFontSize(10);
     doc.text(`Subtotal: ${formatCurrencyForPdf(totals.subtotal, decimalPlaces)}`, totalsX, currentY + 6, { align: 'right' });
     doc.text(`Impuestos: ${formatCurrencyForPdf(totals.totalTaxes, decimalPlaces)}`, totalsX, currentY + 12, { align: 'right' });
