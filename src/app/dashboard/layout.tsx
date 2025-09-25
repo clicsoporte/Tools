@@ -76,7 +76,7 @@ export default function DashboardLayout({
       <AuthWrapper>
         <PageTitleProvider initialTitle="Panel">
           <SidebarProvider>
-            <div className="flex min-h-screen">
+            <div className="flex min-h-screen bg-muted/40">
               <AppSidebar />
               <SidebarInset className="flex-1 flex flex-col">
                  <DashboardContent>{children}</DashboardContent>
