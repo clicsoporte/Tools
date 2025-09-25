@@ -353,7 +353,7 @@ export const useQuoter = () => {
   };
 
   const formatCurrency = (amount: number, places?: number) => {
-    const prefix = currency === "CRC" ? "₡" : "$";
+    const prefix = currency === "CRC" ? "CRC " : "$ ";
     return `${prefix}${amount.toLocaleString("es-CR", {
       minimumFractionDigits: places ?? decimalPlaces,
       maximumFractionDigits: places ?? decimalPlaces,

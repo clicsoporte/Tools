@@ -51,36 +51,34 @@ const addHeader = (doc: jsPDF, data: DocumentData) => {
         try {
             const imgProps = doc.getImageProperties(data.logoDataUrl);
             const aspectRatio = imgProps.width / imgProps.height;
-            const imgHeight = 42; 
-            const imgWidth = Math.min(imgHeight * aspectRatio, 80); // Limit max logo width
+            const imgHeight = 28; // Smaller logo
+            const imgWidth = Math.min(imgHeight * aspectRatio, 50); 
             doc.addImage(data.logoDataUrl, 'PNG', margin, 15, imgWidth, imgHeight);
-            textStartX = margin + imgWidth + 10;
+            textStartX += imgWidth + 10;
         } catch (e) {
             console.error("Error adding logo image to PDF:", e);
         }
     }
     
     doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(14);
+    doc.setFontSize(11);
     doc.text(data.companyData.name, textStartX, 22);
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Cédula: ${data.companyData.taxId}`, textStartX, 30);
-    doc.text(data.companyData.address, textStartX, 36);
-    doc.text(`Tel: ${data.companyData.phone}`, textStartX, 42);
-    doc.text(`Email: ${data.companyData.email}`, textStartX, 48);
+    doc.text(`Cédula: ${data.companyData.taxId}`, textStartX, 28);
+    doc.text(data.companyData.address, textStartX, 34);
+    doc.text(`Tel: ${data.companyData.phone}`, textStartX, 40);
+    doc.text(`Email: ${data.companyData.email}`, textStartX, 46);
 
     doc.setFontSize(18);
     doc.setFont('Helvetica', 'bold');
-    doc.text(data.docTitle, pageWidth / 2, 30, { align: 'center' });
+    doc.text(data.docTitle, pageWidth - margin, 22, { align: 'right' });
 
-    let rightY = 22;
-    doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(12);
+    let rightY = 30;
+    doc.setFontSize(10);
+    doc.setFont('Helvetica', 'normal');
     doc.text(`${data.docId}`, pageWidth - margin, rightY, { align: 'right' });
     
-    doc.setFont('Helvetica', 'normal');
-    doc.setFontSize(10);
     data.meta.forEach(item => {
         rightY += 6;
         doc.text(`${item.label}: ${item.value}`, pageWidth - margin, rightY, { align: 'right' });
@@ -120,26 +118,26 @@ const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
 export const generateDocument = (data: DocumentData): jsPDF => {
     const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: 'p', unit: 'pt', format: 'letter' });
     const margin = 39.68; 
-    let finalY = 85;
+    let finalY = 70; // Start content lower
 
     const didDrawPage = (hookData: any) => {
         addHeader(doc, data);
         addFooter(doc, hookData.pageNumber, (doc.internal as any).getNumberOfPages());
     };
     
+    didDrawPage({ pageNumber: 1 });
+    
     if (data.blocks.length > 0) {
         autoTable(doc, {
             startY: finalY,
             body: data.blocks.map(b => [{ content: b.content, styles: { fontStyle: 'normal' } }]),
-            columnStyles: { 0: { fontStyle: 'bold' } },
-            theme: 'plain',
-            styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0} },
             head: [data.blocks.map(b => b.title)],
-            didDrawPage: (hookData) => { if (hookData.pageNumber === 1) didDrawPage(hookData); }
+            theme: 'plain',
+            styles: { fontSize: 10, cellPadding: {top: 0, right: 0, bottom: 2, left: 0}, fontStyle: 'normal' },
+            headStyles: { fontStyle: 'bold' },
+            margin: { left: margin, right: margin }
         });
         finalY = (doc as any).lastAutoTable.finalY + 10;
-    } else {
-        didDrawPage({ pageNumber: 1 });
     }
     
     autoTable(doc, {
@@ -174,8 +172,6 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     data.totals.forEach((total, index) => {
         const isLast = index === data.totals.length - 1;
         if(isLast) {
-             doc.setLineWidth(0.5);
-             doc.line(totalsX, rightY - 4, totalsX - 120, rightY - 4);
              rightY += 2;
         }
         doc.setFontSize(isLast ? 12 : 10);
