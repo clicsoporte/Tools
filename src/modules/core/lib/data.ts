@@ -176,6 +176,7 @@ export const initialRoles: Role[] = [
         "planner:receive",
         "planner:status:approve",
         "planner:status:unapprove",
+        "planner:status:in-queue",
         "planner:status:in-progress",
         "planner:status:on-hold",
         "planner:status:completed",
@@ -365,3 +366,5 @@ export const adminTools: Tool[] = [
  * A combined list of all tools for easy access.
  */
 export const allTools: Tool[] = [...mainTools, ...adminTools];
+
+      

@@ -220,7 +220,7 @@ export type ExemptionLaw = {
 
 // --- Production Planner Types ---
 
-export type ProductionOrderStatus = 'pending' | 'approved' | 'in-progress' | 'on-hold' | 'cancellation-request' | 'unapproval-request' | 'completed' | 'received-in-warehouse' | 'canceled' | 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
+export type ProductionOrderStatus = 'pending' | 'approved' | 'in-queue' | 'in-progress' | 'on-hold' | 'cancellation-request' | 'unapproval-request' | 'completed' | 'received-in-warehouse' | 'canceled' | 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
 export type ProductionOrderPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export type ProductionOrder = {
@@ -244,6 +244,8 @@ export type ProductionOrder = {
   approvedBy?: string;
   lastStatusUpdateBy?: string;
   lastStatusUpdateNotes?: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
   deliveredQuantity?: number;
   erpPackageNumber?: string;
   erpTicketNumber?: string;
@@ -252,7 +254,7 @@ export type ProductionOrder = {
   previousStatus?: ProductionOrderStatus | null;
 };
 
-export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy'>> & {
+export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt'>> & {
     orderId: number;
     updatedBy: string;
 };
@@ -288,6 +290,7 @@ export type PlannerSettings = {
     pdfPaperSize: 'letter' | 'legal';
     pdfExportColumns: string[];
     pdfTopLegend?: string;
+    fieldsToTrackChanges: string[];
 };
 
 export type UpdateStatusPayload = {
@@ -556,3 +559,5 @@ export type UpdateBackupInfo = {
     fileName: string;
     date: string;
 };
+
+      
