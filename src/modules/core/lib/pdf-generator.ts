@@ -143,7 +143,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     finalY = (doc as any).lastAutoTable.finalY + 10;
     
     // Main Content Table
-    const mainTableResult = autoTable(doc, {
+    autoTable(doc, {
         head: [data.table.columns],
         body: data.table.rows,
         startY: finalY,
@@ -154,15 +154,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         columnStyles: data.table.columnStyles,
         didDrawPage: didDrawPage,
     });
-
-    // Check if autoTable returned `false` which indicates an error (like content not fitting)
-    if (!mainTableResult) {
-        console.error("jspdf-autotable failed to render the main table, likely due to content width issues.");
-        // We still need to draw the rest of the document, so we'll use a fallback Y position
-        finalY = doc.internal.pageSize.height - 120; // Position footer content near the bottom
-    } else {
-        finalY = (doc as any).lastAutoTable.finalY || finalY;
-    }
+    
+    finalY = (doc as any).lastAutoTable.finalY || finalY;
     
     // Check if we need a new page for the footer content
     if (finalY > doc.internal.pageSize.getHeight() - 120) {

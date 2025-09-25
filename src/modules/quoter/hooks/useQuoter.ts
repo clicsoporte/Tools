@@ -19,7 +19,7 @@ import {
   getAllExemptions,
   getExemptionLaws,
 } from "@/modules/core/lib/db";
-import { getExemptionStatus } from "@/modules/hacienda/lib/actions";
+import { getExemptionStatus as fetchExemptionStatus } from "@/modules/hacienda/lib/actions";
 import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -59,6 +59,13 @@ interface LineInputRefs {
   qty: HTMLInputElement | null;
   price: HTMLInputElement | null;
 }
+
+type ErrorResponse = { error: boolean; message: string };
+
+function isErrorResponse(data: any): data is ErrorResponse {
+  return (data as ErrorResponse).error !== undefined;
+}
+
 
 /**
  * Normalizes a string value into a number.
@@ -143,9 +150,9 @@ export const useQuoter = () => {
     });
 
     try {
-        const data = await getExemptionStatus(authNumber);
+        const data = await fetchExemptionStatus(authNumber);
         
-        if (data.error) {
+        if (isErrorResponse(data)) {
             throw new Error(data.message || "Error desconocido al verificar la exoneración.");
         }
         
@@ -154,7 +161,7 @@ export const useQuoter = () => {
              return {
                 ...prev,
                 haciendaExemption: data as HaciendaExemptionApiResponse,
-                isHaciendaValid: new Date((data as HaciendaExemptionApiResponse).fechaVencimiento) > new Date(),
+                isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
                 isLoading: false,
              }
         });
@@ -453,7 +460,6 @@ export const useQuoter = () => {
     }
     
     const formatCurrencyForPdf = (amount: number, places?: number) => {
-        // Use a consistent prefix that won't cause encoding issues, then rely on totals label for currency.
         const prefix = ""; 
         return `${prefix}${amount.toLocaleString("es-CR", {
             minimumFractionDigits: places ?? decimalPlaces,

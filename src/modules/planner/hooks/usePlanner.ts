@@ -493,7 +493,6 @@ export const usePlanner = () => {
 
         handleExportSingleOrderPDF: async (order: ProductionOrder) => {
             if (!authCompanyData || !state.plannerSettings) return;
-            const doc = new jsPDF();
             
             let logoDataUrl: string | null = null;
             if (authCompanyData.logoUrl) {
@@ -512,18 +511,18 @@ export const usePlanner = () => {
 
             const machineName = state.plannerSettings.machines.find(m => m.id === order.machineId)?.name || 'N/A';
             const blocks = [
-                { title: 'Cliente:', content: order.customerName },
-                { title: 'Producto:', content: `[${order.productId}] ${order.productDescription}` },
-                { title: 'Cantidad:', content: order.quantity.toLocaleString('es-CR') },
-                { title: 'Fecha Solicitud:', content: format(parseISO(order.requestDate), 'dd/MM/yyyy') },
-                { title: 'Fecha Entrega:', content: format(parseISO(order.deliveryDate), 'dd/MM/yyyy') },
-                { title: 'Estado:', content: selectors.statusConfig[order.status]?.label || order.status },
-                { title: 'Prioridad:', content: selectors.priorityConfig[order.priority]?.label || order.priority },
-                { title: 'Asignación:', content: machineName },
-                { title: 'Notas:', content: order.notes || 'N/A' },
-                { title: 'Solicitado por:', content: order.requestedBy },
-                { title: 'Aprobado por:', content: order.approvedBy || 'N/A' },
-                { title: 'Última actualización:', content: `${order.lastStatusUpdateBy || 'N/A'} - ${order.lastStatusUpdateNotes || ''}` }
+                { title: 'Cliente:', value: order.customerName },
+                { title: 'Producto:', value: `[${order.productId}] ${order.productDescription}` },
+                { title: 'Cantidad:', value: order.quantity.toLocaleString('es-CR') },
+                { title: 'Fecha Solicitud:', value: format(parseISO(order.requestDate), 'dd/MM/yyyy') },
+                { title: 'Fecha Entrega:', value: format(parseISO(order.deliveryDate), 'dd/MM/yyyy') },
+                { title: 'Estado:', value: selectors.statusConfig[order.status]?.label || order.status },
+                { title: 'Prioridad:', value: selectors.priorityConfig[order.priority]?.label || order.priority },
+                { title: 'Asignación:', value: machineName },
+                { title: 'Notas:', value: order.notes || 'N/A' },
+                { title: 'Solicitado por:', value: order.requestedBy },
+                { title: 'Aprobado por:', value: order.approvedBy || 'N/A' },
+                { title: 'Última actualización:', value: `${order.lastStatusUpdateBy || 'N/A'} - ${order.lastStatusUpdateNotes || ''}` }
             ];
 
             const docToSave = generateDocument({
