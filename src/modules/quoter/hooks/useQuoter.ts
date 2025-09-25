@@ -24,7 +24,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
-import { RowInput } from "jspdf-autotable";
+import type { RowInput } from "jspdf-autotable";
 
 /**
  * Defines the initial state for a new quote.
@@ -460,22 +460,22 @@ export const useQuoter = () => {
     }
     
     const formatCurrencyForPdf = (amount: number, places?: number) => {
-        const prefix = ""; 
+        const prefix = currency === "CRC" ? "CRC " : "$ ";
         return `${prefix}${amount.toLocaleString("es-CR", {
             minimumFractionDigits: places ?? decimalPlaces,
             maximumFractionDigits: places ?? decimalPlaces,
         })}`;
     };
 
-    const tableRows: RowInput = lines.map(line => [
+    const tableRows: RowInput[] = lines.map(line => [
         line.product.id,
         line.product.description,
         line.quantity.toLocaleString('es-CR'),
         line.product.unit,
         line.product.cabys,
-        formatCurrencyForPdf(line.price, decimalPlaces),
+        formatCurrency(line.price, decimalPlaces),
         `${(line.tax * 100).toFixed(0)}%`,
-        formatCurrencyForPdf(line.quantity * line.price * (1 + line.tax), decimalPlaces),
+        formatCurrency(line.quantity * line.price * (1 + line.tax), decimalPlaces),
     ]);
     
     const doc = generateDocument({
@@ -515,9 +515,9 @@ export const useQuoter = () => {
         notes: notes,
         paymentInfo: paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado',
         totals: [
-            { label: 'Subtotal', value: formatCurrencyForPdf(totals.subtotal, decimalPlaces) },
-            { label: 'Impuestos', value: formatCurrencyForPdf(totals.totalTaxes, decimalPlaces) },
-            { label: `Total ${currency}`, value: formatCurrencyForPdf(totals.total, decimalPlaces) },
+            { label: 'Subtotal', value: formatCurrency(totals.subtotal, decimalPlaces) },
+            { label: 'Impuestos', value: formatCurrency(totals.totalTaxes, decimalPlaces) },
+            { label: `Total ${currency}`, value: formatCurrency(totals.total, decimalPlaces) },
         ]
     });
     
