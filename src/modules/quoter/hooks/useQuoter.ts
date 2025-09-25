@@ -8,8 +8,6 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/modules/core/hooks/use-toast";
-import jsPDF from "jspdf";
-import autoTable, { CellDef } from "jspdf-autotable";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import type { Customer, Product, Company, User, QuoteDraft, QuoteLine, Exemption, HaciendaExemptionApiResponse, ExemptionLaw, StockInfo } from "@/modules/core/types";
 import { logError, logInfo, logWarn } from "@/modules/core/lib/logger";
@@ -25,6 +23,7 @@ import { getExemptionStatus } from "@/modules/core/lib/api-actions";
 import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
+import { generateDocument } from "@/modules/core/lib/pdf-generator";
 
 /**
  * Defines the initial state for a new quote.
@@ -221,6 +220,9 @@ export const useQuoter = () => {
       if (exchangeRateData.rate) {
           setExchangeRate(exchangeRateData.rate);
           setApiExchangeRate(exchangeRateData.rate);
+      }
+      if (authCompanyData) {
+          setDecimalPlaces(authCompanyData.decimalPlaces ?? 2);
       }
   }, [authCompanyData, exchangeRateData]);
 
@@ -433,29 +435,13 @@ export const useQuoter = () => {
         return;
     }
     setIsProcessing(true);
-
-    const doc = new jsPDF({ putOnlyUsedFonts: true });
-    try {
-      doc.setFont("Helvetica"); 
-    } catch(e) {
-      console.error("Font could not be set, using default", e);
-    }
-    const currentQuoteNumber = quoteNumber;
-
-    const formatCurrencyForPdf = (amount: number, places?: number) => {
-        const prefix = currency === "CRC" ? "CRC " : "$ ";
-        return `${prefix}${amount.toLocaleString("es-CR", {
-            minimumFractionDigits: places ?? decimalPlaces,
-            maximumFractionDigits: places ?? decimalPlaces,
-        })}`;
-    };
     
-    let logoData: string | null = null;
+    let logoDataUrl: string | null = null;
     if (companyData.logoUrl) {
         try {
             const response = await fetch(companyData.logoUrl);
             const blob = await response.blob();
-            logoData = await new Promise((resolve) => {
+            logoDataUrl = await new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.onloadend = () => resolve(reader.result as string);
                 reader.readAsDataURL(blob);
@@ -464,183 +450,70 @@ export const useQuoter = () => {
             console.error("Failed to fetch and process logo:", e);
         }
     }
-
-    const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
-        const pageWidth = docInstance.internal.pageSize.getWidth();
-        const margin = 14;
-        let startY = 22;
-
-        if (logoData) {
-            try {
-                const imgProps = docInstance.getImageProperties(logoData);
-                const aspectRatio = imgProps.width / imgProps.height;
-                const imgHeight = 15;
-                const imgWidth = imgHeight * aspectRatio;
-                docInstance.addImage(logoData, 'PNG', margin, 15, imgWidth, imgHeight);
-                startY = 15 + imgHeight + 5;
-            } catch (e) { 
-                console.error("Error adding logo image to PDF:", e);
-                docInstance.setFont('Helvetica', 'bold');
-                docInstance.text(companyData.name, margin, startY);
-                startY += 6;
-            }
-        } else {
-             docInstance.setFont('Helvetica', 'bold');
-             docInstance.text(companyData.name, margin, startY);
-             startY += 6;
-        }
-        
-        docInstance.setFont('Helvetica', 'normal');
-        docInstance.setFontSize(9);
-        docInstance.text(`Cédula: ${companyData.taxId}`, margin, startY);
-        startY += 5;
-        docInstance.text(companyData.address, margin, startY);
-        startY += 5;
-        docInstance.text(`Tel: ${companyData.phone}`, margin, startY);
-        startY += 5;
-        docInstance.text(`Email: ${companyData.email}`, margin, startY);
-        
-        docInstance.setFontSize(18);
-        docInstance.setFont('Helvetica', 'bold');
-        docInstance.text("COTIZACIÓN", pageWidth / 2, 22, { align: 'center' });
-        
-        let rightY = 22;
-        docInstance.setFont('Helvetica', 'normal');
-        docInstance.setFontSize(12);
-        docInstance.text(`Nº: ${currentQuoteNumber}`, pageWidth - margin, rightY, { align: 'right' });
-        rightY += 6;
-        docInstance.setFontSize(10);
-        docInstance.text(`Fecha: ${format(parseISO(quoteDate), "dd/MM/yyyy")}`, pageWidth - margin, rightY, { align: 'right' });
-        rightY += 6;
-        docInstance.text(`Válida hasta: ${format(parseISO(validUntilDate), "dd/MM/yyyy")}`, pageWidth - margin, rightY, { align: 'right' });
-        if(purchaseOrderNumber) {
-            rightY += 6;
-            docInstance.text(`Nº OC: ${purchaseOrderNumber}`, pageWidth - margin, rightY, { align: 'right' });
-        }
-
-        rightY += 8;
-        docInstance.setFont('Helvetica', 'bold');
-        docInstance.text("Vendedor:", pageWidth - margin, rightY, { align: 'right' });
-        rightY += 6;
-        docInstance.setFont('Helvetica', 'normal');
-        docInstance.text(sellerName, pageWidth - margin, rightY, { align: 'right' });
-        if (sellerType === 'user' && currentUser) {
-            if (currentUser.phone) { rightY += 5; docInstance.text(`Tel: ${currentUser.phone}`, pageWidth - margin, rightY, { align: 'right' }); }
-            if (currentUser.whatsapp) { rightY += 5; docInstance.text(`WhatsApp: ${currentUser.whatsapp}`, pageWidth - margin, rightY, { align: 'right' }); }
-            rightY += 5;
-            docInstance.text(currentUser.email, pageWidth - margin, rightY, { align: 'right' });
-        }
-
-        const pageHeight = docInstance.internal.pageSize.getHeight();
-        docInstance.setFontSize(8);
-        docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+    
+    const formatCurrencyForPdf = (amount: number, places?: number) => {
+        const prefix = "CRC "; // Always use CRC for PDF to avoid font issues
+        return `${prefix}${amount.toLocaleString("es-CR", {
+            minimumFractionDigits: places ?? decimalPlaces,
+            maximumFractionDigits: places ?? decimalPlaces,
+        })}`;
     };
 
-    const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
-    const tableRows = lines.map(line => [
-        line.product.id,
-        line.product.description,
-        line.quantity.toLocaleString('es-CR'),
-        line.product.unit,
-        line.product.cabys,
-        formatCurrencyForPdf(line.price, decimalPlaces),
-        `${(line.tax * 100).toFixed(0)}%`,
-        formatCurrencyForPdf(line.quantity * line.price * (1 + line.tax), decimalPlaces),
-    ]);
-    const formattedDeliveryDate = deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A';
-
-    autoTable(doc, {
-      didDrawPage: (data) => {
-        addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
-        // Set startY for client block only on first page
-        if(data.pageNumber === 1 && (doc as any).lastAutoTable) {
-          (doc as any).lastAutoTable.finalY = 85;
-        }
-      },
-      startY: 85,
-    });
-    
-    // Use a fixed Y position for the client block on the first page
-    const clientBlockY = 85;
-    
-    autoTable(doc, {
-        body: [
-            [{ content: 'Cliente', styles: { fontStyle: 'bold' } }, { content: 'Entrega', styles: { fontStyle: 'bold' } }],
-            [{ content: customerDetails }, { content: `Dirección: ${deliveryAddress}\nFecha Entrega: ${formattedDeliveryDate}` }],
+    const doc = generateDocument({
+        docTitle: "COTIZACIÓN",
+        docId: quoteNumber,
+        companyData,
+        logoDataUrl,
+        meta: [
+            { label: 'Fecha', value: format(parseISO(quoteDate), "dd/MM/yyyy") },
+            { label: 'Válida hasta', value: format(parseISO(validUntilDate), "dd/MM/yyyy") },
+            ...(purchaseOrderNumber ? [{ label: 'Nº OC', value: purchaseOrderNumber }] : [])
         ],
-        startY: clientBlockY,
-        theme: 'plain',
-        styles: { fontSize: 10, font: 'Helvetica' },
-        tableWidth: 'auto',
-    });
-
-    const didDrawClientTable = (doc as any).lastAutoTable;
-
-    autoTable(doc, {
-        head: [tableColumn],
-        body: tableRows,
-        startY: didDrawClientTable ? didDrawClientTable.finalY + 5 : 100,
-        theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'left', font: 'Helvetica' },
-        styles: { font: 'Helvetica', fontSize: 9 },
-        columnStyles: {
-            0: { cellWidth: 20 },
-            1: { cellWidth: 'wrap' },
-            2: { cellWidth: 15, halign: 'right' },
-            3: { cellWidth: 15 },
-            4: { cellWidth: 22 },
-            5: { cellWidth: 28, halign: 'right' },
-            6: { cellWidth: 15, halign: 'center' },
-            7: { cellWidth: 28, halign: 'right' },
+        sellerInfo: {
+            name: sellerName,
+            email: sellerType === 'user' ? currentUser?.email : undefined,
+            phone: sellerType === 'user' ? currentUser?.phone : undefined,
+            whatsapp: sellerType === 'user' ? currentUser?.whatsapp : undefined
         },
-        margin: { bottom: 40 },
-        didDrawPage: (data) => {
-            const totalPages = (doc.internal as any).getNumberOfPages();
-            if (data.pageNumber > 1) {
-              addHeaderAndFooter(doc, data.pageNumber, totalPages);
+        blocks: [
+            { title: 'Cliente', content: customerDetails },
+            { title: 'Entrega', content: `Dirección: ${deliveryAddress}\nFecha Entrega: ${deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A'}` }
+        ],
+        table: {
+            columns: ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"],
+            rows: lines.map(line => [
+                line.product.id,
+                line.product.description,
+                line.quantity.toLocaleString('es-CR'),
+                line.product.unit,
+                line.product.cabys,
+                formatCurrencyForPdf(line.price, decimalPlaces),
+                `${(line.tax * 100).toFixed(0)}%`,
+                formatCurrencyForPdf(line.quantity * line.price * (1 + line.tax), decimalPlaces),
+            ]),
+            columnStyles: {
+                0: { cellWidth: 50 },
+                1: { cellWidth: 'auto' },
+                2: { cellWidth: 40, halign: 'right' },
+                3: { cellWidth: 40 },
+                4: { cellWidth: 60 },
+                5: { cellWidth: 70, halign: 'right' },
+                6: { cellWidth: 30, halign: 'center' },
+                7: { cellWidth: 70, halign: 'right' },
             }
         },
+        notes: notes,
+        paymentInfo: paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado',
+        totals: [
+            { label: 'Subtotal', value: formatCurrencyForPdf(totals.subtotal, decimalPlaces) },
+            { label: 'Impuestos', value: formatCurrencyForPdf(totals.totalTaxes, decimalPlaces) },
+            { label: 'Total', value: formatCurrencyForPdf(totals.total, decimalPlaces) },
+        ]
     });
-
-    const didDrawMainTable = (doc as any).lastAutoTable;
-    const finalY = didDrawMainTable ? didDrawMainTable.finalY : clientBlockY + 20;
-
-    let currentY = finalY > 240 ? 20 : finalY + 10;
-    if (finalY > 240) {
-        doc.addPage();
-        const totalPages = (doc.internal as any).getNumberOfPages();
-        addHeaderAndFooter(doc, totalPages, totalPages);
-    }
     
-    doc.setPage(doc.getNumberOfPages()); 
-
-    const margin = 14;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const totalsX = pageWidth - margin;
-    const notesX = margin;
-    
-    const paymentInfo = paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado';
-    doc.setFontSize(10);
-    doc.setFont('Helvetica', 'bold');
-    doc.text('Condiciones de Pago:', notesX, currentY);
-    doc.setFont('Helvetica', 'normal');
-    doc.text(paymentInfo, notesX, currentY + 6);
-    doc.setFont('Helvetica', 'bold');
-    doc.text('Notas:', notesX, currentY + 14);
-    doc.setFont('Helvetica', 'normal');
-    const splitNotes = doc.splitTextToSize(notes, 80);
-    doc.text(splitNotes, notesX, currentY + 20);
-
-    doc.setFontSize(10);
-    doc.text(`Subtotal: ${formatCurrencyForPdf(totals.subtotal, decimalPlaces)}`, totalsX, currentY + 6, { align: 'right' });
-    doc.text(`Impuestos: ${formatCurrencyForPdf(totals.totalTaxes, decimalPlaces)}`, totalsX, currentY + 12, { align: 'right' });
-    doc.setFontSize(12);
-    doc.setFont('Helvetica', 'bold');
-    doc.text(`Total: ${formatCurrencyForPdf(totals.total, decimalPlaces)}`, totalsX, currentY + 20, { align: 'right' });
-
-    doc.save(`${currentQuoteNumber}.pdf`);
-    toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${currentQuoteNumber} ha sido descargado.` });
-    logInfo(`Cotización generada: ${currentQuoteNumber}`, { customer: selectedCustomer?.name, total: totals.total });
+    doc.save(`${quoteNumber}.pdf`);
+    toast({ title: "Cotización Generada", description: `El PDF de la cotización Nº ${quoteNumber} ha sido descargado.` });
+    logInfo(`Cotización generada: ${quoteNumber}`, { customer: selectedCustomer?.name, total: totals.total });
     await incrementAndSaveQuoteNumber();
     setIsProcessing(false);
   };
@@ -804,7 +677,7 @@ export const useQuoter = () => {
       generatePDF, resetQuote, saveDraft, loadDrafts, handleLoadDraft, handleDeleteDraft, handleNumericInputBlur,
       handleCustomerDetailsChange, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown, handleCustomerInputKeyDown,
     },
-    refs: { productInputRef, customerInputRef, lineInputRefs },
+    refs: { productInputRef, customerInputRef },
     selectors,
   };
 };

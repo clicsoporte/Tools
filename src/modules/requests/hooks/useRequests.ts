@@ -14,6 +14,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { generateDocument } from '@/modules/core/lib/pdf-generator';
 
 const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'> = {
     requiredDate: '',
@@ -300,263 +301,131 @@ export const useRequests = () => {
 
     const handleExportPDF = async () => {
         if (!companyData || !requestSettings) return;
-    
+        
         let logoDataUrl: string | null = null;
         if (companyData.logoUrl) {
             try {
-                const img = new Image();
-                img.crossOrigin = "Anonymous";
-                const imgPromise = new Promise<HTMLImageElement>((resolve, reject) => {
-                    img.onload = () => resolve(img);
-                    img.onerror = reject;
+                const response = await fetch(companyData.logoUrl);
+                const blob = await response.blob();
+                logoDataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
                 });
-                img.src = companyData.logoUrl;
-                const loadedImg = await imgPromise;
-                const canvas = document.createElement('canvas');
-                canvas.width = loadedImg.naturalWidth;
-                canvas.height = loadedImg.naturalHeight;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(loadedImg, 0, 0);
-                    logoDataUrl = canvas.toDataURL('image/png');
-                }
             } catch (e) {
-                console.error("Error processing logo for PDF:", e);
+                console.error("Error fetching and processing logo:", e);
                 toast({ title: "Advertencia", description: "No se pudo cargar el logo, se generará el PDF sin él.", variant: "default" });
             }
         }
-    
-        const doc = new jsPDF({ orientation: 'landscape' });
-        doc.setFont('Helvetica');
-    
-        const addHeaderAndFooter = (docInstance: jsPDF, pageNumber: number, totalPages: number) => {
-            const pageWidth = docInstance.internal.pageSize.getWidth();
-            const margin = 14;
-    
-            if (requestSettings.pdfTopLegend) {
-                doc.setFontSize(8);
-                doc.setFont('Helvetica', 'italic');
-                doc.text(requestSettings.pdfTopLegend, pageWidth / 2, 12, { align: 'center' });
-            }
-
-            let textStartX = margin;
-            if (logoDataUrl) {
-                try {
-                    const logoHeight = 15;
-                    const originalWidth = (docInstance as any).getImageProperties(logoDataUrl).width;
-                    const originalHeight = (docInstance as any).getImageProperties(logoDataUrl).height;
-                    const logoAspectRatio = originalWidth / originalHeight;
-                    const logoWidth = logoHeight * logoAspectRatio;
-                    docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
-                    textStartX = margin + logoWidth + 5;
-                } catch (e) { console.error("Error adding image to PDF page:", e); }
-            }
-    
-            docInstance.setFontSize(11);
-            docInstance.setFont('Helvetica', 'bold');
-            docInstance.text(companyData.name, textStartX, 22);
-            docInstance.setFont('Helvetica', 'normal');
-            docInstance.setFontSize(9);
-            docInstance.text(companyData.taxId, textStartX, 28);
-    
-            const titleX = pageWidth / 2;
-            const titleY = 22;
-    
-            docInstance.setFontSize(18);
-            docInstance.setFont('Helvetica', 'bold');
-            docInstance.text(`Lista de Solicitudes de Compra (${viewingArchived ? 'Archivadas' : 'Activas'})`, titleX, titleY, { align: 'center'});
-            
-            docInstance.setFontSize(10);
-            docInstance.setFont('Helvetica', 'normal');
-            docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, titleY, { align: 'right' });
-    
-            const pageHeight = docInstance.internal.pageSize.getHeight();
-            docInstance.setFontSize(8);
-            docInstance.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-        };
-    
-        const allPossibleColumns: { id: string, header: string }[] = [
-            { id: 'consecutive', header: 'Solicitud' },
+        
+        const allPossibleColumns: { id: string, header: string, width?: number }[] = [
+            { id: 'consecutive', header: 'Solicitud', width: 40 },
             { id: 'itemDescription', header: 'Artículo' },
             { id: 'clientName', header: 'Cliente' },
-            { id: 'quantity', header: 'Cant.' },
-            { id: 'requiredDate', header: 'Fecha Req.' },
-            { id: 'status', header: 'Estado' },
-            { id: 'requestedBy', header: 'Solicitante' },
-            { id: 'purchaseOrder', header: 'OC Cliente' },
-            { id: 'manualSupplier', header: 'Proveedor' },
+            { id: 'quantity', header: 'Cant.', width: 30 },
+            { id: 'requiredDate', header: 'Fecha Req.', width: 50 },
+            { id: 'status', header: 'Estado', width: 60 },
+            { id: 'requestedBy', header: 'Solicitante', width: 60 },
+            { id: 'purchaseOrder', header: 'OC Cliente', width: 60 },
+            { id: 'manualSupplier', header: 'Proveedor', width: 70 },
         ];
-        
-        const selectedColumnIds = requestSettings.pdfExportColumns || [];
-        const tableHeaders = selectedColumnIds.map(id => allPossibleColumns.find(c => c.id === id)?.header || id);
-        
-        const tableRows = selectors.filteredRequests.map(request => {
-            return selectedColumnIds.map(id => {
-                switch (id) {
-                    case 'consecutive': return request.consecutive;
-                    case 'itemDescription': return `[${request.itemId}] ${request.itemDescription}`;
-                    case 'clientName': return request.clientName;
-                    case 'quantity': return request.quantity.toLocaleString('es-CR');
-                    case 'requiredDate': return format(parseISO(request.requiredDate), 'dd/MM/yy');
-                    case 'status': return statusConfig[request.status]?.label || request.status;
-                    case 'requestedBy': return request.requestedBy;
-                    case 'purchaseOrder': return request.purchaseOrder || 'N/A';
-                    case 'manualSupplier': return request.manualSupplier || 'N/A';
-                    default: return '';
-                }
-            });
-        });
     
-        autoTable(doc, {
-            head: [tableHeaders],
-            body: tableRows,
-            startY: 50,
-            headStyles: { fillColor: [41, 128, 185], halign: 'left', font: 'Helvetica', fontStyle: 'bold' },
-            didDrawPage: (data) => {
-                addHeaderAndFooter(doc, data.pageNumber, (doc.internal as any).getNumberOfPages());
+        const doc = generateDocument({
+            docTitle: `Solicitudes de Compra (${viewingArchived ? 'Archivadas' : 'Activas'})`,
+            docId: '',
+            companyData: companyData,
+            logoDataUrl: logoDataUrl,
+            meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
+            blocks: [],
+            table: {
+                columns: (requestSettings.pdfExportColumns || []).map(id => allPossibleColumns.find(c => c.id === id)?.header || id),
+                rows: selectors.filteredRequests.map(request => {
+                    return (requestSettings.pdfExportColumns || []).map(id => {
+                         switch (id) {
+                            case 'consecutive': return request.consecutive;
+                            case 'itemDescription': return `[${request.itemId}] ${request.itemDescription}`;
+                            case 'clientName': return request.clientName;
+                            case 'quantity': return request.quantity.toLocaleString('es-CR');
+                            case 'requiredDate': return format(parseISO(request.requiredDate), 'dd/MM/yy');
+                            case 'status': return statusConfig[request.status]?.label || request.status;
+                            case 'requestedBy': return request.requestedBy;
+                            case 'purchaseOrder': return request.purchaseOrder || 'N/A';
+                            case 'manualSupplier': return request.manualSupplier || 'N/A';
+                            default: return '';
+                        }
+                    });
+                }),
+                columnStyles: (requestSettings.pdfExportColumns || []).reduce((acc, id, index) => {
+                    const col = allPossibleColumns.find(c => c.id === id);
+                    if (col?.width) {
+                        acc[index] = { cellWidth: col.width };
+                    }
+                    if (id === 'quantity') {
+                        acc[index] = { ...acc[index], halign: 'right' };
+                    }
+                    return acc;
+                }, {} as { [key: number]: any })
             },
-            styles: { font: 'Helvetica' }
+            totals: [],
         });
-    
+        
         doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);
     };
 
     const handleExportSingleRequestPDF = async (request: PurchaseRequest) => {
-        if (!companyData) return;
-        const doc = new jsPDF();
-        doc.setFont('Helvetica');
+        if (!companyData || !requestSettings) return;
 
         let logoDataUrl: string | null = null;
         if (companyData.logoUrl) {
             try {
-                 const img = new Image();
-                img.crossOrigin = "Anonymous";
-                const imgPromise = new Promise((resolve, reject) => {
-                    img.onload = () => resolve(img);
-                    img.onerror = reject;
+                const response = await fetch(companyData.logoUrl);
+                const blob = await response.blob();
+                logoDataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
                 });
-                img.src = companyData.logoUrl;
-                const loadedImg = await imgPromise as HTMLImageElement;
-                const logoHeight = 15;
-                const logoWidth = (loadedImg.naturalWidth / loadedImg.naturalHeight) * logoHeight;
-                const canvas = document.createElement('canvas');
-                canvas.width = loadedImg.naturalWidth;
-                canvas.height = loadedImg.naturalHeight;
-                const ctx = canvas.getContext('2d');
-                if(ctx) {
-                    ctx.drawImage(loadedImg, 0, 0);
-                    logoDataUrl = canvas.toDataURL('image/png');
-                }
             } catch(e) { console.error("Error adding logo to PDF:", e) }
         }
         
-        const addHeaderAndFooter = (docInstance: jsPDF) => {
-            const pageWidth = docInstance.internal.pageSize.getWidth();
-            const margin = 14;
-            let textStartX = margin;
-            
-            if (logoDataUrl) {
-                try {
-                    const logoHeight = 15;
-                    const originalWidth = (docInstance as any).getImageProperties(logoDataUrl).width;
-                    const originalHeight = (docInstance as any).getImageProperties(logoDataUrl).height;
-                    const logoAspectRatio = originalWidth / originalHeight;
-                    const logoWidth = logoHeight * logoAspectRatio;
-                    docInstance.addImage(logoDataUrl, 'PNG', margin, 15, logoWidth, logoHeight);
-                    textStartX = margin + logoWidth + 5;
-                } catch (e) { console.error("Error adding image to PDF page:", e); }
-            }
-            
-            docInstance.setFontSize(11);
-            docInstance.setFont('Helvetica', 'bold');
-            docInstance.text(companyData.name, textStartX, 22);
-            docInstance.setFont('Helvetica', 'normal');
-            docInstance.setFontSize(9);
-            docInstance.text(companyData.taxId, textStartX, 28);
-    
-            const titleX = pageWidth / 2;
-            const titleY = 22;
-            
-            if (requestSettings?.pdfTopLegend) {
-                doc.setFontSize(8);
-                doc.setFont('Helvetica', 'italic');
-                doc.text(requestSettings.pdfTopLegend, titleX, 12, { align: 'center' });
-            }
-        
-            docInstance.setFontSize(18);
-            docInstance.setFont('Helvetica', 'bold');
-            docInstance.text('Solicitud de Compra', titleX, titleY, { align: 'center' });
-            docInstance.setFontSize(12);
-            docInstance.setFont('Helvetica', 'normal');
-            docInstance.text(`${request.consecutive}`, pageWidth - margin, 22, { align: 'right' });
-            docInstance.setFontSize(10);
-            docInstance.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 28, { align: 'right' });
-        };
-    
-        addHeaderAndFooter(doc);
-
-        let y = 50;
-        
-        const details = [
-            { title: 'Cliente:', value: request.clientName },
-            { title: 'Artículo:', value: `[${request.itemId}] ${request.itemDescription}` },
-            { title: 'Cantidad Solicitada:', value: request.quantity.toLocaleString('es-CR') },
-            { title: 'Fecha Solicitud:', value: format(parseISO(request.requestDate), 'dd/MM/yyyy') },
-            { title: 'Fecha Requerida:', value: format(parseISO(request.requiredDate), 'dd/MM/yyyy') },
-            { title: 'Estado:', value: statusConfig[request.status]?.label || request.status },
-            { title: 'Prioridad:', value: priorityConfig[request.priority]?.label || request.priority },
-            { title: 'Ruta:', value: request.route || 'N/A' },
-            { title: 'Método Envío:', value: request.shippingMethod || 'N/A' },
-            { title: 'Proveedor:', value: request.manualSupplier || 'N/A' },
-            { title: 'Notas:', value: request.notes || 'N/A' },
-            { title: 'Solicitado por:', value: request.requestedBy },
-            { title: 'Aprobado por:', value: request.approvedBy || 'N/A' },
-            { title: 'Última actualización:', value: `${request.lastStatusUpdateBy || 'N/A'} - ${request.lastStatusUpdateNotes || ''}` }
-        ];
-    
-        autoTable(doc, {
-            startY: y,
-            body: details.map(d => [d.title, d.value]),
-            theme: 'plain',
-            styles: { cellPadding: 1, fontSize: 10, font: 'Helvetica' },
-            columnStyles: {
-                0: { fontStyle: 'bold', cellWidth: 40 },
-                1: { cellWidth: 'auto' }
+        const history = await getRequestHistory(request.id);
+        const doc = generateDocument({
+            docTitle: 'Solicitud de Compra',
+            docId: request.consecutive,
+            companyData,
+            logoDataUrl,
+            meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
+            blocks: [
+                { title: 'Cliente:', value: request.clientName },
+                { title: 'Artículo:', value: `[${request.itemId}] ${request.itemDescription}` },
+                { title: 'Cantidad Solicitada:', value: request.quantity.toLocaleString('es-CR') },
+                { title: 'Fecha Solicitud:', value: format(parseISO(request.requestDate), 'dd/MM/yyyy') },
+                { title: 'Fecha Requerida:', value: format(parseISO(request.requiredDate), 'dd/MM/yyyy') },
+                { title: 'Estado:', value: statusConfig[request.status]?.label || request.status },
+                { title: 'Prioridad:', value: priorityConfig[request.priority]?.label || request.priority },
+                { title: 'Ruta:', value: request.route || 'N/A' },
+                { title: 'Método Envío:', value: request.shippingMethod || 'N/A' },
+                { title: 'Proveedor:', value: request.manualSupplier || 'N/A' },
+                { title: 'Notas:', value: request.notes || 'N/A' },
+                { title: 'Solicitado por:', value: request.requestedBy },
+                { title: 'Aprobado por:', value: request.approvedBy || 'N/A' },
+                { title: 'Última actualización:', value: `${request.lastStatusUpdateBy || 'N/A'} - ${request.lastStatusUpdateNotes || ''}` }
+            ].map(d => ({ title: d.title, content: d.value })),
+            table: {
+                columns: ["Fecha", "Estado", "Usuario", "Notas"],
+                rows: history.map(entry => [
+                    format(parseISO(entry.timestamp), 'dd/MM/yy HH:mm'),
+                    statusConfig[entry.status]?.label || entry.status,
+                    entry.updatedBy,
+                    entry.notes || ''
+                ]),
+                columnStyles: {},
             },
-            didParseCell: (data) => { (data.cell.styles as any).fillColor = '#ffffff'; }
+            totals: []
         });
-    
-        y = (doc as any).lastAutoTable.finalY + 15;
-    
-        if (y > 220) { doc.addPage(); y = 20; addHeaderAndFooter(doc); }
-        doc.setFontSize(14);
-        doc.setFont('Helvetica', 'bold');
-        doc.text('Historial de Cambios', 14, y);
-        y += 8;
-    
-        const requestHistory = await getRequestHistory(request.id);
-        if (requestHistory.length > 0) {
-            const tableColumn = ["Fecha", "Estado", "Usuario", "Notas"];
-            const tableRows = requestHistory.map(entry => [
-                format(parseISO(entry.timestamp), 'dd/MM/yy HH:mm'),
-                statusConfig[entry.status]?.label || entry.status,
-                entry.updatedBy,
-                entry.notes || ''
-            ]);
-            autoTable(doc, {
-                head: [tableColumn],
-                body: tableRows,
-                startY: y,
-                headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
-                styles: { font: 'Helvetica' }
-            });
-        } else {
-            doc.setFontSize(10);
-            doc.text('No hay historial de cambios para esta solicitud.', 14, y);
-        }
-    
+
         doc.save(`sc_${request.consecutive}.pdf`);
-    }
+    };
 
     const selectors = {
         hasPermission,
