@@ -2,7 +2,6 @@
  * @fileoverview Centralized PDF generation service for the entire application.
  * This module provides a single, configurable function to create consistent and
  * professional-looking PDF documents for quotes, production orders, and purchase requests.
- * This is a client-side utility as jsPDF runs in the browser.
  */
 'use client';
 
@@ -45,47 +44,58 @@ interface DocumentData {
 const addHeader = (doc: jsPDF, data: DocumentData) => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 39.68; // approx 14mm in points
+    let startY = 22;
 
+    // --- Logo (Column 1) ---
     let textStartX = margin;
     if (data.logoDataUrl) {
         try {
             const imgProps = doc.getImageProperties(data.logoDataUrl);
             const aspectRatio = imgProps.width / imgProps.height;
-            const imgHeight = 28; // Smaller logo
-            const imgWidth = Math.min(imgHeight * aspectRatio, 50); 
+            const imgHeight = 28;
+            const imgWidth = Math.min(imgHeight * aspectRatio, 50);
             doc.addImage(data.logoDataUrl, 'PNG', margin, 15, imgWidth, imgHeight);
             textStartX += imgWidth + 10;
         } catch (e) {
             console.error("Error adding logo image to PDF:", e);
         }
     }
-    
+
+    // --- Company Info (Column 2) ---
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text(data.companyData.name, textStartX, 22);
+    doc.text(data.companyData.name, textStartX, startY);
+    startY += 6;
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Cédula: ${data.companyData.taxId}`, textStartX, 28);
-    doc.text(data.companyData.address, textStartX, 34);
-    doc.text(`Tel: ${data.companyData.phone}`, textStartX, 40);
-    doc.text(`Email: ${data.companyData.email}`, textStartX, 46);
+    doc.text(`Cédula: ${data.companyData.taxId}`, textStartX, startY);
+    startY += 5;
+    doc.text(data.companyData.address, textStartX, startY);
+    startY += 5;
+    doc.text(`Tel: ${data.companyData.phone}`, textStartX, startY);
+    startY += 5;
+    doc.text(`Email: ${data.companyData.email}`, textStartX, startY);
 
+    // --- Quote Info (Column 3) ---
+    let rightY = 22;
     doc.setFontSize(18);
     doc.setFont('Helvetica', 'bold');
-    doc.text(data.docTitle, pageWidth - margin, 22, { align: 'right' });
+    doc.text(data.docTitle, pageWidth - margin, rightY, { align: 'right' });
 
-    let rightY = 30;
+    rightY += 8;
     doc.setFontSize(10);
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('Helvetica', 'bold');
     doc.text(`${data.docId}`, pageWidth - margin, rightY, { align: 'right' });
     
+    rightY += 6;
+    doc.setFont('Helvetica', 'normal');
     data.meta.forEach(item => {
-        rightY += 6;
         doc.text(`${item.label}: ${item.value}`, pageWidth - margin, rightY, { align: 'right' });
+        rightY += 5;
     });
 
     if (data.sellerInfo) {
-        rightY += 10; // Extra space
+        rightY += 5; // Extra space
         doc.setFont('Helvetica', 'bold');
         doc.text("Vendedor:", pageWidth - margin, rightY, { align: 'right' });
         rightY += 6;
@@ -118,13 +128,14 @@ const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
 export const generateDocument = (data: DocumentData): jsPDF => {
     const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: 'p', unit: 'pt', format: 'letter' });
     const margin = 39.68; 
-    let finalY = 70; // Start content lower
+    let finalY = 85; 
 
     const didDrawPage = (hookData: any) => {
         addHeader(doc, data);
         addFooter(doc, hookData.pageNumber, (doc.internal as any).getNumberOfPages());
     };
     
+    // Draw header and footer on first page manually before autoTable
     didDrawPage({ pageNumber: 1 });
     
     if (data.blocks.length > 0) {
@@ -161,7 +172,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         finalY += 20;
     }
     
-    doc.setPage(doc.getNumberOfPages());
+    const totalPages = (doc.internal as any).getNumberOfPages();
+    doc.setPage(totalPages);
 
     const pageWidth = doc.internal.pageSize.getWidth();
     let leftY = finalY;
@@ -172,7 +184,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     data.totals.forEach((total, index) => {
         const isLast = index === data.totals.length - 1;
         if(isLast) {
-             rightY += 2;
+             rightY += 4; // More space for the total line
         }
         doc.setFontSize(isLast ? 12 : 10);
         doc.setFont('Helvetica', isLast ? 'bold' : 'normal');
@@ -199,11 +211,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.text(splitNotes, margin, leftY);
     }
     
-    const totalPages = (doc.internal as any).getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        addFooter(doc, i, totalPages);
-    }
+    // Ensure footer is on the last page if content was added
+    addFooter(doc, totalPages, totalPages);
 
     return doc;
 };

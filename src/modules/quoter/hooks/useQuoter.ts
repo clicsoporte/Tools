@@ -352,11 +352,11 @@ export const useQuoter = () => {
     await logInfo(`Currency changed to ${newCurrency}`);
   };
 
-  const formatCurrency = (amount: number, places?: number) => {
+  const formatCurrency = (amount: number) => {
     const prefix = currency === "CRC" ? "CRC " : "$ ";
     return `${prefix}${amount.toLocaleString("es-CR", {
-      minimumFractionDigits: places ?? decimalPlaces,
-      maximumFractionDigits: places ?? decimalPlaces,
+      minimumFractionDigits: decimalPlaces,
+      maximumFractionDigits: decimalPlaces,
     })}`;
   };
 
@@ -597,29 +597,28 @@ export const useQuoter = () => {
   };
 
   const handleLoadDraft = (draft: QuoteDraft) => {
-    setLines(draft.lines.map((line: Omit<QuoteLine, 'displayQuantity' | 'displayPrice'>) => ({
-      ...line,
-      displayQuantity: String(line.quantity),
-      displayPrice: String(line.price),
-    })));
-    if (draft.customerId) handleSelectCustomer(draft.customerId);
-    else {
+    setQuoteNumber(draft.id);
+    setPurchaseOrderNumber(draft.purchaseOrderNumber || "");
+    setNotes(draft.notes);
+    setCurrency(draft.currency);
+    setExchangeRate(draft.exchangeRate);
+    
+    // Load customer and exemption info
+    if (draft.customerId) {
+      handleSelectCustomer(draft.customerId);
+    } else {
       setSelectedCustomer(null);
       setCustomerDetails(draft.customerDetails || "");
       setExemptionInfo(null);
     }
-    setDeliveryAddress(draft.deliveryAddress || "");
-    setDeliveryDate(draft.deliveryDate || "");
-    setSellerName(draft.sellerName || "");
-    setSellerType(draft.sellerType || "user");
-    setQuoteDate(draft.quoteDate || new Date().toISOString().substring(0, 10));
-    setValidUntilDate(draft.validUntilDate || "");
-    setPaymentTerms(draft.paymentTerms || "contado");
-    setCreditDays(draft.creditDays || 0);
-    setNotes(draft.notes);
-    setPurchaseOrderNumber(draft.purchaseOrderNumber || "");
-    setCurrency(draft.currency);
-    setExchangeRate(draft.exchangeRate);
+    
+    const draftLines = draft.lines.map((line: Omit<QuoteLine, 'displayQuantity' | 'displayPrice'>) => ({
+      ...line,
+      displayQuantity: String(line.quantity),
+      displayPrice: String(line.price),
+    }));
+    setLines(draftLines);
+
     toast({ title: "Borrador Cargado", description: `La cotización Nº ${draft.id} ha sido cargada.` });
   };
 
