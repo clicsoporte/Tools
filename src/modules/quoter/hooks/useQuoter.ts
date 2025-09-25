@@ -535,7 +535,7 @@ export const useQuoter = () => {
     const tableColumn = ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"];
     const tableRows = lines.map(line => [
         line.product.id,
-        { content: line.product.description, styles: { cellWidth: 'wrap' } },
+        line.product.description,
         line.quantity.toLocaleString('es-CR'),
         line.product.unit,
         line.product.cabys,
@@ -579,7 +579,7 @@ export const useQuoter = () => {
         styles: { font: 'Helvetica', fontSize: 9 },
         columnStyles: {
             0: { cellWidth: 20 },
-            1: { cellWidth: 'auto' },
+            1: { cellWidth: 'wrap' },
             2: { cellWidth: 15, halign: 'right' },
             3: { cellWidth: 15 },
             4: { cellWidth: 22 },
