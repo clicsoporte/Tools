@@ -38,6 +38,9 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
             approvedBy TEXT,
             lastStatusUpdateBy TEXT,
             lastStatusUpdateNotes TEXT,
+            lastModifiedBy TEXT,
+            lastModifiedAt TEXT,
+            hasBeenModified BOOLEAN DEFAULT FALSE,
             deliveredQuantity REAL,
             erpPackageNumber TEXT,
             erpTicketNumber TEXT,
@@ -74,6 +77,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('fieldsToTrackChanges', '[]')`).run();
     
     console.log(`Database ${PLANNER_DB_FILE} initialized for Production Planner.`);
     
@@ -84,22 +88,15 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
     const plannerTableInfo = db.prepare(`PRAGMA table_info(production_orders)`).all() as { name: string }[];
     const plannerColumns = new Set(plannerTableInfo.map(c => c.name));
     
-    if (!plannerColumns.has('deliveredQuantity')) {
-        console.log("MIGRATION (planner.db): Adding deliveredQuantity column to production_orders.");
-        db.exec(`ALTER TABLE production_orders ADD COLUMN deliveredQuantity REAL`);
-    }
-    if (!plannerColumns.has('purchaseOrder')) {
-        console.log("MIGRATION (planner.db): Adding purchaseOrder column to production_orders.");
-        db.exec(`ALTER TABLE production_orders ADD COLUMN purchaseOrder TEXT`);
-    }
-    if (!plannerColumns.has('scheduledStartDate')) {
-        console.log("MIGRATION (planner.db): Adding scheduledStartDate column to production_orders.");
-        db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledStartDate TEXT`);
-    }
-    if (!plannerColumns.has('scheduledEndDate')) {
-        console.log("MIGRATION (planner.db): Adding scheduledEndDate column to production_orders.");
-        db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledEndDate TEXT`);
-    }
+    if (!plannerColumns.has('deliveredQuantity')) db.exec(`ALTER TABLE production_orders ADD COLUMN deliveredQuantity REAL`);
+    if (!plannerColumns.has('purchaseOrder')) db.exec(`ALTER TABLE production_orders ADD COLUMN purchaseOrder TEXT`);
+    if (!plannerColumns.has('scheduledStartDate')) db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledStartDate TEXT`);
+    if (!plannerColumns.has('scheduledEndDate')) db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledEndDate TEXT`);
+    if (!plannerColumns.has('lastModifiedBy')) db.exec(`ALTER TABLE production_orders ADD COLUMN lastModifiedBy TEXT`);
+    if (!plannerColumns.has('lastModifiedAt')) db.exec(`ALTER TABLE production_orders ADD COLUMN lastModifiedAt TEXT`);
+    if (!plannerColumns.has('hasBeenModified')) db.exec(`ALTER TABLE production_orders ADD COLUMN hasBeenModified BOOLEAN DEFAULT FALSE`);
+    if (!plannerColumns.has('previousStatus')) db.exec(`ALTER TABLE production_orders ADD COLUMN previousStatus TEXT`);
+    
 
     const historyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='production_order_history'`).get();
     if (!historyTable) {
@@ -117,35 +114,45 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
          `);
     }
 
-    const customStatusesRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'customStatuses'`).get() as { value: string } | undefined;
-    if (!customStatusesRow) {
-        console.log("MIGRATION (planner.db): Adding customStatuses to settings.");
-         const defaultCustomStatuses: CustomStatus[] = [
-            { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
-            { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
-            { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
-            { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
-        ];
-        db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
-    }
+    const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='planner_settings'`).get();
+    if (settingsTable) {
+        const customStatusesRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'customStatuses'`).get() as { value: string } | undefined;
+        if (!customStatusesRow) {
+            console.log("MIGRATION (planner.db): Adding customStatuses to settings.");
+            const defaultCustomStatuses: CustomStatus[] = [
+                { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
+                { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
+                { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
+                { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
+            ];
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
+        }
 
-    const pdfPaperSizeRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfPaperSize'`).get() as { value: string } | undefined;
-    if (!pdfPaperSizeRow) {
-        console.log("MIGRATION (planner.db): Adding pdfPaperSize to settings.");
-        db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
-    }
+        const pdfPaperSizeRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfPaperSize'`).get() as { value: string } | undefined;
+        if (!pdfPaperSizeRow) {
+            console.log("MIGRATION (planner.db): Adding pdfPaperSize to settings.");
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
+        }
 
-    const pdfExportColumnsRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfExportColumns'`).get() as { value: string } | undefined;
-    if (!pdfExportColumnsRow) {
-        console.log("MIGRATION (planner.db): Adding pdfExportColumns to settings.");
-        const defaultColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
-        db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultColumns));
-    }
+        const pdfExportColumnsRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfExportColumns'`).get() as { value: string } | undefined;
+        if (!pdfExportColumnsRow) {
+            console.log("MIGRATION (planner.db): Adding pdfExportColumns to settings.");
+            const defaultColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultColumns));
+        }
 
-    const pdfTopLegendRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfTopLegend'`).get() as { value: string } | undefined;
-    if (!pdfTopLegendRow) {
-        console.log("MIGRATION (planner.db): Adding pdfTopLegend to settings.");
-        db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfTopLegend', '')`).run();
+        const pdfTopLegendRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfTopLegend'`).get() as { value: string } | undefined;
+        if (!pdfTopLegendRow) {
+            console.log("MIGRATION (planner.db): Adding pdfTopLegend to settings.");
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfTopLegend', '')`).run();
+        }
+
+        const fieldsToTrackRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'fieldsToTrackChanges'`).get() as { value: string } | undefined;
+        if (!fieldsToTrackRow) {
+            console.log("MIGRATION (planner.db): Adding fieldsToTrackChanges to settings.");
+            const defaultFields = ['quantity', 'deliveryDate', 'customerId', 'productId'];
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('fieldsToTrackChanges', ?)`).run(JSON.stringify(defaultFields));
+        }
     }
 }
 
@@ -164,40 +171,20 @@ export async function getSettings(): Promise<PlannerSettings> {
         pdfPaperSize: 'letter',
         pdfExportColumns: [],
         pdfTopLegend: '',
+        fieldsToTrackChanges: [],
     };
 
     for (const row of settingsRows) {
-        if (row.key === 'nextOrderNumber') {
-            settings.nextOrderNumber = Number(row.value);
-        } else if (row.key === 'useWarehouseReception') {
-            settings.useWarehouseReception = row.value === 'true';
-        } else if (row.key === 'machines') {
-            try {
-                settings.machines = JSON.parse(row.value);
-            } catch {
-                settings.machines = [];
-            }
-        } else if (row.key === 'requireMachineForStart') {
-            settings.requireMachineForStart = row.value === 'true';
-        } else if (row.key === 'assignmentLabel') {
-            settings.assignmentLabel = row.value;
-        } else if (row.key === 'customStatuses') {
-            try {
-                settings.customStatuses = JSON.parse(row.value);
-            } catch {
-                settings.customStatuses = [];
-            }
-        } else if (row.key === 'pdfPaperSize') {
-            settings.pdfPaperSize = row.value as 'letter' | 'legal';
-        } else if (row.key === 'pdfExportColumns') {
-             try {
-                settings.pdfExportColumns = JSON.parse(row.value);
-            } catch {
-                settings.pdfExportColumns = [];
-            }
-        } else if (row.key === 'pdfTopLegend') {
-            settings.pdfTopLegend = row.value;
-        }
+        if (row.key === 'nextOrderNumber') settings.nextOrderNumber = Number(row.value);
+        else if (row.key === 'useWarehouseReception') settings.useWarehouseReception = row.value === 'true';
+        else if (row.key === 'machines') settings.machines = JSON.parse(row.value);
+        else if (row.key === 'requireMachineForStart') settings.requireMachineForStart = row.value === 'true';
+        else if (row.key === 'assignmentLabel') settings.assignmentLabel = row.value;
+        else if (row.key === 'customStatuses') settings.customStatuses = JSON.parse(row.value);
+        else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
+        else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
+        else if (row.key === 'pdfTopLegend') settings.pdfTopLegend = row.value;
+        else if (row.key === 'fieldsToTrackChanges') settings.fieldsToTrackChanges = JSON.parse(row.value);
     }
     return settings;
 }
@@ -206,32 +193,12 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        if (settingsToUpdate.nextOrderNumber !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('nextOrderNumber', settingsToUpdate.nextOrderNumber.toString());
-        }
-        if (settingsToUpdate.useWarehouseReception !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('useWarehouseReception', settingsToUpdate.useWarehouseReception.toString());
-        }
-        if (settingsToUpdate.machines !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('machines', JSON.stringify(settingsToUpdate.machines));
-        }
-        if (settingsToUpdate.requireMachineForStart !== undefined) {
-             db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('requireMachineForStart', settingsToUpdate.requireMachineForStart.toString());
-        }
-        if (settingsToUpdate.assignmentLabel !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('assignmentLabel', settingsToUpdate.assignmentLabel);
-        }
-        if (settingsToUpdate.customStatuses !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('customStatuses', JSON.stringify(settingsToUpdate.customStatuses));
-        }
-        if (settingsToUpdate.pdfPaperSize !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('pdfPaperSize', settingsToUpdate.pdfPaperSize);
-        }
-        if (settingsToUpdate.pdfExportColumns !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('pdfExportColumns', JSON.stringify(settingsToUpdate.pdfExportColumns));
-        }
-        if (settingsToUpdate.pdfTopLegend !== undefined) {
-            db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run('pdfTopLegend', settingsToUpdate.pdfTopLegend);
+        const keys: (keyof PlannerSettings)[] = ['nextOrderNumber', 'useWarehouseReception', 'machines', 'requireMachineForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
+        for (const key of keys) {
+            if (settingsToUpdate[key] !== undefined) {
+                const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
+                db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run(key, value);
+            }
         }
     });
 
@@ -277,7 +244,7 @@ export async function getOrders(options: {
 }
 
 
-export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy'>, requestedBy: string): Promise<ProductionOrder> {
+export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'>, requestedBy: string): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const settings = await getSettings();
@@ -294,17 +261,18 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         previousStatus: null,
         scheduledStartDate: null,
         scheduledEndDate: null,
+        hasBeenModified: false,
     };
 
     const stmt = db.prepare(`
         INSERT INTO production_orders (
             consecutive, purchaseOrder, requestDate, deliveryDate, scheduledStartDate, scheduledEndDate,
             customerId, customerName, productId, productDescription, quantity, inventory, priority,
-            status, notes, requestedBy, reopened, machineId, previousStatus
+            status, notes, requestedBy, reopened, machineId, previousStatus, hasBeenModified
         ) VALUES (
             @consecutive, @purchaseOrder, @requestDate, @deliveryDate, @scheduledStartDate, @scheduledEndDate,
             @customerId, @customerName, @productId, @productDescription, @quantity, @inventory, @priority,
-            @status, @notes, @requestedBy, @reopened, @machineId, @previousStatus
+            @status, @notes, @requestedBy, @reopened, @machineId, @previousStatus, @hasBeenModified
         )
     `);
 
@@ -313,7 +281,8 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         purchaseOrder: newOrder.purchaseOrder || null,
         inventory: newOrder.inventory ?? null,
         notes: newOrder.notes || null,
-        reopened: newOrder.reopened ? 1 : 0
+        reopened: newOrder.reopened ? 1 : 0,
+        hasBeenModified: newOrder.hasBeenModified ? 1 : 0,
     };
 
     const info = stmt.run(preparedOrder);
@@ -336,45 +305,61 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
     if (!currentOrder) {
         throw new Error("Order not found.");
     }
+    const settings = await getSettings();
+    const fieldsToTrack = settings.fieldsToTrackChanges || [];
 
+    let hasBeenModified = currentOrder.hasBeenModified;
     const changes: string[] = [];
-    if (dataToUpdate.quantity !== undefined && Number(currentOrder.quantity) !== Number(dataToUpdate.quantity)) {
-        changes.push(`Cantidad: de ${currentOrder.quantity} a ${dataToUpdate.quantity}.`);
-    }
-    if (dataToUpdate.purchaseOrder !== undefined && (currentOrder.purchaseOrder || '') !== (dataToUpdate.purchaseOrder || '')) {
-        changes.push(`Nº OC: de '${currentOrder.purchaseOrder || 'N/A'}' a '${dataToUpdate.purchaseOrder || 'N/A'}'.`);
-    }
-    if (dataToUpdate.deliveryDate && currentOrder.deliveryDate !== dataToUpdate.deliveryDate) {
-        changes.push(`Fecha Entrega: de ${format(parseISO(currentOrder.deliveryDate), 'dd/MM/yy')} a ${format(parseISO(dataToUpdate.deliveryDate), 'dd/MM/yy')}.`);
-    }
-     if (dataToUpdate.notes !== undefined && (currentOrder.notes || '') !== (dataToUpdate.notes || '')) {
-        changes.push(`Notas actualizadas.`);
+    
+    // Check for modifications only if the order is already approved
+    if (currentOrder.status !== 'pending') {
+        const checkChange = (field: keyof typeof dataToUpdate, label: string) => {
+            if (fieldsToTrack.includes(field) && dataToUpdate[field] !== undefined && String(currentOrder[field as keyof ProductionOrder] || '') !== String(dataToUpdate[field] || '')) {
+                changes.push(`${label}: de '${currentOrder[field as keyof ProductionOrder] || 'N/A'}' a '${dataToUpdate[field] || 'N/A'}'`);
+                hasBeenModified = true;
+            }
+        };
+
+        checkChange('quantity', 'Cantidad');
+        checkChange('deliveryDate', 'Fecha Entrega');
+        checkChange('purchaseOrder', 'Nº OC');
+        checkChange('notes', 'Notas');
+        checkChange('customerId', 'Cliente');
+        checkChange('productId', 'Producto');
     }
 
-    if (changes.length > 0) {
-        const historyNotes = `Orden editada. ${changes.join(' ')}`;
-
-        const transaction = db.transaction(() => {
-            db.prepare(`
-                UPDATE production_orders SET
-                    deliveryDate = @deliveryDate,
-                    customerId = @customerId,
-                    customerName = @customerName,
-                    productId = @productId,
-                    productDescription = @productDescription,
-                    quantity = @quantity,
-                    inventory = @inventory,
-                    notes = @notes,
-                    purchaseOrder = @purchaseOrder
-                WHERE id = @orderId
-            `).run({ orderId, ...dataToUpdate });
-
-            const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-            historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, historyNotes);
+    const transaction = db.transaction(() => {
+        db.prepare(`
+            UPDATE production_orders SET
+                deliveryDate = @deliveryDate,
+                customerId = @customerId,
+                customerName = @customerName,
+                productId = @productId,
+                productDescription = @productDescription,
+                quantity = @quantity,
+                inventory = @inventory,
+                notes = @notes,
+                purchaseOrder = @purchaseOrder,
+                lastModifiedBy = @updatedBy,
+                lastModifiedAt = @lastModifiedAt,
+                hasBeenModified = @hasBeenModified
+            WHERE id = @orderId
+        `).run({ 
+            ...dataToUpdate,
+            orderId, 
+            updatedBy, 
+            lastModifiedAt: new Date().toISOString(), 
+            hasBeenModified: hasBeenModified ? 1 : 0 
         });
 
-        transaction();
-    }
+        if (changes.length > 0) {
+            const historyNotes = `Orden editada. ${changes.join('. ')}`;
+            const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+            historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, historyNotes);
+        }
+    });
+
+    transaction();
     
     const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
     return updatedOrder;
@@ -395,7 +380,7 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
     }
     
     let previousStatus = currentOrder.previousStatus;
-    if (['cancellation-request', 'unapproval-request'].includes(status) && !['cancellation-request', 'unapproval-request'].includes(currentOrder.status)) {
+    if ((status === 'cancellation-request' || status === 'unapproval-request') && !['cancellation-request', 'unapproval-request'].includes(currentOrder.status)) {
         previousStatus = currentOrder.status;
     } else if (!['cancellation-request', 'unapproval-request'].includes(status)) {
         previousStatus = null; // Clear previous status if we are moving to a normal state

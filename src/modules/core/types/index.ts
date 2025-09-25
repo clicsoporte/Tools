@@ -252,9 +252,10 @@ export type ProductionOrder = {
   reopened?: boolean;
   machineId?: string | null;
   previousStatus?: ProductionOrderStatus | null;
+  hasBeenModified?: boolean;
 };
 
-export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt'>> & {
+export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified'>> & {
     orderId: number;
     updatedBy: string;
 };
@@ -559,5 +560,3 @@ export type UpdateBackupInfo = {
     fileName: string;
     date: string;
 };
-
-      
