@@ -308,10 +308,33 @@ export default function HelpPage() {
                     </AccordionContent>
                 </AccordionItem>
                 
+                <AccordionItem value="item-user-profile">
+                <AccordionTrigger className="text-lg font-semibold">
+                    <UserCog className="mr-4 h-6 w-6 text-blue-500" />
+                    Tutorial: Mi Perfil
+                </AccordionTrigger>
+                <AccordionContent className="prose max-w-none text-base">
+                    <div className="flex items-start gap-4">
+                        <UserCog className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
+                        <div>
+                            <p>
+                            Aquí puedes personalizar tu propia cuenta de usuario.
+                            </p>
+                            <ul className="list-disc space-y-2 pl-6">
+                                <li>Actualiza tu nombre, teléfono y WhatsApp.</li>
+                                <li>Cambia tu foto de perfil haciendo clic sobre el círculo con tus iniciales.</li>
+                                <li>Cambia tu contraseña.</li>
+                                <li>Configura una pregunta de seguridad para poder recuperar tu cuenta si olvidas la contraseña.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </AccordionContent>
+                </AccordionItem>
+                
                 <AccordionItem value="item-admin">
                 <AccordionTrigger className="text-lg font-semibold">
                     <Wrench className="mr-4 h-6 w-6 text-slate-600" />
-                    Tutorial: Panel de Administración
+                    Guía Técnica: Panel de Administración
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base space-y-4">
                     <p>
@@ -348,7 +371,7 @@ export default function HelpPage() {
                 <AccordionItem value="item-import">
                     <AccordionTrigger className="text-lg font-semibold">
                     <DatabaseZap className="mr-4 h-6 w-6 text-red-500" />
-                    Tutorial: Importación de Datos (Archivos y SQL)
+                    Guía Técnica: Importación de Datos (Archivos y SQL)
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
                         <p>La importación se gestiona desde <strong>Administración &gt; Importar Datos</strong>. Aquí puedes elegir el método que mejor se adapte a tus necesidades.</p>
@@ -383,33 +406,10 @@ export default function HelpPage() {
                     </AccordionContent>
                 </AccordionItem>
                 
-                <AccordionItem value="item-user-profile">
-                <AccordionTrigger className="text-lg font-semibold">
-                    <UserCog className="mr-4 h-6 w-6 text-blue-500" />
-                    Tutorial: Mi Perfil
-                </AccordionTrigger>
-                <AccordionContent className="prose max-w-none text-base">
-                    <div className="flex items-start gap-4">
-                        <UserCog className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
-                        <div>
-                            <p>
-                            Aquí puedes personalizar tu propia cuenta de usuario.
-                            </p>
-                            <ul className="list-disc space-y-2 pl-6">
-                                <li>Actualiza tu nombre, teléfono y WhatsApp.</li>
-                                <li>Cambia tu foto de perfil haciendo clic sobre el círculo con tus iniciales.</li>
-                                <li>Cambia tu contraseña.</li>
-                                <li>Configura una pregunta de seguridad para poder recuperar tu cuenta si olvidas la contraseña.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </AccordionContent>
-                </AccordionItem>
-                
                 <AccordionItem value="item-update">
                     <AccordionTrigger className="text-lg font-semibold">
                     <Wrench className="mr-4 h-6 w-6 text-slate-600" />
-                    Guía: ¿Cómo se actualiza la aplicación?
+                    Guía Técnica: ¿Cómo se actualiza la aplicación?
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
                         <p>Actualizar la aplicación a una nueva versión sin perder tus datos es un proceso crítico. El sistema está diseñado para manejar esto de forma segura gracias a las **migraciones automáticas**.</p>
@@ -472,4 +472,5 @@ export default function HelpPage() {
     </main>
   );
 }
+
 
