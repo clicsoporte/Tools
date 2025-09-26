@@ -7,7 +7,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, rejectCancellationRequest, updatePendingAction } from '@/modules/requests/lib/actions';
+import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, updatePendingAction } from '@/modules/requests/lib/actions';
 import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company, DateRange, RejectCancellationPayload, AdministrativeActionPayload, AdministrativeAction } from '../../core/types';
 import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -16,7 +16,7 @@ import jsPDF from "jspdf";
 import autoTable, { RowInput } from "jspdf-autotable";
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 
-const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'> = {
+const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified'> = {
     requiredDate: '',
     clientId: '',
     clientName: '',
@@ -110,6 +110,7 @@ export const useRequests = () => {
 
 
     const loadInitialData = useCallback(async (page = 0) => {
+        let isMounted = true;
         setIsLoading(true);
         try {
              const [settingsData, requestsData] = await Promise.all([
@@ -120,6 +121,8 @@ export const useRequests = () => {
                 })
             ]);
             
+            if (!isMounted) return;
+
             setRequestSettings(settingsData);
             
             const useWarehouse = settingsData.useWarehouseReception;
@@ -132,11 +135,16 @@ export const useRequests = () => {
             setTotalArchived(requestsData.totalArchivedCount);
 
         } catch (error) {
-            logError("Failed to load purchase requests data", { error });
-            toast({ title: "Error", description: "No se pudieron cargar las solicitudes de compra.", variant: "destructive" });
+             if (isMounted) {
+                logError("Failed to load purchase requests data", { error });
+                toast({ title: "Error", description: "No se pudieron cargar las solicitudes de compra.", variant: "destructive" });
+            }
         } finally {
-            setIsLoading(false);
+            if (isMounted) {
+                setIsLoading(false);
+            }
         }
+         return () => { isMounted = false; };
     }, [toast, viewingArchived, pageSize]);
     
     useEffect(() => {
@@ -228,15 +236,20 @@ export const useRequests = () => {
         setIsSubmitting(true);
 
         try {
-            if (!approve) {
-                const updated = await rejectCancellationRequest({ entityId: requestToUpdate.id, updatedBy: currentUser.name, notes: statusUpdateNotes });
-                toast({ title: 'Solicitud Rechazada' });
-                setActiveRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
-            } else {
+            if (approve) {
                 const targetStatus = requestToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
                 await updatePurchaseRequestStatus({ requestId: requestToUpdate.id, status: targetStatus, updatedBy: currentUser.name, notes: statusUpdateNotes, reopen: false });
                 toast({ title: 'Solicitud Aprobada' });
                 await loadInitialData(0);
+            } else {
+                 const updated = await updatePendingAction({
+                    entityId: requestToUpdate.id,
+                    action: 'none',
+                    notes: statusUpdateNotes,
+                    updatedBy: currentUser.name,
+                });
+                toast({ title: 'Solicitud Rechazada' });
+                setActiveRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
             }
             setActionDialogOpen(false);
         } catch (error: any) {
@@ -266,7 +279,7 @@ export const useRequests = () => {
             setActionDialogOpen(false);
             await loadInitialData(viewingArchived ? archivedPage : 0);
         } catch (error: any) {
-            logError("Failed to update status", { error: error.message });
+            logError("Failed to update status", { error: { message: error.message } });
             toast({ title: "Error", variant: "destructive" });
             await loadInitialData(viewingArchived ? archivedPage : 0);
         } finally {
@@ -281,7 +294,7 @@ export const useRequests = () => {
         try {
             setHistory(await getRequestHistory(request.id));
         } catch (error: any) {
-            logError("Failed to get history", { error });
+            logError("Failed to get history", { error: {message: error.message} });
             toast({ title: "Error", variant: "destructive" });
         } finally {
             setIsHistoryLoading(false);
@@ -304,22 +317,6 @@ export const useRequests = () => {
             setIsSubmitting(false);
         }
     };
-
-    const handleRejectCancellation = async (request: PurchaseRequest) => {
-        if (!currentUser) return;
-        setIsSubmitting(true);
-        try {
-            const updated = await rejectCancellationRequest({ entityId: request.id, notes: 'Solicitud de cancelación rechazada.', updatedBy: currentUser.name });
-            setActiveRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
-            setArchivedRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
-            toast({ title: 'Solicitud Rechazada' });
-        } catch (error: any) {
-             logError("Failed to reject cancellation", { error: error.message });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
-        }
-    }
     
     const handleSelectItem = (value: string) => {
         setItemSearchOpen(false);
@@ -531,7 +528,7 @@ export const useRequests = () => {
         setReopenDialogOpen, setReopenStep, setReopenConfirmationText, loadInitialData,
         handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
         handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
-        setRequestToUpdate, handleRejectCancellation, handleExportPDF, handleExportSingleRequestPDF,
+        setRequestToUpdate, handleRejectCancellation: () => {}, handleExportPDF, handleExportSingleRequestPDF,
         setArrivalDate, openAdminActionDialog, handleAdminAction, setActionDialogOpen
     };
 

@@ -7,7 +7,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder, updatePendingAction } from '@/modules/planner/lib/actions';
+import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, addNoteToOrder, updatePendingAction } from '@/modules/planner/lib/actions';
 import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload, RejectCancellationPayload, UpdateProductionOrderPayload, AdministrativeActionPayload, AdministrativeAction } from '../../core/types';
 import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -108,6 +108,7 @@ export const usePlanner = () => {
     };
 
     const loadInitialData = useCallback(async (page = 0) => {
+        let isMounted = true;
         updateState({ isLoading: true });
         try {
             const [ settingsData, ordersData ] = await Promise.all([
@@ -118,6 +119,8 @@ export const usePlanner = () => {
                 })
             ]);
             
+            if (!isMounted) return;
+
             let newDynamicConfig = { ...baseStatusConfig };
             if (settingsData?.customStatuses) {
                 settingsData.customStatuses.forEach(cs => {
@@ -143,10 +146,13 @@ export const usePlanner = () => {
             });
 
         } catch (error) {
-            logError("Failed to load planner data", { error });
-            toast({ title: "Error", description: "No se pudieron cargar los datos del planificador.", variant: "destructive" });
-            updateState({ isLoading: false });
+             if (isMounted) {
+                logError("Failed to load planner data", { error });
+                toast({ title: "Error", description: "No se pudieron cargar los datos del planificador.", variant: "destructive" });
+                updateState({ isLoading: false });
+            }
         }
+        return () => { isMounted = false; };
     }, [toast, state.viewingArchived, state.pageSize, initialStockLevels]);
     
     useEffect(() => {
@@ -304,13 +310,18 @@ export const usePlanner = () => {
             updateState({ isSubmitting: true });
     
             try {
-                if (!approve) {
-                    const updated = await rejectCancellationRequest({ entityId: state.orderToUpdate.id, updatedBy: currentUser.name, notes: state.statusUpdateNotes });
-                    toast({ title: 'Solicitud Rechazada' });
-                    updateState({ activeOrders: state.activeOrders.map(o => o.id === updated.id ? updated : o) });
-                } else {
+                if (approve) {
                     const targetStatus = state.orderToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
                     await actions.handleStatusUpdate(targetStatus);
+                } else {
+                     const updated = await updatePendingAction({
+                        entityId: state.orderToUpdate.id,
+                        action: 'none',
+                        notes: state.statusUpdateNotes,
+                        updatedBy: currentUser.name,
+                    });
+                    toast({ title: 'Solicitud Rechazada' });
+                    updateState({ activeOrders: state.activeOrders.map(o => o.id === updated.id ? updated : o) });
                 }
                 updateState({ isActionDialogOpen: false });
             } catch (error: any) {
@@ -350,7 +361,7 @@ export const usePlanner = () => {
                     };
                 });
             } catch (error: any) {
-                logError("Failed to update status", { error: error.message });
+                logError("Failed to update status", { error: { message: error.message } });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -392,24 +403,6 @@ export const usePlanner = () => {
                 await loadInitialData();
             } catch (error: any) {
                 logError("Failed to reopen order", { error: error.message });
-                toast({ title: "Error", variant: "destructive" });
-            } finally {
-                updateState({ isSubmitting: false });
-            }
-        },
-
-        handleRejectAdminAction: async (order: ProductionOrder) => {
-            if (!currentUser) return;
-            updateState({ isSubmitting: true });
-            try {
-                const updated = await rejectCancellationRequest({ entityId: order.id, updatedBy: currentUser.name, notes: state.statusUpdateNotes });
-                toast({ title: 'Solicitud Rechazada' });
-                updateState({
-                    activeOrders: state.activeOrders.map(o => o.id === updated.id ? updated : o),
-                    isActionDialogOpen: false
-                });
-            } catch (error: any) {
-                 logError("Failed to reject cancellation", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });

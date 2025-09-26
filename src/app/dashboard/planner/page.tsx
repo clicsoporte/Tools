@@ -48,9 +48,20 @@ export default function PlannerPage() {
                     <h1 className="text-2xl font-bold">Órdenes de Producción</h1>
                     <Button disabled><Loader2 className="mr-2 animate-spin" /> Cargando...</Button>
                 </div>
-                 <div className="space-y-4">
-                    <Skeleton className="h-40 w-full" />
-                    <Skeleton className="h-40 w-full" />
+                <Card>
+                    <CardContent className="p-4 space-y-4">
+                        <div className="flex flex-col md:flex-row gap-4">
+                           <Skeleton className="h-10 w-full max-w-sm" />
+                           <Skeleton className="h-10 w-full md:w-[180px]" />
+                           <Skeleton className="h-10 w-full md:w-[240px]" />
+                           <Skeleton className="h-10 w-full md:w-[240px]" />
+                        </div>
+                    </CardContent>
+                </Card>
+                 <div className="space-y-4 mt-6">
+                    <Skeleton className="h-56 w-full" />
+                    <Skeleton className="h-56 w-full" />
+                    <Skeleton className="h-56 w-full" />
                 </div>
             </main>
         )
@@ -387,7 +398,7 @@ export default function PlannerPage() {
             
             <div className="space-y-4 mt-6">
                 {state.isLoading ? (
-                    Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-56 w-full" />)
+                    Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-56 w-full" />)
                 ) : selectors.filteredOrders.length > 0 ? (
                     selectors.filteredOrders.map(renderOrderCard)
                 ) : (
@@ -484,7 +495,7 @@ export default function PlannerPage() {
                     </div>
                      <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                        <Button onClick={() => actions.handleStatusUpdate()} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button>
+                        <Button onClick={() => actions.handleStatusUpdate(state.newStatus)} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
