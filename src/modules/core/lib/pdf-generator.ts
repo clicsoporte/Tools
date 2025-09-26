@@ -3,8 +3,6 @@
  * This module provides a single, configurable function to create consistent and
  * professional-looking PDF documents for quotes, production orders, and purchase requests.
  */
-'use client';
-
 import jsPDF from "jspdf";
 import autoTable, { type RowInput } from "jspdf-autotable";
 import { format, parseISO } from 'date-fns';
@@ -41,8 +39,9 @@ interface DocumentData {
 const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 40;
     doc.setFontSize(8);
-    doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - 40, pageHeight - 30, { align: 'right' });
+    doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - margin, pageHeight - 30, { align: 'right' });
 };
 
 export const generateDocument = (data: DocumentData): jsPDF => {
@@ -62,10 +61,10 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         if (data.logoDataUrl) {
             try {
                 const imgProps = doc.getImageProperties(data.logoDataUrl);
-                const imgMaxHeight = 30; // Increased logo height
+                const imgMaxHeight = 30;
                 const imgAspectRatio = imgProps.width / imgProps.height;
+                const imgWidth = (imgProps.width * imgMaxHeight) / imgProps.height;
                 logoHeight = imgMaxHeight;
-                const imgWidth = logoHeight * imgAspectRatio;
                 
                 doc.addImage(data.logoDataUrl, 'PNG', margin, topMargin, imgWidth, logoHeight);
                 companyX += imgWidth + 15;
@@ -74,7 +73,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             }
         }
         
-        const companyDataBlockHeight = 11 + 10 + 10;
+        const companyDataBlockHeight = 11 + 10 + 10 + 10 + 10;
         const verticalCenterOffset = logoHeight > 0 ? (logoHeight - companyDataBlockHeight) / 2 : 0;
         companyY += verticalCenterOffset > 0 ? verticalCenterOffset : 0;
         
@@ -86,11 +85,12 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFontSize(9);
         doc.text(`Cédula: ${data.companyData.taxId}`, companyX, companyY);
         companyY += 10;
+        doc.text(data.companyData.address, companyX, companyY); // Added Address line
+        companyY += 10;
         doc.text(`Tel: ${data.companyData.phone}`, companyX, companyY);
         companyY += 10;
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
 
-        
         let rightY = topMargin + 5;
         doc.setFontSize(18);
         doc.setFont('Helvetica', 'bold');
