@@ -51,17 +51,35 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     let finalY = 0;
 
     const addHeader = () => {
-        const topMargin = 50;
+        const topMargin = 60; // Increased top margin
         const rightColX = pageWidth - margin;
         
+        let logoX = margin;
         let companyX = margin;
+
+        if (data.logoDataUrl) {
+            try {
+                const imgProps = doc.getImageProperties(data.logoDataUrl);
+                const imgHeight = 45; // Increased logo height
+                const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
+                const logoY = topMargin;
+
+                doc.addImage(data.logoDataUrl, 'PNG', logoX, logoY, imgWidth, imgHeight);
+
+                // Adjust companyX to be to the right of the logo
+                companyX = logoX + imgWidth + 15; 
+            } catch (e) {
+                console.error("Error adding logo image to PDF:", e);
+            }
+        }
         
-        // Block for company data (center-left)
-        let companyY = topMargin + 5;
+        // Draw company text first to establish vertical position
+        let companyY = topMargin;
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(11);
         doc.text(data.companyData.name, companyX, companyY);
         companyY += 12;
+
         doc.setFont('Helvetica', 'normal');
         doc.setFontSize(9);
         doc.text(`Cédula: ${data.companyData.taxId}`, companyX, companyY);
@@ -71,25 +89,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.text(`Tel: ${data.companyData.phone}`, companyX, companyY);
         companyY += 10;
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
-
-        if (data.logoDataUrl) {
-            try {
-                const imgProps = doc.getImageProperties(data.logoDataUrl);
-                const imgHeight = 40; // Increased logo height
-                const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
-                
-                // Position logo to the right of the company block
-                const logoX = companyX + 160; // Adjust as needed
-                const logoY = topMargin + 5; // Align top with company name top
-
-                doc.addImage(data.logoDataUrl, 'PNG', logoX, logoY, imgWidth, imgHeight);
-            } catch (e) {
-                console.error("Error adding logo image to PDF:", e);
-            }
-        }
         
         // Block for quote/seller data (right)
-        let rightY = topMargin + 5;
+        let rightY = topMargin;
         doc.setFontSize(18);
         doc.setFont('Helvetica', 'bold');
         doc.text(data.docTitle, rightColX, rightY, { align: 'right' });
@@ -210,9 +212,13 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         rightY += isLast ? 18 : 14;
     });
 
+    // Draw footers on all pages
     for (let i = 1; i <= (doc.internal as any).getNumberOfPages(); i++) {
         doc.setPage(i);
-        addFooter(doc, i, (doc.internal as any).getNumberOfPages());
+        // Only draw the footer if it's not already drawn by autoTable's hook
+        if ((doc as any).lastAutoTable.pageNumber !== i) {
+            addFooter(doc, i, (doc.internal as any).getNumberOfPages());
+        }
     }
 
     return doc;
