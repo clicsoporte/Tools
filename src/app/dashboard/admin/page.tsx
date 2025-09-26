@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview The main dashboard page for the admin section.
  * It dynamically displays a grid of available administration tools.
@@ -10,10 +9,12 @@ import { useEffect } from "react";
 import { usePageTitle } from "../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/modules/core/hooks/useAuth";
 
 export default function AdminDashboardPage() {
     const { setTitle } = usePageTitle();
     const { isAuthorized } = useAuthorization(['admin:settings:general']);
+    const { unreadSuggestionsCount } = useAuth();
 
     useEffect(() => {
         setTitle("Configuración del Sistema");
@@ -44,14 +45,14 @@ export default function AdminDashboardPage() {
               Herramientas de Administración
             </h2>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {adminTools.map((tool) => (
-                <ToolCard key={tool.id} tool={tool} />
-              ))}
+              {adminTools.map((tool) => {
+                const isSuggestionsTool = tool.id === "suggestions-viewer";
+                const badgeCount = isSuggestionsTool ? unreadSuggestionsCount : 0;
+                return <ToolCard key={tool.id} tool={tool} badgeCount={badgeCount}/>
+              })}
             </div>
           </div>
         </div>
       </main>
   );
 }
-
-    

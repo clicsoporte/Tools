@@ -30,6 +30,7 @@ import {
   Warehouse,
   Search,
   PackagePlus,
+  MessageSquare,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -44,7 +45,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
  */
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user: currentUser, companyData, userRole, isLoading } = useAuth();
+  const { user: currentUser, companyData, userRole, isLoading, unreadSuggestionsCount } = useAuth();
   const { isMobile, setOpenMobile } = useSidebar();
 
   const handleLinkClick = () => {
@@ -221,9 +222,33 @@ export function AppSidebar() {
                         isActive={isActive("/dashboard/admin")}
                         tooltip="Configuración"
                     >
-                        <Link href="/dashboard/admin" onClick={handleLinkClick}>
-                        <Wrench />
-                        <span>Configuración</span>
+                        <Link href="/dashboard/admin" onClick={handleLinkClick} className="relative">
+                           {unreadSuggestionsCount > 0 && (
+                             <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold">
+                                {unreadSuggestionsCount}
+                             </div>
+                           )}
+                           <Wrench />
+                           <span>Configuración</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            )}
+             {hasAdminAccess && (
+                 <SidebarMenuItem>
+                    <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/dashboard/admin/suggestions")}
+                        tooltip="Sugerencias"
+                    >
+                        <Link href="/dashboard/admin/suggestions" onClick={handleLinkClick} className="relative">
+                           {unreadSuggestionsCount > 0 && (
+                             <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold">
+                                {unreadSuggestionsCount}
+                             </div>
+                           )}
+                           <MessageSquare />
+                           <span>Sugerencias</span>
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

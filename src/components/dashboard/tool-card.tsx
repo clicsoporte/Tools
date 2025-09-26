@@ -11,6 +11,7 @@ import { cn } from "../../lib/utils";
 
 interface ToolCardProps {
   tool: Tool;
+  badgeCount?: number;
 }
 
 /**
@@ -21,11 +22,16 @@ interface ToolCardProps {
  * @param {Tool} props.tool - The tool data object to render.
  * @returns {JSX.Element} A link-wrapped card component.
  */
-export function ToolCard({ tool }: ToolCardProps) {
+export function ToolCard({ tool, badgeCount = 0 }: ToolCardProps) {
   const Icon = tool.icon;
   return (
     <Link href={tool.href} className="block h-full">
-      <Card className="group h-full transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+      <Card className="group h-full transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl relative">
+        {badgeCount > 0 && (
+          <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold z-10">
+            {badgeCount}
+          </div>
+        )}
         <CardHeader className="flex flex-col sm:flex-row items-center gap-4">
           {Icon && (
             <div className={cn("flex h-12 w-12 items-center justify-center rounded-lg", tool.bgColor)}>

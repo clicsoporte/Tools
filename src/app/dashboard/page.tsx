@@ -11,14 +11,17 @@ import type { Tool } from "../../modules/core/types";
 import { Skeleton } from "../../components/ui/skeleton";
 import { usePageTitle } from "../../modules/core/hooks/usePageTitle";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Wrench, Clock, DollarSign } from "lucide-react";
+import { Loader2, RefreshCw, Wrench, Clock, DollarSign, Send } from "lucide-react";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import { importAllDataFromFiles } from "@/modules/core/lib/db";
+import { importAllDataFromFiles, addSuggestion } from "@/modules/core/lib/db";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { format, parseISO } from 'date-fns';
 import { cn } from "@/lib/utils";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 /**
  * Renders the main dashboard page.
@@ -26,7 +29,7 @@ import { cn } from "@/lib/utils";
  * based on user permissions.
  */
 export default function DashboardPage() {
-  const { user, userRole, companyData, isLoading: isAuthLoading, refreshAuth, exchangeRateData, refreshExchangeRate } = useAuth();
+  const { user, userRole, companyData, isLoading: isAuthLoading, refreshAuth, exchangeRateData, refreshExchangeRate, unreadSuggestionsCount } = useAuth();
   const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const { setTitle } = usePageTitle();
   const { hasPermission } = useAuthorization(['admin:import:run']);
@@ -34,15 +37,14 @@ export default function DashboardPage() {
   const [isRateRefreshing, setIsRateRefreshing] = useState(false);
   const { toast } = useToast();
   const [isSyncOld, setIsSyncOld] = useState(false);
+  const [suggestion, setSuggestion] = useState("");
+  const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
 
   useEffect(() => {
     setTitle("Panel Principal");
     
     if (user && userRole) {
-      // Start with the main tools
       let tools = [...mainTools];
-      
-      // Add the admin tool if the user is an admin
       const hasAdminAccess = userRole.id === 'admin' || userRole.permissions?.some(p => p.startsWith('admin:'));
 
       if (hasAdminAccess) {
@@ -61,8 +63,6 @@ export default function DashboardPage() {
   }, [setTitle, user, userRole]);
 
   useEffect(() => {
-    // This effect runs only on the client-side, after hydration.
-    // This prevents a hydration mismatch error for time-sensitive calculations.
     if (companyData?.lastSyncTimestamp && companyData?.syncWarningHours) {
         const isOld = (new Date().getTime() - parseISO(companyData.lastSyncTimestamp).getTime()) > (companyData.syncWarningHours * 60 * 60 * 1000);
         setIsSyncOld(isOld);
@@ -74,9 +74,7 @@ export default function DashboardPage() {
     toast({ title: "Iniciando Sincronización Completa", description: "Importando todos los datos desde el ERP..." });
     try {
         const results = await importAllDataFromFiles();
-        
-        await refreshAuth(); // This will re-fetch companyData with the new timestamp
-
+        await refreshAuth();
         toast({
             title: "Sincronización Completa Exitosa",
             description: `Se han procesado ${results.length} tipos de datos desde el ERP.`,
@@ -100,8 +98,28 @@ export default function DashboardPage() {
       toast({ title: "Tipo de Cambio Actualizado", description: "Se ha obtenido el valor más reciente de la API." });
       setIsRateRefreshing(false);
   }
+  
+  const handleSuggestionSubmit = async () => {
+      if (!suggestion.trim() || !user) return;
+      setIsSubmittingSuggestion(true);
+      try {
+          await addSuggestion(suggestion, user.id, user.name);
+          toast({
+              title: "¡Gracias por tu Sugerencia!",
+              description: "Hemos recibido tu idea y la revisaremos pronto.",
+          });
+          setSuggestion("");
+      } catch (error: any) {
+          toast({
+              title: "Error al Enviar",
+              description: `No se pudo enviar tu sugerencia: ${error.message}`,
+              variant: "destructive"
+          });
+      } finally {
+          setIsSubmittingSuggestion(false);
+      }
+  };
 
-  // Display a skeleton loader while the user data is being fetched.
   if (isAuthLoading) {
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -154,12 +172,42 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleTools.map((tool) => (
-                <ToolCard key={tool.id} tool={tool} />
-              ))}
+              {visibleTools.map((tool) => {
+                const isAdminTool = tool.id === 'admin';
+                const badgeCount = isAdminTool ? unreadSuggestionsCount : 0;
+                return <ToolCard key={tool.id} tool={tool} badgeCount={badgeCount} />
+              })}
             </div>
           </div>
         </div>
+
+        <Card className="mt-8 max-w-4xl mx-auto">
+            <CardHeader>
+                <CardTitle>Buzón de Sugerencias y Mejoras</CardTitle>
+                <CardDescription>
+                    ¿Tienes una idea para mejorar la aplicación? ¿Encontraste algo que no funciona como esperabas? Déjanos tu sugerencia aquí.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-2">
+                    <Label htmlFor="suggestion-box" className="sr-only">Tu sugerencia</Label>
+                    <Textarea
+                        id="suggestion-box"
+                        placeholder="Describe tu idea o el problema que encontraste..."
+                        rows={3}
+                        value={suggestion}
+                        onChange={(e) => setSuggestion(e.target.value)}
+                    />
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button onClick={handleSuggestionSubmit} disabled={isSubmittingSuggestion || !suggestion.trim()}>
+                    {isSubmittingSuggestion ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    Enviar Sugerencia
+                </Button>
+            </CardFooter>
+        </Card>
+
          {(isSyncing || isRateRefreshing) && (
             <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
                 <Loader2 className="h-5 w-5 animate-spin" />
