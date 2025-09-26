@@ -23,7 +23,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
-import { fetchExemptionStatus } from "@/modules/hacienda/lib/actions";
+import { getExemptionStatus } from "@/modules/hacienda/lib/actions";
 
 /**
  * Defines the initial state for a new quote.
@@ -90,7 +90,7 @@ export const useQuoter = () => {
   const { setTitle } = usePageTitle();
   const { user: currentUser, customers, products, companyData: authCompanyData, stockLevels, exchangeRateData, refreshAuth, isLoading: isAuthLoading } = useAuth();
   
-  // --- STATE MANAGEMENT ---
+  const [quoteNumber, setQuoteNumber] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currency, setCurrency] = useState("CRC");
@@ -101,7 +101,6 @@ export const useQuoter = () => {
   const [exchangeRate, setExchangeRate] = useState<number | null>(exchangeRateData.rate);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
   const [apiExchangeRate, setApiExchangeRate] = useState<number | null>(exchangeRateData.rate);
-  const [quoteNumber, setQuoteNumber] = useState("");
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(initialQuoteState.purchaseOrderNumber);
   const [deliveryDate, setDeliveryDate] = useState(initialQuoteState.deliveryDate);
   const [sellerName, setSellerName] = useState(initialQuoteState.sellerName);
@@ -120,7 +119,6 @@ export const useQuoter = () => {
   const [decimalPlaces, setDecimalPlaces] = useState(initialQuoteState.decimalPlaces);
   const [exemptionInfo, setExemptionInfo] = useState<ExemptionInfo | null>(null);
   
-  // State for search popovers
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
   const [isProductSearchOpen, setProductSearchOpen] = useState(false);
@@ -130,16 +128,15 @@ export const useQuoter = () => {
   const [debouncedProductSearch] = useDebounce(productSearchTerm, companyData?.searchDebounceTime ?? 500);
 
 
-  // --- REFS FOR KEYBOARD NAVIGATION ---
   const productInputRef = useRef<HTMLInputElement>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);
   const lineInputRefs = useRef<Map<string, LineInputRefs>>(new Map());
   
   useEffect(() => {
-    if (companyData && !isProcessing) { // Prevent overriding when a draft is loaded
+    if (companyData) {
         setQuoteNumber(`${companyData.quotePrefix ?? "COT-"}${(companyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
     }
-  }, [companyData, isProcessing]);
+  }, [companyData]);
 
   const checkExemptionStatus = useCallback(async (authNumber?: string) => {
     if (!authNumber) return;
@@ -150,7 +147,7 @@ export const useQuoter = () => {
     });
 
     try {
-        const data = await fetchExemptionStatus(authNumber);
+        const data = await getExemptionStatus(authNumber);
         
         if (isErrorResponse(data)) {
             throw new Error(data.message || "Error desconocido al verificar la exoneración.");
@@ -179,7 +176,7 @@ export const useQuoter = () => {
   const loadInitialData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
         setIsRefreshing(true);
-        await refreshAuth(); // This will re-fetch all data in the context
+        await refreshAuth();
     }
     
     try {
@@ -235,7 +232,6 @@ export const useQuoter = () => {
   }, [authCompanyData, exchangeRateData]);
 
 
-  // Focus qty input of the newest line
   useEffect(() => {
     if (lines.length > 0) {
         const lastLine = lines[lines.length - 1];
@@ -279,7 +275,7 @@ export const useQuoter = () => {
   const addLine = (product: Product) => {
     const newLineId = new Date().toISOString();
 
-    let taxRate = 0.13; // Default tax
+    let taxRate = 0.13;
     if (product.isBasicGood === 'S') {
         taxRate = 0.01;
     } else if (exemptionInfo && (exemptionInfo.isErpValid || exemptionInfo.isHaciendaValid) && exemptionInfo.erpExemption.percentage > 0) {
@@ -426,7 +422,6 @@ export const useQuoter = () => {
     const newCompanyData = { ...companyData, nextQuoteNumber: (companyData.nextQuoteNumber || 0) + 1 };
     await saveCompanySettings(newCompanyData);
     setCompanyData(newCompanyData);
-    setQuoteNumber(`${newCompanyData.quotePrefix || "COT-"}${(newCompanyData.nextQuoteNumber || 1).toString().padStart(4, "0")}`);
   };
 
   const handleSaveDecimalPlaces = async () => {
@@ -460,7 +455,7 @@ export const useQuoter = () => {
         }
     }
     
-    const tableRows: RowInput = lines.map(line => [
+    const tableRows = lines.map(line => [
         line.product.id,
         line.product.description,
         line.quantity.toLocaleString('es-CR'),
@@ -474,10 +469,10 @@ export const useQuoter = () => {
     const doc = generateDocument({
         docTitle: "COTIZACIÓN",
         meta: [
-            { label: 'Nº', value: quoteNumber },
-            { label: 'Fecha', value: format(parseISO(quoteDate), "dd/MM/yyyy") },
-            { label: 'Válida hasta', value: format(parseISO(validUntilDate), "dd/MM/yyyy") },
-            ...(purchaseOrderNumber ? [{ label: 'Nº OC', value: purchaseOrderNumber }] : [])
+            { label: 'Nº:', value: quoteNumber },
+            { label: 'Fecha:', value: format(parseISO(quoteDate), "dd/MM/yyyy") },
+            { label: 'Válida hasta:', value: format(parseISO(validUntilDate), "dd/MM/yyyy") },
+            ...(purchaseOrderNumber ? [{ label: 'Nº OC:', value: purchaseOrderNumber }] : [])
         ],
         companyData: companyData,
         logoDataUrl,
@@ -495,22 +490,22 @@ export const useQuoter = () => {
             columns: ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"],
             rows: tableRows,
             columnStyles: {
-                0: { cellWidth: 50 },
+                0: { cellWidth: 40 },
                 1: { cellWidth: 'auto' },
-                2: { cellWidth: 40, halign: 'right' },
-                3: { cellWidth: 35, halign: 'center' },
-                4: { cellWidth: 65 },
-                5: { cellWidth: 70, halign: 'right' },
-                6: { cellWidth: 30, halign: 'center' },
-                7: { cellWidth: 75, halign: 'right' },
+                2: { cellWidth: 30, halign: 'right' },
+                3: { cellWidth: 30, halign: 'center' },
+                4: { cellWidth: 70 },
+                5: { cellWidth: 60, halign: 'right' },
+                6: { cellWidth: 25, halign: 'center' },
+                7: { cellWidth: 70, halign: 'right' },
             }
         },
         notes: notes,
         paymentInfo: paymentTerms === 'credito' ? `Crédito ${creditDays} días` : 'Contado',
         totals: [
-            { label: 'Subtotal', value: formatCurrency(totals.subtotal) },
-            { label: 'Impuestos', value: formatCurrency(totals.totalTaxes) },
-            { label: `Total ${currency}`, value: formatCurrency(totals.total) },
+            { label: 'Subtotal:', value: formatCurrency(totals.subtotal) },
+            { label: 'Impuestos:', value: formatCurrency(totals.totalTaxes) },
+            { label: `Total ${currency}:`, value: formatCurrency(totals.total) },
         ]
     });
     
@@ -561,7 +556,7 @@ export const useQuoter = () => {
           userId: currentUser.id,
           customerId: selectedCustomer ? selectedCustomer.id : null,
           customerDetails: customerDetails,
-          lines: lines.map(({ displayQuantity, displayPrice, ...rest }) => rest), // Remove display values
+          lines: lines.map(({ displayQuantity, displayPrice, ...rest }) => rest),
           totals: totals,
           notes: notes,
           currency: currency,
@@ -604,8 +599,15 @@ export const useQuoter = () => {
     setNotes(draft.notes);
     setCurrency(draft.currency);
     setExchangeRate(draft.exchangeRate);
+    setDeliveryAddress(draft.deliveryAddress || "");
+    setDeliveryDate(draft.deliveryDate || "");
+    setSellerName(draft.sellerName || "");
+    setSellerType(draft.sellerType || "user");
+    setQuoteDate(draft.quoteDate || "");
+    setValidUntilDate(draft.validUntilDate || "");
+    setPaymentTerms(draft.paymentTerms || "contado");
+    setCreditDays(draft.creditDays || 0);
     
-    // Load customer and exemption info
     if (draft.customerId) {
       handleSelectCustomer(draft.customerId);
     } else {
@@ -684,5 +686,3 @@ export const useQuoter = () => {
     selectors,
   };
 };
-
-    
