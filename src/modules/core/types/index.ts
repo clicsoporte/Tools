@@ -576,3 +576,13 @@ export type UpdateBackupInfo = {
     fileName: string;
     date: string;
 };
+
+// --- Suggestion Box Types ---
+export type Suggestion = {
+  id: number;
+  content: string;
+  userId: number;
+  userName: string;
+  isRead: 0 | 1;
+  timestamp: string;
+};
