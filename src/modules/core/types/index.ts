@@ -354,7 +354,7 @@ export type PurchaseRequest = {
   previousStatus?: PurchaseRequestStatus | null;
 };
 
-export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'receivedDate' | 'receivedInWarehouseBy' | 'previousStatus'>> & {
+export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>> & {
     requestId: number;
     updatedBy: string;
 };

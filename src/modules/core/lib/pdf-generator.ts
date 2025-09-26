@@ -46,18 +46,20 @@ const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
 };
 
 export const generateDocument = (data: DocumentData): jsPDF => {
-    const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: data.orientation || 'p', unit: 'pt', format: data.paperSize || 'letter' });
+    const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: data.orientation || 'portrait', unit: 'pt', format: data.paperSize || 'letter' });
     const margin = 40;
     const pageWidth = doc.internal.pageSize.getWidth();
     let finalY = 0;
 
     const addHeader = () => {
-        const topMargin = 50; 
+        const topMargin = 60; // Increased top margin to give title space
         const rightColX = pageWidth - margin;
         
-        doc.setFontSize(14);
+        // Main Document Title
+        doc.setFontSize(16);
         doc.setFont('Helvetica', 'bold');
-        doc.text(data.docTitle, pageWidth / 2, topMargin - 15, { align: 'center' });
+        doc.text(data.docTitle, pageWidth / 2, 40, { align: 'center' });
+
 
         const logoY = topMargin;
         let companyX = margin;
@@ -84,8 +86,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFontSize(9);
         doc.text(`Cédula: ${data.companyData.taxId}`, companyX, companyY);
         companyY += 10;
-        doc.text(data.companyData.address, companyX, companyY);
-        companyY += 10;
+        const splitAddress = doc.splitTextToSize(data.companyData.address, (pageWidth / 2) - companyX);
+        doc.text(splitAddress, companyX, companyY);
+        companyY += (splitAddress.length * 10);
         doc.text(`Tel: ${data.companyData.phone}`, companyX, companyY);
         companyY += 10;
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
@@ -120,7 +123,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         if (data.topLegend) {
             doc.setFontSize(8);
             doc.setFont('Helvetica', 'italic');
-            doc.text(data.topLegend, margin, topMargin - 25);
+            doc.text(data.topLegend, margin, topMargin - 15);
         }
 
         finalY = Math.max(companyY, rightY) + 25;

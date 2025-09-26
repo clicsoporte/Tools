@@ -91,6 +91,6 @@ export async function saveRequestSettings(settings: RequestSettings): Promise<vo
  * Rejects a cancellation request for a purchase request.
  * @param payload - The rejection details.
  */
-export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<void> {
+export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<PurchaseRequest> {
     return rejectCancellationServer(payload);
 }

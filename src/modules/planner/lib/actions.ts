@@ -102,7 +102,7 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
  * Rejects a cancellation request for an order.
  * @param payload - The rejection details.
  */
-export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<void> {
+export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<ProductionOrder> {
     return rejectCancellationServer(payload);
 }
 
