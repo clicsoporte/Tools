@@ -7,7 +7,7 @@ import { useRequests } from '@/modules/requests/hooks/useRequests';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +27,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { PurchaseRequest } from '@/modules/core/types';
 import { Separator } from '@/components/ui/separator';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 
 export default function PurchaseRequestPage() {
@@ -40,7 +40,8 @@ export default function PurchaseRequestPage() {
         clientSearchTerm, isClientSearchOpen, itemSearchTerm, isItemSearchOpen,
         isStatusDialogOpen, requestToUpdate, newStatus, statusUpdateNotes, deliveredQuantity,
         isHistoryDialogOpen, historyRequest, history, isHistoryLoading,
-        isReopenDialogOpen, reopenStep, reopenConfirmationText, arrivalDate
+        isReopenDialogOpen, reopenStep, reopenConfirmationText, arrivalDate,
+        isActionDialogOpen,
     } = state;
 
 
@@ -67,8 +68,8 @@ export default function PurchaseRequestPage() {
         const canRevertToApproved = selectors.hasPermission('requests:status:approve') && request.status === 'ordered';
         const canReceive = selectors.hasPermission('requests:status:received') && request.status === 'ordered';
         const canReceiveInWarehouse = selectors.hasPermission('requests:status:received') && request.status === 'received' && requestSettings?.useWarehouseReception;
-        const canRequestCancel = selectors.hasPermission('requests:status:cancel') && ['pending', 'approved', 'ordered'].includes(request.status);
-        const canApproveCancel = selectors.hasPermission('requests:status:cancel') && request.status === 'cancellation-request';
+        const canRequestCancel = selectors.hasPermission('requests:status:cancel') && ['pending', 'approved', 'ordered'].includes(request.status) && request.pendingAction === 'none';
+        const canApproveCancel = selectors.hasPermission('requests:status:cancel') && request.pendingAction === 'cancellation-request';
         
         const canEditPending = selectors.hasPermission('requests:edit:pending') && request.status === 'pending';
         const canEditApproved = selectors.hasPermission('requests:edit:approved') && ['approved', 'ordered'].includes(request.status);
@@ -86,26 +87,27 @@ export default function PurchaseRequestPage() {
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {request.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
                              <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(request)}><History className="h-4 w-4" /></Button>
-                            <Popover>
-                                <PopoverTrigger asChild>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-56 p-1">
-                                    <div className="grid grid-cols-1">
-                                        {canEdit && <Button variant="ghost" className="justify-start" onClick={() => { actions.setRequestToEdit(request); actions.setEditRequestDialogOpen(true); }}><Pencil className="mr-2"/> Editar Solicitud</Button>}
-                                        <Separator className="my-1" />
-                                        {canBeReopened && <Button variant="ghost" className="justify-start text-orange-600" onClick={() => { actions.setRequestToUpdate(request); actions.setReopenDialogOpen(true); }}><Undo2 className="mr-2"/> Reabrir</Button>}
-                                        {canApprove && <Button variant="ghost" className="justify-start text-green-600" onClick={() => actions.openStatusDialog(request, 'approved')}><Check className="mr-2"/> Aprobar</Button>}
-                                        {canRevertToApproved && <Button variant="ghost" className="justify-start text-orange-600" onClick={() => actions.openStatusDialog(request, 'approved')}><Undo2 className="mr-2"/> Revertir a Aprobada</Button>}
-                                        {canOrder && <Button variant="ghost" className="justify-start text-blue-600" onClick={() => actions.openStatusDialog(request, 'ordered')}><Truck className="mr-2"/> Marcar como Ordenada</Button>}
-                                        {canReceive && <Button variant="ghost" className="justify-start text-indigo-600" onClick={() => actions.openStatusDialog(request, 'received')}><PackageCheck className="mr-2"/> Marcar como Recibida</Button>}
-                                        {canReceiveInWarehouse && <Button variant="ghost" className="justify-start text-gray-700" onClick={() => actions.openStatusDialog(request, 'received-in-warehouse')}><Home className="mr-2"/> Recibir en Bodega</Button>}
-                                        {canRequestCancel && <Button variant="ghost" className="justify-start text-red-600" onClick={() => actions.openStatusDialog(request, 'cancellation-request')}><XCircle className="mr-2"/> Solicitar Cancelación</Button>}
-                                        {canApproveCancel && <Button variant="ghost" className="justify-start text-red-600" onClick={() => actions.openStatusDialog(request, 'canceled')}><XCircle className="mr-2"/> Aprobar Cancelación</Button>}
-                                        {request.status === 'cancellation-request' && <Button variant="ghost" className="justify-start text-green-600" onClick={() => actions.handleRejectCancellation(request)}><AlertTriangle className="mr-2"/> Rechazar Cancelación</Button>}
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Acciones de Solicitud</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {canEdit && <DropdownMenuItem onSelect={() => { actions.setRequestToEdit(request); actions.setEditRequestDialogOpen(true); }}><Pencil className="mr-2"/> Editar Solicitud</DropdownMenuItem>}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuLabel>Cambio de Estado</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {canBeReopened && <DropdownMenuItem onSelect={() => { actions.setRequestToUpdate(request); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
+                                    {canApprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'approved')} className="text-green-600"><Check className="mr-2"/> Aprobar</DropdownMenuItem>}
+                                    {canRevertToApproved && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'approved')} className="text-orange-600"><Undo2 className="mr-2"/> Revertir a Aprobada</DropdownMenuItem>}
+                                    {canOrder && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'ordered')} className="text-blue-600"><Truck className="mr-2"/> Marcar como Ordenada</DropdownMenuItem>}
+                                    {canReceive && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'received')} className="text-indigo-600"><PackageCheck className="mr-2"/> Marcar como Recibida</DropdownMenuItem>}
+                                    {canReceiveInWarehouse && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'received-in-warehouse')} className="text-gray-700"><Home className="mr-2"/> Recibir en Bodega</DropdownMenuItem>}
+                                    <DropdownMenuSeparator />
+                                    {canRequestCancel && <DropdownMenuItem onSelect={() => actions.openAdminActionDialog(request, 'cancellation-request')} className="text-red-600"><XCircle className="mr-2"/> Solicitar Cancelación</DropdownMenuItem>}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
                 </CardHeader>
@@ -147,6 +149,35 @@ export default function PurchaseRequestPage() {
                          {request.shippingMethod && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Método de Envío</p><p>{request.shippingMethod}</p></div>}
                         <div className="space-y-1"><p className="font-semibold text-muted-foreground">Tipo de Compra</p><div className="flex items-center gap-2">{request.purchaseType === 'multiple' ? <Users className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}<span>{request.purchaseType === 'multiple' ? 'Múltiples Proveedores' : 'Proveedor Único'}</span></div></div>
                     </div>
+                     {request.pendingAction !== 'none' && (
+                        <div className="mt-4">
+                            <AlertDialog open={isActionDialogOpen && requestToUpdate?.id === request.id} onOpenChange={(open) => { if (!open) actions.setActionDialogOpen(false); }}>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="outline" className="border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700 w-full" onClick={() => { actions.setRequestToUpdate(request); actions.setActionDialogOpen(true); }}>
+                                        <AlertTriangle className="mr-2 h-4 w-4 animate-pulse" />
+                                        Solicitud Pendiente: Cancelación
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Gestionar Solicitud de Cancelación</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta solicitud tiene una petición de cancelación pendiente. Puedes aprobar o rechazar esta acción.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <div className="py-4 space-y-2">
+                                        <Label htmlFor="admin-action-notes-req">Notas (Requerido)</Label>
+                                        <Textarea id="admin-action-notes-req" value={statusUpdateNotes} onChange={e => actions.setStatusUpdateNotes(e.target.value)} placeholder="Motivo de la aprobación o rechazo..."/>
+                                    </div>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cerrar</AlertDialogCancel>
+                                        <Button variant="secondary" onClick={() => actions.handleAdminAction(false)} disabled={!statusUpdateNotes.trim() || isSubmitting}>Rechazar Solicitud</Button>
+                                        <Button onClick={() => actions.handleAdminAction(true)} className='bg-destructive hover:bg-destructive/90' disabled={!statusUpdateNotes.trim() || isSubmitting}>Aprobar Cancelación</Button>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    )}
                      {request.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas de la Solicitud:</p><p className="text-muted-foreground">"{request.notes}"</p></div>)}
                      {request.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">"{request.lastStatusUpdateNotes}" - <span className="italic">{request.lastStatusUpdateBy}</span></p></div>)}
                 </CardContent>
@@ -220,7 +251,7 @@ export default function PurchaseRequestPage() {
             </div>
              {viewingArchived && totalArchived > pageSize && (<div className="flex items-center justify-center space-x-2 py-4"><Button variant="outline" size="sm" onClick={() => actions.setArchivedPage(p => p - 1)} disabled={archivedPage === 0}><ChevronLeft className="mr-2 h-4 w-4" />Anterior</Button><span className="text-sm text-muted-foreground">Página {archivedPage + 1} de {Math.ceil(totalArchived / pageSize)}</span><Button variant="outline" size="sm" onClick={() => actions.setArchivedPage(p => p + 1)} disabled={(archivedPage + 1) * pageSize >= totalArchived}>Siguiente<ChevronRight className="ml-2 h-4 w-4" /></Button></div>)}
             <Dialog open={isEditRequestDialogOpen} onOpenChange={actions.setEditRequestDialogOpen}><DialogContent className="sm:max-w-3xl"><form onSubmit={actions.handleEditRequest}><DialogHeader><DialogTitle>Editar Solicitud - {requestToEdit?.consecutive}</DialogTitle><DialogDescription>Modifique los detalles de la solicitud.</DialogDescription></DialogHeader><ScrollArea className="h-[60vh] md:h-auto"><div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4"><div className="space-y-2"><Label>Cliente</Label><Input value={requestToEdit?.clientName} disabled /></div><div className="space-y-2"><Label>Artículo / Servicio</Label><Input value={`[${requestToEdit?.itemId}] ${requestToEdit?.itemDescription}`} disabled /></div><div className="space-y-2"><Label htmlFor="edit-request-quantity">Cantidad</Label><Input id="edit-request-quantity" type="number" value={requestToEdit?.quantity || ''} onChange={e => actions.setRequestToEdit(prev => prev ? { ...prev, quantity: Number(e.target.value) } : null)} required /></div><div className="space-y-2"><Label htmlFor="edit-request-required-date">Fecha Requerida</Label><Input id="edit-request-required-date" type="date" value={requestToEdit?.requiredDate || ''} onChange={e => actions.setRequestToEdit(prev => prev ? { ...prev, requiredDate: e.target.value } : null)} required /></div><div className="space-y-2"><Label htmlFor="edit-request-priority">Prioridad</Label><Select value={requestToEdit?.priority} onValueChange={(value: typeof newRequest.priority) => actions.setRequestToEdit(prev => prev ? {...prev, priority: value} : null)}><SelectTrigger id="edit-request-priority"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(selectors.priorityConfig).map(([key, {label}]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Tipo de Compra</Label><RadioGroup value={requestToEdit?.purchaseType} onValueChange={(value: 'single' | 'multiple') => actions.setRequestToEdit(prev => prev ? { ...prev, purchaseType: value } : null)} className="flex items-center gap-4 pt-2"><div className="flex items-center space-x-2"><RadioGroupItem value="single" id="r-edit-single" /><Label htmlFor="r-edit-single">Proveedor Único</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="multiple" id="r-edit-multiple" /><Label htmlFor="r-edit-multiple">Múltiples Proveedores</Label></div></RadioGroup></div><div className="space-y-2 col-span-1 md:col-span-2"><Label htmlFor="edit-request-notes">Notas</Label><Textarea id="edit-request-notes" value={requestToEdit?.notes || ''} onChange={e => actions.setRequestToEdit(prev => prev ? { ...prev, notes: e.target.value } : null)} /></div></div></ScrollArea><DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose><Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Guardar Cambios</Button></DialogFooter></form></DialogContent></Dialog>
-            <Dialog open={isStatusDialogOpen} onOpenChange={actions.setStatusDialogOpen}><DialogContent><DialogHeader><DialogTitle>Actualizar Estado de la Solicitud</DialogTitle><DialogDescription>Estás a punto de cambiar el estado de la solicitud {requestToUpdate?.consecutive} a "{newStatus ? selectors.statusConfig[newStatus].label : ''}".</DialogDescription></DialogHeader><div className="space-y-4 py-4">{newStatus === 'received' && (<div className="space-y-2"><Label htmlFor="status-delivered-quantity">Cantidad Recibida</Label><Input id="status-delivered-quantity" type="number" value={deliveredQuantity} onChange={(e) => actions.setDeliveredQuantity(e.target.value)} placeholder={`Cantidad solicitada: ${requestToUpdate?.quantity.toLocaleString()}`} /> <p className="text-xs text-muted-foreground">Introduce la cantidad final que se recibió del proveedor.</p></div>)} {newStatus === 'ordered' && (<div className="space-y-2"><Label htmlFor="status-arrival-date">Fecha Estimada de Llegada</Label><Input id="status-arrival-date" type="date" value={arrivalDate} onChange={(e) => actions.setArrivalDate(e.target.value)} /><p className="text-xs text-muted-foreground">Opcional: Fecha en que se espera recibir el producto.</p></div>)}<div className="space-y-2"><Label htmlFor="status-notes">Notas (Opcional)</Label><Textarea id="status-notes" value={statusUpdateNotes} onChange={(e) => actions.setStatusUpdateNotes(e.target.value)} placeholder="Ej: Aprobado por Gerencia, Orden de compra #1234" /></div></div><DialogFooter><DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose><Button onClick={actions.handleStatusUpdate} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button></DialogFooter></DialogContent></Dialog>
+            <Dialog open={isStatusDialogOpen} onOpenChange={actions.setStatusDialogOpen}><DialogContent><DialogHeader><DialogTitle>Actualizar Estado de la Solicitud</DialogTitle><DialogDescription>Estás a punto de cambiar el estado de la solicitud {requestToUpdate?.consecutive} a "{newStatus ? selectors.statusConfig[newStatus].label : ''}".</DialogDescription></DialogHeader><div className="space-y-4 py-4">{newStatus === 'received' && (<div className="space-y-2"><Label htmlFor="status-delivered-quantity">Cantidad Recibida</Label><Input id="status-delivered-quantity" type="number" value={deliveredQuantity} onChange={(e) => actions.setDeliveredQuantity(e.target.value)} placeholder={`Cantidad solicitada: ${requestToUpdate?.quantity.toLocaleString()}`} /> <p className="text-xs text-muted-foreground">Introduce la cantidad final que se recibió del proveedor.</p></div>)} {newStatus === 'ordered' && (<div className="space-y-2"><Label htmlFor="status-arrival-date">Fecha Estimada de Llegada</Label><Input id="status-arrival-date" type="date" value={arrivalDate} onChange={(e) => actions.setArrivalDate(e.target.value)} /><p className="text-xs text-muted-foreground">Opcional: Fecha en que se espera recibir el producto.</p></div>)}<div className="space-y-2"><Label htmlFor="status-notes">Notas (Opcional)</Label><Textarea id="status-notes" value={statusUpdateNotes} onChange={(e) => actions.setStatusUpdateNotes(e.target.value)} placeholder="Ej: Aprobado por Gerencia, Orden de compra #1234" /></div></div><DialogFooter><DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose><Button onClick={() => actions.handleStatusUpdate(newStatus ?? undefined)} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button></DialogFooter></DialogContent></Dialog>
             <Dialog open={isReopenDialogOpen} onOpenChange={(isOpen) => { actions.setReopenDialogOpen(isOpen); if (!isOpen) { actions.setReopenStep(0); actions.setReopenConfirmationText(''); }}}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive" />Reabrir Solicitud Finalizada</DialogTitle><DialogDescription>Estás a punto de reabrir la solicitud {requestToUpdate?.consecutive}. Esta acción es irreversible y moverá la solicitud de nuevo a "Pendiente".</DialogDescription></DialogHeader><div className="py-4 space-y-4"><div className="flex items-center space-x-2"><Checkbox id="reopen-confirm-checkbox" onCheckedChange={(checked) => actions.setReopenStep(checked ? 1 : 0)} /><Label htmlFor="reopen-confirm-checkbox" className="font-medium text-destructive">Entiendo que esta acción no se puede deshacer.</Label></div>{reopenStep > 0 && (<div className="space-y-2"><Label htmlFor="reopen-confirmation-text">Para confirmar, escribe "REABRIR" en el campo de abajo:</Label><Input id="reopen-confirmation-text" value={reopenConfirmationText} onChange={(e) => { actions.setReopenConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'REABRIR') {actions.setReopenStep(2);} else {actions.setReopenStep(1);}}} className="border-destructive focus-visible:ring-destructive" /></div>)}</div><DialogFooter><DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose><Button onClick={actions.handleReopenRequest} disabled={reopenStep !== 2 || reopenConfirmationText !== 'REABRIR' || isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Reabrir Solicitud</Button></DialogFooter></DialogContent></Dialog>
             <Dialog open={isHistoryDialogOpen} onOpenChange={actions.setHistoryDialogOpen}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Historial de Cambios - Solicitud {historyRequest?.consecutive}</DialogTitle><DialogDescription>Registro de todos los cambios de estado para esta solicitud.</DialogDescription></DialogHeader><div className="py-4">{isHistoryLoading ? (<div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div>) : history.length > 0 ? (<div className="max-h-96 overflow-y-auto"><Table><TableHeader><TableRow><TableHead>Fecha y Hora</TableHead><TableHead>Estado</TableHead><TableHead>Usuario</TableHead><TableHead>Notas</TableHead></TableRow></TableHeader><TableBody>{history.map(entry => (<TableRow key={entry.id}><TableCell>{format(parseISO(entry.timestamp), 'dd/MM/yyyy HH:mm:ss', { locale: es })}</TableCell><TableCell><Badge style={{backgroundColor: selectors.statusConfig[entry.status]?.color}} className="text-white">{selectors.statusConfig[entry.status]?.label || entry.status}</Badge></TableCell><TableCell>{entry.updatedBy}</TableCell><TableCell>{entry.notes || '-'}</TableCell></TableRow>))}</TableBody></Table></div>) : (<p className="text-center text-muted-foreground py-8">No hay historial de cambios para esta solicitud.</p>)}</div></DialogContent></Dialog>
             {isSubmitting && (

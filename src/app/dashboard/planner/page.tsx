@@ -7,7 +7,7 @@ import { usePlanner } from '@/modules/planner/hooks/usePlanner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -60,6 +60,7 @@ export default function PlannerPage() {
         const canEdit = (selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold'].includes(order.status)) || (selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress', 'in-queue'].includes(order.status));
         
         const canApprove = selectors.hasPermission('planner:status:approve') && order.status === 'pending';
+        const canUnapprove = selectors.hasPermission('planner:status:unapprove') && order.pendingAction === 'unapproval-request';
         
         const canQueue = selectors.hasPermission('planner:status:in-queue') && order.status === 'approved';
         const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'in-queue';
@@ -71,6 +72,7 @@ export default function PlannerPage() {
         const canRequestUnapproval = selectors.hasPermission('planner:status:unapprove-request') && ['approved', 'in-queue'].includes(order.status) && order.pendingAction === 'none';
         const canCancelPending = selectors.hasPermission('planner:status:cancel') && order.status === 'pending';
         const canRequestCancel = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold', 'in-queue', 'in-maintenance'].includes(order.status) && order.pendingAction === 'none';
+        const canApproveCancel = selectors.hasPermission('planner:status:cancel-approved') && order.pendingAction === 'cancellation-request';
 
         const canReceive = selectors.hasPermission('planner:receive') && order.status === 'completed';
         const finalState = state.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
@@ -484,7 +486,7 @@ export default function PlannerPage() {
                     </div>
                      <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                        <Button onClick={() => actions.handleStatusUpdate(state.newStatus)} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button>
+                        <Button onClick={() => actions.handleStatusUpdate(state.newStatus ?? undefined)} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

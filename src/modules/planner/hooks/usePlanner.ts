@@ -8,7 +8,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder, updatePendingAction } from '@/modules/planner/lib/actions';
-import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload, RejectCancellationPayload, UpdateProductionOrderPayload, AdministrativeActionPayload } from '../../core/types';
+import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload, RejectCancellationPayload, UpdateProductionOrderPayload, AdministrativeActionPayload, AdministrativeAction } from '../../core/types';
 import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -17,7 +17,7 @@ import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import type { RowInput } from "jspdf-autotable";
 
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'pendingAction'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'> = {
     deliveryDate: '',
     customerId: '',
     customerName: '',
@@ -28,6 +28,7 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     notes: '',
     inventory: 0,
     purchaseOrder: '',
+    pendingAction: 'none'
 };
 
 const priorityConfig = { 
@@ -215,7 +216,7 @@ export const usePlanner = () => {
             if (!state.newOrder.customerId || !state.newOrder.productId || !state.newOrder.quantity || !state.newOrder.deliveryDate || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
-                const createdOrder = await saveProductionOrder({ ...state.newOrder, pendingAction: 'none' }, currentUser.name);
+                const createdOrder = await saveProductionOrder(state.newOrder, currentUser.name);
                 toast({ title: "Orden Creada" });
                 setState(prevState => ({
                     ...prevState,
@@ -320,7 +321,7 @@ export const usePlanner = () => {
             }
         },
 
-        handleStatusUpdate: async (statusOverride?: ProductionOrderStatus) => {
+        handleStatusUpdate: async (statusOverride?: ProductionOrderStatus | null) => {
             const finalStatus = statusOverride || state.newStatus;
             if (!state.orderToUpdate || !finalStatus || !currentUser) return;
             updateState({ isSubmitting: true });

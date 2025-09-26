@@ -41,7 +41,7 @@ export async function getPurchaseRequests(options: {
  * @param requestedBy - The name of the user creating the request.
  * @returns The newly created purchase request.
  */
-export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'pendingAction'>, requestedBy: string): Promise<PurchaseRequest> {
+export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
     return addRequest(request, requestedBy);
 }
 

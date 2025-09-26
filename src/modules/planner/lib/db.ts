@@ -256,7 +256,7 @@ export async function getOrders(options: {
 }
 
 
-export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'pendingAction'>, requestedBy: string): Promise<ProductionOrder> {
+export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'>, requestedBy: string): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const settings = await getSettings();
@@ -402,8 +402,8 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
                 erpPackageNumber = @erpPackageNumber,
                 erpTicketNumber = @erpTicketNumber,
                 reopened = @reopened,
-                pendingAction = 'none', -- Clear any pending action
-                previousStatus = NULL -- Clear previous status
+                pendingAction = 'none',
+                previousStatus = NULL
             WHERE id = @orderId
         `);
 
@@ -497,7 +497,7 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 }
 
 
-export async function rejectCancellation(payload: RejectCancellationPayload): Promise<ProductionOrder> {
+export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     const { entityId: orderId, notes, updatedBy } = payload;
 
@@ -505,7 +505,11 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
     if (!currentOrder) {
         throw new Error("La orden no fue encontrada.");
     }
-
+    
+    if (currentOrder.pendingAction === 'none') {
+        throw new Error("La orden no tiene una solicitud de cancelación pendiente.");
+    }
+    
     const transaction = db.transaction(() => {
         db.prepare(`
             UPDATE production_orders SET

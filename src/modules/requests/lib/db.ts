@@ -231,7 +231,7 @@ export async function getRequests(options: {
     return { requests: allRequests, totalArchivedCount };
 }
 
-export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'pendingAction'>, requestedBy: string): Promise<PurchaseRequest> {
+export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const settings = await getSettings();
@@ -352,8 +352,6 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
     }
     
     let previousStatus = currentRequest.previousStatus;
-    // We don't use pendingAction states anymore for status, but we keep this logic
-    // in case a direct status change to canceled happens.
     if (status === 'canceled' && currentRequest.status !== 'canceled') {
         previousStatus = currentRequest.status;
     } else if (status === 'approved' && currentRequest.status === 'ordered') {
@@ -377,7 +375,7 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
                 receivedDate = @receivedDate,
                 arrivalDate = @arrivalDate,
                 previousStatus = @previousStatus,
-                pendingAction = 'none' -- Clear any pending action when status changes
+                pendingAction = 'none'
             WHERE id = @requestId
         `);
 
@@ -419,16 +417,14 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
     if (!currentRequest) {
         throw new Error("La solicitud no fue encontrada.");
     }
-    if (currentRequest.pendingAction !== 'cancellation-request') { 
-        throw new Error("La solicitud no está en estado de solicitud de cancelación.");
-    }
     
     const transaction = db.transaction(() => {
         db.prepare(`
             UPDATE purchase_requests SET
                 pendingAction = 'none',
                 lastStatusUpdateNotes = @notes,
-                lastStatusUpdateBy = @updatedBy
+                lastStatusUpdateBy = @updatedBy,
+                previousStatus = NULL
             WHERE id = @requestId
         `).run({
             notes,
