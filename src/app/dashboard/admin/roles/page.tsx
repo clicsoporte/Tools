@@ -72,6 +72,7 @@ const permissionGroups = {
     "Gestión de Roles": ["roles:create", "roles:read", "roles:update", "roles:delete"],
     "Administración del Sistema": [
         "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", 
+        "admin:suggestions:read",
         "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
         "admin:logs:read", "admin:logs:clear", "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset"
     ],
@@ -126,6 +127,7 @@ const permissionTranslations: { [key: string]: string } = {
     "admin:settings:requests": "Admin: Config. Compras",
     "admin:settings:warehouse": "Admin: Config. Almacenes",
     "admin:settings:stock": "Admin: Config. Inventario",
+    "admin:suggestions:read": "Admin: Leer Sugerencias",
     "admin:import:run": "Admin: Ejecutar Sincronización ERP",
     "admin:import:files": "Admin: Importar (Archivos)",
     "admin:import:sql": "Admin: Importar (SQL)",
