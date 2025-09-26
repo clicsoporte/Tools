@@ -4,7 +4,7 @@
  * professional-looking PDF documents for quotes, production orders, and purchase requests.
  */
 import jsPDF from "jspdf";
-import autoTable, { type RowInput } from "jspdf-autotable";
+import autoTable, { type RowInput, type CellInput } from "jspdf-autotable";
 import { format, parseISO } from 'date-fns';
 import type { Company } from '../types';
 
@@ -51,7 +51,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     let finalY = 0;
 
     const addHeader = () => {
-        const topMargin = 60; // Increased top margin
+        const topMargin = 50; 
         const rightColX = pageWidth - margin;
         
         let logoX = margin;
@@ -60,21 +60,20 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         if (data.logoDataUrl) {
             try {
                 const imgProps = doc.getImageProperties(data.logoDataUrl);
-                const imgHeight = 45; // Increased logo height
+                const imgHeight = 45; 
                 const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
                 const logoY = topMargin;
 
                 doc.addImage(data.logoDataUrl, 'PNG', logoX, logoY, imgWidth, imgHeight);
 
-                // Adjust companyX to be to the right of the logo
                 companyX = logoX + imgWidth + 15; 
             } catch (e) {
                 console.error("Error adding logo image to PDF:", e);
             }
         }
         
-        // Draw company text first to establish vertical position
-        let companyY = topMargin;
+        // --- Company Data (Left/Center) ---
+        let companyY = topMargin + 3; // Align with top of logo
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(11);
         doc.text(data.companyData.name, companyX, companyY);
@@ -90,12 +89,12 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         companyY += 10;
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
         
-        // Block for quote/seller data (right)
-        let rightY = topMargin;
+        // --- Document Title & Meta (Right) ---
+        let rightY = topMargin + 8; // Adjust to visually align
         doc.setFontSize(18);
         doc.setFont('Helvetica', 'bold');
         doc.text(data.docTitle, rightColX, rightY, { align: 'right' });
-        rightY += 16;
+        rightY += 18;
         
         doc.setFontSize(10);
         doc.setFont('Helvetica', 'normal');
@@ -125,7 +124,10 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         }
     };
 
+    let pagesDrawnByAutotable = new Set<number>();
+    
     const didDrawPage = (hookData: any) => {
+        pagesDrawnByAutotable.add(hookData.pageNumber);
         if (hookData.pageNumber > 1) {
             addHeader();
         }
@@ -133,7 +135,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     
     addHeader();
     
-    const clientBlockY = 150;
+    const clientBlockY = 160;
     autoTable(doc, {
         startY: clientBlockY,
         body: data.blocks.map(b => ([
@@ -166,19 +168,19 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     const totalPages = (doc.internal as any).getNumberOfPages();
     let currentPage = totalPages;
 
-    if (finalY > pageHeight - 140) {
+    let bottomContentY = finalY + 20;
+
+    if (bottomContentY > pageHeight - 140) {
         doc.addPage();
         currentPage++;
-        finalY = 50; 
+        bottomContentY = 60; 
         addHeader();
-    } else {
-        finalY += 20;
     }
     
     doc.setPage(currentPage);
     
-    let leftY = finalY;
-    let rightY = finalY;
+    let leftY = bottomContentY;
+    let rightY = bottomContentY;
 
     doc.setFontSize(9);
     if (data.paymentInfo) {
@@ -212,13 +214,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         rightY += isLast ? 18 : 14;
     });
 
-    // Draw footers on all pages
-    for (let i = 1; i <= (doc.internal as any).getNumberOfPages(); i++) {
+    for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        // Only draw the footer if it's not already drawn by autoTable's hook
-        if ((doc as any).lastAutoTable.pageNumber !== i) {
-            addFooter(doc, i, (doc.internal as any).getNumberOfPages());
-        }
+        addFooter(doc, i, totalPages);
     }
 
     return doc;

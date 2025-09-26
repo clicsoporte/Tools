@@ -434,15 +434,15 @@ export const usePlanner = () => {
             }
         
             const allPossibleColumns: { id: string; header: string; width?: number }[] = [
-                { id: 'consecutive', header: 'OP', width: 40 },
+                { id: 'consecutive', header: 'OP', width: 45 },
                 { id: 'customerName', header: 'Cliente' },
                 { id: 'productDescription', header: 'Producto' },
-                { id: 'quantity', header: 'Cant.', width: 30 },
-                { id: 'deliveryDate', header: 'Entrega', width: 50 },
-                { id: 'scheduledDate', header: 'Fecha Prog.', width: 80 },
-                { id: 'status', header: 'Estado', width: 60 },
-                { id: 'machineId', header: state.plannerSettings.assignmentLabel || 'Asignación', width: 70 },
-                { id: 'priority', header: 'Prioridad', width: 50 },
+                { id: 'quantity', header: 'Cant.', width: 35 },
+                { id: 'deliveryDate', header: 'Entrega', width: 55 },
+                { id: 'scheduledDate', header: 'Fecha Prog.', width: 85 },
+                { id: 'status', header: 'Estado', width: 65 },
+                { id: 'machineId', header: state.plannerSettings.assignmentLabel || 'Asignación', width: 75 },
+                { id: 'priority', header: 'Prioridad', width: 55 },
             ];
         
             const selectedColumnIds = state.plannerSettings.pdfExportColumns || [];
