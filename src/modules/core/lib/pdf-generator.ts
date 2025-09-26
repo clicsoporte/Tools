@@ -80,9 +80,11 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFontSize(9);
         doc.text(`Cédula: ${data.companyData.taxId}`, companyX, companyY);
         companyY += 10;
-        const splitAddress = doc.splitTextToSize(data.companyData.address, (pageWidth / 2) - companyX);
-        doc.text(splitAddress, companyX, companyY);
-        companyY += (splitAddress.length * 10);
+        if (data.companyData.address) {
+            const splitAddress = doc.splitTextToSize(data.companyData.address, (pageWidth / 2) - companyX);
+            doc.text(splitAddress, companyX, companyY);
+            companyY += (splitAddress.length * 10);
+        }
         doc.text(`Tel: ${data.companyData.phone}`, companyX, companyY);
         companyY += 10;
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);

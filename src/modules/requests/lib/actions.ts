@@ -4,7 +4,7 @@
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange } from '../../core/types';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload } from '../../core/types';
 import { 
     getRequests, 
     addRequest,
@@ -13,7 +13,8 @@ import {
     getRequestHistory as getRequestHistoryServer,
     getSettings,
     saveSettings,
-    rejectCancellation as rejectCancellationServer
+    rejectCancellation as rejectCancellationServer,
+    updatePendingAction as updatePendingActionServer
 } from './db';
 
 /**
@@ -40,7 +41,7 @@ export async function getPurchaseRequests(options: {
  * @param requestedBy - The name of the user creating the request.
  * @returns The newly created purchase request.
  */
-export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
+export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'pendingAction'>, requestedBy: string): Promise<PurchaseRequest> {
     return addRequest(request, requestedBy);
 }
 
@@ -93,4 +94,13 @@ export async function saveRequestSettings(settings: RequestSettings): Promise<vo
  */
 export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<PurchaseRequest> {
     return rejectCancellationServer(payload);
+}
+
+/**
+ * Updates the pending administrative action for a request.
+ * @param payload - The action details.
+ * @returns The updated purchase request.
+ */
+export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<PurchaseRequest> {
+    return updatePendingActionServer(payload);
 }

@@ -7,8 +7,8 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder } from '@/modules/planner/lib/actions';
-import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload, RejectCancellationPayload, UpdateProductionOrderPayload } from '../../core/types';
+import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, rejectCancellationRequest, addNoteToOrder, updatePendingAction } from '@/modules/planner/lib/actions';
+import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload, RejectCancellationPayload, UpdateProductionOrderPayload, AdministrativeActionPayload } from '../../core/types';
 import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -17,8 +17,8 @@ import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import type { RowInput } from "jspdf-autotable";
 
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'> = {
-    deliveryDate: new Date().toISOString().split('T')[0],
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'pendingAction'> = {
+    deliveryDate: '',
     customerId: '',
     customerName: '',
     productId: '',
@@ -43,8 +43,6 @@ const baseStatusConfig: { [key: string]: { label: string, color: string } } = {
     'in-queue': { label: "En Cola", color: "bg-cyan-500"},
     'in-progress': { label: "En Progreso", color: "bg-blue-500" },
     'on-hold': { label: "En Espera", color: "bg-gray-500" },
-    'unapproval-request': { label: "Sol. Desaprobación", color: "bg-orange-400" },
-    'cancellation-request': { label: "Sol. Cancelación", color: "bg-orange-500" },
     completed: { label: "Completada", color: "bg-teal-500" },
     'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
     canceled: { label: "Cancelada", color: "bg-red-700" },
@@ -96,6 +94,7 @@ export const usePlanner = () => {
         dynamicStatusConfig: baseStatusConfig,
         isAddNoteDialogOpen: false,
         notePayload: null as { orderId: number; notes: string } | null,
+        isActionDialogOpen: false,
     });
     
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, authCompanyData?.searchDebounceTime ?? 500);
@@ -207,6 +206,7 @@ export const usePlanner = () => {
         setReopenConfirmationText: (text: string) => updateState({ reopenConfirmationText: text }),
         setAddNoteDialogOpen: (isOpen: boolean) => updateState({ isAddNoteDialogOpen: isOpen }),
         setNotePayload: (payload: { orderId: number; notes: string } | null) => updateState({ notePayload: payload }),
+        setActionDialogOpen: (isOpen: boolean) => updateState({ isActionDialogOpen: isOpen }),
         
         loadInitialData: () => loadInitialData(state.archivedPage),
 
@@ -219,7 +219,7 @@ export const usePlanner = () => {
                 setState(prevState => ({
                     ...prevState,
                     isNewOrderDialogOpen: false,
-                    newOrder: emptyOrder,
+                    newOrder: { ...emptyOrder, deliveryDate: new Date().toISOString().split('T')[0] },
                     customerSearchTerm: '',
                     productSearchTerm: '',
                     activeOrders: [...prevState.activeOrders, createdOrder]
@@ -265,26 +265,73 @@ export const usePlanner = () => {
             updateState({
                 orderToUpdate: order,
                 newStatus: status,
-                statusUpdateNotes: status === 'cancellation-request' ? "" : ".",
+                statusUpdateNotes: ".",
                 deliveredQuantity: status === 'completed' ? order.quantity : "",
                 erpPackageNumber: "",
                 erpTicketNumber: "",
                 isStatusDialogOpen: true,
             });
         },
+        
+        openAdminActionDialog: async (order: ProductionOrder, action: 'unapproval-request' | 'cancellation-request') => {
+            if (!currentUser) return;
+            updateState({ isSubmitting: true });
+            try {
+                const payload: AdministrativeActionPayload = {
+                    entityId: order.id,
+                    action,
+                    notes: `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada.`,
+                    updatedBy: currentUser.name,
+                };
+                const updated = await updatePendingAction(payload);
+                updateState({
+                    activeOrders: state.activeOrders.map(o => o.id === updated.id ? updated : o),
+                    archivedOrders: state.archivedOrders.map(o => o.id === updated.id ? updated : o)
+                });
+                toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
+            } catch (error: any) {
+                logError(`Failed to request ${action}`, { error });
+                toast({ title: "Error al Solicitar", description: `No se pudo enviar la solicitud. ${error.message}`, variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
 
-        handleStatusUpdate: async () => {
-            if (!state.orderToUpdate || !state.newStatus || !currentUser) return;
+        handleAdminAction: async (approve: boolean) => {
+            if (!state.orderToUpdate || !currentUser || !state.orderToUpdate.pendingAction || state.orderToUpdate.pendingAction === 'none') return;
+            updateState({ isSubmitting: true });
+    
+            try {
+                if (!approve) {
+                    const updated = await rejectCancellationRequest({ entityId: state.orderToUpdate.id, updatedBy: currentUser.name, notes: state.statusUpdateNotes });
+                    toast({ title: 'Solicitud Rechazada' });
+                    updateState({ activeOrders: state.activeOrders.map(o => o.id === updated.id ? updated : o) });
+                } else {
+                    const targetStatus = state.orderToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
+                    await actions.handleStatusUpdate(targetStatus);
+                }
+                updateState({ isActionDialogOpen: false });
+            } catch (error: any) {
+                logError("Failed to handle admin action", { error });
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+
+        handleStatusUpdate: async (statusOverride?: ProductionOrderStatus) => {
+            const finalStatus = statusOverride || state.newStatus;
+            if (!state.orderToUpdate || !finalStatus || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
                 const updatedOrder = await updateProductionOrderStatus({ 
                     orderId: state.orderToUpdate.id, 
-                    status: state.newStatus, 
+                    status: finalStatus, 
                     notes: state.statusUpdateNotes, 
                     updatedBy: currentUser.name, 
-                    deliveredQuantity: state.newStatus === 'completed' ? Number(state.deliveredQuantity) : undefined, 
-                    erpPackageNumber: state.newStatus === 'received-in-warehouse' ? state.erpPackageNumber : undefined, 
-                    erpTicketNumber: state.newStatus === 'received-in-warehouse' ? state.erpTicketNumber : undefined, 
+                    deliveredQuantity: finalStatus === 'completed' ? Number(state.deliveredQuantity) : undefined, 
+                    erpPackageNumber: finalStatus === 'received-in-warehouse' ? state.erpPackageNumber : undefined, 
+                    erpTicketNumber: finalStatus === 'received-in-warehouse' ? state.erpTicketNumber : undefined, 
                     reopen: false 
                 });
                 toast({ title: "Estado Actualizado" });
@@ -295,6 +342,7 @@ export const usePlanner = () => {
                     return {
                         ...prevState,
                         isStatusDialogOpen: false,
+                        isActionDialogOpen: false,
                         activeOrders: isArchived ? prevState.activeOrders.filter(o => o.id !== updatedOrder.id) : prevState.activeOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o),
                         archivedOrders: isArchived ? [...prevState.archivedOrders, updatedOrder] : prevState.archivedOrders.filter(o => o.id !== updatedOrder.id)
                     };
@@ -348,13 +396,16 @@ export const usePlanner = () => {
             }
         },
 
-        handleRejectCancellation: async (order: ProductionOrder) => {
+        handleRejectAdminAction: async (order: ProductionOrder) => {
             if (!currentUser) return;
             updateState({ isSubmitting: true });
             try {
-                await rejectCancellationRequest({ entityId: order.id, notes: 'Solicitud de cancelación rechazada.', updatedBy: currentUser.name });
-                await loadInitialData();
+                const updated = await rejectCancellationRequest({ entityId: order.id, updatedBy: currentUser.name, notes: state.statusUpdateNotes });
                 toast({ title: 'Solicitud Rechazada' });
+                updateState({
+                    activeOrders: state.activeOrders.map(o => o.id === updated.id ? updated : o),
+                    isActionDialogOpen: false
+                });
             } catch (error: any) {
                  logError("Failed to reject cancellation", { error });
                 toast({ title: "Error", variant: "destructive" });
@@ -507,7 +558,7 @@ export const usePlanner = () => {
                 } catch(e) { console.error("Error adding logo to PDF:", e) }
             }
             
-            const orderHistory = await getOrderHistory(order.id);
+            const history = await getOrderHistory(order.id);
 
             const machineName = state.plannerSettings.machines.find(m => m.id === order.machineId)?.name || 'N/A';
             
@@ -537,7 +588,7 @@ export const usePlanner = () => {
                 ],
                 table: {
                     columns: ["Fecha", "Estado", "Usuario", "Notas"],
-                    rows: orderHistory.map(entry => [
+                    rows: history.map(entry => [
                         format(parseISO(entry.timestamp), 'dd/MM/yy HH:mm'),
                         selectors.statusConfig[entry.status]?.label || entry.status,
                         entry.updatedBy,

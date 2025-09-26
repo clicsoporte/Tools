@@ -4,7 +4,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange } from '../../core/types';
+import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const REQUESTS_DB_FILE = 'requests.db';
@@ -38,6 +38,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
             route TEXT,
             shippingMethod TEXT,
             status TEXT NOT NULL,
+            pendingAction TEXT DEFAULT 'none',
             notes TEXT,
             requestedBy TEXT NOT NULL,
             approvedBy TEXT,
@@ -92,6 +93,7 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
     if (!columns.has('unitSalePrice')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN unitSalePrice REAL`);
     if (!columns.has('erpOrderNumber')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN erpOrderNumber TEXT`);
     if (!columns.has('manualSupplier')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN manualSupplier TEXT`);
+    if (!columns.has('pendingAction')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN pendingAction TEXT DEFAULT 'none'`);
     
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='request_settings'`).get();
     if(settingsTable){
@@ -229,7 +231,7 @@ export async function getRequests(options: {
     return { requests: allRequests, totalArchivedCount };
 }
 
-export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
+export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'pendingAction'>, requestedBy: string): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const settings = await getSettings();
@@ -241,6 +243,7 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         consecutive: `SC-${nextNumber.toString().padStart(5, '0')}`,
         requestDate: new Date().toISOString(),
         status: 'pending',
+        pendingAction: 'none',
         reopened: false,
     };
 
@@ -248,11 +251,11 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         INSERT INTO purchase_requests (
             consecutive, requestDate, requiredDate, clientId, clientName,
             itemId, itemDescription, quantity, unitSalePrice, erpOrderNumber, manualSupplier, route, shippingMethod, purchaseOrder,
-            status, notes, requestedBy, reopened, inventory, priority, purchaseType, arrivalDate
+            status, pendingAction, notes, requestedBy, reopened, inventory, priority, purchaseType, arrivalDate
         ) VALUES (
             @consecutive, @requestDate, @requiredDate, @clientId, @clientName,
             @itemId, @itemDescription, @quantity, @unitSalePrice, @erpOrderNumber, @manualSupplier, @route, @shippingMethod, @purchaseOrder,
-            @status, @notes, @requestedBy, @reopened, @inventory, @priority, @purchaseType, @arrivalDate
+            @status, @pendingAction, @notes, @requestedBy, @reopened, @inventory, @priority, @purchaseType, @arrivalDate
         )
     `);
 
@@ -349,11 +352,13 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
     }
     
     let previousStatus = currentRequest.previousStatus;
-    if ((['canceled', 'cancellation-request', 'unapproval-request'].includes(status)) && !(['canceled', 'cancellation-request', 'unapproval-request'].includes(currentRequest.status))) {
+    // We don't use pendingAction states anymore for status, but we keep this logic
+    // in case a direct status change to canceled happens.
+    if (status === 'canceled' && currentRequest.status !== 'canceled') {
         previousStatus = currentRequest.status;
     } else if (status === 'approved' && currentRequest.status === 'ordered') {
         // Allow reverting from ordered to approved
-    } else if (!['canceled', 'cancellation-request', 'unapproval-request'].includes(status)) {
+    } else {
         previousStatus = null;
     }
 
@@ -371,7 +376,8 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
                 receivedInWarehouseBy = @receivedInWarehouseBy,
                 receivedDate = @receivedDate,
                 arrivalDate = @arrivalDate,
-                previousStatus = @previousStatus
+                previousStatus = @previousStatus,
+                pendingAction = 'none' -- Clear any pending action when status changes
             WHERE id = @requestId
         `);
 
@@ -405,37 +411,61 @@ export async function getRequestHistory(requestId: number): Promise<PurchaseRequ
     return db.prepare('SELECT * FROM purchase_request_history WHERE requestId = ? ORDER BY timestamp DESC').all(requestId) as PurchaseRequestHistoryEntry[];
 }
 
-export async function rejectCancellation(payload: RejectCancellationPayload): Promise<void> {
+export async function rejectCancellation(payload: RejectCancellationPayload): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
     const { entityId: requestId, notes, updatedBy } = payload;
 
     const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest | undefined;
-    if (!currentRequest || currentRequest.status !== 'cancellation-request') { 
+    if (!currentRequest) {
+        throw new Error("La solicitud no fue encontrada.");
+    }
+    if (currentRequest.pendingAction !== 'cancellation-request') { 
         throw new Error("La solicitud no está en estado de solicitud de cancelación.");
     }
-
-    const statusToRevertTo = currentRequest.previousStatus || 'approved'; 
-
+    
     const transaction = db.transaction(() => {
-        const stmt = db.prepare(`
+        db.prepare(`
             UPDATE purchase_requests SET
-                status = @status,
+                pendingAction = 'none',
                 lastStatusUpdateNotes = @notes,
-                lastStatusUpdateBy = @updatedBy,
-                previousStatus = NULL
+                lastStatusUpdateBy = @updatedBy
             WHERE id = @requestId
-        `);
-
-        stmt.run({
-            status: statusToRevertTo,
-            notes: notes || null,
-            updatedBy: updatedBy,
-            requestId: requestId,
+        `).run({
+            notes,
+            updatedBy,
+            requestId,
         });
 
         const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(requestId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
+        historyStmt.run(requestId, new Date().toISOString(), currentRequest.status, updatedBy, `Rechazada solicitud de cancelación: ${notes}`);
     });
 
     transaction();
+    return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
+}
+
+export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<PurchaseRequest> {
+    const db = await connectDb(REQUESTS_DB_FILE);
+    const { entityId, action, notes, updatedBy } = payload;
+
+    const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest | undefined;
+    if (!currentRequest) throw new Error("Request not found.");
+
+    const transaction = db.transaction(() => {
+        db.prepare(`
+            UPDATE purchase_requests SET
+                pendingAction = @action,
+                previousStatus = CASE WHEN @action != 'none' THEN status ELSE previousStatus END
+            WHERE id = @entityId
+        `).run({ action, entityId });
+        
+        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        const historyNote = action === 'none' 
+            ? 'Acción administrativa rechazada/cancelada' 
+            : `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada`;
+        historyStmt.run(entityId, new Date().toISOString(), currentRequest.status, updatedBy, `${historyNote}: ${notes}`);
+    });
+    
+    transaction();
+    return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest;
 }

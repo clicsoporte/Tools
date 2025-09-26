@@ -6,7 +6,7 @@
 "use server";
 
 import { connectDb, getAllProducts } from '../../core/lib/db';
-import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload } from '../../core/types';
+import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
@@ -33,6 +33,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
             inventory REAL,
             priority TEXT NOT NULL,
             status TEXT NOT NULL,
+            pendingAction TEXT DEFAULT 'none',
             notes TEXT,
             requestedBy TEXT NOT NULL,
             approvedBy TEXT,
@@ -98,6 +99,7 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
     if (!plannerColumns.has('lastModifiedAt')) db.exec(`ALTER TABLE production_orders ADD COLUMN lastModifiedAt TEXT`);
     if (!plannerColumns.has('hasBeenModified')) db.exec(`ALTER TABLE production_orders ADD COLUMN hasBeenModified BOOLEAN DEFAULT FALSE`);
     if (!plannerColumns.has('previousStatus')) db.exec(`ALTER TABLE production_orders ADD COLUMN previousStatus TEXT`);
+    if (!plannerColumns.has('pendingAction')) db.exec(`ALTER TABLE production_orders ADD COLUMN pendingAction TEXT DEFAULT 'none'`);
     
 
     const historyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='production_order_history'`).get();
@@ -254,7 +256,7 @@ export async function getOrders(options: {
 }
 
 
-export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'>, requestedBy: string): Promise<ProductionOrder> {
+export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'pendingAction'>, requestedBy: string): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const settings = await getSettings();
@@ -266,6 +268,7 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         consecutive: `OP-${nextNumber.toString().padStart(5, '0')}`,
         requestDate: new Date().toISOString(),
         status: 'pending',
+        pendingAction: 'none',
         reopened: false,
         machineId: null,
         previousStatus: null,
@@ -278,11 +281,11 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         INSERT INTO production_orders (
             consecutive, purchaseOrder, requestDate, deliveryDate, scheduledStartDate, scheduledEndDate,
             customerId, customerName, productId, productDescription, quantity, inventory, priority,
-            status, notes, requestedBy, reopened, machineId, previousStatus, hasBeenModified
+            status, pendingAction, notes, requestedBy, reopened, machineId, previousStatus, hasBeenModified
         ) VALUES (
             @consecutive, @purchaseOrder, @requestDate, @deliveryDate, @scheduledStartDate, @scheduledEndDate,
             @customerId, @customerName, @productId, @productDescription, @quantity, @inventory, @priority,
-            @status, @notes, @requestedBy, @reopened, @machineId, @previousStatus, @hasBeenModified
+            @status, @pendingAction, @notes, @requestedBy, @reopened, @machineId, @previousStatus, @hasBeenModified
         )
     `);
 
@@ -321,7 +324,6 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
     let hasBeenModified = currentOrder.hasBeenModified;
     const changes: string[] = [];
     
-    // Check for modifications only if the order is already approved
     if (currentOrder.status !== 'pending') {
         const checkChange = (field: keyof typeof dataToUpdate, label: string) => {
             if (fieldsToTrack.includes(field) && dataToUpdate[field] !== undefined && String(currentOrder[field as keyof ProductionOrder] || '') !== String(dataToUpdate[field] || '')) {
@@ -389,13 +391,6 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
         approvedBy = updatedBy;
     }
     
-    let previousStatus = currentOrder.previousStatus;
-    if ((status === 'cancellation-request' || status === 'unapproval-request') && !['cancellation-request', 'unapproval-request'].includes(currentOrder.status)) {
-        previousStatus = currentOrder.status;
-    } else if (!['cancellation-request', 'unapproval-request'].includes(status)) {
-        previousStatus = null; // Clear previous status if we are moving to a normal state
-    }
-
     const transaction = db.transaction(() => {
         const stmt = db.prepare(`
             UPDATE production_orders SET
@@ -407,7 +402,8 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
                 erpPackageNumber = @erpPackageNumber,
                 erpTicketNumber = @erpTicketNumber,
                 reopened = @reopened,
-                previousStatus = @previousStatus
+                pendingAction = 'none', -- Clear any pending action
+                previousStatus = NULL -- Clear previous status
             WHERE id = @orderId
         `);
 
@@ -421,7 +417,6 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
             erpPackageNumber: erpPackageNumber !== undefined ? erpPackageNumber : currentOrder.erpPackageNumber,
             erpTicketNumber: erpTicketNumber !== undefined ? erpTicketNumber : currentOrder.erpTicketNumber,
             reopened: reopen ? 1 : (currentOrder.reopened ? 1 : 0),
-            previousStatus: previousStatus
         });
         
         const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
@@ -502,39 +497,35 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 }
 
 
-export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<void> {
+export async function rejectCancellation(payload: RejectCancellationPayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     const { entityId: orderId, notes, updatedBy } = payload;
 
     const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
-    if (!currentOrder || currentOrder.status !== 'cancellation-request') {
-        throw new Error("La orden no está en estado de solicitud de cancelación.");
+    if (!currentOrder) {
+        throw new Error("La orden no fue encontrada.");
     }
 
-    const statusToRevertTo = currentOrder.previousStatus || 'approved'; 
-
     const transaction = db.transaction(() => {
-        const stmt = db.prepare(`
+        db.prepare(`
             UPDATE production_orders SET
-                status = @status,
+                pendingAction = 'none',
                 lastStatusUpdateNotes = @notes,
                 lastStatusUpdateBy = @updatedBy,
                 previousStatus = NULL
             WHERE id = @orderId
-        `);
-
-        stmt.run({
-            status: statusToRevertTo,
-            notes: notes || null,
-            updatedBy: updatedBy,
-            orderId: orderId,
+        `).run({
+            notes,
+            updatedBy,
+            orderId,
         });
 
         const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(orderId, new Date().toISOString(), statusToRevertTo, updatedBy, notes);
+        historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Rechazada solicitud administrativa: ${notes}`);
     });
 
     transaction();
+    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
 }
 
 export async function addNote(payload: NotePayload): Promise<ProductionOrder> {
@@ -557,6 +548,32 @@ export async function addNote(payload: NotePayload): Promise<ProductionOrder> {
     transaction();
     const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
     return updatedOrder;
+}
+
+export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<ProductionOrder> {
+    const db = await connectDb(PLANNER_DB_FILE);
+    const { entityId, action, notes, updatedBy } = payload;
+
+    const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(entityId) as ProductionOrder | undefined;
+    if (!currentOrder) throw new Error("Order not found.");
+
+    const transaction = db.transaction(() => {
+        db.prepare(`
+            UPDATE production_orders SET
+                pendingAction = @action,
+                previousStatus = CASE WHEN @action != 'none' THEN status ELSE previousStatus END
+            WHERE id = @entityId
+        `).run({ action, entityId });
+        
+        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        const historyNote = action === 'none' 
+            ? 'Acción administrativa rechazada/cancelada' 
+            : `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada`;
+        historyStmt.run(entityId, new Date().toISOString(), currentOrder.status, updatedBy, `${historyNote}: ${notes}`);
+    });
+    
+    transaction();
+    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(entityId) as ProductionOrder;
 }
 
     

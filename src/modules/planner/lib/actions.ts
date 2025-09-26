@@ -4,7 +4,7 @@
  */
 'use client';
 
-import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, RejectCancellationPayload, UpdateProductionOrderPayload, DateRange, NotePayload } from '../../core/types';
+import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, RejectCancellationPayload, UpdateProductionOrderPayload, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
 import { 
     getOrders, 
     addOrder, 
@@ -14,8 +14,9 @@ import {
     getOrderHistory as getOrderHistoryServer,
     getSettings,
     saveSettings,
-    rejectCancellationRequest as rejectCancellationServer,
+    rejectCancellation as rejectCancellationServer,
     addNote as addNoteServer,
+    updatePendingAction as updatePendingActionServer,
 } from './db';
 
 /**
@@ -42,7 +43,7 @@ export async function getProductionOrders(options: {
  * @param requestedBy - The name of the user creating the order.
  * @returns The newly created production order.
  */
-export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'>, requestedBy: string): Promise<ProductionOrder> {
+export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'pendingAction'>, requestedBy: string): Promise<ProductionOrder> {
     return addOrder(order, requestedBy);
 }
 
@@ -113,4 +114,13 @@ export async function rejectCancellationRequest(payload: RejectCancellationPaylo
  */
 export async function addNoteToOrder(payload: NotePayload): Promise<ProductionOrder> {
     return addNoteServer(payload);
+}
+
+/**
+ * Updates the pending administrative action for an order.
+ * @param payload - The action details.
+ * @returns The updated production order.
+ */
+export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<ProductionOrder> {
+    return updatePendingActionServer(payload);
 }

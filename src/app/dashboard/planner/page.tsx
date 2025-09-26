@@ -7,6 +7,7 @@ import { usePlanner } from '@/modules/planner/hooks/usePlanner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,20 +57,22 @@ export default function PlannerPage() {
     }
 
     const renderOrderCard = (order: ProductionOrder) => {
-        const canEdit = (selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold', 'unapproval-request'].includes(order.status)) || (selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress', 'in-queue'].includes(order.status));
+        const canEdit = (selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold'].includes(order.status)) || (selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress', 'in-queue'].includes(order.status));
         
         const canApprove = selectors.hasPermission('planner:status:approve') && order.status === 'pending';
-        const canUnapprove = selectors.hasPermission('planner:status:unapprove') && order.status === 'unapproval-request';
-
+        const canUnapprove = selectors.hasPermission('planner:status:unapprove') && order.pendingAction === 'unapproval-request';
+        
         const canQueue = selectors.hasPermission('planner:status:in-queue') && order.status === 'approved';
         const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'in-queue';
         const canHold = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
         const canResume = selectors.hasPermission('planner:status:in-progress') && order.status === 'on-hold';
         const canComplete = selectors.hasPermission('planner:status:completed') && order.status === 'in-progress';
         
-        const canRequestUnapproval = selectors.hasPermission('planner:status:unapprove-request') && ['approved', 'in-queue'].includes(order.status);
+        const canRequestUnapproval = selectors.hasPermission('planner:status:unapprove-request') && ['approved', 'in-queue'].includes(order.status) && order.pendingAction === 'none';
         const canCancelPending = selectors.hasPermission('planner:status:cancel') && order.status === 'pending';
-        const canCancelApproved = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold', 'in-queue'].includes(order.status);
+        const canRequestCancel = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold', 'in-queue'].includes(order.status) && order.pendingAction === 'none';
+        const canApproveCancel = selectors.hasPermission('planner:status:cancel-approved') && order.pendingAction === 'cancellation-request';
+
         const canReceive = selectors.hasPermission('planner:receive') && order.status === 'completed';
         const finalState = state.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
         const canReopen = selectors.hasPermission('planner:reopen') && (order.status === finalState || order.status === 'canceled');
@@ -103,16 +106,16 @@ export default function PlannerPage() {
                                     <DropdownMenuLabel>Cambio de Estado</DropdownMenuLabel>
                                     <DropdownMenuSeparator/>
                                     {canApprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'approved')} className="text-green-600"><Check className="mr-2"/> Aprobar</DropdownMenuItem>}
-                                    {canUnapprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'pending')} className="text-orange-600"><Undo2 className="mr-2"/> Desaprobar</DropdownMenuItem>}
+                                    
                                     {canQueue && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-queue')} className="text-cyan-600"><Truck className="mr-2"/> Poner en Cola</DropdownMenuItem>}
                                     {canStart && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Truck className="mr-2"/> Iniciar Progreso</DropdownMenuItem>}
                                     {canComplete && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'completed')} className="text-indigo-600"><PackageCheck className="mr-2"/> Marcar como Completada</DropdownMenuItem>}
                                     {canReceive && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'received-in-warehouse')} className="text-gray-700"><PackageCheck className="mr-2"/> Recibir en Bodega</DropdownMenuItem>}
                                     <DropdownMenuSeparator/>
-                                    {canRequestUnapproval && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'unapproval-request')} className="text-orange-600"><AlertTriangle className="mr-2"/> Solicitar Desaprobación</DropdownMenuItem>}
+                                    {canRequestUnapproval && <DropdownMenuItem onSelect={() => actions.openAdminActionDialog(order, 'unapproval-request')} className="text-orange-600"><AlertTriangle className="mr-2"/> Solicitar Desaprobación</DropdownMenuItem>}
                                     <DropdownMenuSeparator/>
                                     {canCancelPending && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'canceled')} className="text-red-600"><XCircle className="mr-2"/> Cancelar Orden</DropdownMenuItem>}
-                                    {canCancelApproved && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'canceled')} className="text-red-600 font-bold"><XCircle className="mr-2"/> FORZAR CANCELACIÓN</DropdownMenuItem>}
+                                    {canRequestCancel && <DropdownMenuItem onSelect={() => actions.openAdminActionDialog(order, 'cancellation-request')} className="text-red-600 font-bold"><XCircle className="mr-2"/> Solicitar Cancelación</DropdownMenuItem>}
                                     {canReopen && <DropdownMenuItem onSelect={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -179,6 +182,36 @@ export default function PlannerPage() {
                         {order.erpPackageNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Bulto</p><p>{order.erpPackageNumber}</p></div>}
                         {order.erpTicketNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Boleta</p><p>{order.erpTicketNumber}</p></div>}
                     </div>
+                     {order.pendingAction !== 'none' && (
+                        <div className="mt-4">
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                     <Button variant="outline" className="border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700 w-full">
+                                        <AlertTriangle className="mr-2 h-4 w-4 animate-pulse" />
+                                        Solicitud Pendiente: {order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Gestionar Solicitud Pendiente</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            La orden tiene una solicitud de "{order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}" pendiente. Puedes aprobar o rechazar esta solicitud.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <div className="py-4 space-y-2">
+                                        <Label htmlFor="admin-action-notes">Notas (Requerido para aprobar)</Label>
+                                        <Textarea id="admin-action-notes" value={state.statusUpdateNotes} onChange={e => actions.setStatusUpdateNotes(e.target.value)} placeholder="Motivo de la acción..."/>
+                                    </div>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cerrar</AlertDialogCancel>
+                                        {selectors.hasPermission('planner:status:unapprove') && <Button variant="secondary" onClick={() => actions.handleRejectAdminAction(order)}>Rechazar Solicitud</Button>}
+                                        {canUnapprove && <AlertDialogAction onClick={() => actions.handleStatusUpdate('pending')} disabled={!state.statusUpdateNotes.trim()}>Aprobar Desaprobación</AlertDialogAction>}
+                                        {canApproveCancel && <AlertDialogAction onClick={() => actions.handleStatusUpdate('canceled')} className="bg-destructive hover:bg-destructive/90" disabled={!state.statusUpdateNotes.trim()}>Aprobar Cancelación</AlertDialogAction>}
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    )}
                      {order.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas de la Orden:</p><p className="text-muted-foreground">"{order.notes}"</p></div>)}
                      {order.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">"{order.lastStatusUpdateNotes}" - <span className="italic">{order.lastStatusUpdateBy}</span></p></div>)}
                      {order.hasBeenModified && order.lastModifiedBy && (<div className="mt-2 text-xs text-red-700 bg-red-100 p-2 rounded-md"><p className="font-semibold">Última Modificación por:</p><p className="">{order.lastModifiedBy} el {format(parseISO(order.lastModifiedAt as string), "dd/MM/yy 'a las' HH:mm")}</p></div>)}
@@ -296,7 +329,10 @@ export default function PlannerPage() {
                             <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por estado..." /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Todos los Estados</SelectItem>
-                                {Object.entries(selectors.statusConfig).map(([key, { label }]) => (<SelectItem key={key} value={key}>{label}</SelectItem>))}
+                                {Object.entries(selectors.statusConfig).map(([key, { label }]) => {
+                                    if(key.includes('request')) return null;
+                                    return <SelectItem key={key} value={key}>{label}</SelectItem>
+                                })}
                             </SelectContent>
                         </Select>
                          <Select value={state.classificationFilter} onValueChange={actions.setClassificationFilter}>
@@ -435,7 +471,7 @@ export default function PlannerPage() {
                     </div>
                      <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                        <Button onClick={actions.handleStatusUpdate} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button>
+                        <Button onClick={() => actions.handleStatusUpdate(state.newStatus)} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

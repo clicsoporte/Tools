@@ -7,8 +7,8 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, rejectCancellationRequest } from '@/modules/requests/lib/actions';
-import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company, DateRange, RejectCancellationPayload } from '../../core/types';
+import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, rejectCancellationRequest, updatePendingAction } from '@/modules/requests/lib/actions';
+import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company, DateRange, RejectCancellationPayload, AdministrativeActionPayload } from '../../core/types';
 import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -16,7 +16,7 @@ import jsPDF from "jspdf";
 import autoTable, { RowInput } from "jspdf-autotable";
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 
-const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'> = {
+const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'pendingAction'> = {
     requiredDate: '',
     clientId: '',
     clientName: '',
@@ -106,6 +106,8 @@ export const useRequests = () => {
     const [reopenStep, setReopenStep] = useState(0);
     const [reopenConfirmationText, setReopenConfirmationText] = useState('');
     const [arrivalDate, setArrivalDate] = useState('');
+    
+    const [isActionDialogOpen, setActionDialogOpen] = useState(false);
 
 
     const loadInitialData = useCallback(async (page = 0) => {
@@ -143,7 +145,8 @@ export const useRequests = () => {
         if (isAuthorized) {
             loadInitialData(archivedPage);
         }
-    }, [setTitle, isAuthorized, loadInitialData, archivedPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized, archivedPage, pageSize, viewingArchived]);
 
     useEffect(() => {
         setCompanyData(authCompanyData);
@@ -198,22 +201,70 @@ export const useRequests = () => {
         setArrivalDate(''); 
         setStatusDialogOpen(true);
     };
+
+    const openAdminActionDialog = async (request: PurchaseRequest, action: 'unapproval-request' | 'cancellation-request') => {
+        if (!currentUser) return;
+        setIsSubmitting(true);
+        try {
+            const payload: AdministrativeActionPayload = {
+                entityId: request.id,
+                action,
+                notes: `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada.`,
+                updatedBy: currentUser.name,
+            };
+            const updated = await updatePendingAction(payload);
+            setActiveRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setArchivedRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+            toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
+        } catch (error: any) {
+            logError(`Failed to request ${action}`, { error });
+            toast({ title: "Error al Solicitar", description: `No se pudo enviar la solicitud. ${error.message}`, variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleAdminAction = async (approve: boolean) => {
+        if (!requestToUpdate || !currentUser || !requestToUpdate.pendingAction || requestToUpdate.pendingAction === 'none') return;
+        setIsSubmitting(true);
+
+        try {
+            if (!approve) {
+                const updated = await rejectCancellationRequest({ entityId: requestToUpdate.id, updatedBy: currentUser.name, notes: statusUpdateNotes });
+                toast({ title: 'Solicitud Rechazada' });
+                setActiveRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+            } else {
+                const targetStatus = requestToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
+                await updatePurchaseRequestStatus({ requestId: requestToUpdate.id, status: targetStatus, updatedBy: currentUser.name, notes: statusUpdateNotes, reopen: false });
+                toast({ title: 'Solicitud Aprobada' });
+                await loadInitialData(0);
+            }
+            setActionDialogOpen(false);
+        } catch (error: any) {
+            logError("Failed to handle admin action", { error });
+            toast({ title: "Error", variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
     
-    const handleStatusUpdate = async () => {
-        if (!requestToUpdate || !newStatus || !currentUser) return;
+    const handleStatusUpdate = async (statusOverride?: PurchaseRequestStatus) => {
+        const finalStatus = statusOverride || newStatus;
+        if (!requestToUpdate || !finalStatus || !currentUser) return;
         setIsSubmitting(true);
         try {
             await updatePurchaseRequestStatus({ 
                 requestId: requestToUpdate.id, 
-                status: newStatus, 
+                status: finalStatus, 
                 notes: statusUpdateNotes, 
                 updatedBy: currentUser.name, 
                 reopen: false, 
-                deliveredQuantity: newStatus === 'received' ? Number(deliveredQuantity) : undefined,
-                arrivalDate: newStatus === 'ordered' ? arrivalDate : undefined
+                deliveredQuantity: finalStatus === 'received' ? Number(deliveredQuantity) : undefined,
+                arrivalDate: finalStatus === 'ordered' ? arrivalDate : undefined
             });
             toast({ title: "Estado Actualizado" });
             setStatusDialogOpen(false);
+            setActionDialogOpen(false);
             await loadInitialData(viewingArchived ? archivedPage : 0);
         } catch (error: any) {
             logError("Failed to update status", { error });
@@ -259,8 +310,9 @@ export const useRequests = () => {
         if (!currentUser) return;
         setIsSubmitting(true);
         try {
-            await rejectCancellationRequest({ entityId: request.id, notes: 'Solicitud de cancelación rechazada.', updatedBy: currentUser.name });
-            await loadInitialData();
+            const updated = await rejectCancellationRequest({ entityId: request.id, notes: 'Solicitud de cancelación rechazada.', updatedBy: currentUser.name });
+            setActiveRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setArchivedRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
             toast({ title: 'Solicitud Rechazada' });
         } catch (error: any) {
              logError("Failed to reject cancellation", { error });
@@ -481,7 +533,7 @@ export const useRequests = () => {
         handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
         handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
         setRequestToUpdate, handleRejectCancellation, handleExportPDF, handleExportSingleRequestPDF,
-        setArrivalDate
+        setArrivalDate, openAdminActionDialog, handleAdminAction, setActionDialogOpen
     };
 
     return {
@@ -493,7 +545,7 @@ export const useRequests = () => {
             itemSearchTerm, isItemSearchOpen, isStatusDialogOpen, requestToUpdate, newStatus,
             statusUpdateNotes, deliveredQuantity, isHistoryDialogOpen, historyRequest,
             history, isHistoryLoading, isReopenDialogOpen, reopenStep, reopenConfirmationText,
-            companyData, arrivalDate,
+            companyData, arrivalDate, isActionDialogOpen,
         },
         actions,
         selectors,
