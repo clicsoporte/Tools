@@ -1,6 +1,6 @@
 
 
-"use client";
+'use client';
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -13,15 +13,15 @@ import type { PlannerMachine, PlannerSettings, CustomStatus } from "@/modules/co
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { getPlannerSettings, savePlannerSettings } from "@/modules/planner/lib/actions";
-import { PlusCircle, Trash2, Palette } from "lucide-react";
+import { PlusCircle, Trash2, Palette, Save } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const defaultColors = [ '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#ff7300', '#0088fe', '#00c49f', '#ffbb28' ];
 
@@ -36,6 +36,15 @@ const availableColumns = [
     { id: 'machineId', label: 'Asignación' },
     { id: 'priority', label: 'Prioridad' },
 ];
+
+const availableFieldsToTrack = [
+    { id: 'quantity', label: 'Cantidad' },
+    { id: 'deliveryDate', label: 'Fecha Entrega' },
+    { id: 'notes', label: 'Notas' },
+    { id: 'purchaseOrder', label: 'Nº OC Cliente' },
+    { id: 'customerId', label: 'Cliente' },
+    { id: 'productId', label: 'Producto' },
+]
 
 
 export default function PlannerSettingsPage() {
@@ -70,6 +79,9 @@ export default function PlannerSettingsPage() {
             }
             if (!currentSettings.pdfExportColumns || currentSettings.pdfExportColumns.length === 0) {
                 currentSettings.pdfExportColumns = availableColumns.map(c => c.id);
+            }
+            if (!Array.isArray(currentSettings.fieldsToTrackChanges)) {
+                currentSettings.fieldsToTrackChanges = ['quantity', 'deliveryDate', 'customerId', 'productId'];
             }
             setSettings(currentSettings);
             setIsLoading(false);
@@ -120,6 +132,18 @@ export default function PlannerSettingsPage() {
             return { ...prev, pdfExportColumns: newColumns };
         });
     };
+
+    const handleFieldToTrackChange = (fieldId: string, checked: boolean) => {
+        if (!settings) return;
+        setSettings(prev => {
+            if (!prev) return null;
+            const currentFields = prev.fieldsToTrackChanges || [];
+            const newFields = checked
+                ? [...currentFields, fieldId]
+                : currentFields.filter(id => id !== fieldId);
+            return { ...prev, fieldsToTrackChanges: newFields };
+        });
+    }
 
     const handleSave = async () => {
         if (!settings) return;
@@ -306,6 +330,31 @@ export default function PlannerSettingsPage() {
                     </Card>
 
                     <Card>
+                        <AccordionItem value="change-detection">
+                             <AccordionTrigger className="p-6">
+                                <CardTitle>Detección de Cambios</CardTitle>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-6 pt-0">
+                                <CardDescription className="mb-4">Selecciona qué campos, al ser modificados después de que una orden sea aprobada, activarán la alerta "Modificado".</CardDescription>
+                                <div className="space-y-4 p-4 border rounded-md">
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                        {availableFieldsToTrack.map(field => (
+                                            <div key={field.id} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`track-field-${field.id}`}
+                                                    checked={settings.fieldsToTrackChanges.includes(field.id)}
+                                                    onCheckedChange={(checked) => handleFieldToTrackChange(field.id, checked as boolean)}
+                                                />
+                                                <Label htmlFor={`track-field-${field.id}`} className="font-normal">{field.label}</Label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Card>
+
+                    <Card>
                         <AccordionItem value="pdf-export">
                             <AccordionTrigger className="p-6">
                                 <CardTitle>Configuración de Exportación a PDF</CardTitle>
@@ -322,7 +371,7 @@ export default function PlannerSettingsPage() {
                                             placeholder="Ej: Documento Controlado - Versión 1.0"
                                         />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 gap-6">
                                         <div className="space-y-2">
                                             <Label>Tamaño del Papel</Label>
                                             <RadioGroup
@@ -332,28 +381,11 @@ export default function PlannerSettingsPage() {
                                             >
                                                 <div className="flex items-center space-x-2">
                                                     <RadioGroupItem value="letter" id="r-letter" />
-                                                    <Label htmlFor="r-letter">Carta</Label>
+                                                    <Label htmlFor="r-letter">Carta (Letter)</Label>
                                                 </div>
                                                 <div className="flex items-center space-x-2">
                                                     <RadioGroupItem value="legal" id="r-legal" />
                                                     <Label htmlFor="r-legal">Oficio (Legal)</Label>
-                                                </div>
-                                            </RadioGroup>
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label>Orientación</Label>
-                                            <RadioGroup
-                                                value={settings.pdfOrientation}
-                                                onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfOrientation: value as 'portrait' | 'landscape' } : null)}
-                                                className="flex items-center gap-4"
-                                            >
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value="portrait" id="r-portrait" />
-                                                    <Label htmlFor="r-portrait">Vertical</Label>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value="landscape" id="r-landscape" />
-                                                    <Label htmlFor="r-landscape">Horizontal</Label>
                                                 </div>
                                             </RadioGroup>
                                         </div>
@@ -381,11 +413,10 @@ export default function PlannerSettingsPage() {
 
                 <Card>
                     <CardFooter className="border-t px-6 py-4">
-                        <Button onClick={handleSave}>Guardar Todos los Cambios</Button>
+                        <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Todos los Cambios</Button>
                     </CardFooter>
                 </Card>
             </div>
         </main>
     );
 }
-
