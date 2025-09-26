@@ -76,6 +76,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('assignmentLabel', 'Máquina Asignada')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfOrientation', 'portrait')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('fieldsToTrackChanges', '[]')`).run();
     
@@ -134,6 +135,12 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
             db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
         }
 
+        const pdfOrientationRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfOrientation'`).get() as { value: string } | undefined;
+        if (!pdfOrientationRow) {
+            console.log("MIGRATION (planner.db): Adding pdfOrientation to settings.");
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfOrientation', 'portrait')`).run();
+        }
+
         const pdfExportColumnsRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfExportColumns'`).get() as { value: string } | undefined;
         if (!pdfExportColumnsRow) {
             console.log("MIGRATION (planner.db): Adding pdfExportColumns to settings.");
@@ -169,6 +176,7 @@ export async function getSettings(): Promise<PlannerSettings> {
         assignmentLabel: 'Máquina Asignada',
         customStatuses: [],
         pdfPaperSize: 'letter',
+        pdfOrientation: 'portrait',
         pdfExportColumns: [],
         pdfTopLegend: '',
         fieldsToTrackChanges: [],
@@ -182,6 +190,7 @@ export async function getSettings(): Promise<PlannerSettings> {
         else if (row.key === 'assignmentLabel') settings.assignmentLabel = row.value;
         else if (row.key === 'customStatuses') settings.customStatuses = JSON.parse(row.value);
         else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
+        else if (row.key === 'pdfOrientation') settings.pdfOrientation = row.value as 'portrait' | 'landscape';
         else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
         else if (row.key === 'pdfTopLegend') settings.pdfTopLegend = row.value;
         else if (row.key === 'fieldsToTrackChanges') settings.fieldsToTrackChanges = JSON.parse(row.value);
@@ -193,7 +202,7 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof PlannerSettings)[] = ['nextOrderNumber', 'useWarehouseReception', 'machines', 'requireMachineForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
+        const keys: (keyof PlannerSettings)[] = ['nextOrderNumber', 'useWarehouseReception', 'machines', 'requireMachineForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
         for (const key of keys) {
             if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);

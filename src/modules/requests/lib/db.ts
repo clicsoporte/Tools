@@ -439,4 +439,3 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
 
     transaction();
 }
-
