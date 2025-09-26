@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -25,7 +24,7 @@ import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
 import { getExemptionStatus } from "@/modules/hacienda/lib/actions";
-import type { RowInput } from "jspdf-autotable";
+import type { RowInput, CellHookData } from "jspdf-autotable";
 
 /**
  * Defines the initial state for a new quote.
@@ -37,7 +36,7 @@ const initialQuoteState = {
   deliveryAddress: "",
   deliveryDate: "",
   sellerName: "",
-  quoteDate: new Date().toISOString().substring(0, 10), // Initialize here to avoid hydration issues
+  quoteDate: "",
   validUntilDate: "",
   paymentTerms: "contado",
   creditDays: 0,
@@ -206,13 +205,14 @@ export const useQuoter = () => {
   useEffect(() => {
     setTitle("Cotizador");
     loadInitialData();
-  }, [setTitle, loadInitialData]);
-
-  useEffect(() => {
+    // Set dates only on the client-side to prevent hydration errors
     const today = new Date();
+    setQuoteDate(today.toISOString().substring(0, 10));
     setDeliveryDate(today.toISOString().substring(0, 16));
-    setValidUntilDate(new Date(new Date().setDate(today.getDate() + 8)).toISOString().substring(0, 10));
-  }, []);
+    const validDate = new Date();
+    validDate.setDate(today.getDate() + 8);
+    setValidUntilDate(validDate.toISOString().substring(0, 10));
+  }, [setTitle, loadInitialData]);
 
   useEffect(() => {
     if (sellerType === "user" && currentUser) {
@@ -493,21 +493,21 @@ export const useQuoter = () => {
             columns: [
                 "Código", 
                 "Descripción", 
-                { content: "Cant.\nUnd.", styles: { halign: 'center' } }, 
+                { content: "Cant. / Und.", styles: { halign: 'center' } }, 
                 "Cabys", 
                 "Precio", 
-                { content: "Imp.\n%", styles: { halign: 'center' } }, 
+                { content: "Imp. %", styles: { halign: 'center' } }, 
                 "Total"
             ],
             rows: tableRows,
             columnStyles: {
                 0: { cellWidth: 40 },
                 1: { cellWidth: 'auto' },
-                2: { cellWidth: 35 },
+                2: { cellWidth: 45, halign: 'center' },
                 3: { cellWidth: 70 },
-                4: { cellWidth: 60 },
-                5: { cellWidth: 25 },
-                6: { cellWidth: 70 },
+                4: { cellWidth: 60, halign: 'right' },
+                5: { cellWidth: 30, halign: 'center' },
+                6: { cellWidth: 70, halign: 'right' },
             }
         },
         notes: notes,
@@ -540,7 +540,9 @@ export const useQuoter = () => {
     setSellerType("user");
     setPaymentTerms(initialQuoteState.paymentTerms);
     setCreditDays(initialQuoteState.creditDays);
-    setValidUntilDate(new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().substring(0, 10));
+    const validDate = new Date();
+    validDate.setDate(today.getDate() + 8);
+    setValidUntilDate(validDate.toISOString().substring(0, 10));
     setNotes(initialQuoteState.notes);
     setProductSearchTerm("");
     setCustomerSearchTerm("");

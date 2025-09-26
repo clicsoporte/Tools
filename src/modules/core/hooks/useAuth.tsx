@@ -50,7 +50,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const loadAuthData = useCallback(async () => {
-    setIsLoading(true);
+    // No establecer isLoading(true) aquí para evitar recargas innecesarias en el refresh.
     try {
       const [currentUser, allRoles, companySettings, dbCustomers, dbProducts, dbStock, rateData] = await Promise.all([
         getCurrentUserClient(),
@@ -85,13 +85,18 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setStockLevels([]);
       setExchangeRateData({ rate: null, date: null });
     } finally {
-      setIsLoading(false);
+      // Solo cambiar isLoading la primera vez.
+      if (isLoading) {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [isLoading]); // Depender de isLoading para el control de la carga inicial
 
   useEffect(() => {
+    // Este efecto solo se ejecuta una vez al montar el componente.
     loadAuthData();
-  }, [loadAuthData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // El array vacío asegura que solo se ejecute al montar.
 
   const contextValue: AuthContextType = {
     user,
