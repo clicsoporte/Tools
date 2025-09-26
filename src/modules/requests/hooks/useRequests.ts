@@ -299,7 +299,7 @@ export const useRequests = () => {
         return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
     };
 
-    const handleExportPDF = async () => {
+    const handleExportPDF = async (orientation: 'portrait' | 'landscape' = 'portrait') => {
         if (!companyData || !requestSettings) return;
         
         let logoDataUrl: string | null = null;
@@ -367,6 +367,9 @@ export const useRequests = () => {
                 }, {} as { [key: number]: any })
             },
             totals: [],
+            topLegend: requestSettings.pdfTopLegend,
+            paperSize: requestSettings.pdfPaperSize,
+            orientation: orientation,
         });
         
         doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);

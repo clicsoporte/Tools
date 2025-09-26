@@ -17,7 +17,7 @@ import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import type { RowInput } from "jspdf-autotable";
 
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'> = {
     deliveryDate: new Date().toISOString().split('T')[0],
     customerId: '',
     customerName: '',
@@ -415,7 +415,7 @@ export const usePlanner = () => {
             }
         },
 
-        handleExportPDF: async () => {
+        handleExportPDF: async (orientation: 'portrait' | 'landscape' = 'portrait') => {
             if (!authCompanyData || !state.plannerSettings) return;
         
             let logoDataUrl: string | null = null;
@@ -483,8 +483,9 @@ export const usePlanner = () => {
                     }, {} as { [key: number]: any })
                 },
                 totals: [],
-                notes: state.plannerSettings.pdfTopLegend,
+                topLegend: state.plannerSettings.pdfTopLegend,
                 paperSize: state.plannerSettings.pdfPaperSize,
+                orientation: orientation,
             });
         
             doc.save(`ordenes_produccion_${new Date().getTime()}.pdf`);
