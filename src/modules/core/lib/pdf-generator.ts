@@ -8,7 +8,7 @@ import autoTable, { type RowInput } from "jspdf-autotable";
 import { format, parseISO } from 'date-fns';
 import type { Company } from '../types';
 
-interface DocumentData {
+export interface DocumentData {
     docTitle: string;
     docId: string;
     meta: { label: string; value: string }[];
@@ -55,12 +55,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         const topMargin = 50; 
         const rightColX = pageWidth - margin;
         
-        doc.setFontSize(16);
-        doc.setFont('Helvetica', 'bold');
-        
         let logoX = margin;
         let companyX = margin;
-        const logoY = topMargin + 20;
+        const logoY = topMargin;
 
         if (data.logoDataUrl) {
             try {
@@ -91,17 +88,14 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
         
         let rightY = logoY;
+        
+        doc.setFontSize(14);
+        doc.setFont('Helvetica', 'bold');
+        doc.text(data.docId, rightColX, rightY, { align: 'right' });
+        rightY += 18;
+
         doc.setFontSize(10);
         doc.setFont('Helvetica', 'normal');
-        
-        if (data.docId) {
-             doc.setFontSize(14);
-             doc.setFont('Helvetica', 'bold');
-             doc.text(data.docId, rightColX, rightY, { align: 'right' });
-             rightY += 18;
-             doc.setFontSize(10);
-             doc.setFont('Helvetica', 'normal');
-        }
 
         data.meta.forEach(item => {
             doc.text(`${item.label}: ${item.value}`, rightColX, rightY, { align: 'right' });
@@ -121,6 +115,12 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             if (data.sellerInfo.email) { rightY += 10; doc.text(data.sellerInfo.email, rightColX, rightY, { align: 'right' }); }
         }
 
+        if (data.topLegend) {
+            doc.setFontSize(8);
+            doc.setFont('Helvetica', 'italic');
+            doc.text(data.topLegend, margin, topMargin - 10);
+        }
+
         finalY = Math.max(companyY, rightY) + 25;
     };
 
@@ -135,11 +135,6 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     
     addHeader();
     
-    doc.setFontSize(14);
-    doc.setFont('Helvetica', 'bold');
-    doc.text(data.docTitle, pageWidth / 2, finalY, { align: 'center' });
-    finalY += 20;
-
     if (data.blocks.length > 0) {
         autoTable(doc, {
             startY: finalY,
@@ -156,6 +151,11 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         finalY = (doc as any).lastAutoTable.finalY + 15;
     }
     
+    doc.setFontSize(14);
+    doc.setFont('Helvetica', 'bold');
+    doc.text(data.docTitle, pageWidth / 2, finalY, { align: 'center' });
+    finalY += 20;
+
     autoTable(doc, {
         head: [data.table.columns],
         body: data.table.rows,
@@ -231,4 +231,3 @@ export const generateDocument = (data: DocumentData): jsPDF => {
 
     return doc;
 };
-
