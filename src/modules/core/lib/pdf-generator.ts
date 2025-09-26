@@ -55,6 +55,10 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         const topMargin = 50; 
         const rightColX = pageWidth - margin;
         
+        doc.setFontSize(14);
+        doc.setFont('Helvetica', 'bold');
+        doc.text(data.docTitle, pageWidth / 2, topMargin - 15, { align: 'center' });
+
         const logoY = topMargin;
         let companyX = margin;
         let companyY = logoY;
@@ -88,12 +92,12 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         
         let rightY = logoY;
         
-        doc.setFontSize(14);
+        doc.setFontSize(11);
         doc.setFont('Helvetica', 'bold');
         doc.text(data.docId, rightColX, rightY, { align: 'right' });
-        rightY += 18;
+        rightY += 15;
 
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setFont('Helvetica', 'normal');
 
         data.meta.forEach(item => {
@@ -101,9 +105,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             rightY += 12;
         });
         
-        rightY += 8;
-
         if (data.sellerInfo) {
+            rightY += 8;
             doc.setFont('Helvetica', 'bold');
             doc.text("Vendedor:", rightColX, rightY, { align: 'right' });
             rightY += 10;
@@ -117,7 +120,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         if (data.topLegend) {
             doc.setFontSize(8);
             doc.setFont('Helvetica', 'italic');
-            doc.text(data.topLegend, margin, topMargin - 10);
+            doc.text(data.topLegend, margin, topMargin - 25);
         }
 
         finalY = Math.max(companyY, rightY) + 25;
@@ -149,11 +152,6 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         });
         finalY = (doc as any).lastAutoTable.finalY + 15;
     }
-    
-    doc.setFontSize(14);
-    doc.setFont('Helvetica', 'bold');
-    doc.text(data.docTitle, pageWidth / 2, finalY, { align: 'center' });
-    finalY += 20;
 
     autoTable(doc, {
         head: [data.table.columns],

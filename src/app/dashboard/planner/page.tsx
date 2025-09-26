@@ -56,18 +56,23 @@ export default function PlannerPage() {
     }
 
     const renderOrderCard = (order: ProductionOrder) => {
-        const canEdit = (selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold'].includes(order.status)) || (selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress'].includes(order.status));
+        const canEdit = (selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold', 'unapproval-request'].includes(order.status)) || (selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress', 'in-queue'].includes(order.status));
+        
         const canApprove = selectors.hasPermission('planner:status:approve') && order.status === 'pending';
-        const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'approved';
+        const canUnapprove = selectors.hasPermission('planner:status:unapprove') && order.status === 'unapproval-request';
+
+        const canQueue = selectors.hasPermission('planner:status:in-queue') && order.status === 'approved';
+        const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'in-queue';
         const canHold = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
         const canResume = selectors.hasPermission('planner:status:in-progress') && order.status === 'on-hold';
         const canComplete = selectors.hasPermission('planner:status:completed') && order.status === 'in-progress';
-        const canRequestCancel = selectors.hasPermission('planner:status:cancel') && order.status === 'pending';
-        const canApproveCancel = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold'].includes(order.status);
+        
+        const canRequestUnapproval = selectors.hasPermission('planner:status:unapprove-request') && ['approved', 'in-queue'].includes(order.status);
+        const canCancelPending = selectors.hasPermission('planner:status:cancel') && order.status === 'pending';
+        const canCancelApproved = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold', 'in-queue'].includes(order.status);
         const canReceive = selectors.hasPermission('planner:receive') && order.status === 'completed';
         const finalState = state.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
         const canReopen = selectors.hasPermission('planner:reopen') && (order.status === finalState || order.status === 'canceled');
-        const canRejectCancellation = order.status === 'cancellation-request' && (selectors.hasPermission('planner:status:cancel-approved') || selectors.hasPermission('planner:status:cancel'));
         
         const daysRemaining = selectors.getDaysRemaining(order.deliveryDate);
         const scheduledDaysRemaining = selectors.getScheduledDaysRemaining(order);
@@ -82,27 +87,33 @@ export default function PlannerPage() {
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
+                            {order.hasBeenModified && <Badge variant="destructive" className="animate-pulse"><AlertTriangle className="mr-1 h-3 w-3" /> Modificado</Badge>}
                              <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                    <DropdownMenuLabel>Acciones de Orden</DropdownMenuLabel>
                                     <DropdownMenuSeparator/>
                                     {canEdit && <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</DropdownMenuItem>}
                                     <DropdownMenuItem onSelect={() => actions.openAddNoteDialog(order)}><MessageSquarePlus className="mr-2" /> Añadir Nota</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => actions.handleExportSingleOrderPDF(order)}><FileDown className="mr-2"/> Exportar a PDF</DropdownMenuItem>
                                     <DropdownMenuSeparator/>
-                                    {canReopen && <DropdownMenuItem onSelect={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
+                                    <DropdownMenuLabel>Cambio de Estado</DropdownMenuLabel>
+                                    <DropdownMenuSeparator/>
                                     {canApprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'approved')} className="text-green-600"><Check className="mr-2"/> Aprobar</DropdownMenuItem>}
+                                    {canUnapprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'pending')} className="text-orange-600"><Undo2 className="mr-2"/> Desaprobar</DropdownMenuItem>}
+                                    {canQueue && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-queue')} className="text-cyan-600"><Truck className="mr-2"/> Poner en Cola</DropdownMenuItem>}
                                     {canStart && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Truck className="mr-2"/> Iniciar Progreso</DropdownMenuItem>}
                                     {canComplete && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'completed')} className="text-indigo-600"><PackageCheck className="mr-2"/> Marcar como Completada</DropdownMenuItem>}
                                     {canReceive && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'received-in-warehouse')} className="text-gray-700"><PackageCheck className="mr-2"/> Recibir en Bodega</DropdownMenuItem>}
                                     <DropdownMenuSeparator/>
-                                    {canRequestCancel && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'cancellation-request')} className="text-red-600"><XCircle className="mr-2"/> Solicitar Cancelación</DropdownMenuItem>}
-                                    {canApproveCancel && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'canceled')} className="text-red-600"><XCircle className="mr-2"/> Cancelar Orden</DropdownMenuItem>}
-                                    {canRejectCancellation && <DropdownMenuItem onSelect={() => actions.handleRejectCancellation(order)}><AlertTriangle className="mr-2"/> Rechazar Cancelación</DropdownMenuItem>}
+                                    {canRequestUnapproval && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'unapproval-request')} className="text-orange-600"><AlertTriangle className="mr-2"/> Solicitar Desaprobación</DropdownMenuItem>}
+                                    <DropdownMenuSeparator/>
+                                    {canCancelPending && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'canceled')} className="text-red-600"><XCircle className="mr-2"/> Cancelar Orden</DropdownMenuItem>}
+                                    {canCancelApproved && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'canceled')} className="text-red-600 font-bold"><XCircle className="mr-2"/> FORZAR CANCELACIÓN</DropdownMenuItem>}
+                                    {canReopen && <DropdownMenuItem onSelect={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -149,7 +160,7 @@ export default function PlannerPage() {
                             <div className="flex flex-col sm:flex-row sm:items-center gap-1">
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button size="sm" variant="outline" className="h-8 w-48 justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{order.scheduledStartDate ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}` : 'No programada'}</Button>
+                                        <Button size="sm" variant="outline" className="h-8 w-48 justify-start text-left font-normal" disabled={!selectors.hasPermission('planner:schedule')}><CalendarIcon className="mr-2 h-4 w-4" />{order.scheduledStartDate ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}` : 'No programada'}</Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={{ from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined, to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined }} onSelect={(range) => actions.handleDetailUpdate(order.id, { scheduledDateRange: range })} /></PopoverContent>
                                 </Popover>
@@ -170,6 +181,7 @@ export default function PlannerPage() {
                     </div>
                      {order.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas de la Orden:</p><p className="text-muted-foreground">"{order.notes}"</p></div>)}
                      {order.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">"{order.lastStatusUpdateNotes}" - <span className="italic">{order.lastStatusUpdateBy}</span></p></div>)}
+                     {order.hasBeenModified && order.lastModifiedBy && (<div className="mt-2 text-xs text-red-700 bg-red-100 p-2 rounded-md"><p className="font-semibold">Última Modificación por:</p><p className="">{order.lastModifiedBy} el {format(parseISO(order.lastModifiedAt as string), "dd/MM/yy 'a las' HH:mm")}</p></div>)}
                 </CardContent>
                 <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
                     <span>Solicitado por: {order.requestedBy} el {format(parseISO(order.requestDate), 'dd/MM/yyyy')}</span>
@@ -300,7 +312,19 @@ export default function PlannerPage() {
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={state.dateFilter} onSelect={actions.setDateFilter} /></PopoverContent>
                         </Popover>
-                        <Button variant="outline" onClick={actions.handleExportPDF}><FileDown className="mr-2 h-4 w-4"/>Exportar PDF</Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline"><FileDown className="mr-2 h-4 w-4"/>Exportar PDF</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => actions.handleExportPDF('portrait')}>
+                                    Exportar Vertical
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => actions.handleExportPDF('landscape')}>
+                                    Exportar Horizontal
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                     </div>
                      {state.viewingArchived && (
