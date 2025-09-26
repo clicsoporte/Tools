@@ -353,11 +353,14 @@ export type PurchaseRequest = {
   receivedInWarehouseBy?: string;
   lastStatusUpdateBy?: string;
   lastStatusUpdateNotes?: string;
+  lastModifiedBy?: string;
+  lastModifiedAt?: string;
+  hasBeenModified?: boolean;
   reopened?: boolean;
   previousStatus?: PurchaseRequestStatus | null;
 };
 
-export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'pendingAction'>> & {
+export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'pendingAction' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified'>> & {
     requestId: number;
     updatedBy: string;
 };

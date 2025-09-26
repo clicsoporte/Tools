@@ -28,6 +28,9 @@ const config: Config = {
     'bg-gray-600',
     'bg-red-700',
     'bg-teal-500',
+    'bg-cyan-500',
+    'bg-orange-400',
+    'bg-orange-500',
   ],
   theme: {
     extend: {

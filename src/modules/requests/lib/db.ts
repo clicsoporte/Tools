@@ -46,7 +46,10 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
             lastStatusUpdateBy TEXT,
             lastStatusUpdateNotes TEXT,
             reopened BOOLEAN DEFAULT FALSE,
-            previousStatus TEXT
+            previousStatus TEXT,
+            lastModifiedBy TEXT,
+            lastModifiedAt TEXT,
+            hasBeenModified BOOLEAN DEFAULT FALSE
         );
         CREATE TABLE IF NOT EXISTS purchase_request_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,6 +97,9 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
     if (!columns.has('erpOrderNumber')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN erpOrderNumber TEXT`);
     if (!columns.has('manualSupplier')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN manualSupplier TEXT`);
     if (!columns.has('pendingAction')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN pendingAction TEXT DEFAULT 'none'`);
+    if (!columns.has('lastModifiedBy')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN lastModifiedBy TEXT`);
+    if (!columns.has('lastModifiedAt')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN lastModifiedAt TEXT`);
+    if (!columns.has('hasBeenModified')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN hasBeenModified BOOLEAN DEFAULT FALSE`);
     
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='request_settings'`).get();
     if(settingsTable){
@@ -243,7 +249,6 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         consecutive: `SC-${nextNumber.toString().padStart(5, '0')}`,
         requestDate: new Date().toISOString(),
         status: 'pending',
-        pendingAction: 'none',
         reopened: false,
     };
 
@@ -294,6 +299,11 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
     if (!currentRequest) {
         throw new Error("Request not found.");
     }
+    
+    let hasBeenModified = currentRequest.hasBeenModified;
+    if (['approved', 'ordered'].includes(currentRequest.status)) {
+        hasBeenModified = true;
+    }
 
     const transaction = db.transaction(() => {
         db.prepare(`
@@ -314,12 +324,23 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
                 inventory = @inventory,
                 priority = @priority,
                 purchaseType = @purchaseType,
-                arrivalDate = @arrivalDate
+                arrivalDate = @arrivalDate,
+                lastModifiedBy = @updatedBy,
+                lastModifiedAt = @lastModifiedAt,
+                hasBeenModified = @hasBeenModified
             WHERE id = @requestId
-        `).run({ requestId, ...dataToUpdate });
+        `).run({ 
+            requestId, 
+            ...dataToUpdate,
+            updatedBy,
+            lastModifiedAt: new Date().toISOString(),
+            hasBeenModified: hasBeenModified ? 1 : 0
+        });
 
-        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(requestId, new Date().toISOString(), currentRequest.status, updatedBy, 'Solicitud editada.');
+        if (hasBeenModified) {
+            const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+            historyStmt.run(requestId, new Date().toISOString(), currentRequest.status, updatedBy, 'Solicitud editada después de aprobación.');
+        }
     });
 
     transaction();

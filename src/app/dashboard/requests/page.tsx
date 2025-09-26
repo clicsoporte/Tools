@@ -7,7 +7,7 @@ import { useRequests } from '@/modules/requests/hooks/useRequests';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -69,7 +69,6 @@ export default function PurchaseRequestPage() {
         const canReceive = selectors.hasPermission('requests:status:received') && request.status === 'ordered';
         const canReceiveInWarehouse = selectors.hasPermission('requests:status:received') && request.status === 'received' && requestSettings?.useWarehouseReception;
         const canRequestCancel = selectors.hasPermission('requests:status:cancel') && ['pending', 'approved', 'ordered'].includes(request.status) && request.pendingAction === 'none';
-        const canApproveCancel = selectors.hasPermission('requests:status:cancel') && request.pendingAction === 'cancellation-request';
         
         const canEditPending = selectors.hasPermission('requests:edit:pending') && request.status === 'pending';
         const canEditApproved = selectors.hasPermission('requests:edit:approved') && ['approved', 'ordered'].includes(request.status);
@@ -86,6 +85,7 @@ export default function PurchaseRequestPage() {
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {request.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
+                            {request.hasBeenModified && <Badge variant="destructive" className="animate-pulse"><AlertTriangle className="mr-1 h-3 w-3" /> Modificado</Badge>}
                              <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(request)}><History className="h-4 w-4" /></Button>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -149,7 +149,7 @@ export default function PurchaseRequestPage() {
                          {request.shippingMethod && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Método de Envío</p><p>{request.shippingMethod}</p></div>}
                         <div className="space-y-1"><p className="font-semibold text-muted-foreground">Tipo de Compra</p><div className="flex items-center gap-2">{request.purchaseType === 'multiple' ? <Users className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}<span>{request.purchaseType === 'multiple' ? 'Múltiples Proveedores' : 'Proveedor Único'}</span></div></div>
                     </div>
-                     {request.pendingAction !== 'none' && (
+                    {request.pendingAction !== 'none' && (
                         <div className="mt-4">
                             <AlertDialog open={isActionDialogOpen && requestToUpdate?.id === request.id} onOpenChange={(open) => { if (!open) actions.setActionDialogOpen(false); }}>
                                 <AlertDialogTrigger asChild>
@@ -180,6 +180,7 @@ export default function PurchaseRequestPage() {
                     )}
                      {request.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas de la Solicitud:</p><p className="text-muted-foreground">"{request.notes}"</p></div>)}
                      {request.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">"{request.lastStatusUpdateNotes}" - <span className="italic">{request.lastStatusUpdateBy}</span></p></div>)}
+                     {request.hasBeenModified && request.lastModifiedBy && (<div className="mt-2 text-xs text-red-700 bg-red-100 p-2 rounded-md"><p className="font-semibold">Última Modificación por:</p><p className="">{request.lastModifiedBy} el {format(parseISO(request.lastModifiedAt as string), "dd/MM/yy 'a las' HH:mm")}</p></div>)}
                 </CardContent>
                 <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
                     <span>Solicitado por: {request.requestedBy} el {format(parseISO(request.requestDate), 'dd/MM/yyyy')}</span>
