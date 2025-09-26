@@ -28,6 +28,7 @@ import type { User } from "@/modules/core/types";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { login, getAllUsers, saveAllUsers } from "@/modules/core/lib/auth-client";
 import { logInfo, logWarn } from "@/modules/core/lib/logger";
+import { useAuth } from "@/modules/core/hooks/useAuth";
 
 interface AuthFormProps {
   clientInfo: {
@@ -43,6 +44,7 @@ interface AuthFormProps {
 export function AuthForm({ clientInfo }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { refreshAuthAndRedirect } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -62,8 +64,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
     const loggedIn = await login(email, password);
 
     if (loggedIn) {
-      router.refresh();
-      router.push("/dashboard");
+      await refreshAuthAndRedirect('/dashboard');
     } else {
       toast({
         title: "Credenciales Incorrectas",

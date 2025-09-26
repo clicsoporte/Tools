@@ -9,37 +9,8 @@
 import { AppSidebar } from "../../components/layout/sidebar";
 import { Header } from "../../components/layout/header";
 import { SidebarInset, SidebarProvider } from "../../components/ui/sidebar";
-import { useAuth } from "../../modules/core/hooks/useAuth";
-import { Skeleton } from "../../components/ui/skeleton";
 import { usePageTitle, PageTitleProvider } from "../../modules/core/hooks/usePageTitle";
 
-
-function AuthWrapper({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
-  
-  if (isLoading || !user) {
-    return (
-        <div className="flex items-center justify-center h-screen">
-            <div className="flex flex-col items-center gap-4">
-                <Skeleton className="h-32 w-32 rounded-full" />
-                <Skeleton className="h-8 w-48" />
-            </div>
-        </div>
-    )
-  }
-
-  // If loading is done and we have a user, show the content.
-  return <>{children}</>;
-}
-
-
-/**
- * Inner component that consumes the PageTitleContext to display the current page title
- * in the header.
- * @param {object} props - Component props.
- * @param {React.ReactNode} props.children - The child components to render.
- * @returns {JSX.Element} The rendered layout content.
- */
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { title } = usePageTitle();
   return (
@@ -64,7 +35,6 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthWrapper>
       <PageTitleProvider initialTitle="Panel">
         <SidebarProvider>
           <div className="flex min-h-screen bg-muted/40">
@@ -75,6 +45,5 @@ export default function DashboardLayout({
           </div>
         </SidebarProvider>
       </PageTitleProvider>
-    </AuthWrapper>
   );
 }

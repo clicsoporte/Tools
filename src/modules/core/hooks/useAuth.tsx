@@ -9,7 +9,9 @@ import React, { createContext, useState, useContext, ReactNode, FC, useEffect, u
 import type { User, Role, Company, Product, StockInfo, Customer } from "../types";
 import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
 import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAndCacheExchangeRate } from '../lib/db';
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 
 /**
  * Defines the shape of the authentication context's value.
@@ -24,6 +26,7 @@ interface AuthContextType {
   exchangeRateData: { rate: number | null, date: string | null };
   isLoading: boolean;
   refreshAuth: () => Promise<void>;
+  refreshAuthAndRedirect: (path: string) => Promise<void>;
   refreshExchangeRate: () => Promise<void>;
 }
 
@@ -37,6 +40,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  */
 export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [companyData, setCompanyData] = useState<Company | null>(null);
@@ -80,35 +84,37 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         setUserRole(role || null);
       } else {
         setUserRole(null);
-        // If not loading anymore and still no user, redirect (only for dashboard paths)
-        if (!isInitialLoad && window.location.pathname.startsWith('/dashboard')) {
-           router.replace('/');
-        }
       }
+      return { isAuthenticated: !!currentUser };
     } catch (error) {
       console.error("Failed to load authentication context data:", error);
       setUser(null);
       setUserRole(null);
-      // Don't clear other data on error to avoid breaking UI if only user fails
+      return { isAuthenticated: false };
     } finally {
       if (isInitialLoad) {
         setIsLoading(false);
       }
     }
-  }, [router]);
+  }, []);
+  
+  const refreshAuthAndRedirect = useCallback(async (path: string) => {
+    setIsLoading(true);
+    await loadAuthData(false);
+    router.push(path);
+    // No need to setIsLoading(false) here, as the new page's AuthProvider instance will handle it.
+  }, [loadAuthData, router]);
 
   useEffect(() => {
     const isInitialLoad = true;
-    loadAuthData(isInitialLoad);
+    loadAuthData(isInitialLoad).then(({ isAuthenticated }) => {
+        // This effect handles redirection after the initial load is complete
+        if (!isLoading && !isAuthenticated && pathname.startsWith('/dashboard')) {
+            router.replace('/');
+        }
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    // This effect handles redirection after the initial load is complete
-    if (!isLoading && !user && window.location.pathname.startsWith('/dashboard')) {
-      router.replace('/');
-    }
-  }, [isLoading, user, router]);
+  }, [pathname]);
 
   const contextValue: AuthContextType = {
     user,
@@ -120,8 +126,38 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     exchangeRateData,
     isLoading,
     refreshAuth: () => loadAuthData(false),
+    refreshAuthAndRedirect,
     refreshExchangeRate,
   };
+
+  const isDashboardRoute = pathname.startsWith('/dashboard');
+
+  if (isLoading && isDashboardRoute) {
+    return (
+        <div className="flex min-h-screen bg-muted/40">
+            <div className="hidden md:flex flex-col w-64 border-r p-4 gap-4">
+                 <div className="flex items-center gap-2 mb-4">
+                    <Skeleton className="h-10 w-10 rounded-lg"/>
+                    <Skeleton className="h-6 w-32"/>
+                </div>
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="flex-1 flex flex-col">
+                <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
+                    <Skeleton className="h-8 w-48"/>
+                    <div className="ml-auto flex items-center gap-4">
+                       <Skeleton className="h-9 w-9 rounded-full" />
+                    </div>
+                </header>
+                <main className="flex flex-1 items-center justify-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                </main>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={contextValue}>
