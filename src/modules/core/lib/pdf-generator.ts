@@ -4,7 +4,7 @@
  * professional-looking PDF documents for quotes, production orders, and purchase requests.
  */
 import jsPDF from "jspdf";
-import autoTable, { type RowInput, type CellInput, type CellHookData } from "jspdf-autotable";
+import autoTable, { type RowInput } from "jspdf-autotable";
 import { format, parseISO } from 'date-fns';
 import type { Company } from '../types';
 
@@ -54,25 +54,27 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         const topMargin = 50; 
         const rightColX = pageWidth - margin;
         
+        doc.setFontSize(16);
+        doc.setFont('Helvetica', 'bold');
+        doc.text(data.docTitle, pageWidth / 2, topMargin, { align: 'center' });
+
         let logoX = margin;
         let companyX = margin;
+        const logoY = topMargin + 20;
 
         if (data.logoDataUrl) {
             try {
                 const imgProps = doc.getImageProperties(data.logoDataUrl);
                 const imgHeight = 45; 
                 const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
-                const logoY = topMargin;
-
                 doc.addImage(data.logoDataUrl, 'PNG', logoX, logoY, imgWidth, imgHeight);
-
                 companyX = logoX + imgWidth + 15; 
             } catch (e) {
                 console.error("Error adding logo image to PDF:", e);
             }
         }
         
-        let companyY = topMargin + 3;
+        let companyY = logoY + 3;
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(11);
         doc.text(data.companyData.name, companyX, companyY);
@@ -88,7 +90,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         companyY += 10;
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
         
-        let rightY = topMargin + 8;
+        let rightY = logoY;
         doc.setFontSize(10);
         doc.setFont('Helvetica', 'normal');
         
@@ -119,14 +121,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             if (data.sellerInfo.email) { rightY += 10; doc.text(data.sellerInfo.email, rightColX, rightY, { align: 'right' }); }
         }
 
-        if (data.topLegend) {
-            doc.setFontSize(8);
-            doc.setTextColor(150);
-            doc.text(data.topLegend, pageWidth / 2, topMargin - 25, { align: 'center' });
-            doc.setTextColor(0);
-        }
-        
-        finalY = Math.max(companyY, rightY) + 10;
+        finalY = Math.max(companyY, rightY) + 25;
     };
 
     let pagesDrawnByAutotable = new Set<number>();
@@ -156,13 +151,6 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         finalY = (doc as any).lastAutoTable.finalY + 15;
     }
     
-    // Add centered title just above the table
-    doc.setFontSize(16);
-    doc.setFont('Helvetica', 'bold');
-    doc.text(data.docTitle, pageWidth / 2, finalY + 10, { align: 'center' });
-    finalY += 25;
-
-
     autoTable(doc, {
         head: [data.table.columns],
         body: data.table.rows,
@@ -229,6 +217,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
 
     for (let i = 1; i <= currentPage; i++) {
         doc.setPage(i);
+        if (!pagesDrawnByAutotable.has(i)) {
+             addHeader();
+        }
         addFooter(doc, i, currentPage);
     }
 
