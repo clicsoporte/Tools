@@ -18,7 +18,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2 } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -101,35 +101,48 @@ export default function HelpPage() {
                 </AccordionItem>
 
                 <AccordionItem value="item-quoter">
-                <AccordionTrigger className="text-lg font-semibold">
-                    <DollarSign className="mr-4 h-6 w-6 text-green-500" />
-                    Tutorial: Módulo Cotizador
-                </AccordionTrigger>
-                <AccordionContent className="prose max-w-none text-base space-y-4">
-                    <p>
-                    Esta es tu herramienta principal para crear y enviar cotizaciones profesionales a los clientes. Sigue estos pasos:
-                    </p>
-                    <ul className="list-disc space-y-3 pl-6">
-                    <li>
-                        <strong>Paso 1: Elige al Cliente.</strong> Empieza a escribir el nombre o código del cliente. El sistema te mostrará una lista de sugerencias. Cuando lo veas, haz clic para seleccionarlo y todos sus datos se llenarán automáticamente (dirección, condición de pago, etc.).
-                    </li>
-                     <li>
-                        <strong>Verificar Exoneración (<ShieldQuestion className="inline h-4 w-4" />):</strong> Si el cliente tiene una exoneración registrada en el ERP, el sistema la mostrará y verificará su estado automáticamente con Hacienda, indicando si está vigente o vencida. Si el artículo que agregas es de canasta básica, el impuesto se ajustará a 1% automáticamente.
-                    </li>
-                    <li>
-                        <strong>Paso 2: Agrega Productos.</strong> En el buscador de productos, escribe el código o la descripción. Verás una lista de sugerencias con la cantidad que hay en el inventario del ERP. Presiona `Enter` o haz clic para añadirlo a la cotización.
-                    </li>
-                    <li>
-                        <strong>Atajos de Teclado (<Keyboard className="inline h-4 w-4" />):</strong> Para ir más rápido, usa la tecla `Enter` en los campos de "Cantidad" y "Precio". Te llevará al siguiente campo y luego de vuelta al buscador de productos. ¡Es súper eficiente!
-                    </li>
-                    <li>
-                        <strong>Borradores (<Folder className="inline h-4 w-4" />):</strong> ¿No terminaste una cotización? Guárdala como borrador y cárgala más tarde desde el botón "Ver Borradores".
-                    </li>
-                    <li>
-                        <strong>Paso 3: Generar PDF (<FileDown className="inline h-4 w-4" />):</strong> Cuando todo esté listo, genera un PDF profesional. El número de cotización se actualizará solo para la próxima vez.
-                    </li>
-                    </ul>
-                </AccordionContent>
+                    <AccordionTrigger className="text-lg font-semibold">
+                        <DollarSign className="mr-4 h-6 w-6 text-green-500" />
+                        Guía Maestra: Módulo Cotizador
+                    </AccordionTrigger>
+                    <AccordionContent className="prose max-w-none text-base space-y-4">
+                        <p>Esta es tu herramienta principal para crear y enviar cotizaciones profesionales a los clientes. Su diseño está optimizado para la velocidad y la precisión.</p>
+                        
+                        <h4 className="font-semibold text-lg pt-2 border-t">Flujo de Trabajo Recomendado</h4>
+                        <ol className="list-decimal space-y-4 pl-6">
+                            <li>
+                                <strong>Paso 1: Seleccionar al Cliente y Verificar su Información.</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Empieza a escribir el nombre o código del cliente en el campo "Buscar Cliente". El sistema te mostrará una lista de sugerencias. Haz clic o presiona `Enter` para seleccionarlo.</li>
+                                    <li>Al seleccionar, aparecerá una tarjeta con los <strong>datos críticos del ERP</strong> (<CreditCard className="inline h-4 w-4"/>): límite de crédito, condición de pago (ej. 30 días) y vendedor asignado. Esto te da una visión instantánea del estado del cliente.</li>
+                                    <li><strong>Verificar Exoneración (<ShieldQuestion className="inline h-4 w-4" />):</strong> Si el cliente tiene una exoneración en el ERP, aparecerá una segunda tarjeta. El sistema consultará a Hacienda **en tiempo real** y te mostrará dos estados para que los compares: el del ERP y el de Hacienda. Esto te permite confirmar si la exoneración sigue vigente antes de aplicarla.</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Paso 2: Agregar Productos y Consultar Detalles.</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>En el campo "Agregar Producto", busca por código o descripción. El sistema te sugerirá productos y te mostrará el **inventario actual del ERP** entre paréntesis.</li>
+                                    <li>Presiona `Enter` o haz clic para añadir el producto a la cotización. El sistema aplicará el impuesto automáticamente (13% por defecto, 1% para canasta básica, o 0% si el cliente tiene una exoneración válida).</li>
+                                    <li><strong>Consultar Info del Producto (<BadgeInfo className="inline h-4 w-4"/>):</strong> Haz clic en cualquier parte de la fila de un producto ya agregado. Aparecerá una tarjeta con información detallada del ERP: su **clasificación**, la **fecha del último ingreso** y notas importantes.</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Paso 3: Ajustar Cantidades y Precios.</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Modifica directamente los campos de cantidad y precio.</li>
+                                    <li><strong>Atajos de Teclado (<Keyboard className="inline h-4 w-4" />):</strong> Usa la tecla `Enter` en los campos "Cantidad" y "Precio". El sistema te moverá eficientemente: de Cantidad a Precio, y de Precio de vuelta al buscador de productos para que puedas seguir añadiendo artículos sin usar el mouse.</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Paso 4: Finalizar y Generar.</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Ajusta las condiciones de pago, la validez de la oferta y añade cualquier nota adicional.</li>
+                                    <li><strong>Borradores (<Folder className="inline h-4 w-4" />):</strong> Si no terminaste, guarda la cotización como borrador. Puedes cargarla más tarde desde el botón "Ver Borradores".</li>
+                                    <li><strong>Generar PDF (<FileDown className="inline h-4 w-4" />):</strong> Cuando todo esté listo, genera el PDF. El número de cotización se actualizará automáticamente para la próxima vez.</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </AccordionContent>
                 </AccordionItem>
                 
                 <AccordionItem value="item-requests">
@@ -472,5 +485,6 @@ export default function HelpPage() {
     </main>
   );
 }
+
 
 
