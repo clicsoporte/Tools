@@ -19,12 +19,11 @@ import {
   getAllExemptions,
   getExemptionLaws,
 } from "@/modules/core/lib/db";
-import { getExemptionStatus as fetchExemptionStatus } from "@/modules/hacienda/lib/actions";
 import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
-import type { RowInput } from "jspdf-autotable";
+import { fetchExemptionStatus } from "@/modules/hacienda/lib/actions";
 
 /**
  * Defines the initial state for a new quote.
@@ -102,6 +101,7 @@ export const useQuoter = () => {
   const [exchangeRate, setExchangeRate] = useState<number | null>(exchangeRateData.rate);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
   const [apiExchangeRate, setApiExchangeRate] = useState<number | null>(exchangeRateData.rate);
+  const [quoteNumber, setQuoteNumber] = useState("");
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(initialQuoteState.purchaseOrderNumber);
   const [deliveryDate, setDeliveryDate] = useState(initialQuoteState.deliveryDate);
   const [sellerName, setSellerName] = useState(initialQuoteState.sellerName);
@@ -134,12 +134,12 @@ export const useQuoter = () => {
   const productInputRef = useRef<HTMLInputElement>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);
   const lineInputRefs = useRef<Map<string, LineInputRefs>>(new Map());
-
-  // Derived state for the quote number
-  const quoteNumber = useMemo(() => {
-    if (!companyData) return "";
-    return `${companyData.quotePrefix ?? "COT-"}${(companyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`;
-  }, [companyData]);
+  
+  useEffect(() => {
+    if (companyData && !isProcessing) { // Prevent overriding when a draft is loaded
+        setQuoteNumber(`${companyData.quotePrefix ?? "COT-"}${(companyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
+    }
+  }, [companyData, isProcessing]);
 
   const checkExemptionStatus = useCallback(async (authNumber?: string) => {
     if (!authNumber) return;
@@ -426,6 +426,7 @@ export const useQuoter = () => {
     const newCompanyData = { ...companyData, nextQuoteNumber: (companyData.nextQuoteNumber || 0) + 1 };
     await saveCompanySettings(newCompanyData);
     setCompanyData(newCompanyData);
+    setQuoteNumber(`${newCompanyData.quotePrefix || "COT-"}${(newCompanyData.nextQuoteNumber || 1).toString().padStart(4, "0")}`);
   };
 
   const handleSaveDecimalPlaces = async () => {
@@ -540,6 +541,7 @@ export const useQuoter = () => {
     setCustomerSearchTerm("");
     setExemptionInfo(null);
     if (companyData) {
+        setQuoteNumber(`${companyData.quotePrefix || "COT-"}${(companyData.nextQuoteNumber || 1).toString().padStart(4, "0")}`);
         setDecimalPlaces(companyData.decimalPlaces ?? 2);
     }
     toast({ title: "Nueva Cotización", description: "El formulario ha sido limpiado." });
@@ -671,7 +673,7 @@ export const useQuoter = () => {
       setCurrency, setLines, setSelectedCustomer, setCustomerDetails, setDeliveryAddress, setExchangeRate,
       setPurchaseOrderNumber, setDeliveryDate, setSellerName, setQuoteDate, setSellerType, setPaymentTerms,
       setCreditDays, setValidUntilDate, setNotes, setShowInactiveCustomers,
-      setShowInactiveProducts, setSelectedLineForInfo, setDecimalPlaces,
+      setShowInactiveProducts, setSelectedLineForInfo, setDecimalPlaces, setQuoteNumber,
       setProductSearchTerm, setCustomerSearchTerm, setProductSearchOpen, setCustomerSearchOpen,
       addLine, removeLine, updateLine, updateLineProductDetail, handleCurrencyToggle, formatCurrency,
       handleSelectCustomer, handleSelectProduct, incrementAndSaveQuoteNumber, handleSaveDecimalPlaces,
@@ -682,3 +684,5 @@ export const useQuoter = () => {
     selectors,
   };
 };
+
+    
