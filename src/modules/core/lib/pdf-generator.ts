@@ -55,28 +55,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         const rightColX = pageWidth - margin;
         
         let companyX = margin;
-        let companyY = topMargin;
-        let logoHeight = 0;
-
-        if (data.logoDataUrl) {
-            try {
-                const imgProps = doc.getImageProperties(data.logoDataUrl);
-                const imgMaxHeight = 30;
-                const imgAspectRatio = imgProps.width / imgProps.height;
-                const imgWidth = (imgProps.width * imgMaxHeight) / imgProps.height;
-                logoHeight = imgMaxHeight;
-                
-                doc.addImage(data.logoDataUrl, 'PNG', margin, topMargin, imgWidth, logoHeight);
-                companyX += imgWidth + 15;
-            } catch (e) {
-                console.error("Error adding logo image to PDF:", e);
-            }
-        }
         
-        const companyDataBlockHeight = 11 + 10 + 10 + 10 + 10;
-        const verticalCenterOffset = logoHeight > 0 ? (logoHeight - companyDataBlockHeight) / 2 : 0;
-        companyY += verticalCenterOffset > 0 ? verticalCenterOffset : 0;
-        
+        // Block for company data (center-left)
+        let companyY = topMargin + 5;
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(11);
         doc.text(data.companyData.name, companyX, companyY);
@@ -85,12 +66,29 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFontSize(9);
         doc.text(`Cédula: ${data.companyData.taxId}`, companyX, companyY);
         companyY += 10;
-        doc.text(data.companyData.address, companyX, companyY); // Added Address line
+        doc.text(data.companyData.address, companyX, companyY);
         companyY += 10;
         doc.text(`Tel: ${data.companyData.phone}`, companyX, companyY);
         companyY += 10;
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
 
+        if (data.logoDataUrl) {
+            try {
+                const imgProps = doc.getImageProperties(data.logoDataUrl);
+                const imgHeight = 40; // Increased logo height
+                const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
+                
+                // Position logo to the right of the company block
+                const logoX = companyX + 160; // Adjust as needed
+                const logoY = topMargin + 5; // Align top with company name top
+
+                doc.addImage(data.logoDataUrl, 'PNG', logoX, logoY, imgWidth, imgHeight);
+            } catch (e) {
+                console.error("Error adding logo image to PDF:", e);
+            }
+        }
+        
+        // Block for quote/seller data (right)
         let rightY = topMargin + 5;
         doc.setFontSize(18);
         doc.setFont('Helvetica', 'bold');
