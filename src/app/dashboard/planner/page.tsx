@@ -7,14 +7,14 @@ import { usePlanner } from '@/modules/planner/hooks/usePlanner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, MessageSquarePlus, FileDown } from 'lucide-react';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, MessageSquarePlus, FileDown, Play, Pause, Wrench } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -60,18 +60,17 @@ export default function PlannerPage() {
         const canEdit = (selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold'].includes(order.status)) || (selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress', 'in-queue'].includes(order.status));
         
         const canApprove = selectors.hasPermission('planner:status:approve') && order.status === 'pending';
-        const canUnapprove = selectors.hasPermission('planner:status:unapprove') && order.pendingAction === 'unapproval-request';
         
         const canQueue = selectors.hasPermission('planner:status:in-queue') && order.status === 'approved';
         const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'in-queue';
         const canHold = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
-        const canResume = selectors.hasPermission('planner:status:in-progress') && order.status === 'on-hold';
+        const canMaintain = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
+        const canResumeFromHold = selectors.hasPermission('planner:status:in-progress') && (order.status === 'on-hold' || order.status === 'in-maintenance');
         const canComplete = selectors.hasPermission('planner:status:completed') && order.status === 'in-progress';
         
         const canRequestUnapproval = selectors.hasPermission('planner:status:unapprove-request') && ['approved', 'in-queue'].includes(order.status) && order.pendingAction === 'none';
         const canCancelPending = selectors.hasPermission('planner:status:cancel') && order.status === 'pending';
         const canRequestCancel = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold', 'in-queue'].includes(order.status) && order.pendingAction === 'none';
-        const canApproveCancel = selectors.hasPermission('planner:status:cancel-approved') && order.pendingAction === 'cancellation-request';
 
         const canReceive = selectors.hasPermission('planner:receive') && order.status === 'completed';
         const finalState = state.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
@@ -108,7 +107,12 @@ export default function PlannerPage() {
                                     {canApprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'approved')} className="text-green-600"><Check className="mr-2"/> Aprobar</DropdownMenuItem>}
                                     
                                     {canQueue && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-queue')} className="text-cyan-600"><Truck className="mr-2"/> Poner en Cola</DropdownMenuItem>}
-                                    {canStart && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Truck className="mr-2"/> Iniciar Progreso</DropdownMenuItem>}
+                                    {canStart && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Play className="mr-2"/> Iniciar Progreso</DropdownMenuItem>}
+                                    {canResumeFromHold && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Play className="mr-2"/> Reanudar Progreso</DropdownMenuItem>}
+                                    
+                                    {canHold && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'on-hold')} className="text-gray-600"><Pause className="mr-2"/> Poner en Espera</DropdownMenuItem>}
+                                    {canMaintain && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-maintenance')} className="text-gray-600"><Wrench className="mr-2"/> Poner en Mantenimiento</DropdownMenuItem>}
+                                    
                                     {canComplete && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'completed')} className="text-indigo-600"><PackageCheck className="mr-2"/> Marcar como Completada</DropdownMenuItem>}
                                     {canReceive && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'received-in-warehouse')} className="text-gray-700"><PackageCheck className="mr-2"/> Recibir en Bodega</DropdownMenuItem>}
                                     <DropdownMenuSeparator/>
@@ -184,9 +188,9 @@ export default function PlannerPage() {
                     </div>
                      {order.pendingAction !== 'none' && (
                         <div className="mt-4">
-                            <AlertDialog>
+                            <AlertDialog open={state.isActionDialogOpen && state.orderToUpdate?.id === order.id} onOpenChange={(open) => { if (!open) actions.setActionDialogOpen(false); }}>
                                 <AlertDialogTrigger asChild>
-                                     <Button variant="outline" className="border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700 w-full">
+                                    <Button variant="outline" className="border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700 w-full" onClick={() => { actions.setOrderToUpdate(order); actions.setActionDialogOpen(true); }}>
                                         <AlertTriangle className="mr-2 h-4 w-4 animate-pulse" />
                                         Solicitud Pendiente: {order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}
                                     </Button>
@@ -199,14 +203,13 @@ export default function PlannerPage() {
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <div className="py-4 space-y-2">
-                                        <Label htmlFor="admin-action-notes">Notas (Requerido para aprobar)</Label>
+                                        <Label htmlFor="admin-action-notes">Notas (Requerido para aprobar o rechazar)</Label>
                                         <Textarea id="admin-action-notes" value={state.statusUpdateNotes} onChange={e => actions.setStatusUpdateNotes(e.target.value)} placeholder="Motivo de la acción..."/>
                                     </div>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cerrar</AlertDialogCancel>
-                                        {selectors.hasPermission('planner:status:unapprove') && <Button variant="secondary" onClick={() => actions.handleRejectAdminAction(order)}>Rechazar Solicitud</Button>}
-                                        {canUnapprove && <AlertDialogAction onClick={() => actions.handleStatusUpdate('pending')} disabled={!state.statusUpdateNotes.trim()}>Aprobar Desaprobación</AlertDialogAction>}
-                                        {canApproveCancel && <AlertDialogAction onClick={() => actions.handleStatusUpdate('canceled')} className="bg-destructive hover:bg-destructive/90" disabled={!state.statusUpdateNotes.trim()}>Aprobar Cancelación</AlertDialogAction>}
+                                        <Button variant="secondary" onClick={() => actions.handleAdminAction(false)} disabled={!state.statusUpdateNotes.trim() || state.isSubmitting}>Rechazar Solicitud</Button>
+                                        <Button onClick={() => actions.handleAdminAction(true)} className={order.pendingAction === 'cancellation-request' ? 'bg-destructive hover:bg-destructive/90' : ''} disabled={!state.statusUpdateNotes.trim() || state.isSubmitting}>Aprobar Solicitud</Button>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
@@ -330,7 +333,6 @@ export default function PlannerPage() {
                             <SelectContent>
                                 <SelectItem value="all">Todos los Estados</SelectItem>
                                 {Object.entries(selectors.statusConfig).map(([key, { label }]) => {
-                                    if(key.includes('request')) return null;
                                     return <SelectItem key={key} value={key}>{label}</SelectItem>
                                 })}
                             </SelectContent>

@@ -43,6 +43,7 @@ const baseStatusConfig: { [key: string]: { label: string, color: string } } = {
     'in-queue': { label: "En Cola", color: "bg-cyan-500"},
     'in-progress': { label: "En Progreso", color: "bg-blue-500" },
     'on-hold': { label: "En Espera", color: "bg-gray-500" },
+    'in-maintenance': { label: "En Mantenimiento", color: "bg-gray-600" },
     completed: { label: "Completada", color: "bg-teal-500" },
     'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
     canceled: { label: "Cancelada", color: "bg-red-700" },
@@ -214,7 +215,7 @@ export const usePlanner = () => {
             if (!state.newOrder.customerId || !state.newOrder.productId || !state.newOrder.quantity || !state.newOrder.deliveryDate || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
-                const createdOrder = await saveProductionOrder(state.newOrder, currentUser.name);
+                const createdOrder = await saveProductionOrder({ ...state.newOrder, pendingAction: 'none' }, currentUser.name);
                 toast({ title: "Orden Creada" });
                 setState(prevState => ({
                     ...prevState,
