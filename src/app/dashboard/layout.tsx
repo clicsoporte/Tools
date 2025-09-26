@@ -10,25 +10,13 @@ import { AppSidebar } from "../../components/layout/sidebar";
 import { Header } from "../../components/layout/header";
 import { SidebarInset, SidebarProvider } from "../../components/ui/sidebar";
 import { useAuth } from "../../modules/core/hooks/useAuth";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { Skeleton } from "../../components/ui/skeleton";
 import { usePageTitle, PageTitleProvider } from "../../modules/core/hooks/usePageTitle";
 
 
 function AuthWrapper({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const { user, isLoading } = useAuth();
   
-  useEffect(() => {
-    // If loading is finished and there's no user, redirect to login.
-    if (!isLoading && !user) {
-        router.replace('/');
-    }
-  }, [isLoading, user, router]);
-
-  // While loading, show a skeleton screen.
-  // If not loading but still no user, we show the skeleton briefly while the redirect happens.
   if (isLoading || !user) {
     return (
         <div className="flex items-center justify-center h-screen">
@@ -44,26 +32,6 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// This script safely suppresses a common, benign error caused by browser extensions or complex layouts.
-const SuppressResizeObserverError = () => {
-    useEffect(() => {
-        const handleError = (event: ErrorEvent) => {
-            if (event.message === 'ResizeObserver loop completed with undelivered notifications.') {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-        };
-
-        window.addEventListener('error', handleError);
-
-        return () => {
-            window.removeEventListener('error', handleError);
-        };
-    }, []);
-
-    return null;
-}
-
 
 /**
  * Inner component that consumes the PageTitleContext to display the current page title
@@ -76,7 +44,6 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const { title } = usePageTitle();
   return (
     <>
-      <SuppressResizeObserverError />
       <Header title={title} />
       {children}
     </>

@@ -9,6 +9,7 @@ import React, { createContext, useState, useContext, ReactNode, FC, useEffect, u
 import type { User, Role, Company, Product, StockInfo, Customer } from "../types";
 import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
 import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAndCacheExchangeRate } from '../lib/db';
+import { useRouter } from "next/navigation";
 
 /**
  * Defines the shape of the authentication context's value.
@@ -35,6 +36,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * @param {ReactNode} props.children - The child components to render.
  */
 export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [companyData, setCompanyData] = useState<Company | null>(null);
@@ -49,8 +51,12 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     setExchangeRateData(rateData || { rate: null, date: null });
   }, []);
 
-  const loadAuthData = useCallback(async () => {
-    // No establecer isLoading(true) aquí para evitar recargas innecesarias en el refresh.
+  const loadAuthData = useCallback(async (isInitialLoad = false) => {
+    // Only show full loading state on the very first load
+    if (isInitialLoad) {
+      setIsLoading(true);
+    }
+    
     try {
       const [currentUser, allRoles, companySettings, dbCustomers, dbProducts, dbStock, rateData] = await Promise.all([
         getCurrentUserClient(),
@@ -74,29 +80,35 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         setUserRole(role || null);
       } else {
         setUserRole(null);
+        // If not loading anymore and still no user, redirect (only for dashboard paths)
+        if (!isInitialLoad && window.location.pathname.startsWith('/dashboard')) {
+           router.replace('/');
+        }
       }
     } catch (error) {
       console.error("Failed to load authentication context data:", error);
       setUser(null);
       setUserRole(null);
-      setCompanyData(null);
-      setCustomers([]);
-      setProducts([]);
-      setStockLevels([]);
-      setExchangeRateData({ rate: null, date: null });
+      // Don't clear other data on error to avoid breaking UI if only user fails
     } finally {
-      // Solo cambiar isLoading la primera vez.
-      if (isLoading) {
+      if (isInitialLoad) {
         setIsLoading(false);
       }
     }
-  }, [isLoading]); // Depender de isLoading para el control de la carga inicial
+  }, [router]);
 
   useEffect(() => {
-    // Este efecto solo se ejecuta una vez al montar el componente.
-    loadAuthData();
+    const isInitialLoad = true;
+    loadAuthData(isInitialLoad);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // El array vacío asegura que solo se ejecute al montar.
+  }, []);
+
+  useEffect(() => {
+    // This effect handles redirection after the initial load is complete
+    if (!isLoading && !user && window.location.pathname.startsWith('/dashboard')) {
+      router.replace('/');
+    }
+  }, [isLoading, user, router]);
 
   const contextValue: AuthContextType = {
     user,
@@ -107,7 +119,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     stockLevels,
     exchangeRateData,
     isLoading,
-    refreshAuth: loadAuthData,
+    refreshAuth: () => loadAuthData(false),
     refreshExchangeRate,
   };
 
