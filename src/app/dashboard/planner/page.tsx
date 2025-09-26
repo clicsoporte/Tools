@@ -70,7 +70,7 @@ export default function PlannerPage() {
         
         const canRequestUnapproval = selectors.hasPermission('planner:status:unapprove-request') && ['approved', 'in-queue'].includes(order.status) && order.pendingAction === 'none';
         const canCancelPending = selectors.hasPermission('planner:status:cancel') && order.status === 'pending';
-        const canRequestCancel = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold', 'in-queue'].includes(order.status) && order.pendingAction === 'none';
+        const canRequestCancel = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold', 'in-queue', 'in-maintenance'].includes(order.status) && order.pendingAction === 'none';
 
         const canReceive = selectors.hasPermission('planner:receive') && order.status === 'completed';
         const finalState = state.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
@@ -88,7 +88,7 @@ export default function PlannerPage() {
                             <CardDescription>Cliente: {order.customerName} - Orden: {order.consecutive}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-                            {order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
+                            {!!order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
                             {order.hasBeenModified && <Badge variant="destructive" className="animate-pulse"><AlertTriangle className="mr-1 h-3 w-3" /> Modificado</Badge>}
                              <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
                              <DropdownMenu>
@@ -182,6 +182,19 @@ export default function PlannerPage() {
                             </div>
                         </div>
                         <div className="space-y-1"><p className="font-semibold text-muted-foreground">Cant. Solicitada</p><p className="font-bold text-lg">{order.quantity.toLocaleString()}</p></div>
+                        
+                        {(order.deliveredQuantity !== null && order.deliveredQuantity !== undefined) && (
+                            <>
+                                <div className="space-y-1"><p className="font-semibold text-muted-foreground">Cant. Entregada</p><p className="font-bold text-lg text-green-600">{order.deliveredQuantity.toLocaleString()}</p></div>
+                                <div className="space-y-1">
+                                    <p className="font-semibold text-muted-foreground">Diferencia</p>
+                                    <p className={cn("font-bold text-lg", (order.deliveredQuantity - order.quantity) > 0 && "text-blue-600", (order.deliveredQuantity - order.quantity) < 0 && "text-destructive")}>
+                                        {(order.deliveredQuantity - order.quantity).toLocaleString()}
+                                    </p>
+                                </div>
+                            </>
+                        )}
+                        
                         {order.purchaseOrder && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº OC Cliente</p><p>{order.purchaseOrder}</p></div>}
                         {order.erpPackageNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Bulto</p><p>{order.erpPackageNumber}</p></div>}
                         {order.erpTicketNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Boleta</p><p>{order.erpTicketNumber}</p></div>}
@@ -350,10 +363,8 @@ export default function PlannerPage() {
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={state.dateFilter} onSelect={actions.setDateFilter} /></PopoverContent>
                         </Popover>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline"><FileDown className="mr-2 h-4 w-4"/>Exportar PDF</Button>
-                            </DropdownMenuTrigger>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="outline"><FileDown className="mr-2 h-4 w-4"/>Exportar PDF</Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onSelect={() => actions.handleExportPDF('portrait')}>
                                     Exportar Vertical
