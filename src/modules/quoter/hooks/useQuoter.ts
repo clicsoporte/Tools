@@ -455,7 +455,7 @@ export const useQuoter = () => {
                 reader.readAsDataURL(blob);
             });
         } catch (e) {
-            console.error("Failed to fetch and process logo:", e);
+            console.error("Error fetching and processing logo:", e);
         }
     }
     
@@ -472,15 +472,14 @@ export const useQuoter = () => {
     
     const doc = generateDocument({
         docTitle: "COTIZACIÓN",
-        docId: quoteNumber,
-        companyData,
-        logoDataUrl,
         meta: [
             { label: 'Nº', value: quoteNumber },
             { label: 'Fecha', value: format(parseISO(quoteDate), "dd/MM/yyyy") },
             { label: 'Válida hasta', value: format(parseISO(validUntilDate), "dd/MM/yyyy") },
             ...(purchaseOrderNumber ? [{ label: 'Nº OC', value: purchaseOrderNumber }] : [])
         ],
+        companyData: companyData,
+        logoDataUrl,
         sellerInfo: {
             name: sellerName,
             email: sellerType === 'user' ? currentUser?.email : undefined,
@@ -498,11 +497,11 @@ export const useQuoter = () => {
                 0: { cellWidth: 50 },
                 1: { cellWidth: 'auto' },
                 2: { cellWidth: 40, halign: 'right' },
-                3: { cellWidth: 35 },
+                3: { cellWidth: 35, halign: 'center' },
                 4: { cellWidth: 65 },
-                5: { cellWidth: 65, halign: 'right' },
+                5: { cellWidth: 70, halign: 'right' },
                 6: { cellWidth: 30, halign: 'center' },
-                7: { cellWidth: 70, halign: 'right' },
+                7: { cellWidth: 75, halign: 'right' },
             }
         },
         notes: notes,
