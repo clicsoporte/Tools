@@ -4,7 +4,7 @@
  */
 'use client';
 
-import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, RejectCancellationPayload, UpdateProductionOrderPayload, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
+import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, PlannerSettings, UpdateProductionOrderPayload, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
 import { 
     getOrders, 
     addOrder, 
@@ -42,7 +42,7 @@ export async function getProductionOrders(options: {
  * @param requestedBy - The name of the user creating the order.
  * @returns The newly created production order.
  */
-export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'pendingAction'>, requestedBy: string): Promise<ProductionOrder> {
+export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'>, requestedBy: string): Promise<ProductionOrder> {
     return addOrder(order, requestedBy);
 }
 
@@ -103,7 +103,6 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
  * @param payload - The rejection details.
  */
 export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<ProductionOrder> {
-    // Re-using updatePendingAction with 'none' is the correct way to reject a request
     return updatePendingActionServer({
         entityId: payload.entityId,
         action: 'none',
