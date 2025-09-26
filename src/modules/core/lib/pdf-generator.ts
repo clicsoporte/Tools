@@ -55,23 +55,22 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         const topMargin = 50; 
         const rightColX = pageWidth - margin;
         
-        let logoX = margin;
-        let companyX = margin;
         const logoY = topMargin;
+        let companyX = margin;
+        let companyY = logoY;
 
         if (data.logoDataUrl) {
             try {
                 const imgProps = doc.getImageProperties(data.logoDataUrl);
                 const imgHeight = 45; 
                 const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
-                doc.addImage(data.logoDataUrl, 'PNG', logoX, logoY, imgWidth, imgHeight);
-                companyX = logoX + imgWidth + 15; 
+                doc.addImage(data.logoDataUrl, 'PNG', margin, logoY, imgWidth, imgHeight);
+                companyX = margin + imgWidth + 15;
             } catch (e) {
                 console.error("Error adding logo image to PDF:", e);
             }
         }
         
-        let companyY = logoY + 3;
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(11);
         doc.text(data.companyData.name, companyX, companyY);
