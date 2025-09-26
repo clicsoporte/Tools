@@ -28,6 +28,7 @@ import {
   Map,
   PackagePlus,
   BookMarked,
+  MessageSquare,
 } from "lucide-react";
 
 /**
@@ -202,6 +203,7 @@ export const initialRoles: Role[] = [
         "admin:settings:requests",
         "admin:settings:warehouse",
         "admin:settings:stock",
+        "admin:suggestions:read",
         "admin:import:run",
         "admin:import:files",
         "admin:import:sql",
@@ -279,6 +281,15 @@ export const adminTools: Tool[] = [
         href: "/dashboard/admin/general",
         icon: Briefcase,
         bgColor: "bg-orange-500",
+        textColor: "text-white",
+      },
+      {
+        id: "suggestions-viewer",
+        name: "Buzón de Sugerencias",
+        description: "Revisar el feedback enviado por los usuarios.",
+        href: "/dashboard/admin/suggestions",
+        icon: MessageSquare,
+        bgColor: "bg-green-600",
         textColor: "text-white",
       },
       {
@@ -371,3 +382,4 @@ export const adminTools: Tool[] = [
 export const allTools: Tool[] = [...mainTools, ...adminTools];
 
       
+
