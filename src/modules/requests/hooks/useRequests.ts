@@ -42,8 +42,6 @@ const statusConfig: { [key: string]: { label: string, color: string } } = {
     approved: { label: "Aprobada", color: "bg-green-500" },
     ordered: { label: "Ordenada", color: "bg-blue-500" },
     received: { label: "Recibida", color: "bg-teal-500" },
-    'unapproval-request': { label: "Sol. Desaprobación", color: "bg-orange-400" },
-    'cancellation-request': { label: "Sol. Cancelación", color: "bg-orange-500" },
     'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
     canceled: { label: "Cancelada", color: "bg-red-700" }
 };
@@ -169,7 +167,7 @@ export const useRequests = () => {
             setNewRequest(emptyRequest);
             setActiveRequests(prev => [createdRequest, ...prev]);
         } catch (error: any) {
-            logError("Failed to create request", { error });
+            logError("Failed to create request", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
@@ -187,7 +185,7 @@ export const useRequests = () => {
             toast({ title: "Solicitud Actualizada" });
             setEditRequestDialogOpen(false);
         } catch (error: any) {
-            logError("Failed to edit request", { error });
+            logError("Failed to edit request", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
@@ -218,7 +216,7 @@ export const useRequests = () => {
             setArchivedRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
             toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
         } catch (error: any) {
-            logError(`Failed to request ${action}`, { error });
+            logError(`Failed to request ${action}`, { error: error.message });
             toast({ title: "Error al Solicitar", description: `No se pudo enviar la solicitud. ${error.message}`, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
@@ -242,7 +240,7 @@ export const useRequests = () => {
             }
             setActionDialogOpen(false);
         } catch (error: any) {
-            logError("Failed to handle admin action", { error });
+            logError("Failed to handle admin action", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
@@ -268,7 +266,7 @@ export const useRequests = () => {
             setActionDialogOpen(false);
             await loadInitialData(viewingArchived ? archivedPage : 0);
         } catch (error: any) {
-            logError("Failed to update status", { error });
+            logError("Failed to update status", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
             await loadInitialData(viewingArchived ? archivedPage : 0);
         } finally {
@@ -299,7 +297,7 @@ export const useRequests = () => {
             setReopenDialogOpen(false);
             await loadInitialData();
         } catch (error: any) {
-            logError("Failed to reopen request", { error });
+            logError("Failed to reopen request", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
             await loadInitialData();
         } finally {
@@ -316,7 +314,7 @@ export const useRequests = () => {
             setArchivedRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
             toast({ title: 'Solicitud Rechazada' });
         } catch (error: any) {
-             logError("Failed to reject cancellation", { error });
+             logError("Failed to reject cancellation", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
         } finally {
             setIsSubmitting(false);

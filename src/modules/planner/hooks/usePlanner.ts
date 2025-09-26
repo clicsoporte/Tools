@@ -227,7 +227,7 @@ export const usePlanner = () => {
                     activeOrders: [...prevState.activeOrders, createdOrder]
                 }));
             } catch (error: any) {
-                logError("Failed to create order", { error });
+                logError("Failed to create order", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -252,7 +252,7 @@ export const usePlanner = () => {
                 }));
                 toast({ title: "Orden Actualizada" });
             } catch (error: any) {
-                logError("Failed to edit order", { error });
+                logError("Failed to edit order", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -292,7 +292,7 @@ export const usePlanner = () => {
                 });
                 toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
             } catch (error: any) {
-                logError(`Failed to request ${action}`, { error });
+                logError(`Failed to request ${action}`, { error: error.message });
                 toast({ title: "Error al Solicitar", description: `No se pudo enviar la solicitud. ${error.message}`, variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -314,14 +314,14 @@ export const usePlanner = () => {
                 }
                 updateState({ isActionDialogOpen: false });
             } catch (error: any) {
-                logError("Failed to handle admin action", { error });
+                logError("Failed to handle admin action", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
             }
         },
 
-        handleStatusUpdate: async (statusOverride?: ProductionOrderStatus | null) => {
+        handleStatusUpdate: async (statusOverride?: ProductionOrderStatus) => {
             const finalStatus = statusOverride || state.newStatus;
             if (!state.orderToUpdate || !finalStatus || !currentUser) return;
             updateState({ isSubmitting: true });
@@ -350,7 +350,7 @@ export const usePlanner = () => {
                     };
                 });
             } catch (error: any) {
-                logError("Failed to update status", { error });
+                logError("Failed to update status", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -375,7 +375,7 @@ export const usePlanner = () => {
             try {
                 updateState({ history: await getOrderHistory(order.id) });
             } catch (error: any) {
-                logError("Failed to get history", { error });
+                logError("Failed to get history", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isHistoryLoading: false });
@@ -391,7 +391,7 @@ export const usePlanner = () => {
                 updateState({ isReopenDialogOpen: false });
                 await loadInitialData();
             } catch (error: any) {
-                logError("Failed to reopen order", { error });
+                logError("Failed to reopen order", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -409,7 +409,7 @@ export const usePlanner = () => {
                     isActionDialogOpen: false
                 });
             } catch (error: any) {
-                 logError("Failed to reject cancellation", { error });
+                 logError("Failed to reject cancellation", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -461,7 +461,7 @@ export const usePlanner = () => {
                     archivedOrders: prevState.archivedOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o)
                 }));
             } catch(error: any) {
-                logError("Failed to add note", { error });
+                logError("Failed to add note", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
