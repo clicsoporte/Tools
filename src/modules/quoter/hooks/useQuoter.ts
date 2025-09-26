@@ -133,10 +133,10 @@ export const useQuoter = () => {
   const lineInputRefs = useRef<Map<string, LineInputRefs>>(new Map());
   
   useEffect(() => {
-    if (companyData) {
-        setQuoteNumber(`${companyData.quotePrefix ?? "COT-"}${(companyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
+    if (authCompanyData) {
+        setQuoteNumber(`${authCompanyData.quotePrefix ?? "COT-"}${(authCompanyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
     }
-  }, [companyData]);
+  }, [authCompanyData]);
 
   const checkExemptionStatus = useCallback(async (authNumber?: string) => {
     if (!authNumber) return;
@@ -460,22 +460,20 @@ export const useQuoter = () => {
     const tableRows = lines.map(line => [
         line.product.id,
         line.product.description,
-        line.quantity.toLocaleString('es-CR'),
-        line.product.unit,
+        { content: `${line.quantity.toLocaleString('es-CR')}\n${line.product.unit}`, styles: { halign: 'center' } },
         line.product.cabys,
-        formatCurrency(line.price),
-        `${(line.tax * 100).toFixed(0)}%`,
-        formatCurrency(line.quantity * line.price * (1 + line.tax)),
+        { content: formatCurrency(line.price), styles: { halign: 'right' } },
+        { content: `${(line.tax * 100).toFixed(0)}%`, styles: { halign: 'center' } },
+        { content: formatCurrency(line.quantity * line.price * (1 + line.tax)), styles: { halign: 'right' } },
     ]);
     
     const doc = generateDocument({
         docTitle: "COTIZACIÓN",
         docId: quoteNumber,
         meta: [
-            { label: 'Nº:', value: quoteNumber },
-            { label: 'Fecha:', value: format(parseISO(quoteDate), "dd/MM/yyyy") },
-            { label: 'Válida hasta:', value: format(parseISO(validUntilDate), "dd/MM/yyyy") },
-            ...(purchaseOrderNumber ? [{ label: 'Nº OC:', value: purchaseOrderNumber }] : [])
+            { label: 'Fecha', value: format(parseISO(quoteDate), "dd/MM/yyyy") },
+            { label: 'Válida hasta', value: format(parseISO(validUntilDate), "dd/MM/yyyy") },
+            ...(purchaseOrderNumber ? [{ label: 'Nº OC', value: purchaseOrderNumber }] : [])
         ],
         companyData: companyData,
         logoDataUrl,
@@ -490,17 +488,16 @@ export const useQuoter = () => {
             { title: 'Entrega', content: `Dirección: ${deliveryAddress}\nFecha Entrega: ${deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A'}` }
         ],
         table: {
-            columns: ["Código", "Descripción", "Cant.", "Und", "Cabys", "Precio", "Imp.", "Total"],
+            columns: ["Código", "Descripción", { content: "Cant.\nUnd.", styles: { halign: 'center' } }, "Cabys", "Precio", { content: "Imp.\n%", styles: { halign: 'center' } }, "Total"],
             rows: tableRows,
             columnStyles: {
                 0: { cellWidth: 40 },
                 1: { cellWidth: 'auto' },
-                2: { cellWidth: 30, halign: 'right' },
-                3: { cellWidth: 30, halign: 'center' },
-                4: { cellWidth: 70 },
-                5: { cellWidth: 60, halign: 'right' },
-                6: { cellWidth: 25, halign: 'center' },
-                7: { cellWidth: 70, halign: 'right' },
+                2: { cellWidth: 35, halign: 'center' },
+                3: { cellWidth: 70 },
+                4: { cellWidth: 60, halign: 'right' },
+                5: { cellWidth: 25, halign: 'center' },
+                6: { cellWidth: 70, halign: 'right' },
             }
         },
         notes: notes,

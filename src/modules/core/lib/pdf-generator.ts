@@ -47,27 +47,28 @@ const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
 
 export const generateDocument = (data: DocumentData): jsPDF => {
     const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: 'p', unit: 'pt', format: data.paperSize || 'letter' });
-    const margin = 39.68;
+    const margin = 40; // Increased margin
     const pageWidth = doc.internal.pageSize.getWidth();
     let finalY = 0;
 
     const addHeader = () => {
-        const topMargin = 40; // Increased top margin
+        const topMargin = 50; // Increased top margin
         const rightColX = pageWidth - margin;
+        let companyX = margin;
+        let companyY = topMargin;
 
         if (data.logoDataUrl) {
             try {
                 const imgProps = doc.getImageProperties(data.logoDataUrl);
-                const imgHeight = 25; 
+                const imgHeight = 50; // Increased logo height
                 const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
                 doc.addImage(data.logoDataUrl, 'PNG', margin, topMargin, imgWidth, imgHeight);
+                companyX += imgWidth + 15;
             } catch (e) {
                 console.error("Error adding logo image to PDF:", e);
             }
         }
         
-        let companyX = margin + 60; // Position next to logo
-        let companyY = topMargin + 5;
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(11);
         doc.text(data.companyData.name, companyX, companyY);
@@ -85,16 +86,16 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFontSize(18);
         doc.setFont('Helvetica', 'bold');
         doc.text(data.docTitle, rightColX, rightY, { align: 'right' });
-        rightY += 12;
+        rightY += 16;
         
         doc.setFontSize(10);
         doc.setFont('Helvetica', 'normal');
         data.meta.forEach(item => {
-            doc.text(`${item.label} ${item.value}`, rightColX, rightY, { align: 'right' });
+            doc.text(`${item.label}: ${item.value}`, rightColX, rightY, { align: 'right' });
             rightY += 12;
         });
         
-        rightY += 5;
+        rightY += 8;
 
         if (data.sellerInfo) {
             doc.setFont('Helvetica', 'bold');
@@ -110,17 +111,17 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         if (data.topLegend) {
             doc.setFontSize(8);
             doc.setTextColor(150);
-            doc.text(data.topLegend, pageWidth / 2, topMargin - 15, { align: 'center' });
+            doc.text(data.topLegend, pageWidth / 2, topMargin - 25, { align: 'center' });
             doc.setTextColor(0);
         }
     };
 
     const didDrawPage = (hookData: any) => {
         addHeader();
-        addFooter(doc, hookData.pageNumber, (doc.internal as any).getNumberOfPages());
+        // The footer is now called only once at the end.
     };
     
-    const clientBlockY = 130;
+    const clientBlockY = 150; // Adjusted starting Y
     autoTable(doc, {
         startY: clientBlockY,
         body: data.blocks.map(b => ([
@@ -130,7 +131,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         theme: 'plain',
         tableWidth: 'wrap',
         styles: { fontSize: 9, cellPadding: 0 },
-        columnStyles: { 0: { cellWidth: 50 } },
+        columnStyles: { 0: { cellWidth: 'wrap' } },
         margin: { left: margin, right: margin }
     });
     finalY = (doc as any).lastAutoTable.finalY + 15;
@@ -142,7 +143,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         margin: { right: margin, left: margin, bottom: 80 },
         theme: 'striped',
         headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
-        styles: { font: 'Helvetica', fontSize: 9 },
+        styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
         columnStyles: data.table.columnStyles,
         didDrawPage: didDrawPage,
     });
@@ -150,21 +151,16 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     finalY = (doc as any).lastAutoTable.finalY;
     
     const pageHeight = doc.internal.pageSize.getHeight();
-    let currentPage = doc.internal.pages.length;
-    let newPageAdded = false;
+    const totalPages = (doc.internal as any).getNumberOfPages();
+    let currentPage = totalPages;
 
     if (finalY > pageHeight - 140) {
         doc.addPage();
         currentPage++;
-        finalY = 40;
-        newPageAdded = true;
+        finalY = 50; 
+        addHeader();
     } else {
         finalY += 20;
-    }
-    
-    if (newPageAdded) {
-      addHeader();
-      addFooter(doc, currentPage, currentPage);
     }
     
     doc.setPage(currentPage);
@@ -203,6 +199,12 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         
         rightY += isLast ? 18 : 14;
     });
+
+    // Draw footer on all pages correctly
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        addFooter(doc, i, totalPages);
+    }
 
     return doc;
 };
