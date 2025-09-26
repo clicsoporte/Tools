@@ -52,25 +52,33 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     let finalY = 0;
 
     const addHeader = () => {
-        const topMargin = 60;
+        let currentY = 40; // Initial Y position
         const rightColX = pageWidth - margin;
-        
-        let logoY = topMargin;
-        let companyX = margin;
-        let companyY = logoY;
 
+        // --- 1. Draw Main Title ---
+        doc.setFontSize(16);
+        doc.setFont('Helvetica', 'bold');
+        doc.text(data.docTitle, pageWidth / 2, currentY, { align: 'center' });
+        currentY += 25;
+
+        // --- 2. Draw Company Info & Meta Info ---
+        let companyY = currentY;
+        let rightY = currentY;
+        
+        let companyX = margin;
+        
         if (data.logoDataUrl) {
             try {
                 const imgProps = doc.getImageProperties(data.logoDataUrl);
                 const imgHeight = 45; 
                 const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
-                doc.addImage(data.logoDataUrl, 'PNG', margin, logoY, imgWidth, imgHeight);
+                doc.addImage(data.logoDataUrl, 'PNG', margin, companyY, imgWidth, imgHeight);
                 companyX = margin + imgWidth + 15;
             } catch (e) {
                 console.error("Error adding logo image to PDF:", e);
             }
         }
-        
+
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(11);
         doc.text(data.companyData.name, companyX, companyY);
@@ -89,8 +97,6 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         companyY += 10;
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
         
-        let rightY = logoY;
-        
         doc.setFontSize(11);
         doc.setFont('Helvetica', 'bold');
         if (data.docId) {
@@ -100,7 +106,6 @@ export const generateDocument = (data: DocumentData): jsPDF => {
 
         doc.setFontSize(9);
         doc.setFont('Helvetica', 'normal');
-
         data.meta.forEach(item => {
             doc.text(`${item.label}: ${item.value}`, rightColX, rightY, { align: 'right' });
             rightY += 12;
@@ -123,8 +128,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             doc.setFont('Helvetica', 'italic');
             doc.text(data.topLegend, margin, 25);
         }
-
-        finalY = Math.max(companyY, rightY) + 25;
+        
+        finalY = Math.max(companyY, rightY) + 20;
     };
 
     let pagesDrawnByAutotable = new Set<number>();
@@ -153,11 +158,6 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         });
         finalY = (doc as any).lastAutoTable.finalY + 15;
     }
-
-    doc.setFontSize(14);
-    doc.setFont('Helvetica', 'bold');
-    doc.text(data.docTitle, pageWidth / 2, finalY, { align: 'center' });
-    finalY += 20;
 
     autoTable(doc, {
         head: [data.table.columns],
