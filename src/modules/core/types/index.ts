@@ -220,7 +220,8 @@ export type ExemptionLaw = {
 
 // --- Production Planner Types ---
 
-export type ProductionOrderStatus = 'pending' | 'approved' | 'in-queue' | 'in-progress' | 'on-hold' | 'cancellation-request' | 'unapproval-request' | 'completed' | 'received-in-warehouse' | 'canceled' | 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
+export type ProductionOrderStatus = 'pending' | 'approved' | 'in-queue' | 'in-progress' | 'on-hold' | 'completed' | 'received-in-warehouse' | 'canceled' | 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
+export type AdministrativeAction = 'unapproval-request' | 'cancellation-request' | 'none';
 export type ProductionOrderPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export type ProductionOrder = {
@@ -239,6 +240,7 @@ export type ProductionOrder = {
   inventory?: number;
   priority: ProductionOrderPriority;
   status: ProductionOrderStatus;
+  pendingAction: AdministrativeAction;
   notes?: string;
   requestedBy: string;
   approvedBy?: string;
@@ -255,7 +257,7 @@ export type ProductionOrder = {
   previousStatus?: ProductionOrderStatus | null;
 };
 
-export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified'>> & {
+export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified' | 'pendingAction'>> & {
     orderId: number;
     updatedBy: string;
 };
@@ -317,7 +319,7 @@ export type UpdateOrderDetailsPayload = {
 
 // --- Purchase Request Types ---
 
-export type PurchaseRequestStatus = 'pending' | 'approved' | 'ordered' | 'received' | 'received-in-warehouse' | 'canceled' | 'cancellation-request' | 'unapproval-request';
+export type PurchaseRequestStatus = 'pending' | 'approved' | 'ordered' | 'received' | 'received-in-warehouse' | 'canceled';
 export type PurchaseRequestPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type PurchaseType = 'single' | 'multiple';
 
@@ -344,6 +346,7 @@ export type PurchaseRequest = {
   route?: string; // Ruta
   shippingMethod?: string; // Método de Envío
   status: PurchaseRequestStatus;
+  pendingAction: AdministrativeAction;
   notes?: string;
   requestedBy: string;
   approvedBy?: string;
@@ -354,7 +357,7 @@ export type PurchaseRequest = {
   previousStatus?: PurchaseRequestStatus | null;
 };
 
-export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>> & {
+export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'pendingAction'>> & {
     requestId: number;
     updatedBy: string;
 };
@@ -396,6 +399,13 @@ export type RejectCancellationPayload = {
     notes: string;
     updatedBy: string;
 }
+
+export type AdministrativeActionPayload = {
+    entityId: number;
+    action: AdministrativeAction;
+    notes: string;
+    updatedBy: string;
+};
 
 
 // --- Warehouse Management Types ---

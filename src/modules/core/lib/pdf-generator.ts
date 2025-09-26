@@ -52,16 +52,10 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     let finalY = 0;
 
     const addHeader = () => {
-        const topMargin = 60; // Increased top margin to give title space
+        const topMargin = 60;
         const rightColX = pageWidth - margin;
         
-        // Main Document Title
-        doc.setFontSize(16);
-        doc.setFont('Helvetica', 'bold');
-        doc.text(data.docTitle, pageWidth / 2, 40, { align: 'center' });
-
-
-        const logoY = topMargin;
+        let logoY = topMargin;
         let companyX = margin;
         let companyY = logoY;
 
@@ -97,8 +91,10 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         
         doc.setFontSize(11);
         doc.setFont('Helvetica', 'bold');
-        doc.text(data.docId, rightColX, rightY, { align: 'right' });
-        rightY += 15;
+        if (data.docId) {
+            doc.text(data.docId, rightColX, rightY, { align: 'right' });
+            rightY += 15;
+        }
 
         doc.setFontSize(9);
         doc.setFont('Helvetica', 'normal');
@@ -119,11 +115,11 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             if (data.sellerInfo.whatsapp) { rightY += 10; doc.text(`WhatsApp: ${data.sellerInfo.whatsapp}`, rightColX, rightY, { align: 'right' }); }
             if (data.sellerInfo.email) { rightY += 10; doc.text(data.sellerInfo.email, rightColX, rightY, { align: 'right' }); }
         }
-
+        
         if (data.topLegend) {
             doc.setFontSize(8);
             doc.setFont('Helvetica', 'italic');
-            doc.text(data.topLegend, margin, topMargin - 15);
+            doc.text(data.topLegend, margin, 25);
         }
 
         finalY = Math.max(companyY, rightY) + 25;
@@ -155,6 +151,11 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         });
         finalY = (doc as any).lastAutoTable.finalY + 15;
     }
+
+    doc.setFontSize(14);
+    doc.setFont('Helvetica', 'bold');
+    doc.text(data.docTitle, pageWidth / 2, finalY, { align: 'center' });
+    finalY += 20;
 
     autoTable(doc, {
         head: [data.table.columns],
