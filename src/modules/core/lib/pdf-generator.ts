@@ -52,14 +52,14 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     let finalY = 0;
 
     const addHeader = () => {
-        let currentY = 40; // Initial Y position
+        let currentY = 40; // Initial Y position for the main title
         const rightColX = pageWidth - margin;
 
-        // --- 1. Draw Main Title ---
+        // --- 1. Draw Main Title on the first line ---
         doc.setFontSize(16);
         doc.setFont('Helvetica', 'bold');
         doc.text(data.docTitle, pageWidth / 2, currentY, { align: 'center' });
-        currentY += 25;
+        currentY += 25; // Move down for the next section
 
         // --- 2. Draw Company Info & Meta Info ---
         let companyY = currentY;

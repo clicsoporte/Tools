@@ -26,6 +26,7 @@ const config: Config = {
     'bg-emerald-600',
     'bg-gray-500',
     'bg-gray-600',
+    'bg-gray-700',
     'bg-red-700',
     'bg-teal-500',
     'bg-cyan-500',
