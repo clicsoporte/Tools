@@ -364,7 +364,7 @@ export const usePlanner = () => {
                     };
                 });
             } catch (error: any) {
-                logError("Failed to update status", { error: { message: error.message } });
+                logError("Failed to update status", { error: (error as Error).message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -597,7 +597,7 @@ export const usePlanner = () => {
                 totals: []
             });
     
-            docToSave.save(`op_${order.consecutive}.pdf`);
+            doc.save(`op_${order.consecutive}.pdf`);
         }
     };
 

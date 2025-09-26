@@ -25,7 +25,7 @@ interface AuthContextType {
   stockLevels: StockInfo[];
   exchangeRateData: { rate: number | null, date: string | null };
   isLoading: boolean;
-  refreshAuth: () => Promise<void>;
+  refreshAuth: () => Promise<{ isAuthenticated: boolean; } | void>;
   refreshAuthAndRedirect: (path: string) => Promise<void>;
   refreshExchangeRate: () => Promise<void>;
 }
@@ -102,19 +102,17 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     setIsLoading(true);
     await loadAuthData(false);
     router.push(path);
-    // No need to setIsLoading(false) here, as the new page's AuthProvider instance will handle it.
   }, [loadAuthData, router]);
 
   useEffect(() => {
     const isInitialLoad = true;
     loadAuthData(isInitialLoad).then(({ isAuthenticated }) => {
         // This effect handles redirection after the initial load is complete
-        if (!isLoading && !isAuthenticated && pathname.startsWith('/dashboard')) {
+        if (isAuthenticated === false && pathname.startsWith('/dashboard')) {
             router.replace('/');
         }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, router, loadAuthData]);
 
   const contextValue: AuthContextType = {
     user,
