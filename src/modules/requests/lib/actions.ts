@@ -13,7 +13,6 @@ import {
     getRequestHistory as getRequestHistoryServer,
     getSettings,
     saveSettings,
-    rejectCancellation as rejectCancellationServer,
     updatePendingAction as updatePendingActionServer
 } from './db';
 
@@ -41,7 +40,7 @@ export async function getPurchaseRequests(options: {
  * @param requestedBy - The name of the user creating the request.
  * @returns The newly created purchase request.
  */
-export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
+export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'pendingAction'>, requestedBy: string): Promise<PurchaseRequest> {
     return addRequest(request, requestedBy);
 }
 
@@ -93,7 +92,13 @@ export async function saveRequestSettings(settings: RequestSettings): Promise<vo
  * @param payload - The rejection details.
  */
 export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<PurchaseRequest> {
-    return rejectCancellationServer(payload);
+    // Re-using updatePendingAction with 'none' is the correct way to reject a request
+    return updatePendingActionServer({
+        entityId: payload.entityId,
+        action: 'none',
+        notes: payload.notes,
+        updatedBy: payload.updatedBy
+    });
 }
 
 /**
