@@ -11,7 +11,7 @@ import type { Tool } from "../../modules/core/types";
 import { Skeleton } from "../../components/ui/skeleton";
 import { usePageTitle } from "../../modules/core/hooks/usePageTitle";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Wrench, Clock, DollarSign, Send } from "lucide-react";
+import { Loader2, RefreshCw, Wrench, Clock, DollarSign, Send, MessageSquare } from "lucide-react";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
@@ -183,7 +183,10 @@ export default function DashboardPage() {
                   )}
                   <Dialog open={isSuggestionDialogOpen} onOpenChange={setSuggestionDialogOpen}>
                         <DialogTrigger asChild>
-                           <Button variant="outline">Sugerencias y Mejoras</Button>
+                           <Button variant="default" className="bg-green-600 hover:bg-green-700">
+                                <MessageSquare className="mr-2 h-4 w-4" />
+                                Sugerencias y Mejoras
+                           </Button>
                         </DialogTrigger>
                         <DialogContent>
                              <DialogHeader>
