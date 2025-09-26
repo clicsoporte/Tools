@@ -22,44 +22,15 @@ import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, File
 import type { Company } from "../../../modules/core/types";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { logInfo } from "@/modules/core/lib/logger";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import { useToast } from "@/modules/core/hooks/use-toast";
 
 export default function HelpPage() {
   const { setTitle } = usePageTitle();
-  const { user, companyData } = useAuth();
-  const { toast } = useToast();
-  const [suggestion, setSuggestion] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const { companyData } = useAuth();
+  
   useEffect(() => {
     setTitle("Centro de Ayuda");
   }, [setTitle]);
-
-  const handleSuggestionSubmit = async () => {
-      if (!suggestion.trim() || !user) return;
-      setIsSubmitting(true);
-      try {
-          await logInfo(`Sugerencia de Usuario: ${suggestion}`, { user: user.name, email: user.email });
-          toast({
-              title: "¡Gracias por tu Sugerencia!",
-              description: "Hemos recibido tu idea y la revisaremos pronto.",
-          });
-          setSuggestion("");
-      } catch (error) {
-          toast({
-              title: "Error al Enviar",
-              description: "No se pudo enviar tu sugerencia en este momento.",
-              variant: "destructive"
-          });
-      } finally {
-          setIsSubmitting(false);
-      }
-  };
 
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -454,37 +425,8 @@ export default function HelpPage() {
             </Accordion>
             </CardContent>
         </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Buzón de Sugerencias y Mejoras</CardTitle>
-                <CardDescription>
-                    ¿Tienes una idea para mejorar la aplicación? ¿Encontraste algo que no funciona como esperabas? Déjanos tu sugerencia aquí.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="suggestion-box">Tu sugerencia</Label>
-                    <Textarea
-                        id="suggestion-box"
-                        placeholder="Describe tu idea o el problema que encontraste..."
-                        rows={4}
-                        value={suggestion}
-                        onChange={(e) => setSuggestion(e.target.value)}
-                    />
-                </div>
-            </CardContent>
-            <CardFooter>
-                <Button onClick={handleSuggestionSubmit} disabled={isSubmitting || !suggestion.trim()}>
-                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                    Enviar Sugerencia
-                </Button>
-            </CardFooter>
-        </Card>
       </div>
     </main>
   );
 }
-
-
 

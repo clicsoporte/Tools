@@ -309,7 +309,7 @@ export const useRequests = () => {
         try {
             setHistory(await getRequestHistory(request.id));
         } catch (error: any) {
-            logError("Failed to get history", { error: {message: error.message} });
+            logError("Failed to get history", {error: error.message});
             toast({ title: "Error", variant: "destructive" });
         } finally {
             setIsHistoryLoading(false);

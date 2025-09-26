@@ -15,13 +15,23 @@ import { Loader2, RefreshCw, Wrench, Clock, DollarSign, Send } from "lucide-reac
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import { importAllDataFromFiles, addSuggestion } from "@/modules/core/lib/db";
+import { importAllDataFromFiles } from "@/modules/core/lib/db";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { format, parseISO } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { addSuggestion } from "@/modules/core/lib/suggestions-actions";
 
 /**
  * Renders the main dashboard page.
@@ -39,6 +49,7 @@ export default function DashboardPage() {
   const [isSyncOld, setIsSyncOld] = useState(false);
   const [suggestion, setSuggestion] = useState("");
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
+  const [isSuggestionDialogOpen, setSuggestionDialogOpen] = useState(false);
 
   useEffect(() => {
     setTitle("Panel Principal");
@@ -109,6 +120,7 @@ export default function DashboardPage() {
               description: "Hemos recibido tu idea y la revisaremos pronto.",
           });
           setSuggestion("");
+          setSuggestionDialogOpen(false);
       } catch (error: any) {
           toast({
               title: "Error al Enviar",
@@ -169,6 +181,35 @@ export default function DashboardPage() {
                         </Button>
                     </div>
                   )}
+                  <Dialog open={isSuggestionDialogOpen} onOpenChange={setSuggestionDialogOpen}>
+                        <DialogTrigger asChild>
+                           <Button variant="outline">Sugerencias y Mejoras</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                             <DialogHeader>
+                                <DialogTitle>Buzón de Sugerencias y Mejoras</DialogTitle>
+                                <DialogDescription>
+                                    ¿Tienes una idea para mejorar la aplicación? ¿Encontraste algo que no funciona como esperabas? Déjanos tu sugerencia aquí.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-2 py-4">
+                                <Label htmlFor="suggestion-box" className="sr-only">Tu sugerencia</Label>
+                                <Textarea
+                                    id="suggestion-box"
+                                    placeholder="Describe tu idea o el problema que encontraste..."
+                                    rows={4}
+                                    value={suggestion}
+                                    onChange={(e) => setSuggestion(e.target.value)}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={handleSuggestionSubmit} disabled={isSubmittingSuggestion || !suggestion.trim()}>
+                                    {isSubmittingSuggestion ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                    Enviar Sugerencia
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                  </Dialog>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -180,33 +221,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
-        <Card className="mt-8 max-w-4xl mx-auto">
-            <CardHeader>
-                <CardTitle>Buzón de Sugerencias y Mejoras</CardTitle>
-                <CardDescription>
-                    ¿Tienes una idea para mejorar la aplicación? ¿Encontraste algo que no funciona como esperabas? Déjanos tu sugerencia aquí.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-2">
-                    <Label htmlFor="suggestion-box" className="sr-only">Tu sugerencia</Label>
-                    <Textarea
-                        id="suggestion-box"
-                        placeholder="Describe tu idea o el problema que encontraste..."
-                        rows={3}
-                        value={suggestion}
-                        onChange={(e) => setSuggestion(e.target.value)}
-                    />
-                </div>
-            </CardContent>
-            <CardFooter>
-                <Button onClick={handleSuggestionSubmit} disabled={isSubmittingSuggestion || !suggestion.trim()}>
-                    {isSubmittingSuggestion ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                    Enviar Sugerencia
-                </Button>
-            </CardFooter>
-        </Card>
 
          {(isSyncing || isRateRefreshing) && (
             <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
