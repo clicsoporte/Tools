@@ -99,20 +99,22 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
   
   const refreshAuthAndRedirect = useCallback(async (path: string) => {
-    setIsLoading(true);
     await loadAuthData(false);
     router.push(path);
+    router.refresh();
   }, [loadAuthData, router]);
 
   useEffect(() => {
     const isInitialLoad = true;
+    if (!isLoading) return; // Prevent re-running if already loaded
+    
     loadAuthData(isInitialLoad).then(({ isAuthenticated }) => {
         // This effect handles redirection after the initial load is complete
         if (isAuthenticated === false && pathname.startsWith('/dashboard')) {
             router.replace('/');
         }
     });
-  }, [pathname, router, loadAuthData]);
+  }, [pathname, router, loadAuthData, isLoading]);
 
   const contextValue: AuthContextType = {
     user,

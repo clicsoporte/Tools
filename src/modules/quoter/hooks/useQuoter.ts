@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -120,6 +121,7 @@ export const useQuoter = () => {
   const [savedDrafts, setSavedDrafts] = useState<(QuoteDraft & { customer: Customer | null})[]>([]);
   const [decimalPlaces, setDecimalPlaces] = useState(initialQuoteState.decimalPlaces);
   const [exemptionInfo, setExemptionInfo] = useState<ExemptionInfo | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
@@ -176,6 +178,7 @@ export const useQuoter = () => {
   
 
   const loadInitialData = useCallback(async (isRefresh = false) => {
+    let isMounted = true;
     if (isRefresh) {
         setIsRefreshing(true);
         await refreshAuth();
@@ -186,6 +189,9 @@ export const useQuoter = () => {
           getAllExemptions(),
           getExemptionLaws()
       ]);
+
+      if (!isMounted) return;
+
       setAllExemptions(dbExemptions || []);
       setExemptionLaws(dbLaws || []);
 
@@ -197,23 +203,30 @@ export const useQuoter = () => {
       logError("Failed to load initial quoter data", { error });
       toast({ title: "Error de Carga", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
     } finally {
-        if(isRefresh) {
+        if(isRefresh && isMounted) {
             setIsRefreshing(false);
         }
     }
+    return () => { isMounted = false; };
   }, [toast, refreshAuth]);
 
   useEffect(() => {
     setTitle("Cotizador");
     loadInitialData();
-    // Set dates only on the client-side to prevent hydration errors
-    const today = new Date();
-    setQuoteDate(today.toISOString().substring(0, 10));
-    setDeliveryDate(today.toISOString().substring(0, 16));
-    const validDate = new Date();
-    validDate.setDate(today.getDate() + 8);
-    setValidUntilDate(validDate.toISOString().substring(0, 10));
   }, [setTitle, loadInitialData]);
+
+  useEffect(() => {
+    // Set client-side only state here to prevent hydration errors.
+    if (!isMounted) {
+        const today = new Date();
+        setQuoteDate(today.toISOString().substring(0, 10));
+        setDeliveryDate(today.toISOString().substring(0, 16));
+        const validDate = new Date();
+        validDate.setDate(today.getDate() + 8);
+        setValidUntilDate(validDate.toISOString().substring(0, 10));
+        setIsMounted(true);
+    }
+  }, [isMounted]);
 
   useEffect(() => {
     if (sellerType === "user" && currentUser) {

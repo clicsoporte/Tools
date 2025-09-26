@@ -16,7 +16,7 @@ import jsPDF from "jspdf";
 import autoTable, { RowInput } from "jspdf-autotable";
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 
-const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified'> = {
+const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'pendingAction'> = {
     requiredDate: '',
     clientId: '',
     clientName: '',
@@ -34,7 +34,6 @@ const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' |
     priority: 'medium',
     purchaseType: 'single',
     arrivalDate: '',
-    pendingAction: 'none'
 };
 
 const statusConfig: { [key: string]: { label: string, color: string } } = {
@@ -107,6 +106,11 @@ export const useRequests = () => {
     const [arrivalDate, setArrivalDate] = useState('');
     
     const [isActionDialogOpen, setActionDialogOpen] = useState(false);
+
+    useEffect(() => {
+        const today = new Date().toISOString().split('T')[0];
+        setNewRequest(prev => ({ ...prev, requiredDate: today }));
+    }, []);
 
 
     const loadInitialData = useCallback(async (page = 0) => {
@@ -182,7 +186,7 @@ export const useRequests = () => {
 
         setIsSubmitting(true);
         try {
-            const createdRequest = await savePurchaseRequest(requestWithFormattedDate, currentUser.name);
+            const createdRequest = await savePurchaseRequest({ ...requestWithFormattedDate, pendingAction: 'none' }, currentUser.name);
             toast({ title: "Solicitud Creada" });
             setNewRequestDialogOpen(false);
             setNewRequest(emptyRequest);
@@ -251,9 +255,7 @@ export const useRequests = () => {
         try {
             if (approve) {
                 const targetStatus = requestToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
-                await updatePurchaseRequestStatus({ requestId: requestToUpdate.id, status: targetStatus, updatedBy: currentUser.name, notes: statusUpdateNotes, reopen: false });
-                toast({ title: 'Solicitud Aprobada' });
-                await loadInitialData(0);
+                await handleStatusUpdate(targetStatus);
             } else {
                  const updated = await updatePendingAction({
                     entityId: requestToUpdate.id,
@@ -273,18 +275,19 @@ export const useRequests = () => {
         }
     };
     
-    const handleStatusUpdate = async () => {
-        if (!requestToUpdate || !newStatus || !currentUser) return;
+    const handleStatusUpdate = async (statusOverride?: PurchaseRequestStatus) => {
+        const finalStatus = statusOverride || newStatus;
+        if (!requestToUpdate || !finalStatus || !currentUser) return;
         setIsSubmitting(true);
         try {
             await updatePurchaseRequestStatus({ 
                 requestId: requestToUpdate.id, 
-                status: newStatus, 
+                status: finalStatus, 
                 notes: statusUpdateNotes, 
                 updatedBy: currentUser.name, 
                 reopen: false, 
-                deliveredQuantity: newStatus === 'received' ? Number(deliveredQuantity) : undefined,
-                arrivalDate: newStatus === 'ordered' ? arrivalDate : undefined
+                deliveredQuantity: finalStatus === 'received' ? Number(deliveredQuantity) : undefined,
+                arrivalDate: finalStatus === 'ordered' ? arrivalDate : undefined
             });
             toast({ title: "Estado Actualizado" });
             setStatusDialogOpen(false);
@@ -334,8 +337,10 @@ export const useRequests = () => {
         setItemSearchOpen(false);
         const product = authProducts.find(p => p.id === value);
         if (product) {
-            if (requestToEdit) setRequestToEdit(p => p ? { ...p, itemId: product.id, itemDescription: product.description || '' } : null);
-            else setNewRequest(p => ({ ...p, itemId: product.id, itemDescription: product.description || '' }));
+            const stock = authStockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
+            const dataToUpdate = { itemId: product.id, itemDescription: product.description || '', inventory: stock };
+            if (requestToEdit) setRequestToEdit(p => p ? { ...p, ...dataToUpdate } : null);
+            else setNewRequest(p => ({ ...p, ...dataToUpdate }));
             setItemSearchTerm(`[${product.id}] - ${product.description}`);
         }
     };
@@ -344,8 +349,9 @@ export const useRequests = () => {
         setClientSearchOpen(false);
         const client = authCustomers.find(c => c.id === value);
         if (client) {
-            if (requestToEdit) setRequestToEdit(p => p ? { ...p, clientId: client.id, clientName: client.name } : null);
-            else setNewRequest(p => ({ ...p, clientId: client.id, clientName: client.name }));
+            const dataToUpdate = { clientId: client.id, clientName: client.name };
+            if (requestToEdit) setRequestToEdit(p => p ? { ...p, ...dataToUpdate } : null);
+            else setNewRequest(p => ({ ...p, ...dataToUpdate }));
             setClientSearchTerm(`${client.id} - ${client.name}`);
         }
     };
@@ -451,7 +457,7 @@ export const useRequests = () => {
             } catch(e) { console.error("Error adding logo to PDF:", e) }
         }
         
-        const history = await getRequestHistory(request.id);
+        const historyData = await getRequestHistory(request.id);
         const details = [
                 { title: 'Cliente:', content: request.clientName },
                 { title: 'Artículo:', content: `[${request.itemId}] ${request.itemDescription}` },
@@ -480,7 +486,7 @@ export const useRequests = () => {
             ],
             table: {
                 columns: ["Fecha", "Estado", "Usuario", "Notas"],
-                rows: history.map(entry => [
+                rows: historyData.map(entry => [
                     format(parseISO(entry.timestamp), 'dd/MM/yy HH:mm'),
                     statusConfig[entry.status]?.label || entry.status,
                     entry.updatedBy,
@@ -540,7 +546,7 @@ export const useRequests = () => {
         setReopenDialogOpen, setReopenStep, setReopenConfirmationText, loadInitialData,
         handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
         handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
-        setRequestToUpdate, handleRejectCancellation: () => {}, handleExportPDF, handleExportSingleRequestPDF,
+        setRequestToUpdate, handleExportPDF, handleExportSingleRequestPDF,
         setArrivalDate, openAdminActionDialog, handleAdminAction, setActionDialogOpen
     };
 

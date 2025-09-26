@@ -17,7 +17,7 @@ import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import type { RowInput } from "jspdf-autotable";
 
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'pendingAction'> = {
     deliveryDate: '',
     customerId: '',
     customerName: '',
@@ -28,7 +28,6 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     notes: '',
     inventory: 0,
     purchaseOrder: '',
-    pendingAction: 'none'
 };
 
 const priorityConfig = { 
@@ -54,7 +53,7 @@ export const usePlanner = () => {
     const { isAuthorized, hasPermission } = useAuthorization(['planner:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user: currentUser, companyData: authCompanyData, customers, products, stockLevels: initialStockLevels } = useAuth();
+    const { user: currentUser, companyData: authCompanyData, customers, products, stockLevels } = useAuth();
 
     const [state, setState] = useState({
         isLoading: true,
@@ -68,7 +67,6 @@ export const usePlanner = () => {
         pageSize: 50,
         totalArchived: 0,
         plannerSettings: null as PlannerSettings | null,
-        stockLevels: initialStockLevels || [] as StockInfo[],
         newOrder: emptyOrder,
         orderToEdit: null as ProductionOrder | null,
         searchTerm: "",
@@ -137,7 +135,6 @@ export const usePlanner = () => {
 
             updateState({
                 plannerSettings: settingsData,
-                stockLevels: initialStockLevels,
                 dynamicStatusConfig: newDynamicConfig,
                 activeOrders: allOrders.filter(activeFilter),
                 archivedOrders: allOrders.filter(o => !activeFilter(o)),
@@ -153,7 +150,7 @@ export const usePlanner = () => {
             }
         }
         return () => { isMounted = false; };
-    }, [toast, state.viewingArchived, state.pageSize, initialStockLevels]);
+    }, [toast, state.viewingArchived, state.pageSize]);
     
     useEffect(() => {
         setTitle("Planificador OP");
@@ -182,19 +179,11 @@ export const usePlanner = () => {
         setViewingArchived: (isArchived: boolean) => updateState({ viewingArchived: isArchived, archivedPage: 0 }),
         setArchivedPage: (pageUpdate: (page: number) => number) => updateState({ archivedPage: pageUpdate(state.archivedPage) }),
         setPageSize: (size: number) => updateState({ pageSize: size, archivedPage: 0 }),
-        setNewOrder: (partialOrder: Partial<typeof emptyOrder>) => {
+        setNewOrder: (partialOrder: Partial<typeof state.newOrder>) => {
             updateState({ newOrder: { ...state.newOrder, ...partialOrder } });
         },
         setOrderToEdit: (partialOrder: Partial<ProductionOrder> | null) => {
-            if (!partialOrder) {
-                updateState({ orderToEdit: null });
-                return;
-            }
-            if (state.orderToEdit) {
-                 updateState({ orderToEdit: { ...state.orderToEdit, ...partialOrder } });
-            } else {
-                 updateState({ orderToEdit: partialOrder as ProductionOrder });
-            }
+            updateState({ orderToEdit: partialOrder ? { ...(state.orderToEdit || {} as ProductionOrder), ...partialOrder } : null });
         },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
@@ -225,7 +214,7 @@ export const usePlanner = () => {
             if (!state.newOrder.customerId || !state.newOrder.productId || !state.newOrder.quantity || !state.newOrder.deliveryDate || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
-                const createdOrder = await saveProductionOrder(state.newOrder, currentUser.name);
+                const createdOrder = await saveProductionOrder({ ...state.newOrder, pendingAction: 'none' }, currentUser.name);
                 toast({ title: "Orden Creada" });
                 setState(prevState => ({
                     ...prevState,
@@ -352,8 +341,8 @@ export const usePlanner = () => {
                 });
                 toast({ title: "Estado Actualizado" });
                 setState(prevState => {
-                    const finalStatus = prevState.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
-                    const isArchived = updatedOrder.status === finalStatus || updatedOrder.status === 'canceled';
+                    const finalStatusValue = prevState.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
+                    const isArchived = updatedOrder.status === finalStatusValue || updatedOrder.status === 'canceled';
 
                     return {
                         ...prevState,
@@ -364,7 +353,7 @@ export const usePlanner = () => {
                     };
                 });
             } catch (error: any) {
-                logError("Failed to update status", { error: (error as Error).message });
+                logError("Failed to update status", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -416,7 +405,7 @@ export const usePlanner = () => {
             updateState({ isProductSearchOpen: false });
             const product = products.find(p => p.id === value);
             if (product) {
-                const stock = state.stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
+                const stock = stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
                 if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, productId: product.id, productDescription: product.description || '', inventory: stock });
                 else actions.setNewOrder({ ...state.newOrder, productId: product.id, productDescription: product.description || '', inventory: stock });
                 updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
@@ -556,7 +545,7 @@ export const usePlanner = () => {
                 } catch(e) { console.error("Error adding logo to PDF:", e) }
             }
             
-            const history = await getOrderHistory(order.id);
+            const historyData = await getOrderHistory(order.id);
 
             const machineName = state.plannerSettings.machines.find(m => m.id === order.machineId)?.name || 'N/A';
             
@@ -586,7 +575,7 @@ export const usePlanner = () => {
                 ],
                 table: {
                     columns: ["Fecha", "Estado", "Usuario", "Notas"],
-                    rows: history.map(entry => [
+                    rows: historyData.map(entry => [
                         format(parseISO(entry.timestamp), 'dd/MM/yy HH:mm'),
                         selectors.statusConfig[entry.status]?.label || entry.status,
                         entry.updatedBy,
@@ -665,7 +654,7 @@ export const usePlanner = () => {
                 return searchMatch && statusMatch && classificationMatch && dateMatch;
             });
         }, [state.viewingArchived, state.activeOrders, state.archivedOrders, debouncedSearchTerm, state.statusFilter, state.classificationFilter, products, state.dateFilter]),
-        stockLevels: state.stockLevels,
+        stockLevels: stockLevels,
     };
 
     return {
