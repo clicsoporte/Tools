@@ -294,7 +294,7 @@ export const useRequests = () => {
             setActionDialogOpen(false);
             await loadInitialData(viewingArchived ? archivedPage : 0);
         } catch (error: any) {
-            logError("Failed to update status", { error: { message: error.message } });
+            logError("Failed to update status", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
             await loadInitialData(viewingArchived ? archivedPage : 0);
         } finally {

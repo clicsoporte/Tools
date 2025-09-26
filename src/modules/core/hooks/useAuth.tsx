@@ -6,9 +6,9 @@
 'use client';
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
-import type { User, Role, Company, Product, StockInfo, Customer } from "../types";
+import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw } from "../types";
 import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
-import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAndCacheExchangeRate } from '../lib/db';
+import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAndCacheExchangeRate, getAllExemptions, getExemptionLaws } from '../lib/db';
 import { usePathname, useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
@@ -23,6 +23,8 @@ interface AuthContextType {
   customers: Customer[];
   products: Product[];
   stockLevels: StockInfo[];
+  allExemptions: Exemption[];
+  exemptionLaws: ExemptionLaw[];
   exchangeRateData: { rate: number | null, date: string | null };
   isLoading: boolean;
   refreshAuth: () => Promise<{ isAuthenticated: boolean; } | void>;
@@ -47,6 +49,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
+  const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
+  const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
   const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null, date: string | null }>({ rate: null, date: null });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -56,20 +60,18 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const loadAuthData = useCallback(async (isInitialLoad = false) => {
-    // Only show full loading state on the very first load
     if (isInitialLoad) {
       setIsLoading(true);
     }
     
     try {
-      const [currentUser, allRoles, companySettings, dbCustomers, dbProducts, dbStock, rateData] = await Promise.all([
-        getCurrentUserClient(),
-        getAllRoles(),
-        getCompanySettings(),
-        getAllCustomers(),
-        getAllProducts(),
-        getAllStock(),
-        getAndCacheExchangeRate(),
+      const [
+        currentUser, allRoles, companySettings, dbCustomers, dbProducts, 
+        dbStock, rateData, dbExemptions, dbLaws
+      ] = await Promise.all([
+        getCurrentUserClient(), getAllRoles(), getCompanySettings(),
+        getAllCustomers(), getAllProducts(), getAllStock(), getAndCacheExchangeRate(),
+        getAllExemptions(), getExemptionLaws()
       ]);
 
       setUser(currentUser);
@@ -77,6 +79,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setCustomers(dbCustomers);
       setProducts(dbProducts);
       setStockLevels(dbStock);
+      setAllExemptions(dbExemptions);
+      setExemptionLaws(dbLaws);
       setExchangeRateData(rateData || { rate: null, date: null });
 
       if (currentUser && allRoles.length > 0) {
@@ -105,15 +109,13 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, [loadAuthData, router]);
 
   useEffect(() => {
-    const isInitialLoad = true;
-    if (!isLoading) return; // Prevent re-running if already loaded
-    
-    loadAuthData(isInitialLoad).then(({ isAuthenticated }) => {
-        // This effect handles redirection after the initial load is complete
-        if (isAuthenticated === false && pathname.startsWith('/dashboard')) {
-            router.replace('/');
-        }
-    });
+    if (isLoading) {
+        loadAuthData(true).then(({ isAuthenticated }) => {
+            if (isAuthenticated === false && pathname.startsWith('/dashboard')) {
+                router.replace('/');
+            }
+        });
+    }
   }, [pathname, router, loadAuthData, isLoading]);
 
   const contextValue: AuthContextType = {
@@ -123,6 +125,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     customers,
     products,
     stockLevels,
+    allExemptions,
+    exemptionLaws,
     exchangeRateData,
     isLoading,
     refreshAuth: () => loadAuthData(false),
