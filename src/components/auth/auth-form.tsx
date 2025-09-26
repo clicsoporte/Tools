@@ -62,6 +62,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
     const loggedIn = await login(email, password);
 
     if (loggedIn) {
+      router.refresh(); // Crucial for re-triggering layout/page logic
       router.push("/dashboard");
     } else {
       toast({

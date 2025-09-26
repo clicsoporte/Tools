@@ -21,11 +21,14 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   
   useEffect(() => {
+    // If loading is finished and there's no user, redirect to login.
     if (!isLoading && !user) {
-        router.push('/');
+        router.replace('/');
     }
   }, [isLoading, user, router]);
 
+  // While loading, show a skeleton screen.
+  // If not loading but still no user, we show the skeleton briefly while the redirect happens.
   if (isLoading || !user) {
     return (
         <div className="flex items-center justify-center h-screen">
@@ -37,6 +40,7 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
     )
   }
 
+  // If loading is done and we have a user, show the content.
   return <>{children}</>;
 }
 
