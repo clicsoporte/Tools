@@ -215,7 +215,7 @@ export default function HelpPage() {
                         </ul>
 
                         <h4 className="font-semibold text-lg pt-4 border-t">Tutorial Práctico: Configurando tu Almacén desde Cero</h4>
-                        <p>Usemos un ejemplo real: tienes una bodega (`04`), con un pasillo (`01`) entre dos racks (`01` y `02`). Los productos se guardan en tarimas (`pallets`) que tienen una posición horizontal y vertical.</p>
+                        <p>Usemos un ejemplo real: tienes una bodega (`04`), con un pasillo (`01`) entre dos racks (`01` y `02`).</p>
 
                         <h5 className="font-semibold">Paso 1: Crear el "Molde" (La Jerarquía)</h5>
                         <ol className="list-decimal space-y-2 pl-6">
@@ -226,8 +226,6 @@ export default function HelpPage() {
                                     <li>Bodega</li>
                                     <li>Pasillo</li>
                                     <li>Rack</li>
-                                    <li>Posición Horizontal</li>
-                                    <li>Posición Vertical</li>
                                 </ul>
                             </li>
                             <li>Haz clic en <strong>Guardar Niveles</strong>.</li>
@@ -259,16 +257,8 @@ export default function HelpPage() {
                             <li>
                                 <strong>Crear los Racks:</strong> Repite el proceso para crear `Rack 01` (Código `R01`) y `Rack 02` (Código `R02`), ambos de tipo `Nivel 3: Rack` y ambos con `Pasillo 01` como padre.
                             </li>
-                            <li>
-                                <strong>Crear las Posiciones:</strong> Finalmente, puedes crear las posiciones dentro de cada rack. Por ejemplo, para crear la primera posición del Rack 01:
-                                <ul className="list-[circle] space-y-1 pl-5 mt-2 text-sm">
-                                    <li>Añade `Posición Horizontal 1` (Código `H1`), tipo `Nivel 4`, padre `Rack 01`.</li>
-                                    <li>Añade `Posición Vertical 1` (Código `V1`), tipo `Nivel 5`, padre `Posición Horizontal 1`.</li>
-                                </ul>
-                                Tu ubicación final para un producto sería `B04 &gt; P01 &gt; R01 &gt; H1 &gt; V1`.
-                            </li>
                         </ol>
-                        <p className="pt-2">Una vez configurado, puedes ir al módulo <strong>Asignar Inventario</strong> para empezar a colocar tus artículos, como el `P011 BOLSA 20 X 30 X 2.5 TRANSPARENTE`, en estas nuevas ubicaciones.</p>
+                        <p className="pt-2">Una vez configurado, puedes ir al módulo <strong>Asignar Inventario</strong> para empezar a colocar tus artículos en estas nuevas ubicaciones.</p>
                     </AccordionContent>
                 </AccordionItem>
 

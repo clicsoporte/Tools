@@ -4,7 +4,7 @@
  * professional-looking PDF documents for quotes, production orders, and purchase requests.
  */
 import jsPDF from "jspdf";
-import autoTable, { type RowInput, type CellInput } from "jspdf-autotable";
+import autoTable, { type RowInput, type CellInput, type CellHookData } from "jspdf-autotable";
 import { format, parseISO } from 'date-fns';
 import type { Company } from '../types';
 
@@ -72,8 +72,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             }
         }
         
-        // --- Company Data (Left/Center) ---
-        let companyY = topMargin + 3; // Align with top of logo
+        let companyY = topMargin + 3;
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(11);
         doc.text(data.companyData.name, companyX, companyY);
@@ -89,15 +88,19 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         companyY += 10;
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
         
-        // --- Document Title & Meta (Right) ---
-        let rightY = topMargin + 8; // Adjust to visually align
-        doc.setFontSize(18);
-        doc.setFont('Helvetica', 'bold');
-        doc.text(data.docTitle, rightColX, rightY, { align: 'right' });
-        rightY += 18;
-        
+        let rightY = topMargin + 8;
         doc.setFontSize(10);
         doc.setFont('Helvetica', 'normal');
+        
+        if (data.docId) {
+             doc.setFontSize(14);
+             doc.setFont('Helvetica', 'bold');
+             doc.text(data.docId, rightColX, rightY, { align: 'right' });
+             rightY += 18;
+             doc.setFontSize(10);
+             doc.setFont('Helvetica', 'normal');
+        }
+
         data.meta.forEach(item => {
             doc.text(`${item.label}: ${item.value}`, rightColX, rightY, { align: 'right' });
             rightY += 12;
@@ -122,6 +125,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             doc.text(data.topLegend, pageWidth / 2, topMargin - 25, { align: 'center' });
             doc.setTextColor(0);
         }
+        
+        finalY = Math.max(companyY, rightY) + 10;
     };
 
     let pagesDrawnByAutotable = new Set<number>();
@@ -135,20 +140,28 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     
     addHeader();
     
-    const clientBlockY = 160;
-    autoTable(doc, {
-        startY: clientBlockY,
-        body: data.blocks.map(b => ([
-            { content: b.title, styles: { fontStyle: 'bold', cellPadding: { top: 0, right: 5, bottom: 2, left: 0 } } },
-            { content: b.content, styles: { fontStyle: 'normal', cellPadding: { top: 0, right: 0, bottom: 2, left: 0 } } }
-        ])),
-        theme: 'plain',
-        tableWidth: 'wrap',
-        styles: { fontSize: 9, cellPadding: 0 },
-        columnStyles: { 0: { cellWidth: 'wrap' } },
-        margin: { left: margin, right: margin }
-    });
-    finalY = (doc as any).lastAutoTable.finalY + 15;
+    if (data.blocks.length > 0) {
+        autoTable(doc, {
+            startY: finalY,
+            body: data.blocks.map(b => ([
+                { content: b.title, styles: { fontStyle: 'bold', cellPadding: { top: 0, right: 5, bottom: 2, left: 0 } } },
+                { content: b.content, styles: { fontStyle: 'normal', cellPadding: { top: 0, right: 0, bottom: 2, left: 0 } } }
+            ])),
+            theme: 'plain',
+            tableWidth: 'wrap',
+            styles: { fontSize: 9, cellPadding: 0 },
+            columnStyles: { 0: { cellWidth: 'wrap' } },
+            margin: { left: margin, right: margin }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 15;
+    }
+    
+    // Add centered title just above the table
+    doc.setFontSize(16);
+    doc.setFont('Helvetica', 'bold');
+    doc.text(data.docTitle, pageWidth / 2, finalY + 10, { align: 'center' });
+    finalY += 25;
+
 
     autoTable(doc, {
         head: [data.table.columns],
@@ -214,9 +227,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         rightY += isLast ? 18 : 14;
     });
 
-    for (let i = 1; i <= totalPages; i++) {
+    for (let i = 1; i <= currentPage; i++) {
         doc.setPage(i);
-        addFooter(doc, i, totalPages);
+        addFooter(doc, i, currentPage);
     }
 
     return doc;

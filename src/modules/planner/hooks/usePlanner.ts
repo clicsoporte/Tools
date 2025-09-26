@@ -448,7 +448,7 @@ export const usePlanner = () => {
             const selectedColumnIds = state.plannerSettings.pdfExportColumns || [];
             const tableHeaders = selectedColumnIds.map(id => allPossibleColumns.find(c => c.id === id)?.header || id);
             
-            const tableRows: RowInput[] = selectors.filteredOrders.map(order => {
+            const tableRows: RowInput = selectors.filteredOrders.map(order => {
                 return selectedColumnIds.map(id => {
                     switch (id) {
                         case 'consecutive': return order.consecutive;
