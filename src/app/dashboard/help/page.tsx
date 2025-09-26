@@ -18,7 +18,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2 } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2 } from "lucide-react";
 import type { Company } from "../../../modules/core/types";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -152,12 +152,15 @@ export default function HelpPage() {
                             <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> Un usuario con permisos ha aprobado la compra.</li>
                             <li><strong>Ordenada (<Truck className="inline h-4 w-4 text-blue-600"/>):</strong> Ya se realizó el pedido al proveedor.</li>
                             <li><strong>Recibida (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> El producto ha llegado. Aquí puedes registrar la cantidad real que se recibió.</li>
-                             <li><strong>En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):</strong> (Opcional) Un paso final para confirmar que el producto ya está en el almacén físico.</li>
+                             <li><strong>En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):</strong> (Opcional, si está activado) Un paso final para confirmar que el producto ya está en el almacén físico.</li>
                             <li><strong>Cancelada (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> La solicitud ha sido cancelada.</li>
                         </ul>
                     </li>
                     <li>
-                        <strong>Paso 3: Usar Prioridad y Cantidad Recibida.</strong> Puedes establecer una prioridad a la solicitud para indicar su urgencia. Al recibir el producto, puedes indicar si la cantidad recibida es diferente a la solicitada, y el sistema te mostrará la diferencia.
+                        <strong>Aviso de "Modificado" (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una solicitud es editada (cambiando cantidad, fecha, etc.) *después* de haber sido Aprobada u Ordenada, aparecerá una alerta visual "Modificado". Esto sirve como una advertencia para que todos los involucrados estén al tanto del cambio.
+                    </li>
+                    <li>
+                        <strong>Solicitar Cancelación:</strong> Si una solicitud ya está Aprobada u Ordenada, no se puede cancelar directamente. En su lugar, un usuario con permisos puede "Solicitar Cancelación". Esto pone la solicitud en un estado de espera y notifica a un administrador, quien debe aprobar o rechazar la cancelación, dejando un registro del motivo.
                     </li>
                     <li>
                         <strong>Paso 4: Navegar en el Historial.</strong> Para mantener la velocidad, la vista de "Archivadas" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
@@ -180,18 +183,35 @@ export default function HelpPage() {
                             <strong>Paso 1: Crear Órdenes.</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
                         </li>
                         <li>
-                            <strong>Paso 2: Programar por Rango de Fechas.</strong> Una orden de producción a menudo abarca varios días. Para reflejar esto, haz clic directamente en el área de "Fecha Programada" de una orden. Esto abrirá un calendario donde puedes seleccionar un rango de fechas de inicio y fin.
-                        </li>
-                        <li>
-                            <strong>Paso 3: Gestionar Estados y Asignaciones.</strong>
+                            <strong>Paso 2: Flujo de Estados y Trazabilidad.</strong>
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                <li>Asigna cada orden a una máquina o proceso específico desde un menú desplegable. Puedes configurar estas máquinas en el panel de administración.</li>
-                                <li>Cambia el estado de la orden (Aprobada, En Cola, En Progreso, En Espera, Completada) para reflejar su avance en tiempo real.</li>
-                                <li><strong>Estados Personalizados:</strong> Define hasta 4 estados adicionales en la configuración para adaptar el flujo a tu proceso exacto (ej: "En Diseño", "Esperando Material").</li>
+                                <li><strong>Pendiente:</strong> La orden ha sido creada y espera aprobación.</li>
+                                <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> La orden está autorizada para producción.</li>
+                                <li><strong>En Cola (<Truck className="inline h-4 w-4 text-cyan-600"/>):</strong> La orden está lista para entrar a la línea de producción.</li>
+                                <li><strong>En Progreso (<Play className="inline h-4 w-4 text-blue-600"/>):</strong> La orden se está produciendo activamente.</li>
+                                <li><strong>En Espera / Mantenimiento (<Pause className="inline h-4 w-4 text-gray-600"/>):</strong> La producción se detuvo temporalmente.</li>
+                                <li><strong>Completada (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> La producción ha finalizado.</li>
+                                <li><strong>En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):</strong> (Opcional) El producto terminado ya está en el almacén.</li>
                             </ul>
                         </li>
                         <li>
-                            <strong>Paso 4: Usar Prioridades y Cuenta Regresiva.</strong> Utiliza el selector de prioridad (Urgente, Alta, etc.) y fíjate en el indicador de días restantes para organizar el trabajo. El indicador de días se basa en el tiempo programado, cambiando de color (verde &gt; naranja &gt; rojo) a medida que se acerca la fecha límite de producción.
+                            <strong>Paso 3: Alertas y Solicitudes de Cambio.</strong>
+                            <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                <li><strong>Aviso de "Modificado" (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una orden se edita después de ser aprobada, aparecerá esta alerta para notificar a todos sobre el cambio.</li>
+                                <li><strong>Solicitar Desaprobación (<Undo2 className="inline h-4 w-4 text-orange-600"/>):</strong> Si una orden ya aprobada necesita un cambio mayor (ej: cambiar de producto), un usuario puede "Solicitar Desaprobación". Esto bloquea la orden y requiere que un administrador la apruebe o rechace para devolverla al estado "Pendiente".</li>
+                                <li><strong>Solicitar Cancelación (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> Similar a la desaprobación, permite pedir la cancelación de una orden que ya está en el flujo, requiriendo aprobación administrativa.</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Paso 4: Programación y Prioridades.</strong>
+                            <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                <li><strong>Programación por Rango:</strong> Haz clic en el área de "Fecha Programada" para abrir un calendario y seleccionar un rango de fechas de inicio y fin.</li>
+                                <li><strong>Asignación:</strong> Asigna cada orden a una máquina, proceso u operario específico desde el menú desplegable. Estas opciones se configuran en Administración.</li>
+                                <li><strong>Prioridades y Cuenta Regresiva:</strong> Usa el selector de prioridad y fíjate en el indicador de días restantes (basado en la fecha de entrega) para organizar el trabajo.</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Historial (<History className="inline h-4 w-4"/>):</strong> Haz clic en el icono de historial en cualquier orden para ver un registro detallado de cada cambio de estado, quién lo hizo y cuándo.
                         </li>
                     </ul>
                 </AccordionContent>
@@ -452,3 +472,4 @@ export default function HelpPage() {
     </main>
   );
 }
+
