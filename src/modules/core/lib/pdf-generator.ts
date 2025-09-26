@@ -33,6 +33,7 @@ interface DocumentData {
     paymentInfo?: string;
     totals: { label: string; value: string }[];
     paperSize?: 'letter' | 'legal';
+    orientation?: 'portrait' | 'landscape';
     topLegend?: string;
 }
 
@@ -45,7 +46,7 @@ const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
 };
 
 export const generateDocument = (data: DocumentData): jsPDF => {
-    const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: 'p', unit: 'pt', format: data.paperSize || 'letter' });
+    const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: data.orientation || 'p', unit: 'pt', format: data.paperSize || 'letter' });
     const margin = 40;
     const pageWidth = doc.internal.pageSize.getWidth();
     let finalY = 0;
@@ -56,8 +57,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         
         doc.setFontSize(16);
         doc.setFont('Helvetica', 'bold');
-        doc.text(data.docTitle, pageWidth / 2, topMargin, { align: 'center' });
-
+        
         let logoX = margin;
         let companyX = margin;
         const logoY = topMargin + 20;
@@ -135,6 +135,11 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     
     addHeader();
     
+    doc.setFontSize(14);
+    doc.setFont('Helvetica', 'bold');
+    doc.text(data.docTitle, pageWidth / 2, finalY, { align: 'center' });
+    finalY += 20;
+
     if (data.blocks.length > 0) {
         autoTable(doc, {
             startY: finalY,
@@ -166,7 +171,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     finalY = (doc as any).lastAutoTable.finalY;
     
     const pageHeight = doc.internal.pageSize.getHeight();
-    const totalPages = (doc.internal as any).getNumberOfPages();
+    let totalPages = (doc.internal as any).getNumberOfPages();
     let currentPage = totalPages;
 
     let bottomContentY = finalY + 20;
@@ -174,6 +179,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     if (bottomContentY > pageHeight - 140) {
         doc.addPage();
         currentPage++;
+        totalPages++;
         bottomContentY = 60; 
         addHeader();
     }
@@ -215,13 +221,14 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         rightY += isLast ? 18 : 14;
     });
 
-    for (let i = 1; i <= currentPage; i++) {
+    for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         if (!pagesDrawnByAutotable.has(i)) {
              addHeader();
         }
-        addFooter(doc, i, currentPage);
+        addFooter(doc, i, totalPages);
     }
 
     return doc;
 };
+

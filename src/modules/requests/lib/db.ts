@@ -106,6 +106,12 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
             const defaultColumns = ['consecutive', 'itemDescription', 'quantity', 'clientName', 'requiredDate', 'status'];
             db.prepare(`INSERT INTO request_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultColumns));
         }
+        const pdfPaperSizeRow = db.prepare(`SELECT value FROM request_settings WHERE key = 'pdfPaperSize'`).get() as { value: string } | undefined;
+        if (!pdfPaperSizeRow) {
+            console.log("MIGRATION (requests.db): Adding pdfPaperSize and pdfOrientation to settings.");
+            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
+            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('pdfOrientation', 'portrait')`).run();
+        }
     }
 }
 
@@ -121,6 +127,8 @@ export async function getSettings(): Promise<RequestSettings> {
         useWarehouseReception: false,
         pdfTopLegend: '',
         pdfExportColumns: [],
+        pdfPaperSize: 'letter',
+        pdfOrientation: 'portrait',
     };
 
     for (const row of settingsRows) {
@@ -130,6 +138,8 @@ export async function getSettings(): Promise<RequestSettings> {
         else if (row.key === 'useWarehouseReception') settings.useWarehouseReception = row.value === 'true';
         else if (row.key === 'pdfTopLegend') settings.pdfTopLegend = row.value;
         else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
+        else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
+        else if (row.key === 'pdfOrientation') settings.pdfOrientation = row.value as 'portrait' | 'landscape';
     }
     return settings;
 }
@@ -138,12 +148,13 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('nextRequestNumber', String(settingsToUpdate.nextRequestNumber));
-        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('routes', JSON.stringify(settingsToUpdate.routes));
-        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('shippingMethods', JSON.stringify(settingsToUpdate.shippingMethods));
-        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('useWarehouseReception', String(settingsToUpdate.useWarehouseReception));
-        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('pdfTopLegend', settingsToUpdate.pdfTopLegend || '');
-        db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run('pdfExportColumns', JSON.stringify(settingsToUpdate.pdfExportColumns || []));
+        const keys: (keyof RequestSettings)[] = ['nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
+        for (const key of keys) {
+             if (settingsToUpdate[key] !== undefined) {
+                const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
+                db.prepare('INSERT OR REPLACE INTO request_settings (key, value) VALUES (?, ?)').run(key, value);
+            }
+        }
     });
 
     transaction(settings);
@@ -428,3 +439,4 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
 
     transaction();
 }
+

@@ -246,13 +246,13 @@ export type ProductionOrder = {
   lastStatusUpdateNotes?: string;
   lastModifiedBy?: string;
   lastModifiedAt?: string;
+  hasBeenModified?: boolean;
   deliveredQuantity?: number;
   erpPackageNumber?: string;
   erpTicketNumber?: string;
   reopened?: boolean;
   machineId?: string | null;
   previousStatus?: ProductionOrderStatus | null;
-  hasBeenModified?: boolean;
 };
 
 export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified'>> & {
@@ -289,6 +289,7 @@ export type PlannerSettings = {
     assignmentLabel: string;
     customStatuses: CustomStatus[];
     pdfPaperSize: 'letter' | 'legal';
+    pdfOrientation: 'portrait' | 'landscape';
     pdfExportColumns: string[];
     pdfTopLegend?: string;
     fieldsToTrackChanges: string[];
@@ -374,6 +375,8 @@ export type RequestSettings = {
     useWarehouseReception: boolean;
     pdfTopLegend?: string;
     pdfExportColumns: string[];
+    pdfPaperSize: 'letter' | 'legal';
+    pdfOrientation: 'portrait' | 'landscape';
 };
 
 export type UpdateRequestStatusPayload = {
@@ -560,3 +563,4 @@ export type UpdateBackupInfo = {
     fileName: string;
     date: string;
 };
+

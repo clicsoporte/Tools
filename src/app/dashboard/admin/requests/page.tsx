@@ -17,6 +17,7 @@ import { PlusCircle, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function RequestSettingsPage() {
     const { isAuthorized } = useAuthorization(['admin:settings:requests']);
@@ -38,6 +39,12 @@ export default function RequestSettingsPage() {
                 }
                 if (currentSettings.useWarehouseReception === undefined) {
                     currentSettings.useWarehouseReception = false;
+                }
+                 if (!currentSettings.pdfPaperSize) {
+                    currentSettings.pdfPaperSize = 'letter';
+                }
+                if (!currentSettings.pdfOrientation) {
+                    currentSettings.pdfOrientation = 'portrait';
                 }
             }
             setSettings(currentSettings);
@@ -138,7 +145,7 @@ export default function RequestSettingsPage() {
                         <CardTitle>Configuración General de Compras</CardTitle>
                         <CardDescription>Ajustes generales para el módulo de solicitudes de compra.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-6">
                          <div className="flex items-center space-x-2">
                             <Switch
                                 id="use-warehouse"
@@ -150,7 +157,7 @@ export default function RequestSettingsPage() {
                         <p className="text-sm text-muted-foreground mt-2">
                             Si se activa, las solicitudes recibidas necesitarán un paso adicional para ser archivadas.
                         </p>
-                        <Separator className="my-6" />
+                        <Separator />
                         <div className="space-y-2">
                             <Label htmlFor="pdf-top-legend">Leyenda Superior del PDF (Opcional)</Label>
                             <Input
@@ -162,6 +169,42 @@ export default function RequestSettingsPage() {
                             <p className="text-sm text-muted-foreground pt-1">
                                 Este texto aparecerá en la parte superior de los reportes PDF.
                             </p>
+                        </div>
+                         <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label>Tamaño del Papel</Label>
+                                <RadioGroup
+                                    value={settings.pdfPaperSize}
+                                    onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfPaperSize: value as 'letter' | 'legal' } : null)}
+                                    className="flex items-center gap-4"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="letter" id="r-letter" />
+                                        <Label htmlFor="r-letter">Carta</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="legal" id="r-legal" />
+                                        <Label htmlFor="r-legal">Oficio (Legal)</Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Orientación</Label>
+                                <RadioGroup
+                                    value={settings.pdfOrientation}
+                                    onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfOrientation: value as 'portrait' | 'landscape' } : null)}
+                                    className="flex items-center gap-4"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="portrait" id="r-portrait" />
+                                        <Label htmlFor="r-portrait">Vertical</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="landscape" id="r-landscape" />
+                                        <Label htmlFor="r-landscape">Horizontal</Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -234,3 +277,4 @@ export default function RequestSettingsPage() {
         </main>
     );
 }
+

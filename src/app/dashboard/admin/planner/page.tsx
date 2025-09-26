@@ -65,6 +65,9 @@ export default function PlannerSettingsPage() {
             if (!currentSettings.pdfPaperSize) {
                 currentSettings.pdfPaperSize = 'letter';
             }
+             if (!currentSettings.pdfOrientation) {
+                currentSettings.pdfOrientation = 'portrait';
+            }
             if (!currentSettings.pdfExportColumns || currentSettings.pdfExportColumns.length === 0) {
                 currentSettings.pdfExportColumns = availableColumns.map(c => c.id);
             }
@@ -319,22 +322,41 @@ export default function PlannerSettingsPage() {
                                             placeholder="Ej: Documento Controlado - Versión 1.0"
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Tamaño del Papel</Label>
-                                        <RadioGroup
-                                            value={settings.pdfPaperSize}
-                                            onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfPaperSize: value as 'letter' | 'legal' } : null)}
-                                            className="flex items-center gap-4"
-                                        >
-                                            <div className="flex items-center space-x-2">
-                                                <RadioGroupItem value="letter" id="r-letter" />
-                                                <Label htmlFor="r-letter">Carta</Label>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <RadioGroupItem value="legal" id="r-legal" />
-                                                <Label htmlFor="r-legal">Oficio (Legal)</Label>
-                                            </div>
-                                        </RadioGroup>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <Label>Tamaño del Papel</Label>
+                                            <RadioGroup
+                                                value={settings.pdfPaperSize}
+                                                onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfPaperSize: value as 'letter' | 'legal' } : null)}
+                                                className="flex items-center gap-4"
+                                            >
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="letter" id="r-letter" />
+                                                    <Label htmlFor="r-letter">Carta</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="legal" id="r-legal" />
+                                                    <Label htmlFor="r-legal">Oficio (Legal)</Label>
+                                                </div>
+                                            </RadioGroup>
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label>Orientación</Label>
+                                            <RadioGroup
+                                                value={settings.pdfOrientation}
+                                                onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfOrientation: value as 'portrait' | 'landscape' } : null)}
+                                                className="flex items-center gap-4"
+                                            >
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="portrait" id="r-portrait" />
+                                                    <Label htmlFor="r-portrait">Vertical</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="landscape" id="r-landscape" />
+                                                    <Label htmlFor="r-landscape">Horizontal</Label>
+                                                </div>
+                                            </RadioGroup>
+                                        </div>
                                     </div>
                                     <div className="space-y-4">
                                         <Label>Columnas a Incluir en el Reporte</Label>
@@ -366,3 +388,4 @@ export default function PlannerSettingsPage() {
         </main>
     );
 }
+
