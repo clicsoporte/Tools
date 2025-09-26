@@ -44,7 +44,7 @@ const baseStatusConfig: { [key: string]: { label: string, color: string } } = {
     'in-queue': { label: "En Cola", color: "bg-cyan-500"},
     'in-progress': { label: "En Progreso", color: "bg-blue-500" },
     'on-hold': { label: "En Espera", color: "bg-gray-500" },
-    'in-maintenance': { label: "En Mantenimiento", color: "bg-gray-600" },
+    'in-maintenance': { label: "En Mantenimiento", color: "bg-slate-600" },
     completed: { label: "Completada", color: "bg-teal-500" },
     'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
     canceled: { label: "Cancelada", color: "bg-red-700" },
@@ -147,7 +147,7 @@ export const usePlanner = () => {
 
         } catch (error) {
              if (isMounted) {
-                logError("Failed to load planner data", { error });
+                logError("Failed to load planner data", { error: (error as Error).message });
                 toast({ title: "Error", description: "No se pudieron cargar los datos del planificador.", variant: "destructive" });
                 updateState({ isLoading: false });
             }
@@ -165,11 +165,14 @@ export const usePlanner = () => {
     
     useEffect(() => {
         if (!isAuthorized || state.isLoading) return;
-
+        let isMounted = true;
         const reload = async () => {
             await loadInitialData(state.archivedPage);
         };
-        reload();
+        if(isMounted) {
+            reload();
+        }
+        return () => { isMounted = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthorized]);
     
@@ -572,7 +575,7 @@ export const usePlanner = () => {
                 { title: 'Última actualización:', content: `${order.lastStatusUpdateBy || 'N/A'} - ${order.lastStatusUpdateNotes || ''}` }
             ];
 
-            const docToSave = generateDocument({
+            const doc = generateDocument({
                 docTitle: 'Orden de Producción',
                 docId: order.consecutive,
                 companyData: authCompanyData,

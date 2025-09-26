@@ -136,7 +136,7 @@ export const useRequests = () => {
 
         } catch (error) {
              if (isMounted) {
-                logError("Failed to load purchase requests data", { error });
+                logError("Failed to load purchase requests data", { error: (error as Error).message });
                 toast({ title: "Error", description: "No se pudieron cargar las solicitudes de compra.", variant: "destructive" });
             }
         } finally {
@@ -153,7 +153,20 @@ export const useRequests = () => {
             loadInitialData(archivedPage);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthorized, archivedPage, pageSize, viewingArchived]);
+    }, [setTitle, isAuthorized]);
+
+     useEffect(() => {
+        if (!isAuthorized || isLoading) return;
+        let isMounted = true;
+        const reload = async () => {
+            await loadInitialData(archivedPage);
+        };
+        if(isMounted) {
+            reload();
+        }
+        return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [archivedPage, pageSize, viewingArchived, isAuthorized]);
 
     useEffect(() => {
         setCompanyData(authCompanyData);
@@ -260,19 +273,18 @@ export const useRequests = () => {
         }
     };
     
-    const handleStatusUpdate = async (statusOverride?: PurchaseRequestStatus) => {
-        const finalStatus = statusOverride || newStatus;
-        if (!requestToUpdate || !finalStatus || !currentUser) return;
+    const handleStatusUpdate = async () => {
+        if (!requestToUpdate || !newStatus || !currentUser) return;
         setIsSubmitting(true);
         try {
             await updatePurchaseRequestStatus({ 
                 requestId: requestToUpdate.id, 
-                status: finalStatus, 
+                status: newStatus, 
                 notes: statusUpdateNotes, 
                 updatedBy: currentUser.name, 
                 reopen: false, 
-                deliveredQuantity: finalStatus === 'received' ? Number(deliveredQuantity) : undefined,
-                arrivalDate: finalStatus === 'ordered' ? arrivalDate : undefined
+                deliveredQuantity: newStatus === 'received' ? Number(deliveredQuantity) : undefined,
+                arrivalDate: newStatus === 'ordered' ? arrivalDate : undefined
             });
             toast({ title: "Estado Actualizado" });
             setStatusDialogOpen(false);

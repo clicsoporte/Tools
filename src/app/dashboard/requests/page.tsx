@@ -80,7 +80,7 @@ export default function PurchaseRequestPage() {
                 <CardHeader className="p-4">
                     <div className="flex justify-between items-start gap-2">
                         <div>
-                            <CardTitle className="text-lg">{`${request.consecutive} - [${request.itemId}] ${request.itemDescription}`}</CardTitle>
+                            <CardTitle className="text-lg">{request.consecutive} - [{request.itemId}] {request.itemDescription}</CardTitle>
                             <CardDescription>Cliente: {request.clientName}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">

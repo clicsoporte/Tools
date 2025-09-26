@@ -46,7 +46,7 @@ export default function PlannerPage() {
             <main className="flex-1 p-4 md:p-6">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold">Órdenes de Producción</h1>
-                    <Button disabled><Loader2 className="mr-2 animate-spin" /> Cargando...</Button>
+                    <Skeleton className="h-10 w-32" />
                 </div>
                 <Card>
                     <CardContent className="p-4 space-y-4">
@@ -95,7 +95,7 @@ export default function PlannerPage() {
                 <CardHeader className="p-4">
                     <div className="flex justify-between items-start gap-2">
                         <div>
-                            <CardTitle className="text-lg">{`${order.consecutive} - [${order.productId}] ${order.productDescription}`}</CardTitle>
+                            <CardTitle className="text-lg">{order.consecutive} - [{order.productId}] {order.productDescription}</CardTitle>
                             <CardDescription>Cliente: {order.customerName}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
@@ -495,7 +495,7 @@ export default function PlannerPage() {
                     </div>
                      <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                        <Button onClick={() => actions.handleStatusUpdate(state.newStatus)} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button>
+                        <Button onClick={() => actions.handleStatusUpdate(state.newStatus || undefined)} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
