@@ -129,7 +129,7 @@ export default function LogViewerPage() {
           <CardContent className="space-y-4">
              <div className="flex flex-col gap-4">
                 <Tabs value={logTypeFilter} onValueChange={(value) => setLogTypeFilter(value as LogTypeFilter)}>
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="flex flex-wrap md:grid md:grid-cols-3 w-full">
                         <TabsTrigger value="operational">Operativo</TabsTrigger>
                         <TabsTrigger value="system">Sistema</TabsTrigger>
                         <TabsTrigger value="all">Todos</TabsTrigger>
