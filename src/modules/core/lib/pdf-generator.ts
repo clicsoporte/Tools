@@ -6,7 +6,7 @@
 'use client';
 
 import jsPDF from "jspdf";
-import autoTable, { type RowInput, type UserOptions, type CellInput } from "jspdf-autotable";
+import autoTable, { type RowInput } from "jspdf-autotable";
 import { format, parseISO } from 'date-fns';
 import type { Company } from '../types';
 
@@ -42,32 +42,41 @@ const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFontSize(8);
-    doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
+    doc.text(`Página ${pageNumber} de ${totalPages}`, pageWidth - 40, pageHeight - 30, { align: 'right' });
 };
 
 export const generateDocument = (data: DocumentData): jsPDF => {
     const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: 'p', unit: 'pt', format: data.paperSize || 'letter' });
-    const margin = 40; // Increased margin
+    const margin = 40;
     const pageWidth = doc.internal.pageSize.getWidth();
     let finalY = 0;
 
     const addHeader = () => {
-        const topMargin = 50; // Increased top margin
+        const topMargin = 50;
         const rightColX = pageWidth - margin;
+        
         let companyX = margin;
         let companyY = topMargin;
+        let logoHeight = 0;
 
         if (data.logoDataUrl) {
             try {
                 const imgProps = doc.getImageProperties(data.logoDataUrl);
-                const imgHeight = 50; // Increased logo height
-                const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
-                doc.addImage(data.logoDataUrl, 'PNG', margin, topMargin, imgWidth, imgHeight);
+                const imgMaxHeight = 30; // Increased logo height
+                const imgAspectRatio = imgProps.width / imgProps.height;
+                logoHeight = imgMaxHeight;
+                const imgWidth = logoHeight * imgAspectRatio;
+                
+                doc.addImage(data.logoDataUrl, 'PNG', margin, topMargin, imgWidth, logoHeight);
                 companyX += imgWidth + 15;
             } catch (e) {
                 console.error("Error adding logo image to PDF:", e);
             }
         }
+        
+        const companyDataBlockHeight = 11 + 10 + 10;
+        const verticalCenterOffset = logoHeight > 0 ? (logoHeight - companyDataBlockHeight) / 2 : 0;
+        companyY += verticalCenterOffset > 0 ? verticalCenterOffset : 0;
         
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(11);
@@ -117,11 +126,14 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     };
 
     const didDrawPage = (hookData: any) => {
-        addHeader();
-        // The footer is now called only once at the end.
+        if (hookData.pageNumber > 1) {
+            addHeader();
+        }
     };
     
-    const clientBlockY = 150; // Adjusted starting Y
+    addHeader();
+    
+    const clientBlockY = 150;
     autoTable(doc, {
         startY: clientBlockY,
         body: data.blocks.map(b => ([
@@ -200,10 +212,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         rightY += isLast ? 18 : 14;
     });
 
-    // Draw footer on all pages correctly
-    for (let i = 1; i <= totalPages; i++) {
+    for (let i = 1; i <= (doc.internal as any).getNumberOfPages(); i++) {
         doc.setPage(i);
-        addFooter(doc, i, totalPages);
+        addFooter(doc, i, (doc.internal as any).getNumberOfPages());
     }
 
     return doc;
