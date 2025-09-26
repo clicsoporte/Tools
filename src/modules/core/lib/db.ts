@@ -318,6 +318,20 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
             db.exec(`CREATE TABLE exchange_rates (date TEXT PRIMARY KEY, rate REAL NOT NULL);`);
         }
 
+        const suggestionsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='suggestions'`).get();
+        if (!suggestionsTable) {
+            console.log("MIGRATION: Creating suggestions table.");
+            db.exec(`
+                CREATE TABLE suggestions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    content TEXT NOT NULL,
+                    userId INTEGER,
+                    userName TEXT,
+                    isRead INTEGER DEFAULT 0,
+                    timestamp TEXT NOT NULL
+                );
+            `);
+        }
 
     } catch (error) {
         console.error("Failed to apply migrations:", error);
@@ -424,6 +438,15 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
         CREATE TABLE exchange_rates (
             date TEXT PRIMARY KEY,
             rate REAL NOT NULL
+        );
+
+        CREATE TABLE suggestions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            content TEXT NOT NULL,
+            userId INTEGER,
+            userName TEXT,
+            isRead INTEGER DEFAULT 0,
+            timestamp TEXT NOT NULL
         );
     `;
 
@@ -1524,4 +1547,26 @@ export async function factoryReset(moduleId: string): Promise<void> {
             logWarn(`Attempted to reset module ${module.id}, but database file ${dbFile} did not exist.`);
         }
     }
+}
+
+// --- Suggestions Feature Functions ---
+export async function getSuggestions(): Promise<any[]> {
+    const db = await connectDb();
+    return db.prepare('SELECT * FROM suggestions ORDER BY timestamp DESC').all();
+}
+
+export async function markSuggestionAsRead(id: number): Promise<void> {
+    const db = await connectDb();
+    db.prepare('UPDATE suggestions SET isRead = 1 WHERE id = ?').run(id);
+}
+
+export async function deleteSuggestion(id: number): Promise<void> {
+    const db = await connectDb();
+    db.prepare('DELETE FROM suggestions WHERE id = ?').run(id);
+}
+
+export async function getUnreadSuggestionsCount(): Promise<number> {
+    const db = await connectDb();
+    const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
+    return result.count;
 }

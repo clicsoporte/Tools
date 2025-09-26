@@ -8,7 +8,7 @@
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw } from "../types";
 import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
-import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAndCacheExchangeRate, getAllExemptions, getExemptionLaws } from '../lib/db';
+import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAndCacheExchangeRate, getAllExemptions, getExemptionLaws, getUnreadSuggestionsCount } from '../lib/db';
 import { usePathname, useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
@@ -25,6 +25,7 @@ interface AuthContextType {
   stockLevels: StockInfo[];
   allExemptions: Exemption[];
   exemptionLaws: ExemptionLaw[];
+  unreadSuggestionsCount: number;
   exchangeRateData: { rate: number | null, date: string | null };
   isLoading: boolean;
   refreshAuth: () => Promise<{ isAuthenticated: boolean; } | void>;
@@ -51,6 +52,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
   const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
+  const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
   const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null, date: string | null }>({ rate: null, date: null });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -67,11 +69,11 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     try {
       const [
         currentUser, allRoles, companySettings, dbCustomers, dbProducts, 
-        dbStock, rateData, dbExemptions, dbLaws
+        dbStock, rateData, dbExemptions, dbLaws, unreadCount
       ] = await Promise.all([
         getCurrentUserClient(), getAllRoles(), getCompanySettings(),
         getAllCustomers(), getAllProducts(), getAllStock(), getAndCacheExchangeRate(),
-        getAllExemptions(), getExemptionLaws()
+        getAllExemptions(), getExemptionLaws(), getUnreadSuggestionsCount()
       ]);
 
       setUser(currentUser);
@@ -81,6 +83,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setStockLevels(dbStock);
       setAllExemptions(dbExemptions);
       setExemptionLaws(dbLaws);
+      setUnreadSuggestionsCount(unreadCount);
       setExchangeRateData(rateData || { rate: null, date: null });
 
       if (currentUser && allRoles.length > 0) {
@@ -127,6 +130,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     stockLevels,
     allExemptions,
     exemptionLaws,
+    unreadSuggestionsCount,
     exchangeRateData,
     isLoading,
     refreshAuth: () => loadAuthData(false),
