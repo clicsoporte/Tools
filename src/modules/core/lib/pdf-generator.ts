@@ -6,12 +6,13 @@
 'use client';
 
 import jsPDF from "jspdf";
-import autoTable, { type RowInput, type UserOptions } from "jspdf-autotable";
+import autoTable, { type RowInput, type UserOptions, type CellInput } from "jspdf-autotable";
 import { format, parseISO } from 'date-fns';
 import type { Company } from '../types';
 
 interface DocumentData {
     docTitle: string;
+    docId: string;
     meta: { label: string; value: string }[];
     companyData: Company;
     logoDataUrl?: string | null;
@@ -33,6 +34,8 @@ interface DocumentData {
     notes?: string;
     paymentInfo?: string;
     totals: { label: string; value: string }[];
+    paperSize?: 'letter' | 'legal';
+    topLegend?: string;
 }
 
 const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
@@ -43,25 +46,28 @@ const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
 };
 
 export const generateDocument = (data: DocumentData): jsPDF => {
-    const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: 'p', unit: 'pt', format: 'letter' });
+    const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: 'p', unit: 'pt', format: data.paperSize || 'letter' });
     const margin = 39.68;
     const pageWidth = doc.internal.pageSize.getWidth();
     let finalY = 0;
 
     const addHeader = () => {
+        const topMargin = 40; // Increased top margin
+        const rightColX = pageWidth - margin;
+
         if (data.logoDataUrl) {
             try {
                 const imgProps = doc.getImageProperties(data.logoDataUrl);
                 const imgHeight = 25; 
                 const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
-                doc.addImage(data.logoDataUrl, 'PNG', margin, 15, imgWidth, imgHeight);
+                doc.addImage(data.logoDataUrl, 'PNG', margin, topMargin, imgWidth, imgHeight);
             } catch (e) {
                 console.error("Error adding logo image to PDF:", e);
             }
         }
-
-        const companyX = margin + 60;
-        let companyY = 20;
+        
+        let companyX = margin + 60; // Position next to logo
+        let companyY = topMargin + 5;
         doc.setFont('Helvetica', 'bold');
         doc.setFontSize(11);
         doc.text(data.companyData.name, companyX, companyY);
@@ -74,8 +80,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         companyY += 10;
         doc.text(`Email: ${data.companyData.email}`, companyX, companyY);
 
-        const rightColX = pageWidth - margin;
-        let rightY = 20;
+        
+        let rightY = topMargin + 5;
         doc.setFontSize(18);
         doc.setFont('Helvetica', 'bold');
         doc.text(data.docTitle, rightColX, rightY, { align: 'right' });
@@ -87,7 +93,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             doc.text(`${item.label} ${item.value}`, rightColX, rightY, { align: 'right' });
             rightY += 12;
         });
-
+        
         rightY += 5;
 
         if (data.sellerInfo) {
@@ -100,16 +106,21 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             if (data.sellerInfo.whatsapp) { rightY += 10; doc.text(`WhatsApp: ${data.sellerInfo.whatsapp}`, rightColX, rightY, { align: 'right' }); }
             if (data.sellerInfo.email) { rightY += 10; doc.text(data.sellerInfo.email, rightColX, rightY, { align: 'right' }); }
         }
+
+        if (data.topLegend) {
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(data.topLegend, pageWidth / 2, topMargin - 15, { align: 'center' });
+            doc.setTextColor(0);
+        }
     };
 
     const didDrawPage = (hookData: any) => {
         addHeader();
         addFooter(doc, hookData.pageNumber, (doc.internal as any).getNumberOfPages());
     };
-
-    didDrawPage({ pageNumber: 1 });
-
-    const clientBlockY = 110;
+    
+    const clientBlockY = 130;
     autoTable(doc, {
         startY: clientBlockY,
         body: data.blocks.map(b => ([
@@ -139,20 +150,28 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     finalY = (doc as any).lastAutoTable.finalY;
     
     const pageHeight = doc.internal.pageSize.getHeight();
-    if (finalY > pageHeight - 140) { // Check if there's enough space for footer content
+    let currentPage = doc.internal.pages.length;
+    let newPageAdded = false;
+
+    if (finalY > pageHeight - 140) {
         doc.addPage();
+        currentPage++;
         finalY = 40;
+        newPageAdded = true;
     } else {
         finalY += 20;
     }
     
-    const totalPages = (doc.internal as any).getNumberOfPages();
-    doc.setPage(totalPages);
-
+    if (newPageAdded) {
+      addHeader();
+      addFooter(doc, currentPage, currentPage);
+    }
+    
+    doc.setPage(currentPage);
+    
     let leftY = finalY;
     let rightY = finalY;
 
-    // Draw Notes and Payment Info on the left side
     doc.setFontSize(9);
     if (data.paymentInfo) {
         doc.setFont('Helvetica', 'bold');
@@ -167,11 +186,10 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.text('Notas:', margin, leftY);
         leftY += 12;
         doc.setFont('Helvetica', 'normal');
-        const splitNotes = doc.splitTextToSize(data.notes, (pageWidth / 2) - margin);
+        const splitNotes = doc.splitTextToSize(data.notes, (pageWidth / 2) - margin * 2);
         doc.text(splitNotes, margin, leftY);
     }
     
-    // Draw Totals on the right side
     const totalsX = pageWidth - margin;
     doc.setFontSize(10);
     data.totals.forEach((total, index) => {
@@ -180,13 +198,11 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFont('Helvetica', isLast ? 'bold' : 'normal');
         doc.setFontSize(isLast ? 12 : 10);
         
-        doc.text(total.label, totalsX - 90, rightY, { align: 'right' });
+        doc.text(total.label, totalsX - 100, rightY, { align: 'right' });
         doc.text(total.value, totalsX, rightY, { align: 'right' });
         
         rightY += isLast ? 18 : 14;
     });
-
-    addFooter(doc, totalPages, totalPages);
 
     return doc;
 };

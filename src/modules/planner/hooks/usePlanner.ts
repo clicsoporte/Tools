@@ -156,7 +156,6 @@ export const usePlanner = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setTitle, isAuthorized]);
     
-    // Effect to reload data when pagination or archive view changes
     useEffect(() => {
         if (!isAuthorized || state.isLoading) return;
 
@@ -485,6 +484,7 @@ export const usePlanner = () => {
                 },
                 totals: [],
                 notes: state.plannerSettings.pdfTopLegend,
+                paperSize: state.plannerSettings.pdfPaperSize,
             });
         
             doc.save(`ordenes_produccion_${new Date().getTime()}.pdf`);
@@ -509,19 +509,20 @@ export const usePlanner = () => {
             const orderHistory = await getOrderHistory(order.id);
 
             const machineName = state.plannerSettings.machines.find(m => m.id === order.machineId)?.name || 'N/A';
-            const blocks = [
-                { title: 'Cliente:', value: order.customerName },
-                { title: 'Producto:', value: `[${order.productId}] ${order.productDescription}` },
-                { title: 'Cantidad:', value: order.quantity.toLocaleString('es-CR') },
-                { title: 'Fecha Solicitud:', value: format(parseISO(order.requestDate), 'dd/MM/yyyy') },
-                { title: 'Fecha Entrega:', value: format(parseISO(order.deliveryDate), 'dd/MM/yyyy') },
-                { title: 'Estado:', value: selectors.statusConfig[order.status]?.label || order.status },
-                { title: 'Prioridad:', value: selectors.priorityConfig[order.priority]?.label || order.priority },
-                { title: 'Asignación:', value: machineName },
-                { title: 'Notas:', value: order.notes || 'N/A' },
-                { title: 'Solicitado por:', value: order.requestedBy },
-                { title: 'Aprobado por:', value: order.approvedBy || 'N/A' },
-                { title: 'Última actualización:', value: `${order.lastStatusUpdateBy || 'N/A'} - ${order.lastStatusUpdateNotes || ''}` }
+            
+            const details = [
+                { title: 'Cliente:', content: order.customerName },
+                { title: 'Producto:', content: `[${order.productId}] ${order.productDescription}` },
+                { title: 'Cantidad:', content: order.quantity.toLocaleString('es-CR') },
+                { title: 'Fecha Solicitud:', content: format(parseISO(order.requestDate), 'dd/MM/yyyy') },
+                { title: 'Fecha Entrega:', content: format(parseISO(order.deliveryDate), 'dd/MM/yyyy') },
+                { title: 'Estado:', content: selectors.statusConfig[order.status]?.label || order.status },
+                { title: 'Prioridad:', content: selectors.priorityConfig[order.priority]?.label || order.priority },
+                { title: 'Asignación:', content: machineName },
+                { title: 'Notas:', content: order.notes || 'N/A' },
+                { title: 'Solicitado por:', content: order.requestedBy },
+                { title: 'Aprobado por:', content: order.approvedBy || 'N/A' },
+                { title: 'Última actualización:', content: `${order.lastStatusUpdateBy || 'N/A'} - ${order.lastStatusUpdateNotes || ''}` }
             ];
 
             const docToSave = generateDocument({
@@ -531,7 +532,7 @@ export const usePlanner = () => {
                 logoDataUrl,
                 meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
                 blocks: [
-                    { title: "Detalles de la Orden", content: detailsToBlockContent(blocks) },
+                    { title: "Detalles de la Orden", content: details.map(d => `${d.title} ${d.content}`).join('\n') },
                 ],
                 table: {
                     columns: ["Fecha", "Estado", "Usuario", "Notas"],
@@ -549,10 +550,6 @@ export const usePlanner = () => {
             docToSave.save(`op_${order.consecutive}.pdf`);
         }
     };
-
-    const detailsToBlockContent = (details: {title: string, value: string}[]) => {
-        return details.map(d => `${d.title} ${d.value}`).join('\n');
-    }
 
     const selectors = {
         hasPermission,

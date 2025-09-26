@@ -195,7 +195,7 @@ export const useRequests = () => {
         setNewStatus(status);
         setStatusUpdateNotes(".");
         setDeliveredQuantity(status === 'received' ? request.quantity : "");
-        setArrivalDate(''); // Reset arrival date when opening
+        setArrivalDate(''); 
         setStatusDialogOpen(true);
     };
     

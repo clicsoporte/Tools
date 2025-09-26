@@ -419,11 +419,13 @@ export const useQuoter = () => {
 
   const incrementAndSaveQuoteNumber = async () => {
     if (!companyData) return;
-    const newCompanyData = { ...companyData, nextQuoteNumber: (companyData.nextQuoteNumber || 0) + 1 };
+    const newNextNumber = (companyData.nextQuoteNumber || 0) + 1;
+    const newCompanyData = { ...companyData, nextQuoteNumber: newNextNumber };
     await saveCompanySettings(newCompanyData);
     setCompanyData(newCompanyData);
+    setQuoteNumber(`${newCompanyData.quotePrefix || "COT-"}${newNextNumber.toString().padStart(4, "0")}`);
   };
-
+  
   const handleSaveDecimalPlaces = async () => {
     if (!companyData) return;
     const newCompanyData = { ...companyData, decimalPlaces };
@@ -468,6 +470,7 @@ export const useQuoter = () => {
     
     const doc = generateDocument({
         docTitle: "COTIZACIÓN",
+        docId: quoteNumber,
         meta: [
             { label: 'Nº:', value: quoteNumber },
             { label: 'Fecha:', value: format(parseISO(quoteDate), "dd/MM/yyyy") },
