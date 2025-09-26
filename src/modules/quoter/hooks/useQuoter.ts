@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -24,6 +25,7 @@ import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
 import { getExemptionStatus } from "@/modules/hacienda/lib/actions";
+import type { RowInput } from "jspdf-autotable";
 
 /**
  * Defines the initial state for a new quote.
@@ -456,15 +458,15 @@ export const useQuoter = () => {
             console.error("Error fetching and processing logo:", e);
         }
     }
-    
-    const tableRows = lines.map(line => [
+
+    const tableRows: RowInput[] = lines.map(line => [
         line.product.id,
         line.product.description,
-        { content: `${line.quantity.toLocaleString('es-CR')}\n${line.product.unit}`, styles: { halign: 'center' } },
+        { content: `${line.quantity.toLocaleString('es-CR')}\n${line.product.unit}`, styles: { halign: 'center' } as any },
         line.product.cabys,
-        { content: formatCurrency(line.price), styles: { halign: 'right' } },
-        { content: `${(line.tax * 100).toFixed(0)}%`, styles: { halign: 'center' } },
-        { content: formatCurrency(line.quantity * line.price * (1 + line.tax)), styles: { halign: 'right' } },
+        { content: formatCurrency(line.price), styles: { halign: 'right' } as any },
+        { content: `${(line.tax * 100).toFixed(0)}%`, styles: { halign: 'center' } as any },
+        { content: formatCurrency(line.quantity * line.price * (1 + line.tax)), styles: { halign: 'right' } as any },
     ]);
     
     const doc = generateDocument({
@@ -488,16 +490,24 @@ export const useQuoter = () => {
             { title: 'Entrega', content: `Dirección: ${deliveryAddress}\nFecha Entrega: ${deliveryDate ? format(parseISO(deliveryDate), "dd/MM/yyyy HH:mm") : 'N/A'}` }
         ],
         table: {
-            columns: ["Código", "Descripción", { content: "Cant.\nUnd.", styles: { halign: 'center' } }, "Cabys", "Precio", { content: "Imp.\n%", styles: { halign: 'center' } }, "Total"],
+            columns: [
+                "Código", 
+                "Descripción", 
+                { content: "Cant.\nUnd.", styles: { halign: 'center' } }, 
+                "Cabys", 
+                "Precio", 
+                { content: "Imp.\n%", styles: { halign: 'center' } }, 
+                "Total"
+            ],
             rows: tableRows,
             columnStyles: {
                 0: { cellWidth: 40 },
                 1: { cellWidth: 'auto' },
-                2: { cellWidth: 35, halign: 'center' },
+                2: { cellWidth: 35 },
                 3: { cellWidth: 70 },
-                4: { cellWidth: 60, halign: 'right' },
-                5: { cellWidth: 25, halign: 'center' },
-                6: { cellWidth: 70, halign: 'right' },
+                4: { cellWidth: 60 },
+                5: { cellWidth: 25 },
+                6: { cellWidth: 70 },
             }
         },
         notes: notes,
