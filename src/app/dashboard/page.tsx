@@ -19,7 +19,6 @@ import { importAllDataFromFiles } from "@/modules/core/lib/db";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { format, parseISO } from 'date-fns';
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {

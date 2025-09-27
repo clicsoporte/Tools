@@ -3,12 +3,12 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
-import { getSuggestions, markSuggestionAsRead, deleteSuggestion as deleteSuggestionAction } from '@/modules/core/lib/db';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { getSuggestions, markSuggestionAsRead, deleteSuggestion as deleteSuggestionAction } from '@/modules/core/lib/suggestions-actions';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,7 +30,7 @@ export default function SuggestionsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [suggestionToDelete, setSuggestionToDelete] = useState<Suggestion | null>(null);
 
-    const fetchSuggestions = async () => {
+    const fetchSuggestions = useCallback(async () => {
         setIsLoading(true);
         try {
             const data = await getSuggestions();
@@ -41,7 +41,7 @@ export default function SuggestionsPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [toast, refreshAuth]);
 
     useEffect(() => {
         setTitle("Buzón de Sugerencias");
@@ -49,7 +49,7 @@ export default function SuggestionsPage() {
             fetchSuggestions();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAuthorized, setTitle]);
+    }, [isAuthorized]);
 
     const handleMarkAsRead = async (id: number) => {
         await markSuggestionAsRead(id);
@@ -65,7 +65,7 @@ export default function SuggestionsPage() {
         setSuggestionToDelete(null);
     };
 
-    if (isLoading) {
+    if (isLoading || !isAuthorized) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card>

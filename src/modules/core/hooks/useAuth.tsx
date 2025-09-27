@@ -112,14 +112,13 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, [loadAuthData, router]);
 
   useEffect(() => {
-    if (isLoading) {
-        loadAuthData(true).then(({ isAuthenticated }) => {
-            if (isAuthenticated === false && pathname.startsWith('/dashboard')) {
-                router.replace('/');
-            }
-        });
-    }
-  }, [pathname, router, loadAuthData, isLoading]);
+    loadAuthData(true).then(({ isAuthenticated }) => {
+        if (isAuthenticated === false && pathname.startsWith('/dashboard')) {
+            router.replace('/');
+        }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const contextValue: AuthContextType = {
     user,
@@ -142,7 +141,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   if (isLoading && isDashboardRoute) {
     return (
-        <div className="flex min-h-screen bg-muted/40">
+        <div className="flex h-screen bg-muted/40">
             <div className="hidden md:flex flex-col w-64 border-r p-4 gap-4">
                  <div className="flex items-center gap-2 mb-4">
                     <Skeleton className="h-10 w-10 rounded-lg"/>

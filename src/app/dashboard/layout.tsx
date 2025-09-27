@@ -16,7 +16,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Header title={title} />
-      {children}
+      <div className="flex-1 overflow-auto">{children}</div>
     </>
   );
 }
@@ -37,9 +37,9 @@ export default function DashboardLayout({
   return (
       <PageTitleProvider initialTitle="Panel">
         <SidebarProvider>
-          <div className="flex min-h-screen bg-muted/40">
+          <div className="flex h-screen bg-muted/40">
             <AppSidebar />
-            <SidebarInset className="flex-1 flex flex-col">
+            <SidebarInset className="flex flex-1 flex-col overflow-hidden">
                 <DashboardContent>{children}</DashboardContent>
             </SidebarInset>
           </div>

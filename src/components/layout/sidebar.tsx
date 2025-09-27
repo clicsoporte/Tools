@@ -72,24 +72,20 @@ export function AppSidebar() {
 
   if (isLoading) {
     return (
-        <div className="flex h-screen">
-            <div className="w-64 bg-muted/40 p-4 flex flex-col justify-between">
-                <div>
-                    <div className="flex items-center gap-2 mb-8">
-                        <Skeleton className="h-10 w-10 rounded-full"/>
-                        <Skeleton className="h-6 w-32"/>
-                    </div>
-                    <div className="space-y-2">
-                        <Skeleton className="h-10 w-full" />
-                         <Skeleton className="h-10 w-full" />
-                    </div>
-                </div>
-                <div>
-                    <Skeleton className="h-10 w-full mb-2" />
-                     <Skeleton className="h-10 w-full" />
-                </div>
+        <div className="hidden md:flex flex-col w-64 border-r p-4 gap-4 bg-sidebar text-sidebar-foreground">
+            <div className="flex items-center gap-2 mb-4">
+                <Skeleton className="h-10 w-10 rounded-lg"/>
+                <Skeleton className="h-6 w-32"/>
             </div>
-            <main className="flex-1 p-6"></main>
+            <div className="space-y-2 flex-1">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="mt-auto space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-12 w-full" />
+            </div>
         </div>
     )
   }
@@ -220,35 +216,11 @@ export function AppSidebar() {
                     <SidebarMenuButton
                         asChild
                         isActive={isActive("/dashboard/admin")}
-                        tooltip="Configuración"
+                        tooltip={{ children: "Configuración", badgeCount: unreadSuggestionsCount }}
                     >
                         <Link href="/dashboard/admin" onClick={handleLinkClick} className="relative">
-                           {unreadSuggestionsCount > 0 && (
-                             <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold">
-                                {unreadSuggestionsCount}
-                             </div>
-                           )}
                            <Wrench />
                            <span>Configuración</span>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            )}
-             {hasAdminAccess && (
-                 <SidebarMenuItem>
-                    <SidebarMenuButton
-                        asChild
-                        isActive={isActive("/dashboard/admin/suggestions")}
-                        tooltip="Sugerencias"
-                    >
-                        <Link href="/dashboard/admin/suggestions" onClick={handleLinkClick} className="relative">
-                           {unreadSuggestionsCount > 0 && (
-                             <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold">
-                                {unreadSuggestionsCount}
-                             </div>
-                           )}
-                           <MessageSquare />
-                           <span>Sugerencias</span>
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

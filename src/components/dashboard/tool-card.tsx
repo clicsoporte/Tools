@@ -27,7 +27,7 @@ export function ToolCard({ tool, badgeCount = 0 }: ToolCardProps) {
   return (
     <Link href={tool.href} className="block h-full">
       <Card className="group h-full transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl relative">
-        {badgeCount > 0 && (
+        {(badgeCount ?? 0) > 0 && (
           <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold z-10">
             {badgeCount}
           </div>

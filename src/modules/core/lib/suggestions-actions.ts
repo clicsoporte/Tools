@@ -4,7 +4,8 @@
  */
 "use server";
 
-import { connectDb } from './db';
+import { connectDb, getSuggestions as dbGetSuggestions, markSuggestionAsRead as dbMarkSuggestionAsRead, deleteSuggestion as dbDeleteSuggestion } from './db';
+import type { Suggestion } from '../types';
 
 /**
  * Inserts a new suggestion into the database.
@@ -16,4 +17,28 @@ export async function addSuggestion(content: string, userId: number, userName: s
     const db = await connectDb();
     db.prepare('INSERT INTO suggestions (content, userId, userName, isRead, timestamp) VALUES (?, ?, ?, 0, ?)')
       .run(content, userId, userName, new Date().toISOString());
+}
+
+/**
+ * Retrieves all suggestions from the database.
+ * @returns {Promise<Suggestion[]>} A promise that resolves to an array of suggestion entries.
+ */
+export async function getSuggestions(): Promise<Suggestion[]> {
+  return dbGetSuggestions();
+}
+
+/**
+ * Marks a suggestion as read.
+ * @param {number} id - The ID of the suggestion to mark as read.
+ */
+export async function markSuggestionAsRead(id: number): Promise<void> {
+  return dbMarkSuggestionAsRead(id);
+}
+
+/**
+ * Deletes a suggestion from the database.
+ * @param {number} id - The ID of the suggestion to delete.
+ */
+export async function deleteSuggestion(id: number): Promise<void> {
+  return dbDeleteSuggestion(id);
 }
