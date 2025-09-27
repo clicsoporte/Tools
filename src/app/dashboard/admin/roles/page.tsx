@@ -62,8 +62,8 @@ const permissionGroups = {
     "Planificador de Producción (Edición)": ["planner:edit:pending", "planner:edit:approved"],
     "Planificador de Producción (Acciones)": [
         "planner:reopen", "planner:receive", "planner:status:approve", "planner:status:in-progress", "planner:status:on-hold", 
-        "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved",
-        "planner:priority:update", "planner:machine:assign"
+        "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request",
+        "planner:priority:update", "planner:machine:assign", "planner:schedule"
     ],
     "Gestión de Almacenes": ["warehouse:access", "warehouse:inventory:assign", "warehouse:locations:manage"],
     "Consultas Hacienda": ["hacienda:query"],
@@ -108,6 +108,8 @@ const permissionTranslations: { [key: string]: string } = {
     "planner:status:cancel-approved": "Plan.: Cancelar (Aprobadas)",
     "planner:priority:update": "Plan.: Cambiar Prioridad",
     "planner:machine:assign": "Plan.: Asignar Máquina",
+    "planner:status:unapprove-request": "Plan.: Solicitar Desaprobación",
+    "planner:schedule": "Plan.: Programar Fechas",
     "warehouse:access": "Almacén: Acceso General",
     "warehouse:inventory:assign": "Almacén: Asignar Inventario",
     "warehouse:locations:manage": "Almacén: Gestionar Ubicaciones",
