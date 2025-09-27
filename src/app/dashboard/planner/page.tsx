@@ -100,7 +100,7 @@ export default function PlannerPage() {
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {!!order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
-                            {order.hasBeenModified && <Badge variant="destructive" className="animate-pulse"><AlertTriangle className="mr-1 h-3 w-3" /> Modificado</Badge>}
+                            {!!order.hasBeenModified && <Badge variant="destructive" className="animate-pulse"><AlertTriangle className="mr-1 h-3 w-3" /> Modificado</Badge>}
                              <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
