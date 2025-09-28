@@ -315,41 +315,52 @@ export default function HelpPage() {
                 </AccordionContent>
                 </AccordionItem>
                 
-                <AccordionItem value="item-admin">
-                <AccordionTrigger className="text-lg font-semibold">
-                    <Wrench className="mr-4 h-6 w-6 text-slate-600" />
-                    Guía Técnica: Panel de Administración
-                </AccordionTrigger>
-                <AccordionContent className="prose max-w-none text-base space-y-4">
-                    <p>
-                    Esta es la sala de máquinas del sistema, accesible solo para administradores. Aquí se configura todo.
-                    </p>
-                    <div className="space-y-4">
-                        <div className="flex items-start gap-4">
-                            <Users className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
-                            <div><h4 className="font-semibold">Gestión de Usuarios y Roles</h4><p>Crear, editar o eliminar usuarios y definir qué puede hacer cada uno usando roles y permisos detallados. Puedes crear roles personalizados (ej: "Comprador") y asignarle solo los permisos que necesita.</p></div>
-                        </div>
-                        <div className="flex items-start gap-4">
-                            <Building className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
-                            <div><h4 className="font-semibold">Configuración General y de Módulos</h4><p>Establecer los datos de tu empresa (nombre, logo, prefijos) y ajustar el comportamiento de cada módulo (Cotizador, Planificador, Compras, etc.) desde sus propias tarjetas de configuración.</p></div>
-                        </div>
-                        <div className="flex items-start gap-4">
-                            <FileUp className="mt-1 h-6 w-6 text-cyan-500 shrink-0" />
-                            <div>
-                                <h4 className="font-semibold">Importar Datos</h4>
-                                <p>Este es el centro de control para sincronizar los datos de tu ERP con la aplicación. Tienes dos modos:</p>
-                                <ul className="list-inside list-[circle] pl-5 mt-2 text-sm">
-                                    <li><strong>Desde Archivos:</strong> Configura las rutas completas a los archivos `.txt` o `.csv` en el servidor y procesa cada uno manualmente.</li>
-                                    <li><strong>Desde SQL Server:</strong> Conecta la aplicación directamente a la base de datos de tu ERP para una sincronización robusta con un solo clic.</li>
-                                </ul>
+                 <AccordionItem value="item-admin">
+                    <AccordionTrigger className="text-lg font-semibold">
+                        <Wrench className="mr-4 h-6 w-6 text-slate-600" />
+                        Guía Técnica: Panel de Administración
+                    </AccordionTrigger>
+                    <AccordionContent className="prose max-w-none text-base space-y-4">
+                        <p>
+                        Esta es la sala de máquinas del sistema, accesible solo para administradores. Aquí se configura todo el comportamiento de la aplicación.
+                        </p>
+                        <div className="space-y-4">
+                            <div className="flex items-start gap-4">
+                                <Users className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
+                                <div><h4 className="font-semibold">Gestión de Usuarios y Roles</h4><p>Crea, edita o elimina cuentas de usuario. Usa los roles para definir qué puede hacer cada usuario. Puedes crear roles personalizados (ej: "Supervisor de Producción") y asignar permisos granulares, como "Aprobar Órdenes" pero no "Crear Usuarios".</p></div>
+                            </div>
+                             <div className="flex items-start gap-4">
+                                <Building className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
+                                <div><h4 className="font-semibold">Configuración General y de Módulos</h4><p>Define la identidad de tu empresa (nombre, logo, cédula jurídica) que aparecerá en los documentos. Aquí también ajustas el comportamiento de cada módulo, por ejemplo:
+                                <br/>- <strong>Cotizador:</strong> Define el prefijo (ej. "COT-") y el número con el que iniciarán las nuevas cotizaciones.
+                                <br/>- <strong>Planificador:</strong> Crea las máquinas o procesos que se podrán asignar a las órdenes de producción.
+                                <br/>- <strong>Compras:</strong> Define las rutas de entrega o métodos de envío disponibles.</p></div>
+                            </div>
+                             <div className="flex items-start gap-4">
+                                <MessageSquare className="mt-1 h-6 w-6 text-green-600 shrink-0" />
+                                <div><h4 className="font-semibold">Buzón de Sugerencias</h4><p>Lee y gestiona el feedback enviado por los usuarios a través del botón "Sugerencias y Mejoras". Es el canal de comunicación directo para mejorar la aplicación.</p></div>
+                            </div>
+                            <div className="flex items-start gap-4">
+                                <FileUp className="mt-1 h-6 w-6 text-cyan-500 shrink-0" />
+                                <div>
+                                    <h4 className="font-semibold">Importar Datos</h4>
+                                    <p>Sincroniza los datos maestros (clientes, productos, etc.) desde tu ERP. Tienes dos modos: por <strong>Archivos</strong> (cargando .txt o .csv) o por <strong>SQL Server</strong> (conectando directamente a la base de datos de tu ERP para una actualización más robusta).</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-4">
+                                <DatabaseZap className="mt-1 h-6 w-6 text-red-500 shrink-0" />
+                                <div><h4 className="font-semibold">Mantenimiento</h4><p>Herramientas críticas para la salud del sistema. Puedes crear <strong>copias de seguridad (backups)</strong> de las bases de datos antes de una actualización, <strong>restaurarlas</strong> si algo sale mal, o <strong>resetear</strong> un módulo (o todo el sistema) a su estado de fábrica, borrando todos sus datos.</p></div>
+                            </div>
+                             <div className="flex items-start gap-4">
+                                <Network className="mt-1 h-6 w-6 text-indigo-500 shrink-0" />
+                                <div><h4 className="font-semibold">Configuración de API</h4><p>Define las URLs de los servicios externos que utiliza la aplicación, como las APIs de Hacienda para consultar el tipo de cambio, la situación tributaria y el estado de las exoneraciones.</p></div>
+                            </div>
+                             <div className="flex items-start gap-4">
+                                <FileTerminal className="mt-1 h-6 w-6 text-slate-500 shrink-0" />
+                                <div><h4 className="font-semibold">Visor de Eventos</h4><p>Un registro (log) de todo lo que sucede en el sistema. Es una herramienta invaluable para diagnosticar problemas, ya que muestra errores, advertencias e información general sobre las operaciones realizadas.</p></div>
                             </div>
                         </div>
-                        <div className="flex items-start gap-4">
-                            <DatabaseZap className="mt-1 h-6 w-6 text-red-500 shrink-0" />
-                            <div><h4 className="font-semibold">Mantenimiento</h4><p>Realiza copias de seguridad (backup) de la base de datos de cada módulo, restáuralas, o reinicia un módulo a su estado de fábrica si algo sale mal.</p></div>
-                        </div>
-                    </div>
-                </AccordionContent>
+                    </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-import">
@@ -429,4 +440,5 @@ export default function HelpPage() {
     </main>
   );
 }
+
 
