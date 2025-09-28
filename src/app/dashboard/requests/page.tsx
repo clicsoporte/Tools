@@ -85,7 +85,7 @@ export default function PurchaseRequestPage() {
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {!!request.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
-                            {request.hasBeenModified && <Badge variant="destructive" className="animate-pulse"><AlertTriangle className="mr-1 h-3 w-3" /> Modificado</Badge>}
+                            {!!request.hasBeenModified && <Badge variant="destructive" className="animate-pulse"><AlertTriangle className="mr-1 h-3 w-3" /> Modificado</Badge>}
                              <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(request)}><History className="h-4 w-4" /></Button>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
