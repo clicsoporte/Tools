@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { usePageTitle } from "../../../modules/core/hooks/usePageTitle";
 import {
   Card,
@@ -10,7 +10,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "../../../components/ui/card";
 import {
   Accordion,
@@ -18,8 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare } from "lucide-react";
-import type { Company } from "../../../modules/core/types";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Download } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -318,7 +316,7 @@ export default function HelpPage() {
                  <AccordionItem value="item-admin">
                     <AccordionTrigger className="text-lg font-semibold">
                         <Wrench className="mr-4 h-6 w-6 text-slate-600" />
-                        Guía Técnica: Panel de Administración
+                        Guía Técnica: Panel de Administración (Configuración)
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
                         <p>
@@ -349,7 +347,15 @@ export default function HelpPage() {
                             </div>
                             <div className="flex items-start gap-4">
                                 <DatabaseZap className="mt-1 h-6 w-6 text-red-500 shrink-0" />
-                                <div><h4 className="font-semibold">Mantenimiento</h4><p>Herramientas críticas para la salud del sistema. Puedes crear <strong>copias de seguridad (backups)</strong> de las bases de datos antes de una actualización, <strong>restaurarlas</strong> si algo sale mal, o <strong>resetear</strong> un módulo (o todo el sistema) a su estado de fábrica, borrando todos sus datos.</p></div>
+                                <div><h4 className="font-semibold">Mantenimiento</h4>
+                                    <p>Herramientas críticas. Aquí puedes:</p>
+                                    <ul className="list-disc pl-5 text-sm space-y-1 mt-2">
+                                        <li><strong>Crear un Punto de Restauración (<Save className="inline h-4 w-4"/>):</strong> Genera una copia de seguridad completa de todas las bases de datos del sistema. Es vital hacer esto antes de una actualización.</li>
+                                        <li><strong>Restaurar desde un Backup:</strong> Selecciona una fecha de la lista de puntos de restauración disponibles. Cada punto tiene un ícono de descarga (<Download className="inline h-4 w-4"/>) para que puedas guardar una copia local. Usa el checkbox para ver todos los puntos guardados.</li>
+                                        <li><strong>Limpiar Backups Antiguos (<Trash2 className="inline h-4 w-4"/>):</strong> Para ahorrar espacio, esta opción elimina todos los puntos de restauración excepto el más reciente, garantizando que siempre tengas un respaldo.</li>
+                                        <li><strong>Zona de Peligro (<AlertTriangle className="inline h-4 w-4"/>):</strong> Permite resetear los datos de un módulo específico (ej: borrar todas las órdenes de producción) sin afectar al resto del sistema, o hacer un reseteo de fábrica total que borra todo.</li>
+                                    </ul>
+                                </div>
                             </div>
                              <div className="flex items-start gap-4">
                                 <Network className="mt-1 h-6 w-6 text-indigo-500 shrink-0" />
@@ -440,6 +446,3 @@ export default function HelpPage() {
     </main>
   );
 }
-
-
-
