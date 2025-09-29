@@ -17,7 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Download, Trash2 } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Briefcase, Store } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -325,16 +325,33 @@ export default function HelpPage() {
                         <div className="space-y-4">
                             <div className="flex items-start gap-4">
                                 <Users className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
-                                <div><h4 className="font-semibold">Gestión de Usuarios y Roles</h4><p>Crea, edita o elimina cuentas de usuario. Usa los roles para definir qué puede hacer cada usuario. Puedes crear roles personalizados (ej: "Supervisor de Producción") y asignar permisos granulares, como "Aprobar Órdenes" pero no "Crear Usuarios".</p></div>
+                                <div><h4 className="font-semibold">Gestión de Usuarios y Roles</h4><p>Crea, edita o elimina cuentas de usuario. Usa los roles para definir qué puede hacer cada usuario. Puedes crear roles personalizados (ej: "Supervisor de Producción") y asignar permisos granulares.</p></div>
+                            </div>
+                            <div className="flex items-start gap-4">
+                                <Briefcase className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
+                                <div><h4 className="font-semibold">Configuración General</h4><p>Define la identidad de tu empresa (nombre, logo, cédula jurídica) que aparecerá en los documentos. También puedes ajustar parámetros globales de la interfaz, como el tiempo de espera en las búsquedas.</p></div>
+                            </div>
+                            <div className="flex items-start gap-4">
+                                <DollarSign className="mt-1 h-6 w-6 text-emerald-600 shrink-0" />
+                                <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el comportamiento del Cotizador. Define el prefijo para los números de cotización (ej. "COT-") y establece el número con el que iniciará la siguiente.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
-                                <Building className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
-                                <div><h4 className="font-semibold">Configuración General y de Módulos</h4><p>Define la identidad de tu empresa (nombre, logo, cédula jurídica) que aparecerá en los documentos. Aquí también ajustas el comportamiento de cada módulo, por ejemplo:
-                                <br/>- <strong>Cotizador:</strong> Define el prefijo (ej. "COT-") y el número con el que iniciarán las nuevas cotizaciones.
-                                <br/>- <strong>Planificador:</strong> Crea las máquinas o procesos que se podrán asignar a las órdenes de producción.
-                                <br/>- <strong>Compras:</strong> Define las rutas de entrega o métodos de envío disponibles.</p></div>
+                                <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
+                                <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador de Producción. Aquí puedes crear y nombrar las "máquinas" o "procesos" que se asignarán a las órdenes de producción.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
+                                <Store className="mt-1 h-6 w-6 text-amber-700 shrink-0" />
+                                <div><h4 className="font-semibold">Config. Compras</h4><p>Define las opciones que aparecerán en el módulo de Solicitudes de Compra, como las diferentes rutas de entrega o los métodos de envío disponibles.</p></div>
+                            </div>
+                            <div className="flex items-start gap-4">
+                                <Map className="mt-1 h-6 w-6 text-teal-700 shrink-0" />
+                                <div><h4 className="font-semibold">Config. Almacenes</h4><p>Define la estructura jerárquica de tu bodega (Paso 1) y luego crea las ubicaciones físicas reales que la componen (Paso 2).</p></div>
+                            </div>
+                             <div className="flex items-start gap-4">
+                                <Boxes className="mt-1 h-6 w-6 text-green-700 shrink-0" />
+                                <div><h4 className="font-semibold">Config. Inventario</h4><p>Gestiona las bodegas del sistema. Puedes añadir nuevas bodegas, marcar una como predeterminada o decidir si una bodega debe ser visible en los desgloses de inventario.</p></div>
+                            </div>
+                            <div className="flex items-start gap-4">
                                 <MessageSquare className="mt-1 h-6 w-6 text-green-600 shrink-0" />
                                 <div><h4 className="font-semibold">Buzón de Sugerencias</h4><p>Lee y gestiona el feedback enviado por los usuarios a través del botón "Sugerencias y Mejoras". Es el canal de comunicación directo para mejorar la aplicación.</p></div>
                             </div>
