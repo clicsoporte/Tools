@@ -13,7 +13,7 @@ El diseño de Clic-Tools sigue una filosofía **modular, centrada en el servidor
 
 El flujo de datos sigue un patrón claro y seguro:
 
-`Componente UI (page.tsx)` -> `Hook de UI (usePlanner.ts)` -> `Acciones del Cliente (actions.ts)` -> `Acciones del Servidor (db.ts)` -> `Base de Datos`
+`Componente UI (page.tsx)` -> `Hook de UI (usePlanner.ts)` -> `Acciones del Servidor (actions.ts / db.ts)` -> `Base de Datos`
 
 1.  **Componente de Página (`page.tsx`):**
     -   Es un **Componente de Cliente** (`'use client'`).
@@ -26,18 +26,14 @@ El flujo de datos sigue un patrón claro y seguro:
     -   Usa `useState`, `useEffect`, `useMemo` para gestionar el estado de los formularios, filtros, diálogos, etc.
     -   Consume datos globales del `useAuth` hook.
     -   Define funciones manejadoras de eventos (ej: `handleCreateOrder`).
-    -   Estas funciones **llaman a las acciones del cliente** para ejecutar operaciones de negocio.
+    -   Estas funciones **llaman directamente a las Server Actions** para ejecutar operaciones de negocio.
 
-3.  **Acciones del Cliente (`actions.ts` en cada módulo):**
-    -   Son un puente seguro entre el cliente y el servidor.
-    -   Contienen funciones `async` que simplemente llaman a las `Server Actions` correspondientes, pasando los datos necesarios.
-    -   Esta capa existe para mantener los componentes de UI (hooks y páginas) completamente agnósticos sobre si una función se ejecuta en el cliente o en el servidor.
-
-4.  **Acciones del Servidor (archivos `db.ts` y `actions.ts` en cada módulo):**
+3.  **Acciones del Servidor (archivos `db.ts` y `actions.ts` en cada módulo):**
     -   Marcadas con `'use server'`.
     -   Aquí reside toda la interacción con la base de datos (SQLite).
     -   Contienen la lógica de negocio real (cálculos, validaciones complejas, etc.).
     -   Son las únicas que tienen acceso directo a la base de datos.
+    -   Exportan funciones que pueden ser llamadas de forma segura y directa por los componentes y hooks de cliente.
 
 ## 3. Estructura de la Base de Datos Modular
 
