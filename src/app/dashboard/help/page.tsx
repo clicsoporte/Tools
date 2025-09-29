@@ -17,7 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Briefcase, Store } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -325,15 +325,23 @@ export default function HelpPage() {
                         <div className="space-y-4">
                             <div className="flex items-start gap-4">
                                 <Users className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
-                                <div><h4 className="font-semibold">Gestión de Usuarios y Roles</h4><p>Crea, edita o elimina cuentas de usuario. Usa los roles para definir qué puede hacer cada usuario. Puedes crear roles personalizados (ej: "Supervisor de Producción") y asignar permisos granulares.</p></div>
+                                <div><h4 className="font-semibold">Gestión de Usuarios</h4><p>Permite crear, editar, eliminar y asignar roles a las cuentas de usuario que pueden acceder al sistema.</p></div>
+                            </div>
+                            <div className="flex items-start gap-4">
+                                <ShieldCheck className="mt-1 h-6 w-6 text-green-500 shrink-0" />
+                                <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: "Supervisor") y asignar permisos específicos para cada módulo.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
                                 <Briefcase className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
-                                <div><h4 className="font-semibold">Configuración General</h4><p>Define la identidad de tu empresa (nombre, logo, cédula jurídica) que aparecerá en los documentos. También puedes ajustar parámetros globales de la interfaz, como el tiempo de espera en las búsquedas.</p></div>
+                                <div><h4 className="font-semibold">Configuración General</h4><p>Establece la identidad de tu empresa (nombre, logo, cédula jurídica) que aparecerá en los documentos y ajusta parámetros globales de la interfaz.</p></div>
+                            </div>
+                            <div className="flex items-start gap-4">
+                                <MessageSquare className="mt-1 h-6 w-6 text-green-600 shrink-0" />
+                                <div><h4 className="font-semibold">Buzón de Sugerencias</h4><p>Lee y gestiona el feedback enviado por los usuarios a través del botón "Sugerencias y Mejoras". Es el canal de comunicación directo para mejorar la aplicación.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
                                 <DollarSign className="mt-1 h-6 w-6 text-emerald-600 shrink-0" />
-                                <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el comportamiento del Cotizador. Define el prefijo para los números de cotización (ej. "COT-") y establece el número con el que iniciará la siguiente.</p></div>
+                                <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el comportamiento del Cotizador, definiendo el prefijo (ej. "COT-") y el número con el que iniciará la siguiente cotización.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
                                 <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
@@ -352,14 +360,10 @@ export default function HelpPage() {
                                 <div><h4 className="font-semibold">Config. Inventario</h4><p>Gestiona las bodegas del sistema. Puedes añadir nuevas bodegas, marcar una como predeterminada o decidir si una bodega debe ser visible en los desgloses de inventario.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
-                                <MessageSquare className="mt-1 h-6 w-6 text-green-600 shrink-0" />
-                                <div><h4 className="font-semibold">Buzón de Sugerencias</h4><p>Lee y gestiona el feedback enviado por los usuarios a través del botón "Sugerencias y Mejoras". Es el canal de comunicación directo para mejorar la aplicación.</p></div>
-                            </div>
-                            <div className="flex items-start gap-4">
                                 <FileUp className="mt-1 h-6 w-6 text-cyan-500 shrink-0" />
                                 <div>
                                     <h4 className="font-semibold">Importar Datos</h4>
-                                    <p>Sincroniza los datos maestros (clientes, productos, etc.) desde tu ERP. Tienes dos modos: por <strong>Archivos</strong> (cargando .txt o .csv) o por <strong>SQL Server</strong> (conectando directamente a la base de datos de tu ERP para una actualización más robusta).</p>
+                                    <p>Sincroniza los datos maestros (clientes, productos, etc.) desde tu ERP. Tienes dos modos: por <strong>Archivos</strong> (cargando .txt o .csv) o por <strong>SQL Server</strong> (conectando directamente a la base de datos de tu ERP).</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-4">
