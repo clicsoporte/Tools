@@ -17,10 +17,14 @@ export default function AdminDashboardPage() {
     const { unreadSuggestionsCount } = useAuth();
 
     useEffect(() => {
-        setTitle("Configuración del Sistema");
+        setTitle("Configuración");
     }, [setTitle]);
 
-    if (!isAuthorized) {
+    if (isAuthorized === false) {
+        return null; // Or a more specific "Access Denied" component
+    }
+
+    if (isAuthorized === null) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <div className="grid gap-8">
@@ -46,7 +50,7 @@ export default function AdminDashboardPage() {
             </h2>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {adminTools.map((tool) => {
-                const isSuggestionsTool = tool.id === "suggestions-viewer" || tool.id === "admin";
+                const isSuggestionsTool = tool.id === "suggestions-viewer";
                 const badgeCount = isSuggestionsTool ? unreadSuggestionsCount : 0;
                 return <ToolCard key={tool.id} tool={tool} badgeCount={badgeCount}/>
               })}

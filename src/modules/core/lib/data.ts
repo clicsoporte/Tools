@@ -29,6 +29,7 @@ import {
   PackagePlus,
   BookMarked,
   MessageSquare,
+  DollarSign,
 } from "lucide-react";
 
 /**
@@ -98,7 +99,7 @@ export const mainTools: Tool[] = [
     bgColor: "bg-yellow-500",
     textColor: "text-white",
   },
-  {
+   {
     id: "planner",
     name: "Planificador OP",
     description: "Gestionar y visualizar la carga de producción.",
@@ -296,8 +297,8 @@ export const adminTools: Tool[] = [
         id: "quoter-settings",
         name: "Config. Cotizador",
         description: "Gestionar prefijos y consecutivos del cotizador.",
-        href: "/dashboard/admin/general", // Points to the same page
-        icon: BookMarked,
+        href: "/dashboard/admin/quoter", 
+        icon: DollarSign,
         bgColor: "bg-emerald-600",
         textColor: "text-white",
       },
@@ -382,4 +383,5 @@ export const adminTools: Tool[] = [
 export const allTools: Tool[] = [...mainTools, ...adminTools];
 
       
+
 

@@ -193,66 +193,34 @@ export default function GeneralSettingsPage() {
 
             <Card className="mt-6">
                 <CardHeader>
-                    <CardTitle>Ajustes de Módulos</CardTitle>
-                    <CardDescription>Configuración específica para los módulos de la aplicación.</CardDescription>
+                    <CardTitle>Ajustes de Interfaz y Rendimiento</CardTitle>
+                    <CardDescription>Configuración global para la experiencia de usuario.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                      <h3 className="font-semibold text-lg">Cotizador</h3>
-                      <div className="space-y-2">
-                          <Label htmlFor="quotePrefix">Prefijo de Cotización</Label>
-                          <Input 
-                              id="quotePrefix" 
-                              value={companyData.quotePrefix || ''}
-                              onChange={handleChange}
-                          />
-                      </div>
-                      <div className="space-y-2">
-                          <Label htmlFor="nextQuoteNumber">Próximo Número</Label>
-                          <Input 
-                              id="nextQuoteNumber"
-                              type="number"
-                              value={companyData.nextQuoteNumber || 1}
-                              onChange={handleChange}
-                          />
-                      </div>
-                      <div className="space-y-2">
-                          <Label htmlFor="decimalPlaces">Decimales en Precios</Label>
-                          <Input 
-                              id="decimalPlaces"
-                              type="number"
-                              value={companyData.decimalPlaces ?? 2}
-                              onChange={handleChange}
-                          />
-                      </div>
+                   <div className="space-y-2">
+                      <Label htmlFor="searchDebounceTime">Retraso de Búsqueda (ms)</Label>
+                      <Input 
+                          id="searchDebounceTime"
+                          type="number"
+                          value={companyData.searchDebounceTime ?? 500}
+                          onChange={handleChange}
+                      />
+                       <p className="text-xs text-muted-foreground pt-1">
+                          Tiempo en milisegundos que el sistema espera antes de buscar (ej: 500 = 0.5s).
+                       </p>
                   </div>
-                   <div className="space-y-4">
-                      <h3 className="font-semibold text-lg">Interfaz y Rendimiento</h3>
-                       <div className="space-y-2">
-                          <Label htmlFor="searchDebounceTime">Retraso de Búsqueda (ms)</Label>
-                          <Input 
-                              id="searchDebounceTime"
-                              type="number"
-                              value={companyData.searchDebounceTime ?? 500}
-                              onChange={handleChange}
-                          />
-                           <p className="text-xs text-muted-foreground pt-1">
-                              Tiempo en milisegundos que el sistema espera antes de buscar (ej: 500 = 0.5s).
-                           </p>
-                      </div>
-                       <div className="space-y-2">
-                          <Label htmlFor="syncWarningHours">Horas para Alerta de Sinc.</Label>
-                          <Input 
-                              id="syncWarningHours"
-                              type="number"
-                              value={companyData.syncWarningHours ?? 12}
-                              onChange={handleChange}
-                          />
-                           <p className="text-xs text-muted-foreground pt-1">
-                              Después de cuántas horas sin sincronizar se mostrará la alerta en rojo.
-                           </p>
-                      </div>
-                   </div>
+                   <div className="space-y-2">
+                      <Label htmlFor="syncWarningHours">Horas para Alerta de Sinc.</Label>
+                      <Input 
+                          id="syncWarningHours"
+                          type="number"
+                          value={companyData.syncWarningHours ?? 12}
+                          onChange={handleChange}
+                      />
+                       <p className="text-xs text-muted-foreground pt-1">
+                          Después de cuántas horas sin sincronizar se mostrará la alerta en rojo.
+                       </p>
+                  </div>
                 </CardContent>
             </Card>
 
