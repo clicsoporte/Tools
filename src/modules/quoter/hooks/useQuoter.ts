@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -18,8 +17,6 @@ import {
   getAllQuoteDrafts,
   deleteQuoteDraft,
   saveCompanySettings,
-  getAllExemptions,
-  getExemptionLaws,
 } from "@/modules/core/lib/db";
 import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
@@ -91,7 +88,11 @@ const normalizeNumber = (value: string): number => {
 export const useQuoter = () => {
   const { toast } = useToast();
   const { setTitle } = usePageTitle();
-  const { user: currentUser, customers, products, companyData: authCompanyData, stockLevels, exchangeRateData, refreshAuth, isLoading: isAuthLoading } = useAuth();
+  const { 
+    user: currentUser, customers, products, companyData: authCompanyData, 
+    stockLevels, exchangeRateData, allExemptions, exemptionLaws,
+    refreshAuth, isLoading: isAuthLoading 
+  } = useAuth();
   
   const [quoteNumber, setQuoteNumber] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -102,7 +103,6 @@ export const useQuoter = () => {
   const [customerDetails, setCustomerDetails] = useState(initialQuoteState.customerDetails);
   const [deliveryAddress, setDeliveryAddress] = useState(initialQuoteState.deliveryAddress);
   const [exchangeRate, setExchangeRate] = useState<number | null>(exchangeRateData.rate);
-  const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
   const [apiExchangeRate, setApiExchangeRate] = useState<number | null>(exchangeRateData.rate);
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(initialQuoteState.purchaseOrderNumber);
   const [deliveryDate, setDeliveryDate] = useState(initialQuoteState.deliveryDate);
@@ -114,7 +114,6 @@ export const useQuoter = () => {
   const [creditDays, setCreditDays] = useState(initialQuoteState.creditDays);
   const [validUntilDate, setValidUntilDate] = useState(initialQuoteState.validUntilDate);
   const [notes, setNotes] = useState(initialQuoteState.notes);
-  const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
   const [showInactiveCustomers, setShowInactiveCustomers] = useState(false);
   const [showInactiveProducts, setShowInactiveProducts] = useState(false);
   const [selectedLineForInfo, setSelectedLineForInfo] = useState<QuoteLine | null>(null);
@@ -178,45 +177,16 @@ export const useQuoter = () => {
   
 
   const loadInitialData = useCallback(async (isRefresh = false) => {
-    let isMounted = true;
     if (isRefresh) {
         setIsRefreshing(true);
         await refreshAuth();
+        setIsRefreshing(false);
+        toast({ title: "Datos Refrescados", description: "Los clientes, productos y exoneraciones han sido actualizados." });
     }
-    
-    try {
-      const [dbExemptions, dbLaws] = await Promise.all([
-          getAllExemptions(),
-          getExemptionLaws()
-      ]);
-
-      if (!isMounted) return;
-
-      setAllExemptions(dbExemptions || []);
-      setExemptionLaws(dbLaws || []);
-
-      if (isRefresh) {
-          toast({ title: "Datos Refrescados", description: "Los clientes, productos y exoneraciones han sido actualizados." });
-      }
-
-    } catch (error) {
-      logError("Failed to load initial quoter data", { error });
-      toast({ title: "Error de Carga", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
-    } finally {
-        if(isRefresh && isMounted) {
-            setIsRefreshing(false);
-        }
-    }
-    return () => { isMounted = false; };
   }, [toast, refreshAuth]);
 
   useEffect(() => {
     setTitle("Cotizador");
-    loadInitialData();
-  }, [setTitle, loadInitialData]);
-
-  useEffect(() => {
-    // Set client-side only state here to prevent hydration errors.
     if (!isMounted) {
         const today = new Date();
         setQuoteDate(today.toISOString().substring(0, 10));
@@ -226,7 +196,7 @@ export const useQuoter = () => {
         setValidUntilDate(validDate.toISOString().substring(0, 10));
         setIsMounted(true);
     }
-  }, [isMounted]);
+  }, [setTitle, isMounted]);
 
   useEffect(() => {
     if (sellerType === "user" && currentUser) {
