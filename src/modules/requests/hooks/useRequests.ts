@@ -15,6 +15,7 @@ import { useDebounce } from 'use-debounce';
 import jsPDF from "jspdf";
 import autoTable, { RowInput } from "jspdf-autotable";
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
+import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 
 const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'pendingAction'> = {
     requiredDate: '',
@@ -356,15 +357,6 @@ export const useRequests = () => {
         }
     };
 
-    const getDaysRemaining = (dateStr: string) => {
-        if (!dateStr) return { label: 'Sin fecha', color: 'text-gray-500' };
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-        const requiredDate = parseISO(dateStr); requiredDate.setHours(0, 0, 0, 0);
-        const days = differenceInCalendarDays(requiredDate, today);
-        let color = 'text-green-600'; if (days <= 2) color = 'text-orange-500'; if (days <= 0) color = 'text-red-600';
-        return { label: days === 0 ? 'Para Hoy' : days < 0 ? `Atrasado ${Math.abs(days)}d` : `Faltan ${days}d`, color: color };
-    };
-
     const handleExportPDF = async (orientation: 'portrait' | 'landscape' = 'portrait') => {
         if (!companyData || !requestSettings) return;
         
@@ -504,7 +496,7 @@ export const useRequests = () => {
         hasPermission,
         priorityConfig,
         statusConfig,
-        getDaysRemaining,
+        getDaysRemaining: (dateStr: string) => getSimpleDaysRemaining(dateStr),
         clientOptions: useMemo(() => {
             if (debouncedClientSearch.length < 2) return [];
             const searchLower = debouncedClientSearch.toLowerCase();
