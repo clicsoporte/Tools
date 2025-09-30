@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -157,12 +156,12 @@ export const useQuoter = () => {
             // Specifically handle the 404 case.
             setExemptionInfo(prev => {
                 if (!prev) return null;
-                return { ...prev, isLoading: false, apiError: true, isHaciendaValid: false };
+                return { ...prev, isLoading: false, apiError: true, isHaciendaValid: false, haciendaExemption: null };
             });
             if (data.status === 404) {
                  toast({ title: "Exoneración No Encontrada", description: `Hacienda no encontró la autorización ${authNumber}.`, variant: "destructive" });
             } else {
-                throw new Error(data.message || "Error desconocido al verificar la exoneración.");
+                toast({ title: "Error de API", description: `No se pudo consultar la exoneración. ${data.message}`, variant: "destructive" });
             }
             return;
         }
@@ -171,7 +170,7 @@ export const useQuoter = () => {
              if (!prev) return null;
              return {
                 ...prev,
-                haciendaExemption: data as HaciendaExemptionApiResponse,
+                haciendaExemption: data,
                 isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
                 isLoading: false,
              }
