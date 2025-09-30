@@ -150,18 +150,21 @@ export const useQuoter = () => {
 
     const data = await getExemptionStatus(authNumber);
         
+    // --- MANEJO DE ERROR ---
     if (isErrorResponse(data)) {
         logError("Error verifying exemption status", { message: data.message, authNumber });
         setExemptionInfo(prev => {
             if (!prev) return null;
+            // Asegúrate de incluir TODAS las propiedades de ExemptionInfo
             return {
-                ...prev,
-                haciendaExemption: null,
+                ...prev, // Esto incluye erpExemption, isErpValid, isSpecialLaw
+                haciendaExemption: null, // ✅ Siempre null en caso de error
                 isHaciendaValid: false,
                 isLoading: false,
                 apiError: true,
             };
         });
+        
         if (data.status === 404) {
             toast({ title: "Exoneración No Encontrada", description: `Hacienda no encontró la autorización ${authNumber}.`, variant: "destructive" });
         } else {
@@ -170,11 +173,12 @@ export const useQuoter = () => {
         return;
     }
     
+    // --- MANEJO DE ÉXITO ---
     setExemptionInfo(prev => {
          if (!prev) return null;
          return {
-            ...prev,
-            haciendaExemption: data,
+            ...prev, // Esto incluye erpExemption, isErpValid, isSpecialLaw
+            haciendaExemption: data, // ✅ HaciendaExemptionApiResponse
             isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
             isLoading: false,
             apiError: false,
