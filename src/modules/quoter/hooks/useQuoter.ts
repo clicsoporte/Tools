@@ -46,7 +46,7 @@ const initialQuoteState = {
 
 type ExemptionInfo = {
     erpExemption: Exemption;
-    haciendaExemption: HaciendaExemptionApiResponse | null;
+    haciendaExemption: HaciendaExemptionApiResponse | { error: boolean; message: string; status?: number } | null;
     isLoading: boolean;
     isErpValid: boolean;
     isHaciendaValid: boolean;
@@ -114,8 +114,8 @@ export const useQuoter = () => {
   const [creditDays, setCreditDays] = useState(initialQuoteState.creditDays);
   const [validUntilDate, setValidUntilDate] = useState(initialQuoteState.validUntilDate);
   const [notes, setNotes] = useState(initialQuoteState.notes);
-  const [showInactiveCustomers, setShowInactiveCustomers] = useState(showInactiveCustomers);
-  const [showInactiveProducts, setShowInactiveProducts] = useState(showInactiveProducts);
+  const [showInactiveCustomers, setShowInactiveCustomers] = useState(false);
+  const [showInactiveProducts, setShowInactiveProducts] = useState(false);
   const [selectedLineForInfo, setSelectedLineForInfo] = useState<QuoteLine | null>(null);
   const [savedDrafts, setSavedDrafts] = useState<(QuoteDraft & { customer: Customer | null})[]>([]);
   const [decimalPlaces, setDecimalPlaces] = useState(initialQuoteState.decimalPlaces);
@@ -144,20 +144,27 @@ export const useQuoter = () => {
   const checkExemptionStatus = useCallback(async (authNumber?: string) => {
     if (!authNumber) return;
 
+    // Inicia el estado de carga
     setExemptionInfo(prev => {
         if (!prev) return null;
-        return { ...prev, isLoading: true, apiError: false };
+        return { 
+            ...prev, 
+            isLoading: true, 
+            apiError: false 
+        };
     });
 
     const data = await getExemptionStatus(authNumber);
         
+    // --- MANEJO DE ERROR ---
     if (isErrorResponse(data)) {
         logError("Error verifying exemption status", { message: data.message, authNumber });
         setExemptionInfo(prev => {
             if (!prev) return null;
+            // Asegúrate de incluir TODAS las propiedades de ExemptionInfo
             return {
-                ...prev,
-                haciendaExemption: null,
+                ...prev, // Esto incluye erpExemption, isErpValid, isSpecialLaw
+                haciendaExemption: null, // ✅ Siempre null en caso de error
                 isHaciendaValid: false,
                 isLoading: false,
                 apiError: true,
@@ -172,11 +179,12 @@ export const useQuoter = () => {
         return;
     }
     
+    // --- MANEJO DE ÉXITO ---
     setExemptionInfo(prev => {
          if (!prev) return null;
          return {
-            ...prev,
-            haciendaExemption: data,
+            ...prev, // Esto incluye erpExemption, isErpValid, isSpecialLaw
+            haciendaExemption: data, // ✅ HaciendaExemptionApiResponse
             isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
             isLoading: false,
             apiError: false,
@@ -691,5 +699,3 @@ export const useQuoter = () => {
     selectors,
   };
 };
-
-    
