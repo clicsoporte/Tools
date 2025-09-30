@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
@@ -360,7 +361,7 @@ export type PurchaseRequest = {
   previousStatus?: PurchaseRequestStatus | null;
 };
 
-export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'pendingAction' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified'>> & {
+export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>> & {
     requestId: number;
     updatedBy: string;
 };
@@ -586,3 +587,5 @@ export type Suggestion = {
   isRead: 0 | 1;
   timestamp: string;
 };
+
+    
