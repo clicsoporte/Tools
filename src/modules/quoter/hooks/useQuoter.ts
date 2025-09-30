@@ -155,14 +155,16 @@ export const useQuoter = () => {
         
         if (isErrorResponse(data)) {
             // Specifically handle the 404 case.
+            setExemptionInfo(prev => {
+                if (!prev) return null;
+                return { ...prev, isLoading: false, apiError: true, isHaciendaValid: false };
+            });
             if (data.status === 404) {
-                 setExemptionInfo(prev => {
-                    if (!prev) return null;
-                    return { ...prev, isLoading: false, apiError: true, isHaciendaValid: false };
-                });
-                return;
+                 toast({ title: "Exoneración No Encontrada", description: `Hacienda no encontró la autorización ${authNumber}.`, variant: "destructive" });
+            } else {
+                throw new Error(data.message || "Error desconocido al verificar la exoneración.");
             }
-            throw new Error(data.message || "Error desconocido al verificar la exoneración.");
+            return;
         }
         
         setExemptionInfo(prev => {
