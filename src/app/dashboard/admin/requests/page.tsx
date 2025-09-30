@@ -176,6 +176,26 @@ export default function RequestSettingsPage() {
                         <CardDescription>Ajustes generales para el módulo de solicitudes de compra.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="requestPrefix">Prefijo de Solicitud</Label>
+                                <Input
+                                    id="requestPrefix"
+                                    value={settings.requestPrefix || 'SC-'}
+                                    onChange={(e) => setSettings(prev => prev ? { ...prev, requestPrefix: e.target.value } : null)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="nextRequestNumber">Próximo Número de Solicitud</Label>
+                                <Input
+                                    id="nextRequestNumber"
+                                    type="number"
+                                    value={settings.nextRequestNumber || 1}
+                                    onChange={(e) => setSettings(prev => prev ? { ...prev, nextRequestNumber: Number(e.target.value) } : null)}
+                                />
+                            </div>
+                        </div>
+                        <Separator />
                          <div className="flex items-center space-x-2">
                             <Switch
                                 id="use-warehouse"

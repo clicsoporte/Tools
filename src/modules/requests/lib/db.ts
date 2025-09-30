@@ -63,6 +63,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
     `;
     db.exec(schema);
 
+    db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('requestPrefix', 'SC-')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('nextRequestNumber', '1')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('routes', '["Ruta GAM", "Fuera de GAM"]')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('shippingMethods', '["Mensajería", "Encomienda", "Transporte Propio"]')`).run();
@@ -103,6 +104,12 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
     
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='request_settings'`).get();
     if(settingsTable){
+        if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'requestPrefix'`).get()) {
+            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('requestPrefix', 'SC-')`).run();
+        }
+        if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'nextRequestNumber'`).get()) {
+            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('nextRequestNumber', '1')`).run();
+        }
         const pdfTopLegendRow = db.prepare(`SELECT value FROM request_settings WHERE key = 'pdfTopLegend'`).get() as { value: string } | undefined;
         if (!pdfTopLegendRow) {
             console.log("MIGRATION (requests.db): Adding pdfTopLegend to settings.");
@@ -129,6 +136,7 @@ export async function getSettings(): Promise<RequestSettings> {
     const settingsRows = db.prepare('SELECT * FROM request_settings').all() as { key: string; value: string }[];
     
     const settings: RequestSettings = {
+        requestPrefix: 'SC-',
         nextRequestNumber: 1,
         routes: [],
         shippingMethods: [],
@@ -141,6 +149,7 @@ export async function getSettings(): Promise<RequestSettings> {
 
     for (const row of settingsRows) {
         if (row.key === 'nextRequestNumber') settings.nextRequestNumber = Number(row.value);
+        else if (row.key === 'requestPrefix') settings.requestPrefix = row.value;
         else if (row.key === 'routes') settings.routes = JSON.parse(row.value);
         else if (row.key === 'shippingMethods') settings.shippingMethods = JSON.parse(row.value);
         else if (row.key === 'useWarehouseReception') settings.useWarehouseReception = row.value === 'true';
@@ -156,7 +165,7 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof RequestSettings)[] = ['nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
+        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
         for (const key of keys) {
              if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -242,11 +251,12 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
     
     const settings = await getSettings();
     const nextNumber = settings.nextRequestNumber || 1;
+    const prefix = settings.requestPrefix || 'SC-';
 
     const newRequest: Omit<PurchaseRequest, 'id'> = {
         ...request,
         requestedBy: requestedBy,
-        consecutive: `SC-${nextNumber.toString().padStart(5, '0')}`,
+        consecutive: `${prefix}${nextNumber.toString().padStart(5, '0')}`,
         requestDate: new Date().toISOString(),
         status: 'pending',
         reopened: false,

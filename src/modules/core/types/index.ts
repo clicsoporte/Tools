@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
@@ -285,6 +286,7 @@ export type CustomStatus = {
 };
 
 export type PlannerSettings = {
+    orderPrefix?: string;
     nextOrderNumber?: number;
     useWarehouseReception: boolean;
     machines: PlannerMachine[];
@@ -376,6 +378,7 @@ export type PurchaseRequestHistoryEntry = {
 };
 
 export type RequestSettings = {
+    requestPrefix?: string;
     nextRequestNumber?: number;
     routes: string[];
     shippingMethods: string[];
@@ -587,5 +590,3 @@ export type Suggestion = {
   isRead: 0 | 1;
   timestamp: string;
 };
-
-    

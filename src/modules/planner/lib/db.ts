@@ -70,6 +70,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
 
     const defaultPdfColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
 
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('orderPrefix', 'OP-')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('nextOrderNumber', '1')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('useWarehouseReception', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('machines', '[]')`).run();
@@ -120,6 +121,12 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
 
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='planner_settings'`).get();
     if (settingsTable) {
+        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'orderPrefix'`).get()) {
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('orderPrefix', 'OP-')`).run();
+        }
+        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'nextOrderNumber'`).get()) {
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('nextOrderNumber', '1')`).run();
+        }
         const customStatusesRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'customStatuses'`).get() as { value: string } | undefined;
         if (!customStatusesRow) {
             console.log("MIGRATION (planner.db): Adding customStatuses to settings.");
@@ -172,6 +179,7 @@ export async function getSettings(): Promise<PlannerSettings> {
     const settingsRows = db.prepare('SELECT * FROM planner_settings').all() as { key: string; value: string }[];
     
     const settings: PlannerSettings = {
+        orderPrefix: 'OP-',
         nextOrderNumber: 1,
         useWarehouseReception: false,
         machines: [],
@@ -187,6 +195,7 @@ export async function getSettings(): Promise<PlannerSettings> {
 
     for (const row of settingsRows) {
         if (row.key === 'nextOrderNumber') settings.nextOrderNumber = Number(row.value);
+        else if (row.key === 'orderPrefix') settings.orderPrefix = row.value;
         else if (row.key === 'useWarehouseReception') settings.useWarehouseReception = row.value === 'true';
         else if (row.key === 'machines') settings.machines = JSON.parse(row.value);
         else if (row.key === 'requireMachineForStart') settings.requireMachineForStart = row.value === 'true';
@@ -205,7 +214,7 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof PlannerSettings)[] = ['nextOrderNumber', 'useWarehouseReception', 'machines', 'requireMachineForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
+        const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'useWarehouseReception', 'machines', 'requireMachineForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
         for (const key of keys) {
             if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -261,11 +270,12 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
     
     const settings = await getSettings();
     const nextNumber = settings.nextOrderNumber || 1;
+    const prefix = settings.orderPrefix || 'OP-';
 
     const newOrder: Omit<ProductionOrder, 'id'> = {
         ...order,
         requestedBy: requestedBy,
-        consecutive: `OP-${nextNumber.toString().padStart(5, '0')}`,
+        consecutive: `${prefix}${nextNumber.toString().padStart(5, '0')}`,
         requestDate: new Date().toISOString(),
         status: 'pending',
         pendingAction: 'none',
@@ -579,5 +589,3 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     transaction();
     return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(entityId) as ProductionOrder;
 }
-
-    

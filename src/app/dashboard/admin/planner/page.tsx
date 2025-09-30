@@ -182,16 +182,35 @@ export default function PlannerSettingsPage() {
                         <CardDescription>Ajustes generales para el módulo de planificación de producción.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                             <Label htmlFor="assignment-label">Etiqueta para Asignación</Label>
-                             <Input
-                                id="assignment-label"
-                                value={settings.assignmentLabel}
-                                onChange={(e) => setSettings(prev => prev ? { ...prev, assignmentLabel: e.target.value } : null)}
-                             />
-                             <p className="text-sm text-muted-foreground">
-                                Cambia el texto que se muestra para la asignación (ej: "Máquina", "Proceso", "Operario").
-                             </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <div className="space-y-2">
+                                <Label htmlFor="orderPrefix">Prefijo de Orden de Producción</Label>
+                                <Input
+                                    id="orderPrefix"
+                                    value={settings.orderPrefix || 'OP-'}
+                                    onChange={(e) => setSettings(prev => prev ? { ...prev, orderPrefix: e.target.value } : null)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="nextOrderNumber">Próximo Número de Orden</Label>
+                                <Input
+                                    id="nextOrderNumber"
+                                    type="number"
+                                    value={settings.nextOrderNumber || 1}
+                                    onChange={(e) => setSettings(prev => prev ? { ...prev, nextOrderNumber: Number(e.target.value) } : null)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="assignment-label">Etiqueta para Asignación</Label>
+                                <Input
+                                    id="assignment-label"
+                                    value={settings.assignmentLabel}
+                                    onChange={(e) => setSettings(prev => prev ? { ...prev, assignmentLabel: e.target.value } : null)}
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Cambia el texto que se muestra para la asignación (ej: "Máquina", "Proceso", "Operario").
+                                </p>
+                            </div>
                         </div>
                         <Separator />
                         <div className="flex items-center space-x-2">
