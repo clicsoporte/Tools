@@ -64,13 +64,13 @@ Si vas a utilizar la conexión directa a SQL Server, este paso es obligatorio.
 2.  En el panel de "Conexiones", haz clic derecho en "Sitios" y selecciona "Agregar sitio web".
 3.  **Nombre del sitio**: Asigna un nombre descriptivo (ej: `Clic-Tools`).
 4.  **Ruta de acceso física**: Selecciona la carpeta donde están los archivos del proyecto (ej: `C:\inetpub\wwwroot\clic-tools`).
-5.  **Enlace**: Configura el puerto en el que se ejecutará la aplicación en tu red LAN (ej: puerto 9003).
+5.  **Enlace**: Configura el puerto en el que se ejecutará la aplicación en tu red LAN (ej: puerto 80) y el nombre de host (ej: garend.com).
 6.  Haz clic en "Aceptar".
 
 **Paso 6: Asegurar el archivo `web.config`**
 
 1.  Verifica que el archivo `web.config` (incluido en la raíz del proyecto) esté presente en la carpeta del servidor.
-2.  Este archivo es crucial, ya que le dice a IIS cómo manejar las solicitudes y pasárselas a Node.js a través de `iisnode`. Su nueva versión está optimizada para Next.js 14+.
+2.  Este archivo es crucial, ya que le dice a IIS cómo manejar las solicitudes y pasárselas a Node.js a través de `iisnode`. La nueva versión está optimizada para Next.js 14+ y mejora el rendimiento al permitir que IIS sirva archivos estáticos directamente.
 
 --------------------
 Solución de Problemas
