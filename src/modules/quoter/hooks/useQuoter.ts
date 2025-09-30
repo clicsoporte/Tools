@@ -149,40 +149,31 @@ export const useQuoter = () => {
         return { ...prev, isLoading: true, apiError: false };
     });
 
-    try {
-        const data = await getExemptionStatus(authNumber);
+    const data = await getExemptionStatus(authNumber);
         
-        if (isErrorResponse(data)) {
-            // Specifically handle the 404 case.
-            setExemptionInfo(prev => {
-                if (!prev) return null;
-                return { ...prev, isLoading: false, apiError: true, isHaciendaValid: false, haciendaExemption: null };
-            });
-            if (data.status === 404) {
-                 toast({ title: "Exoneración No Encontrada", description: `Hacienda no encontró la autorización ${authNumber}.`, variant: "destructive" });
-            } else {
-                toast({ title: "Error de API", description: `No se pudo consultar la exoneración. ${data.message}`, variant: "destructive" });
-            }
-            return;
-        }
-        
-        setExemptionInfo(prev => {
-             if (!prev) return null;
-             return {
-                ...prev,
-                haciendaExemption: data,
-                isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
-                isLoading: false,
-             }
-        });
-    } catch (error: any) {
-        logError("Error verificando exoneración en Hacienda", { error: error.message, authNumber });
+    if (isErrorResponse(data)) {
+        logError("Error verifying exemption status", { message: data.message, authNumber });
         setExemptionInfo(prev => {
             if (!prev) return null;
-            return { ...prev, isLoading: false, apiError: true }
+            return { ...prev, isLoading: false, apiError: true, isHaciendaValid: false, haciendaExemption: null };
         });
-        toast({ title: "Error de API", description: `No se pudo consultar la exoneración. ${error.message}`, variant: "destructive" });
+        if (data.status === 404) {
+            toast({ title: "Exoneración No Encontrada", description: `Hacienda no encontró la autorización ${authNumber}.`, variant: "destructive" });
+        } else {
+            toast({ title: "Error de API", description: `No se pudo consultar la exoneración. ${data.message}`, variant: "destructive" });
+        }
+        return;
     }
+    
+    setExemptionInfo(prev => {
+         if (!prev) return null;
+         return {
+            ...prev,
+            haciendaExemption: data,
+            isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
+            isLoading: false,
+         }
+    });
   }, [toast]);
   
 
