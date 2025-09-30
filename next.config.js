@@ -4,11 +4,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '15mb',
     },
-    // Añadido para permitir solicitudes desde el entorno de desarrollo en la nube.
-    allowedDevOrigins: [
-        "https://*.cloudworkstations.dev",
-        "https://*.firebase.studio",
-    ],
   },
   images: {
     remotePatterns: [
