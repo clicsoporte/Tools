@@ -155,7 +155,13 @@ export const useQuoter = () => {
         logError("Error verifying exemption status", { message: data.message, authNumber });
         setExemptionInfo(prev => {
             if (!prev) return null;
-            return { ...prev, isLoading: false, apiError: true, isHaciendaValid: false, haciendaExemption: null };
+            return {
+                ...prev,
+                isLoading: false,
+                apiError: true,
+                isHaciendaValid: false,
+                haciendaExemption: null
+            };
         });
         if (data.status === 404) {
             toast({ title: "Exoneración No Encontrada", description: `Hacienda no encontró la autorización ${authNumber}.`, variant: "destructive" });
@@ -172,6 +178,7 @@ export const useQuoter = () => {
             haciendaExemption: data,
             isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
             isLoading: false,
+            apiError: false,
          }
     });
   }, [toast]);
