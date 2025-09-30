@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -61,7 +60,7 @@ interface LineInputRefs {
 
 type ErrorResponse = { error: boolean; message: string; status?: number };
 
-function isErrorResponse(data: any): data is ErrorResponse {
+export function isErrorResponse(data: any): data is ErrorResponse {
   return (data as ErrorResponse).error !== undefined;
 }
 
@@ -144,27 +143,20 @@ export const useQuoter = () => {
   const checkExemptionStatus = useCallback(async (authNumber?: string) => {
     if (!authNumber) return;
 
-    // Inicia el estado de carga
     setExemptionInfo(prev => {
         if (!prev) return null;
-        return { 
-            ...prev, 
-            isLoading: true, 
-            apiError: false 
-        };
+        return { ...prev, isLoading: true, apiError: false };
     });
 
     const data = await getExemptionStatus(authNumber);
         
-    // --- MANEJO DE ERROR ---
     if (isErrorResponse(data)) {
         logError("Error verifying exemption status", { message: data.message, authNumber });
         setExemptionInfo(prev => {
             if (!prev) return null;
-            // Asegúrate de incluir TODAS las propiedades de ExemptionInfo
             return {
-                ...prev, // Esto incluye erpExemption, isErpValid, isSpecialLaw
-                haciendaExemption: null, // ✅ Siempre null en caso de error
+                ...prev,
+                haciendaExemption: null,
                 isHaciendaValid: false,
                 isLoading: false,
                 apiError: true,
@@ -179,12 +171,11 @@ export const useQuoter = () => {
         return;
     }
     
-    // --- MANEJO DE ÉXITO ---
     setExemptionInfo(prev => {
          if (!prev) return null;
          return {
-            ...prev, // Esto incluye erpExemption, isErpValid, isSpecialLaw
-            haciendaExemption: data, // ✅ HaciendaExemptionApiResponse
+            ...prev,
+            haciendaExemption: data,
             isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
             isLoading: false,
             apiError: false,

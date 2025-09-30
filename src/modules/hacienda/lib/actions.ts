@@ -119,9 +119,9 @@ export async function getContributorInfo(taxpayerId: string): Promise<HaciendaCo
 /**
  * Fetches the status of a specific tax exemption from the Hacienda API.
  * @param {string} authNumber - The exemption authorization number.
- * @returns {Promise<HaciendaExemptionApiResponse | { error: boolean; message: string }>} The exemption data or an error object.
+ * @returns {Promise<HaciendaExemptionApiResponse | { error: boolean; message: string; status?: number }>} The exemption data or an error object.
  */
-export async function getExemptionStatus(authNumber: string): Promise<HaciendaExemptionApiResponse | { error: boolean; message: string }> {
+export async function getExemptionStatus(authNumber: string): Promise<HaciendaExemptionApiResponse | { error: boolean; message: string; status?: number }> {
     if (!authNumber) {
         return { error: true, message: "El número de autorización es requerido." };
     }
@@ -136,7 +136,7 @@ export async function getExemptionStatus(authNumber: string): Promise<HaciendaEx
 
         if (!response.ok) {
             if (response.status === 404) {
-                 return { error: true, message: "Exoneración no encontrada en Hacienda." };
+                 return { error: true, message: "Exoneración no encontrada en Hacienda.", status: 404 };
             }
             throw new Error(`Error de la API de Hacienda: ${response.status} ${response.statusText}`);
         }
@@ -153,9 +153,9 @@ export async function getExemptionStatus(authNumber: string): Promise<HaciendaEx
  * Fetches exemption status and enriches it with CABYS descriptions.
  * This provides a more user-friendly output by converting CABYS codes into human-readable text.
  * @param {string} authNumber - The exemption authorization number.
- * @returns {Promise<EnrichedExemptionInfo | { error: boolean; message: string }>} The enriched exemption data or an error object.
+ * @returns {Promise<EnrichedExemptionInfo | { error: boolean; message: string; status?: number }>} The enriched exemption data or an error object.
  */
-export async function getEnrichedExemptionStatus(authNumber: string): Promise<EnrichedExemptionInfo | { error: boolean; message: string }> {
+export async function getEnrichedExemptionStatus(authNumber: string): Promise<EnrichedExemptionInfo | { error: boolean; message: string; status?: number }> {
     const exemptionResult = await getExemptionStatus(authNumber);
 
     if ('error' in exemptionResult) {

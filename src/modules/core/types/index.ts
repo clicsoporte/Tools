@@ -356,11 +356,11 @@ export type PurchaseRequest = {
   receivedInWarehouseBy?: string;
   lastStatusUpdateBy?: string;
   lastStatusUpdateNotes?: string;
+  reopened?: boolean;
+  previousStatus?: PurchaseRequestStatus | null;
   lastModifiedBy?: string;
   lastModifiedAt?: string;
   hasBeenModified?: boolean;
-  reopened?: boolean;
-  previousStatus?: PurchaseRequestStatus | null;
 };
 
 export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>> & {

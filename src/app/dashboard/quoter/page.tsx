@@ -77,6 +77,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/modules/core/hooks/useAuth";
+import { isErrorResponse } from "@/modules/quoter/hooks/useQuoter";
 
 const taxes = [
   { name: "IVA 13%", value: 0.13 },
@@ -372,12 +373,12 @@ export default function QuoterPage() {
                                     </div>
                               ) : state.exemptionInfo.isLoading ? (
                                   <Skeleton className="h-10 w-24 mt-1" />
-                              ) : state.exemptionInfo.apiError ? (
+                              ) : state.exemptionInfo.apiError || !state.exemptionInfo.haciendaExemption ? (
                                   <div className="flex items-center gap-1 text-red-600 font-medium">
                                       <AlertTriangle className="h-4 w-4"/>
-                                      <span>Error de API</span>
+                                      <span>Error de API o no encontrado</span>
                                   </div>
-                              ) : state.exemptionInfo.haciendaExemption ? (
+                              ) : state.exemptionInfo.haciendaExemption && !isErrorResponse(state.exemptionInfo.haciendaExemption) ? (
                                   <>
                                       <div className={cn("flex items-center gap-1 font-medium", state.exemptionInfo.isHaciendaValid ? 'text-green-600' : 'text-red-600')}>
                                           {state.exemptionInfo.isHaciendaValid ? <ShieldCheck className="h-4 w-4"/> : <ShieldX className="h-4 w-4"/>}
