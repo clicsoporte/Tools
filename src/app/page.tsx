@@ -28,7 +28,7 @@ export default async function LoginPage() {
   } catch (error) {
     console.error("Failed to load company data on server:", error);
     // Provide a default object if fetching fails
-    companyData = { name: "IntraTool Hub" } as Company;
+    companyData = { name: "Clic-Tools" } as Company;
   }
 
   return (
@@ -38,7 +38,7 @@ export default async function LoginPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <Network className="h-8 w-8" />
           </div>
-          <CardTitle className="text-3xl font-bold">{companyData?.systemName || "IntraTool Hub"}</CardTitle>
+          <CardTitle className="text-3xl font-bold">{companyData?.systemName || "Clic-Tools"}</CardTitle>
           <CardDescription>
             Inicia sesión para acceder a tus herramientas
           </CardDescription>
