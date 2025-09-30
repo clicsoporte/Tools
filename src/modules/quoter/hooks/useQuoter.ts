@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -59,7 +60,7 @@ interface LineInputRefs {
   price: HTMLInputElement | null;
 }
 
-type ErrorResponse = { error: boolean; message: string };
+type ErrorResponse = { error: boolean; message: string; status?: number };
 
 function isErrorResponse(data: any): data is ErrorResponse {
   return (data as ErrorResponse).error !== undefined;
@@ -153,6 +154,14 @@ export const useQuoter = () => {
         const data = await getExemptionStatus(authNumber);
         
         if (isErrorResponse(data)) {
+            // Specifically handle the 404 case.
+            if (data.status === 404) {
+                 setExemptionInfo(prev => {
+                    if (!prev) return null;
+                    return { ...prev, isLoading: false, apiError: true, isHaciendaValid: false };
+                });
+                return;
+            }
             throw new Error(data.message || "Error desconocido al verificar la exoneración.");
         }
         
