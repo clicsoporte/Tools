@@ -47,6 +47,7 @@ async function loadCabysData(): Promise<Map<string, string>> {
             Papa.parse<CabysRow>(fileContent, {
                 header: true,
                 skipEmptyLines: true,
+                delimiter: ';', 
                 step: (row) => {
                     const data = row.data;
                     if (data.Codigo && data.Descripcion) {
@@ -162,12 +163,12 @@ export async function getEnrichedExemptionStatus(authNumber: string): Promise<En
         return exemptionResult;
     }
 
-    const enrichedCabys = await Promise.all(
-        exemptionResult.cabys.map(async (code) => {
-            const description = await getCabysDescription(code);
-            return { code, description: description || 'Descripción no encontrada' };
-        })
-    );
+    const cabysMap = await loadCabysData();
+
+    const enrichedCabys = exemptionResult.cabys.map((code) => {
+        const description = cabysMap.get(code) || 'Descripción no encontrada';
+        return { code, description };
+    });
 
     return {
         ...exemptionResult,

@@ -181,7 +181,7 @@ export const useQuoter = () => {
             apiError: false,
          }
     });
-  }, [toast]);
+}, [toast]);
   
 
   const loadInitialData = useCallback(async (isRefresh = false) => {
@@ -380,8 +380,9 @@ export const useQuoter = () => {
           const isErpValid = new Date(customerExemption.endDate) > new Date();
           
           const isSpecial = exemptionLaws.some(law => 
-              (law.docType?.trim() && law.docType.trim() === customerExemption.docType?.trim()) || 
-              (law.authNumber?.trim() !== '' && String(law.authNumber).trim() === String(customerExemption.authNumber).trim())
+              law.authNumber && 
+              law.authNumber.trim() !== '' && 
+              String(law.authNumber).trim() === String(customerExemption.authNumber).trim()
           );
           
           const initialExemptionState: ExemptionInfo = {
