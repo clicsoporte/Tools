@@ -157,10 +157,10 @@ export const useQuoter = () => {
             if (!prev) return null;
             return {
                 ...prev,
+                haciendaExemption: null,
+                isHaciendaValid: false,
                 isLoading: false,
                 apiError: true,
-                isHaciendaValid: false,
-                haciendaExemption: null
             };
         });
         if (data.status === 404) {
