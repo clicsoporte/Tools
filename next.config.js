@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  compiler: {
+    paths: {
+      "@/*": ["./src/*"]
+    }
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '15mb',
