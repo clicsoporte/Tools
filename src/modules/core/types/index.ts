@@ -240,6 +240,7 @@ export type ProductionOrder = {
   productDescription: string;
   quantity: number;
   inventory?: number;
+  inventoryErp?: number;
   priority: ProductionOrderPriority;
   status: ProductionOrderStatus;
   pendingAction: AdministrativeAction;

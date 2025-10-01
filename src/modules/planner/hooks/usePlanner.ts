@@ -17,7 +17,7 @@ import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import type { RowInput } from "jspdf-autotable";
 
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'pendingAction'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'> = {
     deliveryDate: '',
     customerId: '',
     customerName: '',
@@ -27,7 +27,9 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     priority: 'medium',
     notes: '',
     inventory: 0,
+    inventoryErp: 0,
     purchaseOrder: '',
+    pendingAction: 'none',
 };
 
 const priorityConfig = { 
@@ -406,8 +408,9 @@ export const usePlanner = () => {
             const product = products.find(p => p.id === value);
             if (product) {
                 const stock = stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
-                if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, productId: product.id, productDescription: product.description || '', inventory: stock });
-                else actions.setNewOrder({ ...state.newOrder, productId: product.id, productDescription: product.description || '', inventory: stock });
+                const dataToUpdate = { productId: product.id, productDescription: product.description || '', inventoryErp: stock };
+                if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
+                else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
                 updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
             }
         },
@@ -416,8 +419,9 @@ export const usePlanner = () => {
             updateState({ isCustomerSearchOpen: false });
             const customer = customers.find(c => c.id === value);
             if (customer) {
-                if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, customerId: customer.id, customerName: customer.name });
-                else actions.setNewOrder({ ...state.newOrder, customerId: customer.id, customerName: customer.name });
+                const dataToUpdate = { customerId: customer.id, customerName: customer.name };
+                if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
+                else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
                 updateState({ customerSearchTerm: `${customer.id} - ${customer.name}` });
             }
         },

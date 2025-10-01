@@ -31,6 +31,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
             productDescription TEXT NOT NULL,
             quantity REAL NOT NULL,
             inventory REAL,
+            inventoryErp REAL,
             priority TEXT NOT NULL,
             status TEXT NOT NULL,
             pendingAction TEXT DEFAULT 'none',
@@ -101,6 +102,7 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
     if (!plannerColumns.has('hasBeenModified')) db.exec(`ALTER TABLE production_orders ADD COLUMN hasBeenModified BOOLEAN DEFAULT FALSE`);
     if (!plannerColumns.has('previousStatus')) db.exec(`ALTER TABLE production_orders ADD COLUMN previousStatus TEXT`);
     if (!plannerColumns.has('pendingAction')) db.exec(`ALTER TABLE production_orders ADD COLUMN pendingAction TEXT DEFAULT 'none'`);
+    if (!plannerColumns.has('inventoryErp')) db.exec(`ALTER TABLE production_orders ADD COLUMN inventoryErp REAL`);
     
 
     const historyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='production_order_history'`).get();
@@ -141,13 +143,8 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
 
         const pdfPaperSizeRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfPaperSize'`).get() as { value: string } | undefined;
         if (!pdfPaperSizeRow) {
-            console.log("MIGRATION (planner.db): Adding pdfPaperSize to settings.");
+            console.log("MIGRATION (planner.db): Adding pdfPaperSize and pdfOrientation to settings.");
             db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
-        }
-
-        const pdfOrientationRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfOrientation'`).get() as { value: string } | undefined;
-        if (!pdfOrientationRow) {
-            console.log("MIGRATION (planner.db): Adding pdfOrientation to settings.");
             db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfOrientation', 'portrait')`).run();
         }
 
@@ -290,11 +287,11 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
     const stmt = db.prepare(`
         INSERT INTO production_orders (
             consecutive, purchaseOrder, requestDate, deliveryDate, scheduledStartDate, scheduledEndDate,
-            customerId, customerName, productId, productDescription, quantity, inventory, priority,
+            customerId, customerName, productId, productDescription, quantity, inventory, inventoryErp, priority,
             status, pendingAction, notes, requestedBy, reopened, machineId, previousStatus, hasBeenModified
         ) VALUES (
             @consecutive, @purchaseOrder, @requestDate, @deliveryDate, @scheduledStartDate, @scheduledEndDate,
-            @customerId, @customerName, @productId, @productDescription, @quantity, @inventory, @priority,
+            @customerId, @customerName, @productId, @productDescription, @quantity, @inventory, @inventoryErp, @priority,
             @status, @pendingAction, @notes, @requestedBy, @reopened, @machineId, @previousStatus, @hasBeenModified
         )
     `);
@@ -303,6 +300,7 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         ...newOrder,
         purchaseOrder: newOrder.purchaseOrder || null,
         inventory: newOrder.inventory ?? null,
+        inventoryErp: newOrder.inventoryErp ?? null,
         notes: newOrder.notes || null,
         reopened: newOrder.reopened ? 1 : 0,
         hasBeenModified: newOrder.hasBeenModified ? 1 : 0,

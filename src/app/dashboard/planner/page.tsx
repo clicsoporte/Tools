@@ -207,8 +207,16 @@ export default function PlannerPage() {
                         )}
                         
                         {order.purchaseOrder && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº OC Cliente</p><p>{order.purchaseOrder}</p></div>}
-                        {order.erpPackageNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Bulto</p><p>{order.erpPackageNumber}</p></div>}
-                        {order.erpTicketNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Boleta</p><p>{order.erpTicketNumber}</p></div>}
+                        
+                        {order.inventory !== null && order.inventory !== undefined && (
+                            <div className="space-y-1"><p className="font-semibold text-muted-foreground">Inv. Manual (Creación)</p><p>{order.inventory.toLocaleString()}</p></div>
+                        )}
+                        {order.inventoryErp !== null && order.inventoryErp !== undefined && (
+                            <div className="space-y-1"><p className="font-semibold text-muted-foreground">Inv. ERP (Creación)</p><p>{order.inventoryErp.toLocaleString()}</p></div>
+                        )}
+
+                        {order.erpPackageNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Paquete ERP</p><p>{order.erpPackageNumber}</p></div>}
+                        {order.erpTicketNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Boleta ERP</p><p>{order.erpTicketNumber}</p></div>}
                     </div>
                      {order.pendingAction !== 'none' && (
                         <div className="mt-4">
@@ -479,7 +487,7 @@ export default function PlannerPage() {
                         {state.newStatus === 'received-in-warehouse' && (
                             <div className="grid grid-cols-2 gap-4">
                                  <div className="space-y-2">
-                                    <Label htmlFor="status-erp-package">Nº Bulto ERP</Label>
+                                    <Label htmlFor="status-erp-package">Nº Paquete ERP</Label>
                                     <Input id="status-erp-package" value={state.erpPackageNumber} onChange={(e) => actions.setErpPackageNumber(e.target.value)} />
                                 </div>
                                 <div className="space-y-2">
