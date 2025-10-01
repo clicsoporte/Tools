@@ -6,7 +6,7 @@
 'use server';
 
 import { logError } from '@/modules/core/lib/logger';
-import { getApiSettings } from '@/modules/core/lib/db';
+import { getApiSettings, getCabysCatalog } from '@/modules/core/lib/db';
 import type { HaciendaContributorInfo, HaciendaExemptionApiResponse, EnrichedExemptionInfo } from '../../core/types';
 import fs from 'fs';
 import path from 'path';
@@ -22,9 +22,7 @@ interface CabysRow {
 }
 
 /**
- * Loads the CABYS data from the CSV file into an in-memory cache (a Map).
- * If the cache is already populated, it returns it immediately. This ensures
- * the large CSV file is only read and parsed once per server instance lifetime.
+ * Loads the CABYS data from the database into an in-memory cache.
  * @returns {Promise<Map<string, string>>} A Map where keys are CABYS codes and values are their descriptions.
  */
 async function loadCabysData(): Promise<Map<string, string>> {
@@ -32,44 +30,20 @@ async function loadCabysData(): Promise<Map<string, string>> {
         return cabysCache;
     }
 
-    console.log('Loading CABYS catalog from file...');
+    console.log('Loading CABYS catalog from database...');
     try {
-        if (!fs.existsSync(CABYS_FILE_PATH)) {
-            console.warn("CABYS file does not exist, creating an empty one.");
-            fs.mkdirSync(path.dirname(CABYS_FILE_PATH), { recursive: true });
-            fs.writeFileSync(CABYS_FILE_PATH, 'Codigo,Descripcion\n');
-        }
-
-        const fileContent = fs.readFileSync(CABYS_FILE_PATH, 'utf-8');
+        const cabysItems = await getCabysCatalog();
         const newCache = new Map<string, string>();
-        
-        return new Promise((resolve, reject) => {
-            Papa.parse<CabysRow>(fileContent, {
-                header: true,
-                skipEmptyLines: true,
-                delimiter: ';', 
-                step: (row) => {
-                    const data = row.data;
-                    if (data.Codigo && data.Descripcion) {
-                        newCache.set(data.Codigo, data.Descripcion);
-                    }
-                },
-                complete: () => {
-                    cabysCache = newCache;
-                    console.log(`CABYS catalog loaded with ${cabysCache.size} entries.`);
-                    resolve(cabysCache);
-                },
-                error: (error: Error) => {
-                    console.error('Error parsing CABYS CSV:', error);
-                    reject(error);
-                }
-            });
-        });
+        for (const item of cabysItems) {
+            newCache.set(item.code, item.description);
+        }
+        cabysCache = newCache;
+        console.log(`CABYS catalog loaded with ${cabysCache.size} entries.`);
     } catch (error) {
-        console.error('Failed to read or process CABYS file:', error);
+        console.error('Failed to load CABYS data from DB:', error);
         cabysCache = new Map<string, string>(); // Initialize empty cache on error
-        return cabysCache;
     }
+    return cabysCache;
 }
 
 /**
