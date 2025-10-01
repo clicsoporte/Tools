@@ -867,6 +867,24 @@ const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'st
     }
 }
 
+const parseDateWithTimezone = (dateString: string): string => {
+    // Dates from ERP might come without timezone info. The 'Z' treats them as UTC.
+    // e.g., 'Sep 29 2027 12:00AM' becomes '2027-09-29T00:00:00.000Z'
+    // This prevents the local server timezone from shifting the date back by a day.
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        return dateString; // Return original string if parsing fails
+    }
+    // Check if the original string has a time part. If not, it's just a date.
+    if (!dateString.includes(':')) {
+        // It's a date only, so we need to account for the local timezone offset during parsing
+        const [year, month, day] = [date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()];
+        return new Date(year, month, day).toISOString();
+    }
+    return date.toISOString();
+};
+
+
 const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys') => {
     if (lines.length < 1) {
         return [];
@@ -881,12 +899,14 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
         header.forEach((h, index) => {
             const key = headerMapping[h as keyof typeof headerMapping];
             if (key) {
-                const value = data[index]?.trim() || '';
+                let value = data[index]?.trim() || '';
                 if (key === 'creditLimit' || key === 'percentage' || key === 'stock' || key === 'rack' || key === 'hPos' || key === 'taxRate') {
                     dataObject[key] = parseFloat(value.replace('%', '')) || 0;
                      if (key === 'taxRate') {
                         dataObject[key] = dataObject[key] / 100;
                     }
+                } else if ((key === 'startDate' || key === 'endDate') && value) {
+                    dataObject[key] = parseDateWithTimezone(value);
                 } else {
                     dataObject[key] = value;
                 }

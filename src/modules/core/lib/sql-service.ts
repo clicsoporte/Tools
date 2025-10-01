@@ -38,7 +38,8 @@ async function getDbConfig(): Promise<sql.config> {
             trustServerCertificate: true, // For local development; set to false in production with a proper certificate
             connectTimeout: 30000,
             requestTimeout: 30000,
-            enableArithAbort: true
+            enableArithAbort: true,
+            useUTC: false // CRITICAL: This prevents the driver from converting dates to the server's local timezone.
         },
         pool: {
             max: 10,
