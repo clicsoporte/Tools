@@ -3,8 +3,6 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '15mb',
-      allowedOrigins: ['garend.com', '192.168.1.14', 'localhost:9003'],
-      allowedForwardedHosts: ['garend.com', '192.168.1.14']
     },
   },
   images: {
