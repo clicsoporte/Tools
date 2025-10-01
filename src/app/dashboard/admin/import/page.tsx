@@ -23,7 +23,7 @@ import { Textarea } from '../../../../components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys';
-const transactionalImportTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations'];
+const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys'];
 
 const importTypeTranslations: { [key in ImportType]: string } = {
     customers: 'Clientes',
@@ -245,11 +245,11 @@ export default function ImportDataPage() {
                     <CardHeader>
                         <CardTitle>Importación desde Archivos</CardTitle>
                         <CardDescription>
-                            Procesa los archivos de datos (`.txt` o `.csv`) desde una ruta completa en el servidor. La importación de CABYS siempre está disponible.
+                            Procesa los archivos de datos (`.txt` o `.csv`) desde una ruta completa en el servidor. El catálogo CABYS siempre se puede importar desde un archivo.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {companyData?.importMode === 'file' && transactionalImportTypes.map(type => renderFileImportCard(type))}
+                        {companyData?.importMode === 'file' && importTypes.filter(t => t !== 'cabys').map(type => renderFileImportCard(type))}
                         {renderFileImportCard('cabys')}
                     </CardContent>
                 </Card>
@@ -326,7 +326,7 @@ export default function ImportDataPage() {
                                     Define la consulta SELECT para cada tipo de dato. El sistema mapeará las columnas automáticamente según los nombres definidos en la documentación.
                                 </CardDescription>
                                 <div className="space-y-4">
-                                    {transactionalImportTypes.map(type => (
+                                    {importTypes.map(type => (
                                         <div key={type} className="space-y-2">
                                             <Label htmlFor={`query-${type}`}>Consulta para {importTypeTranslations[type]}</Label>
                                             <Textarea
