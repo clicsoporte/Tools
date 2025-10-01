@@ -408,7 +408,12 @@ export const usePlanner = () => {
             const product = products.find(p => p.id === value);
             if (product) {
                 const stock = stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
-                const dataToUpdate = { productId: product.id, productDescription: product.description || '', inventoryErp: stock };
+                const dataToUpdate = { 
+                    productId: product.id, 
+                    productDescription: product.description || '', 
+                    inventoryErp: stock,
+                    inventory: stock, // Auto-populate manual inventory with ERP value
+                };
                 if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
                 else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
                 updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
