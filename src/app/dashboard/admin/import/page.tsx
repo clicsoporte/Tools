@@ -23,7 +23,7 @@ import { Textarea } from '../../../../components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys';
-const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys'];
+const transactionalImportTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations'];
 
 const importTypeTranslations: { [key in ImportType]: string } = {
     customers: 'Clientes',
@@ -224,7 +224,7 @@ export default function ImportDataPage() {
                 <CardHeader>
                     <CardTitle>Configuración de Importación de Datos</CardTitle>
                     <CardDescription>
-                        Elige cómo el sistema obtiene los datos del ERP. Puedes usar archivos de texto o conectar directamente a una base de datos SQL Server.
+                        Elige cómo el sistema obtiene los datos transaccionales del ERP. El catálogo CABYS siempre se importa desde un archivo.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -240,16 +240,17 @@ export default function ImportDataPage() {
                 </CardContent>
              </Card>
             
-            {companyData?.importMode === 'file' && hasPermission('admin:import:files') && (
+            {hasPermission('admin:import:files') && (
                 <Card>
                     <CardHeader>
                         <CardTitle>Importación desde Archivos</CardTitle>
                         <CardDescription>
-                           Procesa los archivos de datos (`.txt` o `.csv`) desde una ruta completa en el servidor.
+                            Procesa los archivos de datos (`.txt` o `.csv`) desde una ruta completa en el servidor. La importación de CABYS siempre está disponible.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {importTypes.map(type => renderFileImportCard(type))}
+                        {companyData?.importMode === 'file' && transactionalImportTypes.map(type => renderFileImportCard(type))}
+                        {renderFileImportCard('cabys')}
                     </CardContent>
                 </Card>
             )}
@@ -325,7 +326,7 @@ export default function ImportDataPage() {
                                     Define la consulta SELECT para cada tipo de dato. El sistema mapeará las columnas automáticamente según los nombres definidos en la documentación.
                                 </CardDescription>
                                 <div className="space-y-4">
-                                    {importTypes.map(type => (
+                                    {transactionalImportTypes.map(type => (
                                         <div key={type} className="space-y-2">
                                             <Label htmlFor={`query-${type}`}>Consulta para {importTypeTranslations[type]}</Label>
                                             <Textarea
