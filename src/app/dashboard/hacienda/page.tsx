@@ -139,7 +139,7 @@ const HaciendaExemptionCard = ({ data }: { data: EnrichedExemptionInfo | null })
         if (!cabysFilter) return data.enrichedCabys;
         const lowerFilter = cabysFilter.toLowerCase();
         return data.enrichedCabys.filter(item => 
-            item.code.includes(lowerFilter) || 
+            item.code.toLowerCase().includes(lowerFilter) || 
             item.description.toLowerCase().includes(lowerFilter)
         );
     }, [data, cabysFilter]);
@@ -202,9 +202,12 @@ const HaciendaExemptionCard = ({ data }: { data: EnrichedExemptionInfo | null })
                     </div>
                     <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
                         {filteredCabys.map((item, index) => (
-                            <div key={`${item.code}-${index}`} className="p-2 bg-muted/50 rounded-md text-xs">
-                                <p className="font-semibold">{item.description}</p>
-                                <p className="text-muted-foreground">Código: {item.code}</p>
+                            <div key={`${item.code}-${index}`} className="p-2 bg-muted/50 rounded-md text-xs flex justify-between items-center">
+                                <div>
+                                    <p className="font-semibold">{item.description}</p>
+                                    <p className="text-muted-foreground">Código: {item.code}</p>
+                                </div>
+                                <Badge variant="secondary">{item.taxRate * 100}%</Badge>
                             </div>
                         ))}
                     </div>

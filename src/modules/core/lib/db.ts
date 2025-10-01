@@ -483,7 +483,7 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
         { type: 'exemptions', query: "SELECT CODIGO, DESCRIPCION, CLIENTE, NUM_AUTOR, FECHA_RIGE, FECHA_VENCE, PORCENTAJE, TIPO_DOC, NOMBRE_INSTITUCION, CODIGO_INSTITUCION FROM SOFTLAND.GAREND.EXO_CLIENTE" },
         { type: 'stock', query: "SELECT ARTICULO, BODEGA, CANT_DISPONIBLE FROM SOFTLAND.GAREND.EXISTENCIA_BODEGA WHERE CANT_DISPONIBLE > 0" },
         { type: 'locations', query: "" },
-        { type: 'cabys', query: "" },
+        { type: 'cabys', query: "SELECT [CODIGO], [DESCRIPCION], [IMPUESTO] FROM [SOFTLAND].[GAREND].[CODIGO_HACIENDA]" },
     ];
     const queryInsert = db.prepare('INSERT OR IGNORE INTO import_queries (type, query) VALUES (@type, @query)');
     initialQueries.forEach(q => queryInsert.run(q));
@@ -860,7 +860,7 @@ const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'st
             };
         case 'cabys':
              return {
-                'CODIGO': 'Codigo', 'DESCRIPCION': 'Descripcion'
+                'CODIGO': 'code', 'DESCRIPCION': 'description', 'IMPUESTO': 'taxRate'
             };
         default:
             return {};
@@ -882,8 +882,11 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
             const key = headerMapping[h as keyof typeof headerMapping];
             if (key) {
                 const value = data[index]?.trim() || '';
-                if (key === 'creditLimit' || key === 'percentage' || key === 'stock' || key === 'rack' || key === 'hPos') {
-                    dataObject[key] = parseFloat(value) || 0;
+                if (key === 'creditLimit' || key === 'percentage' || key === 'stock' || key === 'rack' || key === 'hPos' || key === 'taxRate') {
+                    dataObject[key] = parseFloat(value.replace('%', '')) || 0;
+                     if (key === 'taxRate') {
+                        dataObject[key] = dataObject[key] / 100;
+                    }
                 } else {
                     dataObject[key] = value;
                 }
@@ -939,6 +942,10 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
         return { count: new Set(dataArray.map(item => item.itemId)).size, source: filePath };
     }
     else if (type === 'locations') await saveAllLocations(dataArray as ItemLocation[]);
+    else if (type === 'cabys') {
+        const { count } = await updateCabysCatalogFromSqlData(dataArray);
+        return { count, source: filePath };
+    }
 
     return { count: dataArray.length, source: filePath };
 }
@@ -988,11 +995,17 @@ async function updateCabysCatalogFromSqlData(data: any[]): Promise<{ count: numb
         db.prepare('DELETE FROM cabys_catalog').run();
         const insertStmt = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
         for (const row of rows) {
-            const code = row.code || row.Codigo;
-            const description = row.description || row.Descripcion;
-            const taxRate = row.taxRate ?? (row.Impuesto !== undefined ? parseFloat(String(row.Impuesto).replace('%', '')) / 100 : undefined);
-            if (code && description && taxRate !== undefined && !isNaN(taxRate)) {
-                insertStmt.run(code, description, taxRate);
+            const code = row.code || row.CODIGO;
+            const description = row.description || row.DESCRIPCION;
+            let taxRate = row.taxRate ?? row.IMPUESTO;
+            
+            if (code && description && taxRate !== undefined) {
+                if (typeof taxRate === 'string') {
+                    taxRate = parseFloat(taxRate.replace('%', '').trim()) / 100;
+                }
+                if (!isNaN(taxRate)) {
+                    insertStmt.run(code, description, taxRate);
+                }
             }
         }
     });
@@ -1005,6 +1018,19 @@ async function updateCabysCatalogFromSqlData(data: any[]): Promise<{ count: numb
 export async function importData(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
+    
+    // CABYS is a special case: always allow file import
+    if (type === 'cabys' && companySettings.cabysFilePath) {
+         try {
+            return await importDataFromFile(type);
+        } catch (e) {
+            // If file import fails, fall back to SQL if configured
+            if (companySettings.importMode === 'sql') {
+                return importDataFromSql(type);
+            }
+            throw e; // Re-throw if not in SQL mode
+        }
+    }
 
     if (companySettings.importMode === 'sql') {
         return importDataFromSql(type);
@@ -1117,12 +1143,16 @@ export async function saveStockSettings(settings: StockSettings): Promise<void> 
 
 const normalizeHeader = (header: string): string => {
     if (!header) return '';
-    return header
+    const normalized = header
         .toLowerCase()
         .trim()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "") 
-        .replace(/[^a-z0-9\(\)]/g, ""); 
+        .replace(/[^a-z0-9]/g, "");
+    if (normalized.includes("categoria9")) return "codigo";
+    if (normalized.includes("descripcion")) return "descripcion";
+    if (normalized.includes("impuesto")) return "impuesto";
+    return normalized;
 };
 
 
@@ -1131,7 +1161,7 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
         header: true,
         skipEmptyLines: true,
         delimiter: ';', 
-        transformHeader: (header) => header.trim(),
+        transformHeader: (header) => normalizeHeader(header),
     });
 
     if (parsed.errors.length > 0) {
@@ -1142,34 +1172,20 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
     }
 
     const fields = parsed.meta.fields;
-    if (!fields) throw new Error("No se pudieron leer los encabezados del archivo CABYS.");
-
-    const normalizedFields = fields.map(normalizeHeader);
-    
-    const codeHeaderIndex = normalizedFields.findIndex(f => f.includes("categoria9") || f.includes("codigo"));
-    const descHeaderIndex = normalizedFields.findIndex(f => f.includes("descripcioncategoria9") || f.includes("descripcion"));
-    const taxHeaderIndex = normalizedFields.findIndex(f => f.includes("impuesto"));
-
-    if (codeHeaderIndex === -1 || descHeaderIndex === -1 || taxHeaderIndex === -1) {
+    if (!fields || !fields.includes('codigo') || !fields.includes('descripcion') || !fields.includes('impuesto')) {
         console.error("Detected headers:", fields);
-        console.error("Normalized headers:", normalizedFields);
-        throw new Error('El archivo debe contener columnas para código, descripción e impuesto. No se encontraron las columnas requeridas.');
+        throw new Error('El archivo CSV debe contener las columnas "Codigo", "Descripcion" e "Impuesto".');
     }
     
-    const codeHeader = fields[codeHeaderIndex];
-    const descHeader = fields[descHeaderIndex];
-    const taxHeader = fields[taxHeaderIndex];
-
-
     const db = await connectDb();
     const transaction = db.transaction((data) => {
         db.prepare('DELETE FROM cabys_catalog').run();
         const insertStmt = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
         
         for (const row of data as any[]) {
-            const code = row[codeHeader];
-            const description = row[descHeader]?.replace(/"/g, '') || ''; // Remove quotes
-            const taxString = row[taxHeader]?.replace('%', '').trim();
+            const code = row.codigo;
+            const description = row.descripcion?.replace(/"/g, '') || '';
+            const taxString = row.impuesto?.replace('%', '').trim();
             const taxRate = parseFloat(taxString) / 100;
             
             if (code && description && !isNaN(taxRate)) {
@@ -1180,15 +1196,20 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
 
     transaction(parsed.data);
     
-    const standardizedData = parsed.data.map((row: any) => ({
-        Codigo: row[codeHeader],
-        Descripcion: row[descHeader],
-        Impuesto: row[taxHeader],
+    const standardizedData = (parsed.data as any[]).map((row: any) => ({
+        Codigo: row.codigo,
+        Descripcion: row.descripcion,
+        Impuesto: row.impuesto,
     }));
     const newCsvContent = Papa.unparse(standardizedData, { header: true, delimiter: ';' });
     fs.writeFileSync(CABYS_FILE_PATH, newCsvContent);
     
     return { count: standardizedData.length };
+}
+
+export async function getCabysCatalog(): Promise<{code: string; description: string; taxRate: number}[]> {
+    const db = await connectDb();
+    return db.prepare('SELECT * FROM cabys_catalog').all() as {code: string; description: string; taxRate: number}[];
 }
 
 export async function importAllDataFromFiles(): Promise<{ type: string; count: number; }[]> {
@@ -1207,7 +1228,7 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
     const results: { type: string; count: number; }[] = [];
     
     for (const task of importTasks) {
-        if (companySettings.importMode === 'file' && !task.filePath) {
+        if (companySettings.importMode === 'file' && !task.filePath && task.type !== 'cabys') {
             console.log(`Skipping ${task.type} import: no file path configured.`);
             continue;
         }

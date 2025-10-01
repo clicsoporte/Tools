@@ -14,18 +14,19 @@ import Papa from 'papaparse';
 
 const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
 
-let cabysCache: Map<string, string> | null = null;
+let cabysCache: Map<string, { description: string, taxRate: number }> | null = null;
 
 interface CabysRow {
     Codigo: string;
     Descripcion: string;
+    Impuesto: string;
 }
 
 /**
  * Loads the CABYS data from the database into an in-memory cache.
  * @returns {Promise<Map<string, string>>} A Map where keys are CABYS codes and values are their descriptions.
  */
-async function loadCabysData(): Promise<Map<string, string>> {
+async function loadCabysData(): Promise<Map<string, { description: string, taxRate: number }>> {
     if (cabysCache) {
         return cabysCache;
     }
@@ -33,15 +34,15 @@ async function loadCabysData(): Promise<Map<string, string>> {
     console.log('Loading CABYS catalog from database...');
     try {
         const cabysItems = await getCabysCatalog();
-        const newCache = new Map<string, string>();
+        const newCache = new Map<string, { description: string, taxRate: number }>();
         for (const item of cabysItems) {
-            newCache.set(item.code, item.description);
+            newCache.set(item.code, { description: item.description, taxRate: item.taxRate });
         }
         cabysCache = newCache;
         console.log(`CABYS catalog loaded with ${cabysCache.size} entries.`);
     } catch (error) {
         console.error('Failed to load CABYS data from DB:', error);
-        cabysCache = new Map<string, string>(); // Initialize empty cache on error
+        cabysCache = new Map<string, { description: string, taxRate: number }>(); // Initialize empty cache on error
     }
     return cabysCache;
 }
@@ -53,7 +54,7 @@ async function loadCabysData(): Promise<Map<string, string>> {
  */
 export async function getCabysDescription(code: string): Promise<string | null> {
     const cabysMap = await loadCabysData();
-    return cabysMap.get(code) || null;
+    return cabysMap.get(code)?.description || null;
 }
 
 // Pre-load data on server start to make subsequent lookups faster.
@@ -140,8 +141,12 @@ export async function getEnrichedExemptionStatus(authNumber: string): Promise<En
     const cabysMap = await loadCabysData();
 
     const enrichedCabys = exemptionResult.cabys.map((code) => {
-        const description = cabysMap.get(code) || 'Descripción no encontrada';
-        return { code, description };
+        const cabysEntry = cabysMap.get(code);
+        return {
+            code,
+            description: cabysEntry?.description || 'Descripción no encontrada',
+            taxRate: cabysEntry?.taxRate ?? 0,
+        };
     });
 
     return {

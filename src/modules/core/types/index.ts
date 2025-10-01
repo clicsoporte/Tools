@@ -526,6 +526,7 @@ export type HaciendaExemptionApiResponse = {
 export type EnrichedCabysItem = {
     code: string;
     description: string;
+    taxRate: number;
 };
 
 export type EnrichedExemptionInfo = HaciendaExemptionApiResponse & {
