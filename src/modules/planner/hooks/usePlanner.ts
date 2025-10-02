@@ -21,6 +21,7 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     deliveryDate: '',
     customerId: '',
     customerName: '',
+    customerTaxId: '',
     productId: '',
     productDescription: '',
     quantity: 0,
@@ -412,7 +413,7 @@ export const usePlanner = () => {
                     productId: product.id, 
                     productDescription: product.description || '', 
                     inventoryErp: stock,
-                    inventory: stock, // Auto-populate manual inventory with ERP value
+                    inventory: stock,
                 };
                 if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
                 else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
@@ -424,10 +425,10 @@ export const usePlanner = () => {
             updateState({ isCustomerSearchOpen: false });
             const customer = customers.find(c => c.id === value);
             if (customer) {
-                const dataToUpdate = { customerId: customer.id, customerName: customer.name };
+                const dataToUpdate = { customerId: customer.id, customerName: customer.name, customerTaxId: customer.taxId };
                 if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
                 else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
-                updateState({ customerSearchTerm: `${customer.id} - ${customer.name}` });
+                updateState({ customerSearchTerm: `[${customer.id}] ${customer.name} (${customer.taxId})` });
             }
         },
 
@@ -635,7 +636,7 @@ export const usePlanner = () => {
         customerOptions: useMemo(() => {
             if (debouncedCustomerSearch.length < 2) return [];
             const searchLower = debouncedCustomerSearch.toLowerCase();
-            return customers.filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower)).map(c => ({ value: c.id, label: `${c.id} - ${c.name}` }));
+            return customers.filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower)).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
         }, [customers, debouncedCustomerSearch]),
         productOptions: useMemo(() => {
             if (debouncedProductSearch.length < 2) return [];

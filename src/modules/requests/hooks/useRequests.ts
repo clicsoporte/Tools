@@ -21,6 +21,7 @@ const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' |
     requiredDate: '',
     clientId: '',
     clientName: '',
+    clientTaxId: '',
     itemId: '',
     itemDescription: '',
     quantity: 0,
@@ -350,10 +351,10 @@ export const useRequests = () => {
         setClientSearchOpen(false);
         const client = authCustomers.find(c => c.id === value);
         if (client) {
-            const dataToUpdate = { clientId: client.id, clientName: client.name };
+            const dataToUpdate = { clientId: client.id, clientName: client.name, clientTaxId: client.taxId };
             if (requestToEdit) setRequestToEdit(p => p ? { ...p, ...dataToUpdate } : null);
             else setNewRequest(p => ({ ...p, ...dataToUpdate }));
-            setClientSearchTerm(`${client.id} - ${client.name}`);
+            setClientSearchTerm(`[${client.id}] ${client.name} (${client.taxId})`);
         }
     };
 
@@ -500,7 +501,7 @@ export const useRequests = () => {
         clientOptions: useMemo(() => {
             if (debouncedClientSearch.length < 2) return [];
             const searchLower = debouncedClientSearch.toLowerCase();
-            return authCustomers.filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower)).map(c => ({ value: c.id, label: `${c.id} - ${c.name}` }));
+            return authCustomers.filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower)).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
         }, [authCustomers, debouncedClientSearch]),
         itemOptions: useMemo(() => {
             if (debouncedItemSearch.length < 2) return [];
