@@ -27,6 +27,7 @@ interface AuthContextType {
   allExemptions: Exemption[];
   exemptionLaws: ExemptionLaw[];
   unreadSuggestionsCount: number;
+  setUnreadSuggestionsCount: (count: number) => void;
   exchangeRateData: { rate: number | null, date: string | null };
   isLoading: boolean;
   refreshAuth: () => Promise<{ isAuthenticated: boolean; } | void>;
@@ -62,12 +63,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     setExchangeRateData(rateData || { rate: null, date: null });
   }, []);
 
-  const loadAuthData = useCallback(async (isInitialLoad = false) => {
-    if (!isInitialLoad) {
-      // For manual refreshes, re-fetch everything
-      setIsLoading(true);
-    }
-    
+  const loadAuthData = useCallback(async () => {
     try {
       const [
         currentUser, allRoles, companySettings, dbCustomers, dbProducts, 
@@ -106,17 +102,17 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
   
   const refreshAuthAndRedirect = useCallback(async (path: string) => {
-    await loadAuthData(false);
+    setIsLoading(true);
+    await loadAuthData();
     router.push(path);
-    // Note: router.refresh() is often not needed with this state management model,
-    // as components re-render with new context data.
   }, [loadAuthData, router]);
 
   useEffect(() => {
-    // This effect runs only once on initial mount
     let isMounted = true;
+
     const initialLoad = async () => {
-        const { isAuthenticated } = await loadAuthData(true);
+        if (!isMounted) return;
+        const { isAuthenticated } = await loadAuthData();
         if (isMounted && !isAuthenticated && pathname.startsWith('/dashboard')) {
             router.replace('/');
         }
@@ -140,9 +136,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     allExemptions,
     exemptionLaws,
     unreadSuggestionsCount,
+    setUnreadSuggestionsCount,
     exchangeRateData,
     isLoading,
-    refreshAuth: () => loadAuthData(false),
+    refreshAuth: loadAuthData,
     refreshAuthAndRedirect,
     refreshExchangeRate,
   };
