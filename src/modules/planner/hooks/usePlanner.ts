@@ -20,13 +20,14 @@ import type {
     ProductionOrderHistoryEntry, User, PlannerSettings, DateRange, 
     NotePayload, UpdateProductionOrderPayload, AdministrativeActionPayload 
 } from '../../core/types';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
+import type { RowInput } from "jspdf-autotable";
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'deliveredQuantity' | 'pendingAction'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'| 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'deliveredQuantity'> = {
     deliveryDate: '',
     customerId: '',
     customerName: '',
@@ -39,6 +40,7 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     inventory: 0,
     inventoryErp: 0,
     purchaseOrder: '',
+    pendingAction: 'none',
 };
 
 const priorityConfig = { 
