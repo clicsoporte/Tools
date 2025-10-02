@@ -38,7 +38,7 @@ import { addSuggestion } from "@/modules/core/lib/suggestions-actions";
  * based on user permissions.
  */
 export default function DashboardPage() {
-  const { user, userRole, companyData, isLoading: isAuthLoading, refreshAuth, exchangeRateData, refreshExchangeRate, unreadSuggestionsCount } = useAuth();
+  const { user, userRole, companyData, setCompanyData, isLoading: isAuthLoading, exchangeRateData, refreshExchangeRate, unreadSuggestionsCount } = useAuth();
   const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const { setTitle } = usePageTitle();
   const { hasPermission } = useAuthorization(['admin:import:run']);
@@ -89,9 +89,12 @@ export default function DashboardPage() {
             description: `Se han procesado ${results.length} tipos de datos desde el ERP. Los datos se reflejarán automáticamente.`,
         });
         await logInfo("Full ERP data synchronization completed via dashboard button.", { results });
-        // No need to call refreshAuth here, as it causes a full page flicker.
-        // The useAuth hook will eventually get the new data on a full page reload, 
-        // but for immediate use, individual modules' data is what matters.
+        
+        // Directly update the companyData in the Auth context to reflect the new sync time instantly.
+        if(companyData) {
+            setCompanyData({ ...companyData, lastSyncTimestamp: new Date().toISOString() });
+        }
+
     } catch (error: any) {
          toast({
             title: "Error en Sincronización",
