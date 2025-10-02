@@ -559,7 +559,7 @@ export async function getLogs(filters: {
         }
 
         if (whereClauses.length > 0) {
-            query += ` WHERE ${whereClauses.join(' AND ')}`;
+            query += ` WHERE ${whereClauses.join(' AND ')}`
         }
 
         query += ' ORDER BY timestamp DESC LIMIT 200'; // Limit results for performance
@@ -905,7 +905,7 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
                      if (key === 'taxRate') {
                         dataObject[key] = dataObject[key] / 100;
                     }
-                } else if ((key === 'startDate' || key === 'endDate') && value) {
+                } else if ((key === 'startDate' || key === 'endDate' || key === 'lastEntry') && value) {
                     dataObject[key] = parseDateWithTimezone(value);
                 } else {
                     dataObject[key] = value;
@@ -1327,7 +1327,8 @@ export async function getAndCacheExchangeRate(forceRefresh = false): Promise<{ r
     if (!forceRefresh) {
         const cachedRate = db.prepare(`SELECT rate, date FROM exchange_rates WHERE date = ?`).get(today) as { rate: number, date: string } | undefined;
         if (cachedRate) {
-            return { rate: cachedRate.rate, date: new Date(cachedRate.date).toLocaleDateString('es-CR') };
+            const displayDate = new Date(cachedRate.date + 'T00:00:00').toLocaleDateString('es-CR', { timeZone: 'UTC' });
+            return { rate: cachedRate.rate, date: displayDate };
         }
     }
     
@@ -1336,18 +1337,21 @@ export async function getAndCacheExchangeRate(forceRefresh = false): Promise<{ r
         if (data.error) throw new Error(data.message);
         
         const rate = data.venta?.valor;
-        const rateDate = new Date(data.venta?.fecha).toISOString().split('T')[0];
+        const rateDateString = data.venta?.fecha;
         
-        if (rate && rateDate) {
+        if (rate && rateDateString) {
+            const rateDate = new Date(rateDateString).toISOString().split('T')[0];
             db.prepare(`INSERT OR REPLACE INTO exchange_rates (date, rate) VALUES (?, ?)`).run(rateDate, rate);
-            return { rate, date: new Date(rateDate).toLocaleDateString('es-CR') };
+            const displayDate = new Date(rateDate + 'T00:00:00').toLocaleDateString('es-CR', { timeZone: 'UTC' });
+            return { rate, date: displayDate };
         }
         return null;
     } catch (error) {
         console.error('Failed to fetch and cache exchange rate:', error);
         const lastRate = db.prepare('SELECT rate, date FROM exchange_rates ORDER BY date DESC LIMIT 1').get() as { rate: number, date: string } | undefined;
         if (lastRate) {
-            return { rate: lastRate.rate, date: new Date(lastRate.date).toLocaleDateString('es-CR') };
+            const displayDate = new Date(lastRate.date + 'T00:00:00').toLocaleDateString('es-CR', { timeZone: 'UTC' });
+            return { rate: lastRate.rate, date: displayDate };
         }
         return null;
     }
