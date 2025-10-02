@@ -20,6 +20,7 @@ interface AuthContextType {
   user: User | null;
   userRole: Role | null;
   companyData: Company | null;
+  setCompanyData: (data: Company) => void;
   customers: Customer[];
   products: Product[];
   stockLevels: StockInfo[];
@@ -132,6 +133,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     user,
     userRole,
     companyData,
+    setCompanyData,
     customers,
     products,
     stockLevels,

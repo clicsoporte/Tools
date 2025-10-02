@@ -26,7 +26,7 @@ import { Switch } from "@/components/ui/switch";
 export default function QuoterSettingsPage() {
   const { isAuthorized } = useAuthorization(['admin:settings:general']);
   const { toast } = useToast();
-  const { refreshAuth } = useAuth();
+  const { setCompanyData: setAuthCompanyData } = useAuth();
   const [companyData, setCompanyData] = useState<Company | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { setTitle } = usePageTitle();
@@ -62,7 +62,8 @@ export default function QuoterSettingsPage() {
       title: "Configuración Guardada",
       description: "Los datos del cotizador han sido actualizados.",
     });
-    await refreshAuth();
+    // Update the auth context directly to avoid a full reload
+    setAuthCompanyData(companyData);
     await logInfo("Configuración del cotizador guardada", { companyName: companyData.name });
   };
   
