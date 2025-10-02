@@ -27,6 +27,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
             scheduledEndDate TEXT,
             customerId TEXT NOT NULL,
             customerName TEXT NOT NULL,
+            customerTaxId TEXT,
             productId TEXT NOT NULL,
             productDescription TEXT NOT NULL,
             quantity REAL NOT NULL,
@@ -103,6 +104,7 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
     if (!plannerColumns.has('previousStatus')) db.exec(`ALTER TABLE production_orders ADD COLUMN previousStatus TEXT`);
     if (!plannerColumns.has('pendingAction')) db.exec(`ALTER TABLE production_orders ADD COLUMN pendingAction TEXT DEFAULT 'none'`);
     if (!plannerColumns.has('inventoryErp')) db.exec(`ALTER TABLE production_orders ADD COLUMN inventoryErp REAL`);
+    if (!plannerColumns.has('customerTaxId')) db.exec(`ALTER TABLE production_orders ADD COLUMN customerTaxId TEXT`);
     
 
     const historyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='production_order_history'`).get();
@@ -287,11 +289,11 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
     const stmt = db.prepare(`
         INSERT INTO production_orders (
             consecutive, purchaseOrder, requestDate, deliveryDate, scheduledStartDate, scheduledEndDate,
-            customerId, customerName, productId, productDescription, quantity, inventory, inventoryErp, priority,
+            customerId, customerName, customerTaxId, productId, productDescription, quantity, inventory, inventoryErp, priority,
             status, pendingAction, notes, requestedBy, reopened, machineId, previousStatus, hasBeenModified
         ) VALUES (
             @consecutive, @purchaseOrder, @requestDate, @deliveryDate, @scheduledStartDate, @scheduledEndDate,
-            @customerId, @customerName, @productId, @productDescription, @quantity, @inventory, @inventoryErp, @priority,
+            @customerId, @customerName, @customerTaxId, @productId, @productDescription, @quantity, @inventory, @inventoryErp, @priority,
             @status, @pendingAction, @notes, @requestedBy, @reopened, @machineId, @previousStatus, @hasBeenModified
         )
     `);

@@ -254,9 +254,9 @@ export default function QuoterPage() {
                     </CardHeader>
                     <CardContent className="p-3 pt-0 grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground">
                       <div>
-                        Moneda:{" "}
+                        Cédula:{" "}
                         <span className="font-medium text-foreground">
-                          {state.selectedCustomer.currency}
+                          {state.selectedCustomer.taxId}
                         </span>
                       </div>
                       <div>
@@ -274,9 +274,15 @@ export default function QuoterPage() {
                         </span>
                       </div>
                       <div>
-                        Código Vendedor:{" "}
+                        Vendedor:{" "}
                         <span className="font-medium text-foreground">
                           {state.selectedCustomer.salesperson}
+                        </span>
+                      </div>
+                      <div>
+                        Moneda:{" "}
+                        <span className="font-medium text-foreground">
+                          {state.selectedCustomer.currency}
                         </span>
                       </div>
                       <div>
