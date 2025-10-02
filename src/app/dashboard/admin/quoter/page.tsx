@@ -21,6 +21,7 @@ import { getCompanySettings, saveCompanySettings } from "../../../../modules/cor
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { useAuth } from "@/modules/core/hooks/useAuth";
+import { Switch } from "@/components/ui/switch";
 
 export default function QuoterSettingsPage() {
   const { isAuthorized } = useAuthorization(['admin:settings:general']);
@@ -35,6 +36,9 @@ export default function QuoterSettingsPage() {
     const loadData = async () => {
         setIsLoading(true);
         const data = await getCompanySettings();
+        if (data && data.quoterShowTaxId === undefined) {
+            data.quoterShowTaxId = true;
+        }
         setCompanyData(data);
         setIsLoading(false);
     }
@@ -85,32 +89,42 @@ export default function QuoterSettingsPage() {
                     <CardTitle>Ajustes del Cotizador</CardTitle>
                     <CardDescription>Configura los valores por defecto y consecutivos para el módulo de cotizaciones.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="quotePrefix">Prefijo de Cotización</Label>
-                        <Input 
-                            id="quotePrefix" 
-                            value={companyData.quotePrefix || ''}
-                            onChange={handleChange}
-                        />
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="quotePrefix">Prefijo de Cotización</Label>
+                            <Input 
+                                id="quotePrefix" 
+                                value={companyData.quotePrefix || ''}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="nextQuoteNumber">Próximo Número de Cotización</Label>
+                            <Input 
+                                id="nextQuoteNumber"
+                                type="number"
+                                value={companyData.nextQuoteNumber || 1}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="decimalPlaces">Decimales en Precios</Label>
+                            <Input 
+                                id="decimalPlaces"
+                                type="number"
+                                value={companyData.decimalPlaces ?? 2}
+                                onChange={handleChange}
+                            />
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="nextQuoteNumber">Próximo Número de Cotización</Label>
-                        <Input 
-                            id="nextQuoteNumber"
-                            type="number"
-                            value={companyData.nextQuoteNumber || 1}
-                            onChange={handleChange}
+                     <div className="flex items-center space-x-2 pt-4">
+                        <Switch
+                            id="quoterShowTaxId"
+                            checked={companyData.quoterShowTaxId}
+                            onCheckedChange={(checked) => setCompanyData(prev => prev ? { ...prev, quoterShowTaxId: checked } : null)}
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="decimalPlaces">Decimales en Precios</Label>
-                        <Input 
-                            id="decimalPlaces"
-                            type="number"
-                            value={companyData.decimalPlaces ?? 2}
-                            onChange={handleChange}
-                        />
+                        <Label htmlFor="quoterShowTaxId">Mostrar cédula del cliente en la tarjeta de información</Label>
                     </div>
                 </CardContent>
             </Card>
@@ -125,4 +139,3 @@ export default function QuoterSettingsPage() {
       </main>
   );
 }
-

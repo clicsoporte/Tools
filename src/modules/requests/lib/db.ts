@@ -25,6 +25,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
             receivedDate TEXT,
             clientId TEXT NOT NULL,
             clientName TEXT NOT NULL,
+            clientTaxId TEXT,
             itemId TEXT NOT NULL,
             itemDescription TEXT NOT NULL,
             quantity REAL NOT NULL,
@@ -68,6 +69,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('routes', '["Ruta GAM", "Fuera de GAM"]')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('shippingMethods', '["Mensajería", "Encomienda", "Transporte Propio"]')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('useWarehouseReception', 'false')`).run();
+    db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
     
     console.log(`Database ${REQUESTS_DB_FILE} initialized for Purchase Requests.`);
     
@@ -101,6 +103,7 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
     if (!columns.has('lastModifiedBy')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN lastModifiedBy TEXT`);
     if (!columns.has('lastModifiedAt')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN lastModifiedAt TEXT`);
     if (!columns.has('hasBeenModified')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN hasBeenModified BOOLEAN DEFAULT FALSE`);
+    if (!columns.has('clientTaxId')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN clientTaxId TEXT`);
     
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='request_settings'`).get();
     if(settingsTable){
@@ -127,6 +130,10 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
             db.prepare(`INSERT INTO request_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
             db.prepare(`INSERT INTO request_settings (key, value) VALUES ('pdfOrientation', 'portrait')`).run();
         }
+        if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'showCustomerTaxId'`).get()) {
+            console.log("MIGRATION (requests.db): Adding showCustomerTaxId to settings.");
+            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
+        }
     }
 }
 
@@ -138,6 +145,7 @@ export async function getSettings(): Promise<RequestSettings> {
     const settings: RequestSettings = {
         requestPrefix: 'SC-',
         nextRequestNumber: 1,
+        showCustomerTaxId: true,
         routes: [],
         shippingMethods: [],
         useWarehouseReception: false,
@@ -153,6 +161,7 @@ export async function getSettings(): Promise<RequestSettings> {
         else if (row.key === 'routes') settings.routes = JSON.parse(row.value);
         else if (row.key === 'shippingMethods') settings.shippingMethods = JSON.parse(row.value);
         else if (row.key === 'useWarehouseReception') settings.useWarehouseReception = row.value === 'true';
+        else if (row.key === 'showCustomerTaxId') settings.showCustomerTaxId = row.value === 'true';
         else if (row.key === 'pdfTopLegend') settings.pdfTopLegend = row.value;
         else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
         else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
@@ -165,7 +174,7 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
+        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
         for (const key of keys) {
              if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -264,11 +273,11 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
 
     const stmt = db.prepare(`
         INSERT INTO purchase_requests (
-            consecutive, requestDate, requiredDate, clientId, clientName,
+            consecutive, requestDate, requiredDate, clientId, clientName, clientTaxId,
             itemId, itemDescription, quantity, unitSalePrice, erpOrderNumber, manualSupplier, route, shippingMethod, purchaseOrder,
             status, pendingAction, notes, requestedBy, reopened, inventory, priority, purchaseType, arrivalDate
         ) VALUES (
-            @consecutive, @requestDate, @requiredDate, @clientId, @clientName,
+            @consecutive, @requestDate, @requiredDate, @clientId, @clientName, @clientTaxId,
             @itemId, @itemDescription, @quantity, @unitSalePrice, @erpOrderNumber, @manualSupplier, @route, @shippingMethod, @purchaseOrder,
             @status, @pendingAction, @notes, @requestedBy, @reopened, @inventory, @priority, @purchaseType, @arrivalDate
         )
@@ -287,6 +296,7 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         reopened: newRequest.reopened ? 1 : 0,
         purchaseType: newRequest.purchaseType || 'single',
         arrivalDate: newRequest.arrivalDate || null,
+        clientTaxId: newRequest.clientTaxId || null,
     };
 
     const info = stmt.run(preparedRequest);
@@ -321,6 +331,7 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
                 requiredDate = @requiredDate,
                 clientId = @clientId,
                 clientName = @clientName,
+                clientTaxId = @clientTaxId,
                 itemId = @itemId,
                 itemDescription = @itemDescription,
                 quantity = @quantity,

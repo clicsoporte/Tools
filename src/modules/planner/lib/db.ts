@@ -75,6 +75,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('orderPrefix', 'OP-')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('nextOrderNumber', '1')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('useWarehouseReception', 'false')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('machines', '[]')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('requireMachineForStart', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('assignmentLabel', 'Máquina Asignada')`).run();
@@ -169,6 +170,11 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
             const defaultFields = ['quantity', 'deliveryDate', 'customerId', 'productId'];
             db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('fieldsToTrackChanges', ?)`).run(JSON.stringify(defaultFields));
         }
+        
+        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'showCustomerTaxId'`).get()) {
+            console.log("MIGRATION (planner.db): Adding showCustomerTaxId to settings.");
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
+        }
     }
 }
 
@@ -181,6 +187,7 @@ export async function getSettings(): Promise<PlannerSettings> {
         orderPrefix: 'OP-',
         nextOrderNumber: 1,
         useWarehouseReception: false,
+        showCustomerTaxId: true,
         machines: [],
         requireMachineForStart: false,
         assignmentLabel: 'Máquina Asignada',
@@ -196,6 +203,7 @@ export async function getSettings(): Promise<PlannerSettings> {
         if (row.key === 'nextOrderNumber') settings.nextOrderNumber = Number(row.value);
         else if (row.key === 'orderPrefix') settings.orderPrefix = row.value;
         else if (row.key === 'useWarehouseReception') settings.useWarehouseReception = row.value === 'true';
+        else if (row.key === 'showCustomerTaxId') settings.showCustomerTaxId = row.value === 'true';
         else if (row.key === 'machines') settings.machines = JSON.parse(row.value);
         else if (row.key === 'requireMachineForStart') settings.requireMachineForStart = row.value === 'true';
         else if (row.key === 'assignmentLabel') settings.assignmentLabel = row.value;
@@ -213,7 +221,7 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'useWarehouseReception', 'machines', 'requireMachineForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
+        const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'useWarehouseReception', 'showCustomerTaxId', 'machines', 'requireMachineForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
         for (const key of keys) {
             if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);

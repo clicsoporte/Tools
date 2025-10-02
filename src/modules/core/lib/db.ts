@@ -178,6 +178,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         if (!companyColumns.has('searchDebounceTime')) db.exec(`ALTER TABLE company_settings ADD COLUMN searchDebounceTime INTEGER DEFAULT 500`);
         if (!companyColumns.has('lastSyncTimestamp')) db.exec(`ALTER TABLE company_settings ADD COLUMN lastSyncTimestamp TEXT`);
         if (!companyColumns.has('syncWarningHours')) db.exec(`ALTER TABLE company_settings ADD COLUMN syncWarningHours INTEGER DEFAULT 12`);
+        if (!companyColumns.has('quoterShowTaxId')) db.exec(`ALTER TABLE company_settings ADD COLUMN quoterShowTaxId BOOLEAN DEFAULT TRUE`);
 
 
         const adminUser = db.prepare('SELECT role FROM users WHERE id = 1').get() as { role: string } | undefined;
@@ -357,7 +358,7 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
             id INTEGER PRIMARY KEY DEFAULT 1,
             name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
             logoUrl TEXT, systemName TEXT,
-            quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER,
+            quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER, quoterShowTaxId BOOLEAN,
             searchDebounceTime INTEGER, syncWarningHours INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
             customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
             stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT
@@ -458,9 +459,9 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
         userInsert.run({ ...user, password: hashedPassword });
     });
 
-    db.prepare(`INSERT INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, syncWarningHours, importMode) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    db.prepare(`INSERT INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
-        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode
+        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, true, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode
     );
     
     db.prepare(`INSERT OR IGNORE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)`).run(
@@ -509,13 +510,16 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
             UPDATE company_settings SET 
                 name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email,
                 logoUrl = @logoUrl, systemName = @systemName, quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber, 
-                decimalPlaces = @decimalPlaces, searchDebounceTime = @searchDebounceTime, syncWarningHours = @syncWarningHours,
+                decimalPlaces = @decimalPlaces, quoterShowTaxId = @quoterShowTaxId, searchDebounceTime = @searchDebounceTime, syncWarningHours = @syncWarningHours,
                 customerFilePath = @customerFilePath, 
                 productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath, stockFilePath = @stockFilePath,
                 locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath, importMode = @importMode,
                 lastSyncTimestamp = @lastSyncTimestamp
             WHERE id = 1
-        `).run(settings);
+        `).run({
+            ...settings,
+            quoterShowTaxId: settings.quoterShowTaxId ? 1 : 0
+        });
     } catch (error) {
         console.error("Failed to save company settings:", error);
     }
@@ -1327,7 +1331,7 @@ export async function getAndCacheExchangeRate(forceRefresh = false): Promise<{ r
     if (!forceRefresh) {
         const cachedRate = db.prepare(`SELECT rate, date FROM exchange_rates WHERE date = ?`).get(today) as { rate: number, date: string } | undefined;
         if (cachedRate) {
-            const displayDate = new Date(cachedRate.date + 'T00:00:00').toLocaleDateString('es-CR', { timeZone: 'UTC' });
+            const displayDate = new Date(cachedRate.date + 'T00:00:00Z').toLocaleDateString('es-CR', { timeZone: 'UTC' });
             return { rate: cachedRate.rate, date: displayDate };
         }
     }
@@ -1342,7 +1346,7 @@ export async function getAndCacheExchangeRate(forceRefresh = false): Promise<{ r
         if (rate && rateDateString) {
             const rateDate = new Date(rateDateString).toISOString().split('T')[0];
             db.prepare(`INSERT OR REPLACE INTO exchange_rates (date, rate) VALUES (?, ?)`).run(rateDate, rate);
-            const displayDate = new Date(rateDate + 'T00:00:00').toLocaleDateString('es-CR', { timeZone: 'UTC' });
+            const displayDate = new Date(rateDate + 'T00:00:00Z').toLocaleDateString('es-CR', { timeZone: 'UTC' });
             return { rate, date: displayDate };
         }
         return null;
@@ -1350,7 +1354,7 @@ export async function getAndCacheExchangeRate(forceRefresh = false): Promise<{ r
         console.error('Failed to fetch and cache exchange rate:', error);
         const lastRate = db.prepare('SELECT rate, date FROM exchange_rates ORDER BY date DESC LIMIT 1').get() as { rate: number, date: string } | undefined;
         if (lastRate) {
-            const displayDate = new Date(lastRate.date + 'T00:00:00').toLocaleDateString('es-CR', { timeZone: 'UTC' });
+            const displayDate = new Date(lastRate.date + 'T00:00:00Z').toLocaleDateString('es-CR', { timeZone: 'UTC' });
             return { rate: lastRate.rate, date: displayDate };
         }
         return null;

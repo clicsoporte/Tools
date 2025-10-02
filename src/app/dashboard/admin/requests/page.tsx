@@ -64,6 +64,9 @@ export default function RequestSettingsPage() {
                 if (!currentSettings.pdfExportColumns) {
                     currentSettings.pdfExportColumns = availableColumns.map(c => c.id);
                 }
+                 if (currentSettings.showCustomerTaxId === undefined) {
+                    currentSettings.showCustomerTaxId = true;
+                }
             }
             setSettings(currentSettings);
             setIsLoading(false);
@@ -196,17 +199,27 @@ export default function RequestSettingsPage() {
                             </div>
                         </div>
                         <Separator />
-                         <div className="flex items-center space-x-2">
-                            <Switch
-                                id="use-warehouse"
-                                checked={settings.useWarehouseReception}
-                                onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, useWarehouseReception: checked } : null)}
-                            />
-                            <Label htmlFor="use-warehouse">Habilitar paso de "Recibido en Bodega"</Label>
+                        <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="show-customer-tax-id-req"
+                                    checked={settings.showCustomerTaxId}
+                                    onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, showCustomerTaxId: checked } : null)}
+                                />
+                                <Label htmlFor="show-customer-tax-id-req">Mostrar cédula junto al nombre del cliente</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="use-warehouse"
+                                    checked={settings.useWarehouseReception}
+                                    onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, useWarehouseReception: checked } : null)}
+                                />
+                                <Label htmlFor="use-warehouse">Habilitar paso de "Recibido en Bodega"</Label>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-2">
+                                Si se activa, las solicitudes recibidas necesitarán un paso adicional para ser archivadas.
+                            </p>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-2">
-                            Si se activa, las solicitudes recibidas necesitarán un paso adicional para ser archivadas.
-                        </p>
                     </CardContent>
                 </Card>
 

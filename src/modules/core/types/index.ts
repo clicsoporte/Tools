@@ -39,6 +39,7 @@ export type Company = {
     quotePrefix: string;
     nextQuoteNumber: number;
     decimalPlaces: number;
+    quoterShowTaxId?: boolean;
     searchDebounceTime?: number;
     syncWarningHours?: number;
     importMode: 'file' | 'sql';
@@ -291,6 +292,7 @@ export type PlannerSettings = {
     orderPrefix?: string;
     nextOrderNumber?: number;
     useWarehouseReception: boolean;
+    showCustomerTaxId: boolean;
     machines: PlannerMachine[];
     requireMachineForStart: boolean;
     assignmentLabel: string;
@@ -383,6 +385,7 @@ export type PurchaseRequestHistoryEntry = {
 export type RequestSettings = {
     requestPrefix?: string;
     nextRequestNumber?: number;
+    showCustomerTaxId: boolean;
     routes: string[];
     shippingMethods: string[];
     useWarehouseReception: boolean;
