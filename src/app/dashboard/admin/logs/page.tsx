@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../components/ui/table";
 import { getLogs, clearLogs, logWarn } from "../../../../modules/core/lib/logger";
 import type { LogEntry, DateRange } from "../../../../modules/core/types";
-import { RefreshCw, Trash2, Calendar as CalendarIcon, FilterX, Download } from "lucide-react";
+import { RefreshCw, Trash2, Calendar as CalendarIcon, FilterX, Download, Loader2 } from "lucide-react";
 import { Badge } from "../../../../components/ui/badge";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -29,6 +29,7 @@ export default function LogViewerPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { setTitle } = usePageTitle();
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filter state
   const [logTypeFilter, setLogTypeFilter] = useState<LogTypeFilter>('operational');
@@ -39,21 +40,31 @@ export default function LogViewerPage() {
   });
   const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
 
-  const fetchLogs = async () => {
-    setIsLoading(true);
+  const fetchLogs = async (isRefreshAction = false) => {
+    if (isRefreshAction) {
+        setIsRefreshing(true);
+    } else {
+        setIsLoading(true);
+    }
+    
     const fetchedLogs = await getLogs({
         type: logTypeFilter,
         search: debouncedSearchTerm,
         dateRange: dateFilter
     });
     setLogs(fetchedLogs);
-    setIsLoading(false);
+    
+    if (isRefreshAction) {
+        setIsRefreshing(false);
+    } else {
+        setIsLoading(false);
+    }
   };
 
   useEffect(() => {
     setTitle("Visor de Eventos");
     if (isAuthorized) {
-        fetchLogs();
+        fetchLogs(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setTitle, isAuthorized, logTypeFilter, debouncedSearchTerm, dateFilter]);
@@ -113,8 +124,8 @@ export default function LogViewerPage() {
                 </CardDescription>
               </div>
                <div className="flex w-full sm:w-auto gap-2">
-                <Button variant="outline" onClick={fetchLogs} className="flex-1 sm:flex-initial" disabled={isLoading}>
-                  <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
+                <Button variant="outline" onClick={() => fetchLogs(true)} className="flex-1 sm:flex-initial" disabled={isRefreshing}>
+                  {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4" />}
                   Refrescar
                 </Button>
                 {hasPermission('admin:logs:clear') && (

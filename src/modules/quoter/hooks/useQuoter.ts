@@ -156,7 +156,7 @@ export const useQuoter = () => {
             if (!prev) return null;
             return {
                 ...prev,
-                haciendaExemption: null,
+                haciendaExemption: data,
                 isHaciendaValid: false,
                 isLoading: false,
                 apiError: true,
