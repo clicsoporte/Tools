@@ -1,4 +1,7 @@
-
+/**
+ * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
+ * This hook encapsulates all state and actions for the module, keeping the UI component clean.
+ */
 
 'use client';
 
@@ -6,18 +9,24 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, updatePendingAction } from '@/modules/requests/lib/actions';
-import type { Customer, Product, PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, PurchaseRequestHistoryEntry, User, RequestSettings, StockInfo, Company, DateRange, RejectCancellationPayload, AdministrativeActionPayload, AdministrativeAction } from '../../core/types';
-import { differenceInCalendarDays, parseISO, format } from 'date-fns';
+import { logError } from '@/modules/core/lib/logger';
+import { 
+    getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, 
+    updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, 
+    updatePendingAction 
+} from '@/modules/requests/lib/actions';
+import type { 
+    PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
+    PurchaseRequestHistoryEntry, RequestSettings, Company, DateRange, 
+    AdministrativeActionPayload 
+} from '../../core/types';
+import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
-import jsPDF from "jspdf";
-import autoTable, { RowInput } from "jspdf-autotable";
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 
-const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'pendingAction'> = {
+const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'pendingAction' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'> = {
     requiredDate: '',
     clientId: '',
     clientName: '',
@@ -188,7 +197,7 @@ export const useRequests = () => {
 
         setIsSubmitting(true);
         try {
-            const createdRequest = await savePurchaseRequest({ ...requestWithFormattedDate, pendingAction: 'none' }, currentUser.name);
+            const createdRequest = await savePurchaseRequest(requestWithFormattedDate, currentUser.name);
             toast({ title: "Solicitud Creada" });
             setNewRequestDialogOpen(false);
             setNewRequest(emptyRequest);

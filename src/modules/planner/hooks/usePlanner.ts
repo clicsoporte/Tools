@@ -1,4 +1,7 @@
-
+/**
+ * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
+ * This hook encapsulates all state and actions for the planner, keeping the UI component clean.
+ */
 
 'use client';
 
@@ -6,18 +9,24 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getProductionOrders, saveProductionOrder, updateProductionOrder, updateProductionOrderStatus, getOrderHistory, getPlannerSettings, updateProductionOrderDetails, addNoteToOrder, updatePendingAction } from '@/modules/planner/lib/actions';
-import type { Customer, Product, ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, ProductionOrderHistoryEntry, User, PlannerSettings, StockInfo, Company, CustomStatus, DateRange, NotePayload, RejectCancellationPayload, UpdateProductionOrderPayload, AdministrativeActionPayload, AdministrativeAction } from '../../core/types';
-import { differenceInCalendarDays, parseISO, format } from 'date-fns';
+import { logError } from '@/modules/core/lib/logger';
+import { 
+    getProductionOrders, saveProductionOrder, updateProductionOrder, 
+    updateProductionOrderStatus, getOrderHistory, getPlannerSettings, 
+    updateProductionOrderDetails, addNoteToOrder, updatePendingAction 
+} from '@/modules/planner/lib/actions';
+import type { 
+    ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, 
+    ProductionOrderHistoryEntry, User, PlannerSettings, DateRange, 
+    NotePayload, UpdateProductionOrderPayload, AdministrativeActionPayload 
+} from '../../core/types';
+import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
-import type { RowInput } from "jspdf-autotable";
 
-
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'deliveredQuantity' | 'pendingAction'> = {
     deliveryDate: '',
     customerId: '',
     customerName: '',
@@ -30,7 +39,6 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     inventory: 0,
     inventoryErp: 0,
     purchaseOrder: '',
-    pendingAction: 'none',
 };
 
 const priorityConfig = { 
@@ -217,7 +225,7 @@ export const usePlanner = () => {
             if (!state.newOrder.customerId || !state.newOrder.productId || !state.newOrder.quantity || !state.newOrder.deliveryDate || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
-                const createdOrder = await saveProductionOrder({ ...state.newOrder, pendingAction: 'none' }, currentUser.name);
+                const createdOrder = await saveProductionOrder(state.newOrder, currentUser.name);
                 toast({ title: "Orden Creada" });
                 setState(prevState => ({
                     ...prevState,
@@ -249,6 +257,7 @@ export const usePlanner = () => {
                 setState(prevState => ({
                     ...prevState,
                     activeOrders: prevState.activeOrders.map(o => o.id === updated.id ? updated : o),
+                    archivedOrders: prevState.archivedOrders.map(o => o.id === updated.id ? updated : o),
                     isEditOrderDialogOpen: false
                 }));
                 toast({ title: "Orden Actualizada" });
@@ -316,7 +325,10 @@ export const usePlanner = () => {
                         updatedBy: currentUser.name,
                     });
                     toast({ title: 'Solicitud Rechazada' });
-                    updateState({ activeOrders: state.activeOrders.map(o => o.id === updated.id ? updated : o) });
+                    updateState({ 
+                        activeOrders: state.activeOrders.map(o => o.id === updated.id ? updated : o),
+                        archivedOrders: state.archivedOrders.map(o => o.id === updated.id ? updated : o),
+                    });
                 }
                 updateState({ isActionDialogOpen: false });
             } catch (error: any) {

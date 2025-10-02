@@ -154,8 +154,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
   }
 
   return (
-    <form onSubmit={handleLogin}>
-        <CardContent className="space-y-4">
+    <form onSubmit={handleLogin} className="space-y-4">
         <div className="space-y-2">
             <Label htmlFor="email">Correo Electrónico</Label>
             <Input
@@ -165,7 +164,6 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            suppressHydrationWarning
             />
         </div>
         <div className="space-y-2">
@@ -247,14 +245,13 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
                     </DialogContent>
                 </Dialog>
             </div>
-            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required suppressHydrationWarning />
+            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
         </div>
-        </CardContent>
-        <CardFooter>
-        <Button type="submit" className="w-full" disabled={isLoggingIn}>
-            {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Iniciar Sesión
-        </Button>
+        <CardFooter className="p-0 pt-4">
+            <Button type="submit" className="w-full" disabled={isLoggingIn}>
+                {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Iniciar Sesión
+            </Button>
         </CardFooter>
     </form>
   );

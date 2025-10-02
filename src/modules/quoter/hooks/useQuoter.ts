@@ -241,7 +241,7 @@ export const useQuoter = () => {
         (showInactiveCustomers || c.active === "S") &&
         (c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) || c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()))
       )
-      .map((c) => ({ value: c.id, label: `${c.id} - ${c.name}` }));
+      .map((c) => ({ value: c.id, label: `[${c.id}] - ${c.name} (${c.taxId})` }));
   }, [customers, showInactiveCustomers, debouncedCustomerSearch]);
 
   const productOptions = useMemo(() => {
@@ -363,7 +363,7 @@ export const useQuoter = () => {
     if (customer) {
       setSelectedCustomer(customer);
       setCustomerDetails(`ID: ${customer.id}\nNombre: ${customer.name}\nTel: ${customer.phone}\nEmail: ${customer.email || customer.electronicDocEmail}`);
-      setCustomerSearchTerm(`${customer.id} - ${customer.name}`);
+      setCustomerSearchTerm(`[${customer.id}] ${customer.name} (${customer.taxId})`);
       setDeliveryAddress(customer.address);
       const paymentConditionDays = parseInt(customer.paymentCondition, 10);
       if (!isNaN(paymentConditionDays) && paymentConditionDays > 1) {
@@ -379,11 +379,10 @@ export const useQuoter = () => {
       if (customerExemption) {
           const isErpValid = new Date(customerExemption.endDate) > new Date();
           
-          const isSpecial = exemptionLaws.some(law => 
-              law.authNumber && 
-              law.authNumber.trim() !== '' && 
-              String(law.authNumber).trim() === String(customerExemption.authNumber).trim()
+          const matchingLaw = exemptionLaws.find(law => 
+              (law.authNumber && String(law.authNumber).trim() === String(customerExemption.authNumber).trim())
           );
+          const isSpecial = !!matchingLaw;
           
           const initialExemptionState: ExemptionInfo = {
               erpExemption: customerExemption,

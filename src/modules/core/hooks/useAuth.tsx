@@ -62,7 +62,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const loadAuthData = useCallback(async (isInitialLoad = false) => {
-    if (isInitialLoad) {
+    if (!isInitialLoad) {
+      // For manual refreshes, re-fetch everything
       setIsLoading(true);
     }
     
@@ -99,24 +100,31 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setUserRole(null);
       return { isAuthenticated: false };
     } finally {
-      if (isInitialLoad) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   }, []);
   
   const refreshAuthAndRedirect = useCallback(async (path: string) => {
     await loadAuthData(false);
     router.push(path);
-    router.refresh();
+    // Note: router.refresh() is often not needed with this state management model,
+    // as components re-render with new context data.
   }, [loadAuthData, router]);
 
   useEffect(() => {
-    loadAuthData(true).then(({ isAuthenticated }) => {
-        if (isAuthenticated === false && pathname.startsWith('/dashboard')) {
+    // This effect runs only once on initial mount
+    let isMounted = true;
+    const initialLoad = async () => {
+        const { isAuthenticated } = await loadAuthData(true);
+        if (isMounted && !isAuthenticated && pathname.startsWith('/dashboard')) {
             router.replace('/');
         }
-    });
+    };
+    initialLoad();
+
+    return () => {
+        isMounted = false;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

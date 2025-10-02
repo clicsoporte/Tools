@@ -121,17 +121,28 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
  */
 export async function saveAllUsers(users: User[]): Promise<void> {
    const db = await connectDb();
-   const insert = db.prepare('INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)');
+   const upsert = db.prepare(`
+    INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) 
+    VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)
+    ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        email = excluded.email,
+        password = excluded.password,
+        phone = excluded.phone,
+        whatsapp = excluded.whatsapp,
+        avatar = excluded.avatar,
+        role = excluded.role,
+        recentActivity = excluded.recentActivity,
+        securityQuestion = excluded.securityQuestion,
+        securityAnswer = excluded.securityAnswer
+   `);
 
     const transaction = db.transaction((usersToSave: User[]) => {
-        const existingUsers: User[] = db.prepare('SELECT id, password FROM users').all() as User[];
-        const existingUsersMap = new Map(existingUsers.map(u => [u.id, u.password]));
+        const existingUsersMap = new Map<number, string | undefined>(
+            (db.prepare('SELECT id, password FROM users').all() as User[]).map(u => [u.id, u.password])
+        );
 
-        db.prepare('DELETE FROM users').run(); 
-        
         for (const user of usersToSave) {
-          // Hash password only if it's new or has changed.
-          // A password is considered "changed" if it doesn't look like a bcrypt hash.
           let passwordToSave = user.password;
           const existingPassword = existingUsersMap.get(user.id);
           
@@ -151,7 +162,7 @@ export async function saveAllUsers(users: User[]): Promise<void> {
             securityQuestion: user.securityQuestion || null,
             securityAnswer: user.securityAnswer || null,
           };
-          insert.run(userToInsert);
+          upsert.run(userToInsert);
         }
     });
 
