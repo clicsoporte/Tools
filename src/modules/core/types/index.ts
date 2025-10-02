@@ -236,6 +236,7 @@ export type ProductionOrder = {
   scheduledEndDate?: string | null;
   customerId: string;
   customerName: string;
+  customerTaxId: string;
   productId: string;
   productDescription: string;
   quantity: number;
@@ -337,6 +338,7 @@ export type PurchaseRequest = {
   receivedDate?: string;
   clientId: string;
   clientName: string;
+  clientTaxId: string;
   itemId: string;
   itemDescription: string;
   quantity: number;
