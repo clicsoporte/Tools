@@ -62,7 +62,7 @@ export default function QuoterSettingsPage() {
       title: "Configuración Guardada",
       description: "Los datos del cotizador han sido actualizados.",
     });
-    // Update the auth context directly to avoid a full reload
+    // Update the auth context directly to avoid a full reload flicker
     setAuthCompanyData(companyData);
     await logInfo("Configuración del cotizador guardada", { companyName: companyData.name });
   };

@@ -35,7 +35,7 @@ const getInitials = (name: string) => {
 export default function GeneralSettingsPage() {
   const { isAuthorized } = useAuthorization(['admin:settings:general']);
   const { toast } = useToast();
-  const { refreshAuth } = useAuth();
+  const { setCompanyData: setAuthCompanyData } = useAuth();
   const [companyData, setCompanyData] = useState<Company | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { setTitle } = usePageTitle();
@@ -90,8 +90,8 @@ export default function GeneralSettingsPage() {
       title: "Configuración Guardada",
       description: "Los datos de la empresa han sido actualizados.",
     });
-    // Refresh the auth context to update UI elements like the sidebar
-    await refreshAuth();
+    // Update auth context directly to avoid flicker, instead of full refreshAuth()
+    setAuthCompanyData(companyData);
     await logInfo("Configuración general guardada", { companyName: companyData.name });
   };
   
