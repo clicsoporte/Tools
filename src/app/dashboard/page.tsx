@@ -84,12 +84,14 @@ export default function DashboardPage() {
     toast({ title: "Iniciando Sincronización Completa", description: "Importando todos los datos desde el ERP..." });
     try {
         const results = await importAllDataFromFiles();
-        await refreshAuth();
         toast({
             title: "Sincronización Completa Exitosa",
-            description: `Se han procesado ${results.length} tipos de datos desde el ERP.`,
+            description: `Se han procesado ${results.length} tipos de datos desde el ERP. Los datos se reflejarán automáticamente.`,
         });
         await logInfo("Full ERP data synchronization completed via dashboard button.", { results });
+        // No need to call refreshAuth here, as it causes a full page flicker.
+        // The useAuth hook will eventually get the new data on a full page reload, 
+        // but for immediate use, individual modules' data is what matters.
     } catch (error: any) {
          toast({
             title: "Error en Sincronización",
