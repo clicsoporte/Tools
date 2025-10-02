@@ -81,8 +81,8 @@ export default function HelpPage() {
                             <li>
                                 <strong>Paso 1: Seleccionar al Cliente y Verificar su Información.</strong>
                                 <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                    <li>Empieza a escribir el nombre o código del cliente en el campo "Buscar Cliente". El sistema te mostrará una lista de sugerencias. Haz clic o presiona `Enter` para seleccionarlo.</li>
-                                    <li>Al seleccionar, aparecerá una tarjeta con los <strong>datos críticos del ERP</strong> (<CreditCard className="inline h-4 w-4"/>): límite de crédito, condición de pago (ej. 30 días) y vendedor asignado. Esto te da una visión instantánea del estado del cliente.</li>
+                                    <li>Empieza a escribir el nombre, código o cédula del cliente en el campo "Buscar Cliente". El sistema te mostrará una lista de sugerencias. Haz clic o presiona `Enter` para seleccionarlo.</li>
+                                    <li>Al seleccionar, aparecerá una tarjeta con los <strong>datos críticos del ERP</strong> (<CreditCard className="inline h-4 w-4"/>): cédula, límite de crédito, condición de pago y vendedor asignado. Esto te da una visión instantánea del estado del cliente.</li>
                                     <li><strong>Verificar Exoneración (<ShieldQuestion className="inline h-4 w-4" />):</strong> Si el cliente tiene una exoneración en el ERP, aparecerá una segunda tarjeta. El sistema consultará a Hacienda **en tiempo real** y te mostrará dos estados para que los compares: el del ERP y el de Hacienda. Esto te permite confirmar si la exoneración sigue vigente antes de aplicarla.</li>
                                 </ul>
                             </li>

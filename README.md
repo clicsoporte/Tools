@@ -1,3 +1,4 @@
+
 # Clic-Tools: Documentación Técnica y Manual de Usuario
 
 **Clic-Tools** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
@@ -29,10 +30,10 @@
 -   `src/app/`: Contiene las rutas y páginas de la aplicación.
     -   `(auth)/`: Páginas de autenticación (login).
     -   `dashboard/`: Layout y páginas del panel de control principal.
--   `src/components/`: Componentes de React reutilizables.
+-   `src/components/`: Componentes de React reutilizables (UI, Layout).
 -   `src/modules/`: El corazón de la aplicación, organizado por funcionalidad.
     -   `core/`: Lógica compartida (autenticación, tipos, hooks, conexión a BD).
-    -   `quoter/`, `planner/`, `requests/`, `warehouse/`: Módulos de cada herramienta.
+    -   `quoter/`, `planner/`, `requests/`, `warehouse/`: Módulos para cada herramienta, conteniendo sus propios `hooks`, `actions` y lógica de base de datos.
 -   `src/lib/`: Utilidades generales.
 -   `dbs/`: **Directorio persistente** donde se almacenan todos los archivos de base de datos (`.db`).
 -   `docs/`: Documentación del proyecto y archivos de ejemplo.
@@ -43,19 +44,20 @@
 ## 3. Guía de Módulos (Funcionalidades)
 
 ### 3.1. Cotizador (`/dashboard/quoter`)
-- **Creación Rápida:** Permite buscar y añadir clientes y productos de forma ágil, con autocompletado y atajos de teclado.
+- **Creación Rápida:** Permite buscar y añadir clientes y productos de forma ágil, con autocompletado y atajos de teclado. Muestra la cédula del cliente para evitar confusiones.
 - **Validación en Tiempo Real:** Verifica el estado de exoneración de un cliente directamente con la API de Hacienda al seleccionarlo.
 - **Generación de PDF:** Crea documentos de cotización profesionales con la información de la empresa.
 
 ### 3.2. Planificador (`/dashboard/planner`)
-- **Gestión de Órdenes:** Permite crear, editar y visualizar órdenes de producción con un flujo de estados completo (Pendiente, Aprobada, En Progreso, Completada, etc.).
-- **Programación por Rango:** Se pueden asignar rangos de fechas (inicio y fin) para la producción.
+- **Gestión de Órdenes:** Permite crear, editar y visualizar órdenes de producción, mostrando siempre el nombre y la cédula del cliente para mayor claridad.
+- **Flujo de Estados Completo:** Controla el ciclo de vida de una orden (Pendiente, Aprobada, En Progreso, Completada, etc.).
 - **Trazabilidad:** Cada cambio de estado, nota o modificación queda registrada en un historial detallado por orden.
 - **Alertas Visuales:** Las órdenes modificadas después de ser aprobadas se marcan visualmente para alertar a los supervisores.
 - **Paginación de Archivados**: Para manejar un gran volumen de datos, las órdenes archivadas se cargan por páginas. La búsqueda y el filtrado se aplican de forma eficiente sobre todo el conjunto de datos archivados del lado del servidor.
 
 ### 3.3. Solicitud de Compra (`/dashboard/requests`)
 - **Flujo de Aprobación:** Gestiona el ciclo de vida de una solicitud, desde "Pendiente" hasta "Recibida" y opcionalmente "En Bodega".
+- **Claridad del Cliente:** Muestra el nombre y la cédula del cliente asociado a la solicitud.
 - **Alertas y Trazabilidad:** Al igual que el planificador, las solicitudes modificadas post-aprobación se marcan visualmente, y cada cambio queda en un historial.
 - **Paginación de Archivados**: Las solicitudes archivadas se cargan por páginas, y la búsqueda es eficiente sobre todo el historial.
 
@@ -76,7 +78,7 @@ Esta es una de las funcionalidades más críticas y flexibles, gestionada desde 
 ### Modo 1: Importación desde Archivos
 -   **Ubicación de Archivos**: Debes especificar la ruta completa en el servidor donde se encuentran los archivos `.txt` o `.csv`.
 -   **Mapeo de Columnas**: La función `createHeaderMapping` en `src/modules/core/lib/db.ts` define qué columnas se esperan en cada archivo. Los encabezados deben coincidir.
-    -   `clientes.txt`: `CLIENTE`, `NOMBRE`, `CONTRIBUYENTE`, etc.
+    -   `clientes.txt`: `CLIENTE`, `NOMBRE`, `CONTRIBUYENTE` (cédula), etc.
     -   `articulos.txt`: `ARTICULO`, `DESCRIPCION`, etc.
     -   `exo.txt`: `CODIGO`, `CLIENTE`, `NUM_AUTOR`, etc.
     -   `inventarios.txt`: `ARTICULO`, `BODEGA`, `CANT_DISPONIBLE`.
@@ -87,7 +89,7 @@ Esta es una de las funcionalidades más críticas y flexibles, gestionada desde 
     2.  Estas credenciales se guardan de forma segura en el archivo `.env.local` del servidor.
 -   **Gestión de Consultas**:
     1.  Para cada tipo de dato (clientes, artículos, etc.), puedes pegar la consulta `SELECT` completa que extrae la información de tu ERP.
-    2.  El sistema mapeará las columnas del resultado de tu consulta a los campos que la aplicación necesita, siempre y cuando los nombres de las columnas coincidan con los definidos en `createHeaderMapping` (ej. `SELECT ID_Cliente as CLIENTE, ...`).
+    2.  El sistema mapeará las columnas del resultado de tu consulta a los campos que la aplicación necesita, siempre y cuando los nombres de las columnas coincidan con los definidos en `createHeaderMapping` (ej. `SELECT ID_Cliente as CLIENTE, Nombre_Fiscal as NOMBRE, ID_Fiscal as CONTRIBUYENTE, ...`).
 -   **Ejecución**:
     -   Un administrador puede ejecutar la sincronización completa desde **Administración > Importar Datos**.
     -   Se puede conceder un permiso especial (`admin:import:run`) a otros roles para que vean un botón de **"Sincronizar Datos del ERP"** en el panel principal, permitiéndoles actualizar los datos locales sin acceder a la configuración.
@@ -170,3 +172,5 @@ Se concede permiso, por la presente, de forma gratuita, a cualquier persona que 
 El aviso de copyright anterior y este aviso de permiso se incluirán en todas las copias o porciones sustanciales del Software.
 
 EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O IMPLÍCITA, INCLUYENDO PERO NO LIMITADO A GARANTÍAS DE COMERCIABILIDAD, IDONEIDAD PARA UN PROPÓSITO PARTICULAR Y NO INFRACCIÓN. EN NINGÚN CASO LOS AUTORES O TITULARES DEL COPYRIGHT SERÁN RESPONSABLES DE NINGUNA RECLAMACIÓN, DAÑO U OTRA RESPONSABILIDAD, YA SEA EN UNA ACCIÓN DE CONTRATO, AGRAVIO O DE OTRO MODO, QUE SURJA DE, O EN CONEXIÓN CON EL SOFTWARE O EL USO U OTROS TRATOS EN EL SOFTWARE.
+
+    
