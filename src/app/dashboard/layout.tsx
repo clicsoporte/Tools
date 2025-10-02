@@ -10,6 +10,10 @@ import { AppSidebar } from "../../components/layout/sidebar";
 import { Header } from "../../components/layout/header";
 import { SidebarInset, SidebarProvider } from "../../components/ui/sidebar";
 import { usePageTitle, PageTitleProvider } from "../../modules/core/hooks/usePageTitle";
+import { useAuth } from "@/modules/core/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { title } = usePageTitle();
@@ -34,16 +38,41 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-      <PageTitleProvider initialTitle="Panel">
-        <SidebarProvider>
-          <div className="flex h-screen bg-muted/40">
-            <AppSidebar />
-            <SidebarInset className="flex flex-1 flex-col overflow-hidden">
-                <DashboardContent>{children}</DashboardContent>
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
-      </PageTitleProvider>
-  );
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    // If loading is finished and there's no user, redirect to login page.
+    if (!isLoading && !user) {
+      router.replace('/');
+    }
+  }, [isLoading, user, router]);
+
+  // While loading, show a full-page loader to prevent content flash.
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If there is a user, render the full dashboard layout.
+  if (user) {
+    return (
+        <PageTitleProvider initialTitle="Panel">
+          <SidebarProvider>
+            <div className="flex h-screen bg-muted/40">
+              <AppSidebar />
+              <SidebarInset className="flex flex-1 flex-col overflow-hidden">
+                  <DashboardContent>{children}</DashboardContent>
+              </SidebarInset>
+            </div>
+          </SidebarProvider>
+        </PageTitleProvider>
+    );
+  }
+  
+  // Fallback: if not loading and no user, render nothing while redirecting.
+  return null;
 }

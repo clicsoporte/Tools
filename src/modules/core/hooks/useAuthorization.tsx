@@ -44,7 +44,9 @@ export function useAuthorization(requiredPermissions: string[] = []): UseAuthori
                 description: 'No tienes los permisos necesarios para ver esta página.',
                 variant: 'destructive'
             });
-            router.push('/dashboard');
+            // Redirect to the main dashboard page if unauthorized, not the login page,
+            // because the user is logged in, just not permitted for this specific route.
+            router.replace('/dashboard');
         }
     }, [isAuthorized, router, toast]);
 
