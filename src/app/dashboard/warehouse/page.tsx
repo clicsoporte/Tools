@@ -79,10 +79,10 @@ export default function WarehousePage() {
     const handleRefresh = async () => {
         setIsRefreshing(true);
         try {
-            const result = await importAllDataFromFiles();
+            await importAllDataFromFiles();
             toast({
                 title: "Datos Actualizados",
-                description: `Se procesaron ${result.length} archivos. La página se recargará para reflejar los cambios.`
+                description: `Los datos del ERP se han sincronizado. La página se recargará para reflejar los cambios.`
             });
             // A full reload is simpler here to ensure all contexts and states are updated
             window.location.reload();
@@ -140,23 +140,21 @@ export default function WarehousePage() {
     const filteredItems = useMemo(() => {
         if (!debouncedSearchTerm) return [];
 
-        const lowerCaseSearch = debouncedSearchTerm.toLowerCase();
+        const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
         
-        // Search for products OR customers matching the term
-        const relevantProducts = products.filter(p => 
-            p.id.toLowerCase().includes(lowerCaseSearch) ||
-            p.description.toLowerCase().includes(lowerCaseSearch)
-        );
+        const relevantProducts = products.filter(p => {
+            const targetText = `${p.id} ${p.description}`.toLowerCase();
+            return searchTerms.every(term => targetText.includes(term));
+        });
 
-        const relevantCustomers = customers.filter(c =>
-            c.id.toLowerCase().includes(lowerCaseSearch) ||
-            c.name.toLowerCase().includes(lowerCaseSearch)
-        );
+        const relevantCustomers = customers.filter(c => {
+            const targetText = `${c.id} ${c.name}`.toLowerCase();
+            return searchTerms.every(term => targetText.includes(term));
+        });
         const relevantCustomerIds = new Set(relevantCustomers.map(c => c.id));
 
         const groupedByItem: { [key: string]: CombinedItem } = {};
         
-        // Initialize based on product search
         for (const product of relevantProducts) {
             if (!groupedByItem[product.id]) {
                 groupedByItem[product.id] = {
@@ -167,7 +165,6 @@ export default function WarehousePage() {
             }
         }
 
-        // Add locations and quantities
         if (warehouseSettings?.enablePhysicalInventoryTracking) {
              inventory.forEach(item => {
                 if (groupedByItem[item.itemId]) {
@@ -181,14 +178,12 @@ export default function WarehousePage() {
             itemLocations.forEach(itemLoc => {
                 const product = products.find(p => p.id === itemLoc.itemId);
                 
-                // Case 1: The product itself was found in the search
                 if (groupedByItem[itemLoc.itemId]) {
                     groupedByItem[itemLoc.itemId].physicalLocations.push({
                         path: renderLocationPath(itemLoc.locationId),
                         clientId: itemLoc.clientId || undefined
                     });
                 } 
-                // Case 2: The product was not in the search, but its associated client was
                 else if (itemLoc.clientId && relevantCustomerIds.has(itemLoc.clientId)) {
                     if (!groupedByItem[itemLoc.itemId]) {
                          groupedByItem[itemLoc.itemId] = {
@@ -341,5 +336,3 @@ export default function WarehousePage() {
         </main>
     );
 }
-
-    

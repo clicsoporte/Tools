@@ -236,22 +236,24 @@ export const useQuoter = () => {
 
   const customerOptions = useMemo(() => {
     if (debouncedCustomerSearch.length < 2) return [];
+    const searchTerms = debouncedCustomerSearch.toLowerCase().split(' ').filter(Boolean);
     return (customers || [])
-      .filter((c) => 
-        (showInactiveCustomers || c.active === "S") &&
-        (c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) || c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()))
-      )
+      .filter((c) => {
+        if (!showInactiveCustomers && c.active !== "S") return false;
+        const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
+        return searchTerms.every(term => targetText.includes(term));
+      })
       .map((c) => ({ value: c.id, label: `[${c.id}] - ${c.name} (${c.taxId})` }));
   }, [customers, showInactiveCustomers, debouncedCustomerSearch]);
 
   const productOptions = useMemo(() => {
     if (debouncedProductSearch.length < 2) return [];
-    const searchLower = debouncedProductSearch.toLowerCase();
+    const searchTerms = debouncedProductSearch.toLowerCase().split(' ').filter(Boolean);
     return (products || [])
       .filter((p) => {
-        const isActive = showInactiveProducts || p.active === "S";
-        const matchesSearch = p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower);
-        return isActive && matchesSearch;
+        if (!showInactiveProducts && p.active !== "S") return false;
+        const targetText = `${p.id} ${p.description}`.toLowerCase();
+        return searchTerms.every(term => targetText.includes(term));
       })
       .map((p) => {
         const stockInfo = stockLevels.find(s => s.itemId === p.id);
@@ -362,7 +364,7 @@ export const useQuoter = () => {
     const customer = customers.find((c) => c.id === customerId);
     if (customer) {
       setSelectedCustomer(customer);
-      setCustomerDetails(`ID: ${customer.id}\nNombre: ${customer.name}\nTel: ${customer.phone}\nEmail: ${customer.email || customer.electronicDocEmail}`);
+      setCustomerDetails(`ID: ${customer.id}\nNombre: ${customer.name}\nCédula: ${customer.taxId}\nTel: ${customer.phone}\nEmail: ${customer.email || customer.electronicDocEmail}`);
       setCustomerSearchTerm(`[${customer.id}] ${customer.name} (${customer.taxId})`);
       setDeliveryAddress(customer.address);
       const paymentConditionDays = parseInt(customer.paymentCondition, 10);

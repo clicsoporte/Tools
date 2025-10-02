@@ -18,14 +18,13 @@ import {
 import type { 
     ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, 
     ProductionOrderHistoryEntry, User, PlannerSettings, DateRange, 
-    NotePayload, UpdateProductionOrderPayload, AdministrativeActionPayload 
+    NotePayload, UpdateProductionOrderPayload, AdministrativeActionPayload, RowInput 
 } from '../../core/types';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
-import type { RowInput } from "jspdf-autotable";
 
 const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'| 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'deliveredQuantity'> = {
     deliveryDate: '',
@@ -649,13 +648,19 @@ export const usePlanner = () => {
         },
         customerOptions: useMemo(() => {
             if (debouncedCustomerSearch.length < 2) return [];
-            const searchLower = debouncedCustomerSearch.toLowerCase();
-            return customers.filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower)).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
+            const searchTerms = debouncedCustomerSearch.toLowerCase().split(' ').filter(Boolean);
+            return customers.filter(c => {
+                const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
+                return searchTerms.every(term => targetText.includes(term));
+            }).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
         }, [customers, debouncedCustomerSearch]),
         productOptions: useMemo(() => {
             if (debouncedProductSearch.length < 2) return [];
-            const searchLower = debouncedProductSearch.toLowerCase();
-            return products.filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower)).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
+            const searchTerms = debouncedProductSearch.toLowerCase().split(' ').filter(Boolean);
+            return products.filter(p => {
+                const targetText = `${p.id} ${p.description}`.toLowerCase();
+                return searchTerms.every(term => targetText.includes(term));
+            }).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
         }, [products, debouncedProductSearch]),
         classifications: useMemo<string[]>(() => 
             Array.from(new Set(products.map(p => p.classification).filter(Boolean)))
@@ -663,14 +668,14 @@ export const usePlanner = () => {
         filteredOrders: useMemo(() => {
             let ordersToFilter = state.viewingArchived ? state.archivedOrders : state.activeOrders;
             
+            const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
+
             return ordersToFilter.filter(order => {
                 const product = products.find(p => p.id === order.productId);
-                const searchMatch = debouncedSearchTerm ? 
-                    order.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                    order.customerName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                    order.productDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                    order.purchaseOrder?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                    : true;
+
+                const targetText = `${order.consecutive} ${order.customerName} ${order.productDescription} ${order.purchaseOrder || ''}`.toLowerCase();
+                const searchMatch = debouncedSearchTerm ? searchTerms.every(term => targetText.includes(term)) : true;
+                
                 const statusMatch = state.statusFilter === 'all' || order.status === state.statusFilter;
                 const classificationMatch = state.classificationFilter === 'all' || (product && product.classification === state.classificationFilter);
                 const dateMatch = !state.dateFilter || !state.dateFilter.from || (new Date(order.deliveryDate) >= state.dateFilter.from && new Date(order.deliveryDate) <= (state.dateFilter.to || state.dateFilter.from));

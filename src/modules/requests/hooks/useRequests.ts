@@ -510,26 +510,30 @@ export const useRequests = () => {
         getDaysRemaining: (dateStr: string) => getSimpleDaysRemaining(dateStr),
         clientOptions: useMemo(() => {
             if (debouncedClientSearch.length < 2) return [];
-            const searchLower = debouncedClientSearch.toLowerCase();
-            return authCustomers.filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower)).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
+            const searchTerms = debouncedClientSearch.toLowerCase().split(' ').filter(Boolean);
+            return authCustomers.filter(c => {
+                const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
+                return searchTerms.every(term => targetText.includes(term));
+            }).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
         }, [authCustomers, debouncedClientSearch]),
         itemOptions: useMemo(() => {
             if (debouncedItemSearch.length < 2) return [];
-            const searchLower = debouncedItemSearch.toLowerCase();
-            return authProducts.filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower)).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
+            const searchTerms = debouncedItemSearch.toLowerCase().split(' ').filter(Boolean);
+            return authProducts.filter(p => {
+                const targetText = `${p.id} ${p.description}`.toLowerCase();
+                return searchTerms.every(term => targetText.includes(term));
+            }).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
         }, [authProducts, debouncedItemSearch]),
         classifications: useMemo(() => Array.from(new Set(authProducts.map(p => p.classification).filter(Boolean))), [authProducts]),
         filteredRequests: useMemo(() => {
             let requestsToFilter = viewingArchived ? archivedRequests : activeRequests;
             
+            const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
             return requestsToFilter.filter(request => {
                 const product = authProducts.find(p => p.id === request.itemId);
-                const searchMatch = debouncedSearchTerm ? 
-                    request.consecutive.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                    request.clientName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-                    request.itemDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                    request.purchaseOrder?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                    : true;
+                const targetText = `${request.consecutive} ${request.clientName} ${request.itemDescription} ${request.purchaseOrder || ''}`.toLowerCase();
+                const searchMatch = debouncedSearchTerm ? searchTerms.every(term => targetText.includes(term)) : true;
+                
                 const statusMatch = statusFilter === 'all' || request.status === statusFilter;
                 const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
                 const dateMatch = !dateFilter || !dateFilter.from || (new Date(request.requiredDate) >= dateFilter.from && new Date(request.requiredDate) <= (dateFilter.to || dateFilter.from));
