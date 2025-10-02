@@ -28,6 +28,7 @@ export default function SuggestionsPage() {
 
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [suggestionToDelete, setSuggestionToDelete] = useState<Suggestion | null>(null);
 
     const updateUnreadCount = useCallback(async () => {
@@ -39,8 +40,12 @@ export default function SuggestionsPage() {
         }
     }, [setUnreadSuggestionsCount]);
 
-    const fetchSuggestions = useCallback(async () => {
-        setIsLoading(true);
+    const fetchSuggestions = useCallback(async (isRefreshAction = false) => {
+        if (isRefreshAction) {
+            setIsRefreshing(true);
+        } else {
+            setIsLoading(true);
+        }
         try {
             const data = await getSuggestions();
             setSuggestions(data);
@@ -48,14 +53,18 @@ export default function SuggestionsPage() {
         } catch (error) {
             toast({ title: "Error", description: "No se pudieron cargar las sugerencias.", variant: "destructive" });
         } finally {
-            setIsLoading(false);
+            if (isRefreshAction) {
+                setIsRefreshing(false);
+            } else {
+                setIsLoading(false);
+            }
         }
     }, [toast, updateUnreadCount]);
 
     useEffect(() => {
         setTitle("Buzón de Sugerencias");
         if (isAuthorized) {
-            fetchSuggestions();
+            fetchSuggestions(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAuthorized]);
@@ -100,8 +109,8 @@ export default function SuggestionsPage() {
                         <CardTitle>Buzón de Sugerencias</CardTitle>
                         <CardDescription>Feedback y sugerencias enviadas por los usuarios.</CardDescription>
                     </div>
-                    <Button variant="outline" onClick={fetchSuggestions} disabled={isLoading}>
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
+                    <Button variant="outline" onClick={() => fetchSuggestions(true)} disabled={isRefreshing}>
+                        {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
                         Refrescar
                     </Button>
                 </CardHeader>
