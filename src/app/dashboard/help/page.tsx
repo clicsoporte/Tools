@@ -17,7 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -196,6 +196,7 @@ export default function HelpPage() {
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                                 <li><strong>Pendiente:</strong> La orden ha sido creada y espera aprobación.</li>
                                 <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> La orden está autorizada para producción.</li>
+                                <li><strong>En Cola (<Hourglass className="inline h-4 w-4 text-cyan-600"/>):</strong> La orden está lista, esperando que se libere un recurso (ej: una máquina) para poder iniciar.</li>
                                 <li><strong>En Progreso (<Play className="inline h-4 w-4 text-blue-600"/>):</strong> La orden se está produciendo activamente.</li>
                                 <li><strong>En Espera / Mantenimiento (<Pause className="inline h-4 w-4 text-gray-600"/>):</strong> La producción se detuvo temporalmente.</li>
                                 <li><strong>Completada (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> La producción ha finalizado.</li>
