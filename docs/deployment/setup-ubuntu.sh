@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # ==============================================================================
@@ -31,13 +32,52 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
+echo -e "\n${YELLOW}Iniciando la instalación y configuración de Clic-Tools en Ubuntu...${NC}"
+
 # --- Paso 1: Actualizar el sistema ---
 echo -e "\n${YELLOW}Paso 1: Actualizando los paquetes del sistema...${NC}"
 sudo apt-get update && sudo apt-get upgrade -y
 echo -e "${GREEN}Sistema actualizado.${NC}"
 
-# --- Paso 2: Configurar Variables de Entorno (Opcional) ---
-echo -e "\n${YELLOW}Paso 2: Configurando variables de entorno...${NC}"
+# --- Paso 2: Instalar dependencias del sistema (build-essential, python) ---
+echo -e "\n${YELLOW}Paso 2: Instalando dependencias de compilación (build-essential)...${NC}"
+sudo apt-get install -y build-essential python3
+echo -e "${GREEN}Dependencias de compilación instaladas.${NC}"
+
+
+# --- Paso 3: Instalar Node.js y npm ---
+# Usamos nvm (Node Version Manager) para instalar Node.js, ya que es más flexible.
+echo -e "\n${YELLOW}Paso 3: Instalando Node.js (v20.x) y npm...${NC}"
+if ! command -v nvm &> /dev/null
+then
+    echo "nvm no encontrado, instalando..."
+    # Descargar e instalar nvm
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    echo "Para continuar, nvm necesita ser cargado. Por favor, cierre y vuelva a abrir su terminal o ejecute 'source ~/.bashrc', luego ejecute este script de nuevo."
+    # Cargar nvm en la sesión actual para intentar continuar
+    export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+else
+    echo "nvm ya está instalado."
+fi
+
+# Cargar nvm en la sesión actual del script si no está cargado
+if ! command -v nvm &> /dev/null; then
+    export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+fi
+
+# Instalar la versión 20 de Node.js y establecerla como predeterminada
+echo "Instalando Node.js v20..."
+nvm install 20
+nvm use 20
+nvm alias default 20
+echo -e "${GREEN}Node.js y npm instalados correctamente.${NC}"
+node -v
+npm -v
+
+# --- Paso 4: Configurar Variables de Entorno (Opcional) ---
+echo -e "\n${YELLOW}Paso 4: Configurando variables de entorno...${NC}"
 if [ ! -f ".env.local" ]; then
     echo "No se encontró el archivo '.env.local'. Creando uno de ejemplo."
     echo -e "${YELLOW}IMPORTANTE: Edita este archivo si necesitas conectar a SQL Server.${NC}"
@@ -51,50 +91,25 @@ if [ ! -f ".env.local" ]; then
 # SQL_SERVER_DATABASE=
 # SQL_SERVER_PORT=1433
 EOF
-    echo -e "${GREEN}Archivo .env.local creado. Edítalo ahora si es necesario, luego vuelve a ejecutar el script.${NC}"
+    echo -e "${GREEN}Archivo .env.local creado. Edítalo ahora si es necesario antes de continuar.${NC}"
 else
     echo "El archivo '.env.local' ya existe. Omitiendo creación."
 fi
 
 
-# --- Paso 3: Instalar Node.js y npm ---
-# Usamos nvm (Node Version Manager) para instalar Node.js, ya que es más flexible.
-echo -e "\n${YELLOW}Paso 3: Instalando Node.js (v20.x) y npm...${NC}"
-if ! command -v nvm &> /dev/null
-then
-    echo "nvm no encontrado, instalando..."
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-else
-    echo "nvm ya está instalado."
-fi
-
-# Cargar nvm en la sesión actual del script
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-
-
-# Instalar la versión 20 de Node.js y establecerla como predeterminada
-nvm install 20
-nvm use 20
-nvm alias default 20
-echo -e "${GREEN}Node.js y npm instalados correctamente.${NC}"
-node -v
-npm -v
-
-# --- Paso 4: Instalar las dependencias del proyecto ---
-echo -e "\n${YELLOW}Paso 4: Instalando las dependencias del proyecto con npm...${NC}"
+# --- Paso 5: Instalar las dependencias del proyecto ---
+echo -e "\n${YELLOW}Paso 5: Instalando las dependencias del proyecto con npm...${NC}"
 # Usamos --omit=dev para instalar solo las dependencias de producción
 npm install --omit=dev
 echo -e "${GREEN}Dependencias de producción instaladas.${NC}"
 
-# --- Paso 5: Construir la aplicación para producción ---
-echo -e "\n${YELLOW}Paso 5: Construyendo la aplicación para producción (npm run build)...${NC}"
+# --- Paso 6: Construir la aplicación para producción ---
+echo -e "\n${YELLOW}Paso 6: Construyendo la aplicación para producción (npm run build)...${NC}"
 npm run build
 echo -e "${GREEN}Aplicación construida exitosamente.${NC}"
 
-# --- Paso 6: Instalar y configurar PM2 para mantener la aplicación en ejecución ---
-echo -e "\n${YELLOW}Paso 6: Instalando y configurando el gestor de procesos PM2...${NC}"
+# --- Paso 7: Instalar y configurar PM2 para mantener la aplicación en ejecución ---
+echo -e "\n${YELLOW}Paso 7: Instalando y configurando el gestor de procesos PM2...${NC}"
 # Se instala pm2 globalmente si no existe
 if ! command -v pm2 &> /dev/null
 then
@@ -114,9 +129,12 @@ pm2 start npm --name "$APP_NAME" -- start
 # Configurar PM2 para que se inicie automáticamente al reiniciar el sistema
 # Esto puede requerir intervención manual para ejecutar un comando con sudo.
 echo -e "\n${YELLOW}Configurando PM2 para que se inicie al arranque del sistema...${NC}"
+# El siguiente comando generará y mostrará otro comando que debe ser ejecutado con sudo
+# Es importante que el usuario lo ejecute manualmente.
 pm2 startup
+echo -e "${YELLOW}Por favor, copia y ejecuta el comando que PM2 generó arriba para completar la configuración de arranque.${NC}"
 pm2 save
-echo -e "${GREEN}PM2 configurado para iniciar '$APP_NAME' al arranque del sistema.${NC}"
+echo -e "${GREEN}PM2 configurado para iniciar '$APP_NAME' al arranque del sistema (después de ejecutar el comando anterior).${NC}"
 
 # --- Finalización ---
 echo -e "\n\n${GREEN}====================================================="

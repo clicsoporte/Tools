@@ -68,6 +68,32 @@ export default function HelpPage() {
                 </AccordionContent>
                 </AccordionItem>
 
+                 <AccordionItem value="item-suggestions">
+                    <AccordionTrigger className="text-lg font-semibold">
+                        <MessageSquare className="mr-4 h-6 w-6 text-green-600" />
+                        Tutorial: Buzón de Sugerencias
+                    </AccordionTrigger>
+                    <AccordionContent className="prose max-w-none text-base space-y-4">
+                        <p>
+                        Esta es una herramienta de comunicación directa para mejorar la aplicación. Todos los usuarios pueden participar.
+                        </p>
+                        <ul className="list-disc space-y-3 pl-6">
+                            <li>
+                                <strong>Enviar una Sugerencia:</strong> En el panel principal, haz clic en el botón verde <strong>"Sugerencias y Mejoras"</strong> (<MessageSquare className="inline h-4 w-4" />). Se abrirá una ventana donde podrás escribir tu idea, reportar un problema o proponer una mejora. Al enviarla, los administradores serán notificados.
+                            </li>
+                            <li>
+                                <strong>Gestión para Administradores:</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Los administradores verán un contador de sugerencias no leídas en el botón de "Configuración" del menú lateral.</li>
+                                    <li>Dentro de <strong>Administración &gt; Buzón de Sugerencias</strong>, podrán ver todas las sugerencias enviadas, quién las envió y cuándo.</li>
+                                    <li>Las sugerencias nuevas aparecen resaltadas. Pueden marcarlas como leídas (<CheckCircle className="inline h-4 w-4 text-green-600"/>) o eliminarlas (<Trash2 className="inline h-4 w-4 text-red-600"/>).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </AccordionContent>
+                </AccordionItem>
+
+
                 <AccordionItem value="item-quoter">
                     <AccordionTrigger className="text-lg font-semibold">
                         <DollarSign className="mr-4 h-6 w-6 text-green-500" />
@@ -283,7 +309,7 @@ export default function HelpPage() {
                                 </ul>
                             </li>
                              <li>
-                                <strong>Búsquedas Individuales:</strong> También puedes usar las pestañas "Situación Tributaria" y "Exoneraciones" para hacer consultas directas a Hacienda ingresando una cédula o un número de autorización, respectivamente.
+                                <strong>Búsquedas Individuales:</strong> También puedes usar las pestañas "Situación Tributaria" y "Exoneraciones" para hacer consultas directas a Hacienda ingresando una cédula o un número de autorización, respectively.
                             </li>
                         </ul>
                     </AccordionContent>
@@ -383,7 +409,9 @@ export default function HelpPage() {
                             </div>
                              <div className="flex items-start gap-4">
                                 <FileTerminal className="mt-1 h-6 w-6 text-slate-500 shrink-0" />
-                                <div><h4 className="font-semibold">Visor de Eventos</h4><p>Un registro (log) de todo lo que sucede en el sistema. Es una herramienta invaluable para diagnosticar problemas, ya que muestra errores, advertencias e información general sobre las operaciones realizadas.</p></div>
+                                <div><h4 className="font-semibold">Visor de Eventos</h4>
+                                    <p>Un registro (log) de todo lo que sucede en el sistema. Es una herramienta invaluable para diagnosticar problemas. Permite filtrar y limpiar los registros de forma granular (Operativos vs. Sistema) y conserva por defecto los últimos 30 días, a menos que se indique lo contrario.</p>
+                                </div>
                             </div>
                         </div>
                     </AccordionContent>
@@ -466,5 +494,3 @@ export default function HelpPage() {
     </main>
   );
 }
-
-    

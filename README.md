@@ -1,6 +1,7 @@
+
 # Clic-Tools: Documentación Técnica y Manual de Usuario
 
-**Clic-Tools** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
+**Clic-Tools v1.5** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
 
 ---
 
@@ -67,6 +68,10 @@
 
 ### 3.5. Consultas Hacienda (`/dashboard/hacienda`)
 - **Búsqueda Unificada:** Centraliza la consulta de situación tributaria y exoneraciones de un cliente, cruzando datos del ERP con las APIs de Hacienda.
+
+### 3.6. Buzón de Sugerencias (`/dashboard/admin/suggestions`)
+- **Feedback Directo:** Permite a los usuarios enviar sugerencias o reportar problemas directamente desde la interfaz.
+- **Panel de Administración:** Los administradores pueden ver, gestionar y marcar como leídas las sugerencias para un seguimiento efectivo.
 
 ---
 
