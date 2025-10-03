@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverActions: {
-    bodySizeLimit: '50mb',
-  },
   images: {
     remotePatterns: [
       {
@@ -18,6 +15,11 @@ const nextConfig = {
         pathname: '/**',
       }
     ],
+  },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
   },
 };
 
