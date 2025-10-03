@@ -84,7 +84,7 @@ export default function SuggestionsPage() {
         await updateUnreadCount();
     };
 
-    if (isLoading || !isAuthorized) {
+    if (isLoading || isAuthorized === null) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card>
@@ -100,6 +100,11 @@ export default function SuggestionsPage() {
             </main>
         );
     }
+    
+    if (isAuthorized === false) {
+        return null; // Or a dedicated access denied component
+    }
+
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">

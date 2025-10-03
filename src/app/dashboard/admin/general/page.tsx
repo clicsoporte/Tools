@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -95,7 +94,7 @@ export default function GeneralSettingsPage() {
     await logInfo("Configuración general guardada", { companyName: companyData.name });
   };
   
-  if (!isAuthorized) {
+  if (isAuthorized === null) {
     return null;
   }
 

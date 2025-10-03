@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -67,7 +66,7 @@ export default function QuoterSettingsPage() {
     await logInfo("Configuración del cotizador guardada", { companyName: companyData.name });
   };
   
-  if (!isAuthorized) {
+  if (isAuthorized === null) {
     return null;
   }
 
