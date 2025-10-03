@@ -55,8 +55,5 @@ export async function getLogs(filters: {
  * @param {boolean} deleteAllTime - If true, ignores the 30-day retention period and deletes all specified logs.
  */
 export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
-  // Log the action before clearing the logs. This log will also be deleted if deleteAllTime is true,
-  // but it will exist as a final record if it's not.
-  await logWarn(`System logs cleared by user: ${clearedBy}`, { typeDeleted: type, deleteAllTime });
   return await dbClearLogs(clearedBy, type, deleteAllTime);
 }

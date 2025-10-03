@@ -166,7 +166,7 @@ export default function LogViewerPage() {
                                     </div>
                                     <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="system" id="r-sys" />
-                                        <Label htmlFor="r-sys">Sistema (WARN, ERROR, Migraciones)</Label>
+                                        <Label htmlFor="r-sys">Sistema (WARN, ERROR)</Label>
                                     </div>
                                      <div className="flex items-center space-x-2">
                                         <RadioGroupItem value="all" id="r-all" />
@@ -176,7 +176,7 @@ export default function LogViewerPage() {
                                 <div className="flex items-center space-x-2">
                                     <Checkbox id="delete-all-time" checked={deleteAllTime} onCheckedChange={(checked) => setDeleteAllTime(checked as boolean)} />
                                     <Label htmlFor="delete-all-time" className="font-medium text-destructive">
-                                        Borrar todos los registros (ignorar los últimos 30 días)
+                                        Borrar todos los registros (incluyendo los últimos 30 días)
                                     </Label>
                                 </div>
                             </div>

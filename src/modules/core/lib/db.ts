@@ -537,11 +537,9 @@ export async function getLogs(filters: {
         const params: any[] = [];
 
         if (filters.type === 'operational') {
-            whereClauses.push("type NOT IN ('ERROR')");
-            // This is a simple heuristic. A better way would be to add a category to logs.
-            whereClauses.push("message NOT LIKE '%MIGRATION%' AND message NOT LIKE '%database initialized%'");
+            whereClauses.push("type NOT IN ('ERROR', 'WARN')");
         } else if (filters.type === 'system') {
-            whereClauses.push("type IN ('ERROR', 'WARN') OR message LIKE '%MIGRATION%' OR message LIKE '%database initialized%'");
+            whereClauses.push("type IN ('ERROR', 'WARN')");
         }
 
         if (filters.search) {
@@ -593,23 +591,15 @@ export async function addLog(entry: Omit<LogEntry, "id" | "timestamp">) {
 export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
     const db = await connectDb();
     
-    // Log the action before performing it.
-    await addLog({ 
-        type: "WARN", 
-        message: `System logs cleared by user: ${clearedBy}`,
-        details: { typeDeleted: type, allTime: deleteAllTime }
-    });
-
-    try {
+    const transaction = db.transaction(() => {
         let query = 'DELETE FROM logs';
         const whereClauses: string[] = [];
         const params: any[] = [];
         
         if (type === 'operational') {
-            whereClauses.push("type NOT IN ('ERROR')");
-            whereClauses.push("message NOT LIKE '%MIGRATION%' AND message NOT LIKE '%database initialized%'");
+            whereClauses.push("type NOT IN ('ERROR', 'WARN')");
         } else if (type === 'system') {
-            whereClauses.push("type IN ('ERROR', 'WARN') OR message LIKE '%MIGRATION%' OR message LIKE '%database initialized%'");
+            whereClauses.push("type IN ('ERROR', 'WARN')");
         }
         
         if (!deleteAllTime) {
@@ -623,11 +613,30 @@ export async function clearLogs(clearedBy: string, type: 'operational' | 'system
             query += ` WHERE ${whereClauses.join(' AND ')}`;
         }
         
-        db.prepare(query).run(...params);
+        try {
+            db.prepare(query).run(...params);
 
-    } catch (error) {
-        console.error("Failed to clear logs from database", error);
-        await logError("Log clearing process failed", { error: (error as Error).message });
+            // Log the action AFTER clearing, ensuring this log always remains if needed.
+            const logEntry = {
+                timestamp: new Date().toISOString(),
+                type: "WARN",
+                message: `System logs cleared by user: ${clearedBy}`,
+                details: JSON.stringify({ typeDeleted: type, allTime: deleteAllTime })
+            };
+            db.prepare('INSERT INTO logs (timestamp, type, message, details) VALUES (@timestamp, @type, @message, @details)').run(logEntry);
+
+        } catch (error) {
+            console.error("Failed to clear logs from database", error);
+            // We need to re-throw inside a transaction to make it roll back.
+            throw error;
+        }
+    });
+
+    try {
+        transaction();
+    } catch(error: any) {
+        // The transaction has been rolled back. We can log this failure now.
+        logError("Log clearing process failed", { error: error.message });
     }
 };
 
