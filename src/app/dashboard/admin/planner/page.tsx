@@ -403,7 +403,7 @@ export default function PlannerSettingsPage() {
                                             placeholder="Ej: Documento Controlado - Versión 1.0"
                                         />
                                     </div>
-                                    <div className="grid grid-cols-1 gap-6">
+                                    <div className="grid grid-cols-2 gap-6">
                                         <div className="space-y-2">
                                             <Label>Tamaño del Papel</Label>
                                             <RadioGroup
@@ -418,6 +418,23 @@ export default function PlannerSettingsPage() {
                                                 <div className="flex items-center space-x-2">
                                                     <RadioGroupItem value="legal" id="r-legal" />
                                                     <Label htmlFor="r-legal">Oficio (Legal)</Label>
+                                                </div>
+                                            </RadioGroup>
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label>Orientación</Label>
+                                            <RadioGroup
+                                                value={settings.pdfOrientation}
+                                                onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfOrientation: value as 'portrait' | 'landscape' } : null)}
+                                                className="flex items-center gap-4"
+                                            >
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="portrait" id="r-portrait" />
+                                                    <Label htmlFor="r-portrait">Vertical</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="landscape" id="r-landscape" />
+                                                    <Label htmlFor="r-landscape">Horizontal</Label>
                                                 </div>
                                             </RadioGroup>
                                         </div>

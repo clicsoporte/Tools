@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect } from "react";
@@ -195,7 +196,6 @@ export default function HelpPage() {
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                                 <li><strong>Pendiente:</strong> La orden ha sido creada y espera aprobación.</li>
                                 <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> La orden está autorizada para producción.</li>
-                                <li><strong>En Cola (<Truck className="inline h-4 w-4 text-cyan-600"/>):</strong> La orden está lista para entrar a la línea de producción.</li>
                                 <li><strong>En Progreso (<Play className="inline h-4 w-4 text-blue-600"/>):</strong> La orden se está produciendo activamente.</li>
                                 <li><strong>En Espera / Mantenimiento (<Pause className="inline h-4 w-4 text-gray-600"/>):</strong> La producción se detuvo temporalmente.</li>
                                 <li><strong>Completada (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> La producción ha finalizado.</li>
