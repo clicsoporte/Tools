@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -274,10 +275,11 @@ export const useQuoter = () => {
     let taxRate = 0.13;
     if (product.isBasicGood === 'S') {
         taxRate = 0.01;
-    } else if (exemptionInfo && (exemptionInfo.isErpValid || exemptionInfo.isHaciendaValid) && exemptionInfo.erpExemption.percentage > 0) {
-      if (exemptionInfo.erpExemption.percentage >= 13) {
-        taxRate = 0;
-      }
+    } else if (exemptionInfo && exemptionInfo.erpExemption.percentage > 0) {
+        const isExempt = exemptionInfo.isSpecialLaw || exemptionInfo.isHaciendaValid;
+        if (isExempt) {
+          taxRate = 0;
+        }
     }
     
     const newLine: QuoteLine = {

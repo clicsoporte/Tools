@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file defines a central authentication context and hook.
  * It provides a single source of truth for the current user, their role, company data,
@@ -81,7 +82,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setStockLevels(dbStock);
       setAllExemptions(dbExemptions);
       setExemptionLaws(dbLaws);
-      setUnreadSuggestionsCount(unreadCount);
+      if (currentUser) { // Only update count if user is logged in
+        setUnreadSuggestionsCount(unreadCount);
+      }
       setExchangeRateData(rateData || { rate: null, date: null });
 
       if (currentUser && allRoles.length > 0) {
