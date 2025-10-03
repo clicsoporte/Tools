@@ -121,6 +121,15 @@ export const useQuoter = () => {
   const [decimalPlaces, setDecimalPlaces] = useState(initialQuoteState.decimalPlaces);
   const [exemptionInfo, setExemptionInfo] = useState<ExemptionInfo | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+
+  // New state for mobile column visibility
+  const [mobileColumnVisibility, setMobileColumnVisibility] = useState({
+    code: false,
+    unit: false,
+    cabys: false,
+    tax: false,
+    total: true,
+  });
   
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
@@ -662,6 +671,10 @@ export const useQuoter = () => {
     }
   };
 
+  const handleColumnVisibilityChange = (column: keyof typeof mobileColumnVisibility, checked: boolean) => {
+    setMobileColumnVisibility(prev => ({ ...prev, [column]: checked }));
+  };
+
   const totals = useMemo(() => {
     const subtotal = lines.reduce((acc, line) => acc + (line.quantity * line.price), 0);
     const totalTaxes = lines.reduce((acc, line) => acc + (line.quantity * line.price * line.tax), 0);
@@ -678,7 +691,8 @@ export const useQuoter = () => {
       quoteNumber, deliveryDate, sellerName, quoteDate, companyData, currentUser, sellerType,
       paymentTerms, creditDays, validUntilDate, notes, products, customers, showInactiveCustomers,
       showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, productSearchTerm, purchaseOrderNumber,
-      exemptionInfo, isRefreshing, customerSearchTerm, isProductSearchOpen, isCustomerSearchOpen, isProcessing
+      exemptionInfo, isRefreshing, customerSearchTerm, isProductSearchOpen, isCustomerSearchOpen, isProcessing,
+      mobileColumnVisibility
     },
     actions: {
       setCurrency, setLines, setSelectedCustomer, setCustomerDetails, setDeliveryAddress, setExchangeRate,
@@ -690,6 +704,7 @@ export const useQuoter = () => {
       handleSelectCustomer, handleSelectProduct, incrementAndSaveQuoteNumber, handleSaveDecimalPlaces,
       generatePDF, resetQuote, saveDraft, loadDrafts, handleLoadDraft, handleDeleteDraft, handleNumericInputBlur,
       handleCustomerDetailsChange, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown, handleCustomerInputKeyDown,
+      handleColumnVisibilityChange
     },
     refs: { productInputRef, customerInputRef, lineInputRefs },
     selectors,

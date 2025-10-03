@@ -380,7 +380,7 @@ export default function QuoterPage() {
                                     </div>
                               ) : state.exemptionInfo.isLoading ? (
                                   <Skeleton className="h-10 w-24 mt-1" />
-                              ) : state.exemptionInfo.apiError || !state.exemptionInfo.haciendaExemption ? (
+                              ) : state.exemptionInfo.apiError || !state.exemptionInfo.haciendaExemption || isErrorResponse(state.exemptionInfo.haciendaExemption) ? (
                                   <div className="flex items-center gap-1 text-red-600 font-medium">
                                       <AlertTriangle className="h-4 w-4"/>
                                       <span>Error de API o no encontrado</span>
@@ -393,9 +393,7 @@ export default function QuoterPage() {
                                       </div>
                                       <p className="text-xs text-muted-foreground">Vence: {format(parseISO(state.exemptionInfo.haciendaExemption.fechaVencimiento), 'dd/MM/yyyy')}</p>
                                   </>
-                              ) : (
-                                  <div className="text-red-600 font-medium">No encontrada</div>
-                              )}
+                              ) : null}
                           </div>
                       </CardContent>
                   </Card>
@@ -468,18 +466,30 @@ export default function QuoterPage() {
                 </div>
               </CardContent>
             </Card>
-            <div className="rounded-lg border">
+
+            <div className="md:hidden space-y-2 text-sm">
+                <Label>Mostrar/Ocultar Columnas:</Label>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    <div className="flex items-center gap-2"><Checkbox id="show-code" checked={state.mobileColumnVisibility.code} onCheckedChange={(checked) => actions.handleColumnVisibilityChange('code', checked as boolean)} /><Label htmlFor="show-code" className="font-normal">Código</Label></div>
+                    <div className="flex items-center gap-2"><Checkbox id="show-unit" checked={state.mobileColumnVisibility.unit} onCheckedChange={(checked) => actions.handleColumnVisibilityChange('unit', checked as boolean)} /><Label htmlFor="show-unit" className="font-normal">Unidad</Label></div>
+                    <div className="flex items-center gap-2"><Checkbox id="show-cabys" checked={state.mobileColumnVisibility.cabys} onCheckedChange={(checked) => actions.handleColumnVisibilityChange('cabys', checked as boolean)} /><Label htmlFor="show-cabys" className="font-normal">Cabys</Label></div>
+                    <div className="flex items-center gap-2"><Checkbox id="show-tax" checked={state.mobileColumnVisibility.tax} onCheckedChange={(checked) => actions.handleColumnVisibilityChange('tax', checked as boolean)} /><Label htmlFor="show-tax" className="font-normal">Impuesto</Label></div>
+                    <div className="flex items-center gap-2"><Checkbox id="show-total" checked={state.mobileColumnVisibility.total} onCheckedChange={(checked) => actions.handleColumnVisibilityChange('total', checked as boolean)} /><Label htmlFor="show-total" className="font-normal">Total</Label></div>
+                </div>
+            </div>
+
+            <div className="rounded-lg border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[100px]">Código</TableHead>
+                    <TableHead className={cn("min-w-[100px]", !state.mobileColumnVisibility.code && 'hidden md:table-cell')}>Código</TableHead>
                     <TableHead>Descripción</TableHead>
-                    <TableHead className="w-[100px]">Cant.</TableHead>
-                    <TableHead className="w-[100px]">Unidad</TableHead>
-                    <TableHead className="w-[120px]">Cabys</TableHead>
-                    <TableHead className="w-[120px]">Precio</TableHead>
-                    <TableHead className="w-[150px]">Impuesto</TableHead>
-                    <TableHead className="text-right w-[120px]">Total</TableHead>
+                    <TableHead className="min-w-[100px]">Cant.</TableHead>
+                    <TableHead className={cn("min-w-[100px]", !state.mobileColumnVisibility.unit && 'hidden md:table-cell')}>Unidad</TableHead>
+                    <TableHead className={cn("min-w-[120px]", !state.mobileColumnVisibility.cabys && 'hidden md:table-cell')}>Cabys</TableHead>
+                    <TableHead className="min-w-[120px]">Precio</TableHead>
+                    <TableHead className={cn("min-w-[150px]", !state.mobileColumnVisibility.tax && 'hidden md:table-cell')}>Impuesto</TableHead>
+                    <TableHead className={cn("text-right min-w-[120px]", !state.mobileColumnVisibility.total && 'hidden md:table-cell')}>Total</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -490,7 +500,7 @@ export default function QuoterPage() {
                       onClick={() => actions.setSelectedLineForInfo(line)}
                       className="cursor-pointer"
                     >
-                      <TableCell>
+                      <TableCell className={cn(!state.mobileColumnVisibility.code && 'hidden md:table-cell')}>
                         <Input
                           placeholder="Código"
                           value={line.product.id}
@@ -540,7 +550,7 @@ export default function QuoterPage() {
                           className="text-right"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={cn(!state.mobileColumnVisibility.unit && 'hidden md:table-cell')}>
                         <Input
                           placeholder="Unidad"
                           value={line.product.unit}
@@ -551,7 +561,7 @@ export default function QuoterPage() {
                           }
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={cn(!state.mobileColumnVisibility.cabys && 'hidden md:table-cell')}>
                         <Input
                           placeholder="Cabys"
                           value={line.product.cabys}
@@ -587,7 +597,7 @@ export default function QuoterPage() {
                           className="text-right"
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={cn(!state.mobileColumnVisibility.tax && 'hidden md:table-cell')}>
                         <Select
                           value={String(line.tax)}
                           onValueChange={(value) =>
@@ -609,7 +619,7 @@ export default function QuoterPage() {
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className={cn("text-right font-medium", !state.mobileColumnVisibility.total && 'hidden md:table-cell')}>
                         {actions.formatCurrency(
                           line.quantity * line.price * (1 + line.tax)
                         )}
