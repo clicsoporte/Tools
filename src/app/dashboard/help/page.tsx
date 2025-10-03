@@ -53,41 +53,7 @@ export default function HelpPage() {
             </div>
             </CardHeader>
             <CardContent className="space-y-6">
-            <Accordion type="single" collapsible className="w-full" defaultValue="item-changelog">
-                <AccordionItem value="item-changelog">
-                    <AccordionTrigger className="text-lg font-semibold">
-                        <ListChecks className="mr-4 h-6 w-6 text-fuchsia-600" />
-                        Control de Cambios (Changelog)
-                    </AccordionTrigger>
-                    <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <h4 className="font-semibold text-lg">Versión 1.5.1 <Badge variant="secondary">Actual</Badge></h4>
-                        <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
-                        <ul className="list-disc space-y-3 pl-6">
-                            <li>
-                                <strong>Nueva Funcionalidad: Buzón de Sugerencias.</strong> Se añadió una herramienta para que los usuarios puedan enviar feedback directamente a los administradores.
-                            </li>
-                             <li>
-                                <strong>Mejora Crítica de Auditoría:</strong> La acción de "Limpiar Logs" ahora siempre deja un registro de quién y cuándo se realizó la limpieza, incluso si se borran todos los datos.
-                            </li>
-                            <li>
-                                <strong>Mejora de UX: Eliminación de Parpadeos.</strong> Se eliminaron los parpadeos (recargas visuales de página completa) al usar los botones de "Refrescar" en el Buzón de Sugerencias y el Visor de Eventos, y al guardar cambios en las configuraciones.
-                            </li>
-                            <li>
-                                <strong>Mejora de UX: Actualización Instantánea.</strong> La fecha de "Última Sincronización" en el panel principal ahora se actualiza instantáneamente después de una sincronización del ERP, sin necesidad de recargar la página.
-                            </li>
-                            <li>
-                                <strong>Implementación de Logging Completo:</strong> Se añadió registro de eventos (auditoría) para acciones críticas en todos los módulos: inicio/cierre de sesión, gestión de usuarios, guardado de configuraciones, backups, etc.
-                            </li>
-                             <li>
-                                <strong>Corrección de Error en Cotizador:</strong> Se solucionó un fallo que impedía aplicar correctamente la exoneración de un cliente a los nuevos productos añadidos a una cotización.
-                            </li>
-                             <li>
-                                <strong>Corrección de Error de Configuración:</strong> Se solucionó un error de `next.config.js` y se aumentó el límite de subida de archivos a 50MB para prevenir problemas con backups o imágenes grandes.
-                            </li>
-                        </ul>
-                    </AccordionContent>
-                </AccordionItem>
-                
+            <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="item-1">
                 <AccordionTrigger className="text-lg font-semibold">
                     <Rocket className="mr-4 h-6 w-6 text-blue-500" />
@@ -520,6 +486,40 @@ export default function HelpPage() {
                                 Nunca reemplaces la carpeta `dbs/` del servidor con la de la nueva versión, ya que esto borraría todos tus datos de producción.
                             </AlertDescription>
                         </Alert>
+                    </AccordionContent>
+                </AccordionItem>
+
+                 <AccordionItem value="item-changelog">
+                    <AccordionTrigger className="text-lg font-semibold">
+                        <ListChecks className="mr-4 h-6 w-6 text-fuchsia-600" />
+                        Control de Cambios (Changelog)
+                    </AccordionTrigger>
+                    <AccordionContent className="prose max-w-none text-base space-y-4">
+                        <h4 className="font-semibold text-lg">Versión 1.5.1 <Badge variant="secondary">Actual</Badge></h4>
+                        <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
+                        <ul className="list-disc space-y-3 pl-6">
+                            <li>
+                                <strong>Nueva Funcionalidad: Buzón de Sugerencias.</strong> Se añadió una herramienta para que los usuarios puedan enviar feedback directamente a los administradores.
+                            </li>
+                             <li>
+                                <strong>Mejora Crítica de Auditoría:</strong> La acción de "Limpiar Logs" ahora siempre deja un registro de quién y cuándo se realizó la limpieza, incluso si se borran todos los datos.
+                            </li>
+                            <li>
+                                <strong>Mejora de UX: Eliminación de Parpadeos.</strong> Se eliminaron los parpadeos (recargas visuales de página completa) al usar los botones de "Refrescar" en el Buzón de Sugerencias y el Visor de Eventos, y al guardar cambios en las configuraciones.
+                            </li>
+                            <li>
+                                <strong>Mejora de UX: Actualización Instantánea.</strong> La fecha de "Última Sincronización" en el panel principal ahora se actualiza instantáneamente después de una sincronización del ERP, sin necesidad de recargar la página.
+                            </li>
+                            <li>
+                                <strong>Implementación de Logging Completo:</strong> Se añadió registro de eventos (auditoría) para acciones críticas en todos los módulos: inicio/cierre de sesión, gestión de usuarios, guardado de configuraciones, backups, etc.
+                            </li>
+                             <li>
+                                <strong>Corrección de Error en Cotizador:</strong> Se solucionó un fallo que impedía aplicar correctamente la exoneración de un cliente a los nuevos productos añadidos a una cotización.
+                            </li>
+                             <li>
+                                <strong>Corrección de Error de Configuración:</strong> Se solucionó un error de `next.config.js` y se aumentó el límite de subida de archivos a 50MB para prevenir problemas con backups o imágenes grandes.
+                            </li>
+                        </ul>
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
