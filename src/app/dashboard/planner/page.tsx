@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, Truck, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, MessageSquarePlus, FileDown, Play, Pause, Wrench } from 'lucide-react';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, MessageSquarePlus, FileDown, Play, Pause, Wrench, Hourglass } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -117,7 +117,7 @@ export default function PlannerPage() {
                                     <DropdownMenuSeparator/>
                                     {canApprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'approved')} className="text-green-600"><Check className="mr-2"/> Aprobar</DropdownMenuItem>}
                                     
-                                    {canQueue && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-queue')} className="text-cyan-600"><Truck className="mr-2"/> Poner en Cola</DropdownMenuItem>}
+                                    {canQueue && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-queue')} className="text-cyan-600"><Hourglass className="mr-2"/> Poner en Cola</DropdownMenuItem>}
                                     {canStart && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Play className="mr-2"/> Iniciar Progreso</DropdownMenuItem>}
                                     {canResumeFromHold && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Play className="mr-2"/> Reanudar Progreso</DropdownMenuItem>}
                                     
