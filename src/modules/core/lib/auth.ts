@@ -9,7 +9,7 @@
 import { connectDb } from './db';
 import type { User } from '../types';
 import bcrypt from 'bcryptjs';
-import { logInfo, logWarn } from './logger';
+import { logInfo, logWarn, logError } from './logger';
 import { headers } from 'next/headers';
 
 const SALT_ROUNDS = 10;
