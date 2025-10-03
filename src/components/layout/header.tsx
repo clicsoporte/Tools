@@ -96,14 +96,14 @@ export function Header({ title }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
+    <header className="sticky top-0 z-10 flex h-auto min-h-16 items-center gap-4 border-b bg-background/80 px-4 py-2 backdrop-blur-sm md:px-6 md:h-16">
       <div className="flex items-center gap-2">
         <SidebarTrigger className="md:hidden" />
         <h1 className="text-2xl font-semibold hidden sm:block">{title}</h1>
       </div>
-      <div className="ml-auto flex items-center gap-2 flex-wrap">
+      <div className="ml-auto flex items-center justify-end gap-2 flex-wrap">
         {exchangeRateData.rate && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg">
+            <div className="hidden items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg md:flex">
                 <DollarSign className="h-4 w-4"/>
                 <span>TC Venta: <strong>{exchangeRateData.rate.toLocaleString('es-CR')}</strong></span>
                 <span className="text-xs hidden md:inline">({exchangeRateData.date})</span>
@@ -113,18 +113,27 @@ export function Header({ title }: HeaderProps) {
             </div>
         )}
         {companyData?.lastSyncTimestamp && (
-            <div className={cn(
-                "flex items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg", 
-                isSyncOld && "text-red-500 font-medium border-red-500/50 bg-red-50"
-            )}>
-                <Clock className="h-4 w-4" />
-                <span>Última Sinc: <strong>{format(parseISO(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}</strong></span>
-            </div>
+            <>
+                {/* Desktop View */}
+                <div className={cn(
+                    "hidden items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg md:flex", 
+                    isSyncOld && "text-red-500 font-medium border-red-500/50 bg-red-50"
+                )}>
+                    <Clock className="h-4 w-4" />
+                    <span>Última Sinc: <strong>{format(parseISO(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}</strong></span>
+                </div>
+                <Button onClick={handleFullSync} disabled={isSyncing || !hasPermission('admin:import:run')} size="sm" variant="outline" className="hidden md:inline-flex">
+                    {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    <span>Sincronizar ERP</span>
+                </Button>
+
+                {/* Mobile View */}
+                 <Button onClick={handleFullSync} disabled={isSyncing || !hasPermission('admin:import:run')} size="sm" variant="outline" className={cn("md:hidden", isSyncOld && "border-red-500/50 bg-red-50 text-red-500")}>
+                    {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    <span>{format(parseISO(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}</span>
+                </Button>
+            </>
         )}
-        <Button onClick={handleFullSync} disabled={isSyncing || !hasPermission('admin:import:run')} size="sm" variant="outline">
-            {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            <span className="hidden md:inline">Sincronizar ERP</span>
-        </Button>
         <Dialog open={isSuggestionDialogOpen} onOpenChange={setSuggestionDialogOpen}>
             <DialogTrigger asChild>
                 <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700">
