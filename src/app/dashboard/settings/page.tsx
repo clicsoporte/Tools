@@ -161,7 +161,7 @@ export default function SettingsPage() {
           title: "Perfil Actualizado",
           description: "Tu información ha sido guardada exitosamente.",
         });
-        await logInfo("User profile updated", { user: user.name });
+        await logInfo(`User '${user.name}' updated their profile.`, { name: formData.name, email: formData.email });
         await refreshAuth();
     } catch (error: any) {
         logError("Failed to save user profile", { error: error.message });

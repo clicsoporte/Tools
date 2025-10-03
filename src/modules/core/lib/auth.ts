@@ -49,6 +49,15 @@ export async function login(email: string, passwordProvided: string): Promise<Us
   }
 }
 
+
+export async function logout(userId: number): Promise<void> {
+    const db = await connectDb();
+    const user = db.prepare('SELECT name FROM users WHERE id = ?').get(userId) as { name: string } | undefined;
+    if (user) {
+        await logInfo(`User '${user.name}' logged out.`, { userId });
+    }
+}
+
 /**
  * Retrieves all users from the database.
  * Passwords are removed before sending the data to the client.
@@ -109,6 +118,7 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
   });
 
   const { password, ...userWithoutPassword } = userToCreate;
+  await logInfo(`Admin added a new user: ${userToCreate.name}`, { role: userToCreate.role });
   return userWithoutPassword as User;
 }
 
@@ -168,8 +178,10 @@ export async function saveAllUsers(users: User[]): Promise<void> {
 
     try {
         transaction(users);
+        await logInfo(`${users.length} user records were updated.`);
     } catch (error) {
         console.error("Failed to save all users:", error);
+        await logError("Failed to save all users.", { error: (error as Error).message });
         throw new Error("Database transaction failed to save users.");
     }
 }

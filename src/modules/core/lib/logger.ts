@@ -49,8 +49,11 @@ export async function getLogs(filters: {
 }
 
 /**
- * Clears all logs from the database.
+ * Clears all logs from the database, but first records who did it.
+ * @param {string} clearedBy - The name of the user clearing the logs.
  */
-export async function clearLogs() {
+export async function clearLogs(clearedBy: string) {
+  // Log the action before clearing the logs.
+  await logWarn(`System logs cleared by user: ${clearedBy}.`);
   return await dbClearLogs();
 }

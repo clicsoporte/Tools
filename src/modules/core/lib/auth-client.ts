@@ -6,7 +6,7 @@
 'use client';
 
 import type { User } from '@/modules/core/types';
-import { getAllUsers as getAllUsersServer, login as loginServer, saveAllUsers as saveAllUsersServer, comparePasswords as comparePasswordsServer, addUser as addUserServer } from './auth';
+import { getAllUsers as getAllUsersServer, login as loginServer, saveAllUsers as saveAllUsersServer, comparePasswords as comparePasswordsServer, addUser as addUserServer, logout as logoutServer } from './auth';
 
 const CURRENT_USER_ID_KEY = 'currentUserId';
 
@@ -29,7 +29,11 @@ export async function login(email: string, password: string): Promise<boolean> {
  * Logs out the current user by removing their ID from session storage.
  * Dispatches a "storage" event to notify other components of the logout.
  */
-export function logout() {
+export async function logout() {
+    const userId = sessionStorage.getItem(CURRENT_USER_ID_KEY);
+    if (userId) {
+        await logoutServer(Number(userId));
+    }
     sessionStorage.removeItem(CURRENT_USER_ID_KEY);
     window.dispatchEvent(new Event("storage"));
 }

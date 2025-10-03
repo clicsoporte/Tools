@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { Button } from "../../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../components/ui/table";
-import { getLogs, clearLogs, logWarn } from "../../../../modules/core/lib/logger";
+import { getLogs, clearLogs } from "../../../../modules/core/lib/logger";
 import type { LogEntry, DateRange } from "../../../../modules/core/types";
 import { RefreshCw, Trash2, Calendar as CalendarIcon, FilterX, Download, Loader2 } from "lucide-react";
 import { Badge } from "../../../../components/ui/badge";
@@ -21,11 +21,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "use-debounce";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/modules/core/hooks/useAuth";
 
 type LogTypeFilter = 'operational' | 'system' | 'all';
 
 export default function LogViewerPage() {
   const { isAuthorized, hasPermission } = useAuthorization(['admin:logs:read']);
+  const { user } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { setTitle } = usePageTitle();
   const [isLoading, setIsLoading] = useState(true);
@@ -70,8 +72,8 @@ export default function LogViewerPage() {
   }, [setTitle, isAuthorized, logTypeFilter, debouncedSearchTerm, dateFilter]);
 
   const handleClearLogs = async () => {
-    await logWarn("System logs cleared by an administrator.");
-    await clearLogs();
+    if (!user) return;
+    await clearLogs(user.name);
     await fetchLogs();
   };
   

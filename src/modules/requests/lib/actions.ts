@@ -5,6 +5,7 @@
 'use client';
 
 import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload } from '../../core/types';
+import { logInfo } from '@/modules/core/lib/logger';
 import { 
     getRequests, 
     addRequest,
@@ -41,7 +42,9 @@ export async function getPurchaseRequests(options: {
  * @returns The newly created purchase request.
  */
 export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
-    return addRequest(request, requestedBy);
+    const createdRequest = await addRequest(request, requestedBy);
+    await logInfo(`Purchase request ${createdRequest.consecutive} created by ${requestedBy}`, { item: createdRequest.itemDescription, quantity: createdRequest.quantity });
+    return createdRequest;
 }
 
 /**
@@ -50,7 +53,9 @@ export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 
  * @returns The updated purchase request.
  */
 export async function updatePurchaseRequest(payload: UpdatePurchaseRequestPayload): Promise<PurchaseRequest> {
-    return updateRequest(payload);
+    const updatedRequest = await updateRequest(payload);
+    await logInfo(`Purchase request ${updatedRequest.consecutive} edited by ${payload.updatedBy}`, { requestId: payload.requestId });
+    return updatedRequest;
 }
 
 /**
@@ -59,7 +64,9 @@ export async function updatePurchaseRequest(payload: UpdatePurchaseRequestPayloa
  * @returns The updated purchase request.
  */
 export async function updatePurchaseRequestStatus(payload: UpdateRequestStatusPayload): Promise<PurchaseRequest> {
-    return updateStatus(payload);
+    const updatedRequest = await updateStatus(payload);
+    await logInfo(`Status of request ${updatedRequest.consecutive} updated to '${payload.status}' by ${payload.updatedBy}`, { notes: payload.notes, requestId: payload.requestId });
+    return updatedRequest;
 }
 
 /**
@@ -84,6 +91,7 @@ export async function getRequestSettings(): Promise<RequestSettings> {
  * @param settings - The settings object to save.
  */
 export async function saveRequestSettings(settings: RequestSettings): Promise<void> {
+    await logInfo('Purchase requests settings updated.');
     return saveSettings(settings);
 }
 
@@ -92,12 +100,14 @@ export async function saveRequestSettings(settings: RequestSettings): Promise<vo
  * @param payload - The rejection details.
  */
 export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<PurchaseRequest> {
-    return updatePendingActionServer({
+    const updatedRequest = await updatePendingActionServer({
         entityId: payload.entityId,
         action: 'none',
         notes: payload.notes,
         updatedBy: payload.updatedBy
     });
+    await logInfo(`Admin action request for request ${updatedRequest.consecutive} was rejected by ${payload.updatedBy}`, { notes: payload.notes });
+    return updatedRequest;
 }
 
 /**
@@ -106,5 +116,7 @@ export async function rejectCancellationRequest(payload: RejectCancellationPaylo
  * @returns The updated purchase request.
  */
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<PurchaseRequest> {
-    return updatePendingActionServer(payload);
+    const updatedRequest = await updatePendingActionServer(payload);
+    await logInfo(`Administrative action '${payload.action}' initiated for request ${updatedRequest.consecutive} by ${payload.updatedBy}.`);
+    return updatedRequest;
 }
