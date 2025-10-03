@@ -590,14 +590,47 @@ export async function addLog(entry: Omit<LogEntry, "id" | "timestamp">) {
     }
 };
 
-export async function clearLogs() {
+export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
     const db = await connectDb();
+    
+    // Log the action before performing it.
+    await addLog({ 
+        type: "WARN", 
+        message: `System logs cleared by user: ${clearedBy}`,
+        details: { typeDeleted: type, allTime: deleteAllTime }
+    });
+
     try {
-        db.prepare('DELETE FROM logs').run();
+        let query = 'DELETE FROM logs';
+        const whereClauses: string[] = [];
+        const params: any[] = [];
+        
+        if (type === 'operational') {
+            whereClauses.push("type NOT IN ('ERROR')");
+            whereClauses.push("message NOT LIKE '%MIGRATION%' AND message NOT LIKE '%database initialized%'");
+        } else if (type === 'system') {
+            whereClauses.push("type IN ('ERROR', 'WARN') OR message LIKE '%MIGRATION%' OR message LIKE '%database initialized%'");
+        }
+        
+        if (!deleteAllTime) {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            whereClauses.push("timestamp < ?");
+            params.push(thirtyDaysAgo.toISOString());
+        }
+
+        if (whereClauses.length > 0) {
+            query += ` WHERE ${whereClauses.join(' AND ')}`;
+        }
+        
+        db.prepare(query).run(...params);
+
     } catch (error) {
         console.error("Failed to clear logs from database", error);
+        await logError("Log clearing process failed", { error: (error as Error).message });
     }
 };
+
 
 export async function getApiSettings(): Promise<ApiSettings | null> {
     const db = await connectDb();

@@ -22,8 +22,13 @@ import { cn } from "@/lib/utils";
 import { useDebounce } from "use-debounce";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/modules/core/hooks/useAuth";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 type LogTypeFilter = 'operational' | 'system' | 'all';
+type LogTypeToDelete = 'operational' | 'system' | 'all';
 
 export default function LogViewerPage() {
   const { isAuthorized, hasPermission } = useAuthorization(['admin:logs:read']);
@@ -41,6 +46,12 @@ export default function LogViewerPage() {
     to: new Date(),
   });
   const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
+
+  // Clear logs dialog state
+  const [isClearLogDialogOpen, setClearLogDialogOpen] = useState(false);
+  const [logTypeToDelete, setLogTypeToDelete] = useState<LogTypeToDelete>('operational');
+  const [deleteAllTime, setDeleteAllTime] = useState(false);
+
 
   const fetchLogs = async (isRefreshAction = false) => {
     if (isRefreshAction) {
@@ -73,8 +84,9 @@ export default function LogViewerPage() {
 
   const handleClearLogs = async () => {
     if (!user) return;
-    await clearLogs(user.name);
-    await fetchLogs();
+    await clearLogs(user.name, logTypeToDelete, deleteAllTime);
+    setClearLogDialogOpen(false); // Close dialog after action
+    await fetchLogs(true); // Refresh logs to show the result
   };
   
   const handleClearFilters = () => {
@@ -131,10 +143,49 @@ export default function LogViewerPage() {
                   Refrescar
                 </Button>
                 {hasPermission('admin:logs:clear') && (
-                    <Button variant="destructive" onClick={handleClearLogs} className="flex-1 sm:flex-initial">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Limpiar
-                    </Button>
+                     <AlertDialog open={isClearLogDialogOpen} onOpenChange={setClearLogDialogOpen}>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" className="flex-1 sm:flex-initial">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Limpiar
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Limpieza de Registros</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Selecciona qué tipo de logs deseas eliminar. Por defecto, se conservarán los últimos 30 días.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <div className="py-4 space-y-6">
+                                <RadioGroup defaultValue="operational" value={logTypeToDelete} onValueChange={(value) => setLogTypeToDelete(value as LogTypeToDelete)}>
+                                    <Label className="font-semibold">Tipo de Logs a Eliminar</Label>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="operational" id="r-op" />
+                                        <Label htmlFor="r-op">Operativos (INFO)</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="system" id="r-sys" />
+                                        <Label htmlFor="r-sys">Sistema (WARN, ERROR, Migraciones)</Label>
+                                    </div>
+                                     <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="all" id="r-all" />
+                                        <Label htmlFor="r-all">Todos</Label>
+                                    </div>
+                                </RadioGroup>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox id="delete-all-time" checked={deleteAllTime} onCheckedChange={(checked) => setDeleteAllTime(checked as boolean)} />
+                                    <Label htmlFor="delete-all-time" className="font-medium text-destructive">
+                                        Borrar todos los registros (ignorar los últimos 30 días)
+                                    </Label>
+                                </div>
+                            </div>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleClearLogs}>Confirmar Limpieza</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 )}
               </div>
             </div>
@@ -215,7 +266,10 @@ export default function LogViewerPage() {
                   {isLoading ? (
                      <TableRow>
                         <TableCell colSpan={3} className="h-24 text-center">
-                           Cargando registros...
+                           <div className="flex justify-center items-center gap-2">
+                             <Loader2 className="h-5 w-5 animate-spin"/>
+                             <span>Cargando registros...</span>
+                           </div>
                         </TableCell>
                     </TableRow>
                   ) : logs.length > 0 ? (
