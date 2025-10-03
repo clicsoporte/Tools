@@ -28,7 +28,7 @@ interface AuthContextType {
   allExemptions: Exemption[];
   exemptionLaws: ExemptionLaw[];
   unreadSuggestionsCount: number;
-  setUnreadSuggestionsCount: (count: number) => void;
+  updateUnreadSuggestionsCount: () => Promise<void>;
   exchangeRateData: { rate: number | null, date: string | null };
   isLoading: boolean;
   refreshAuth: () => Promise<{ isAuthenticated: boolean; } | void>;
@@ -64,6 +64,15 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     setExchangeRateData(rateData || { rate: null, date: null });
   }, []);
 
+  const updateUnreadSuggestionsCount = useCallback(async () => {
+    try {
+        const count = await getUnreadSuggestionsCount();
+        setUnreadSuggestionsCount(count);
+    } catch(e) {
+        console.error("Failed to update unread suggestions count:", e);
+    }
+  }, []);
+
   const loadAuthData = useCallback(async () => {
     try {
       const [
@@ -82,7 +91,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setStockLevels(dbStock);
       setAllExemptions(dbExemptions);
       setExemptionLaws(dbLaws);
-      if (currentUser) { // Only update count if user is logged in
+      if (currentUser) {
         setUnreadSuggestionsCount(unreadCount);
       }
       setExchangeRateData(rateData || { rate: null, date: null });
@@ -139,7 +148,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     allExemptions,
     exemptionLaws,
     unreadSuggestionsCount,
-    setUnreadSuggestionsCount,
+    updateUnreadSuggestionsCount,
     exchangeRateData,
     isLoading,
     refreshAuth: loadAuthData,

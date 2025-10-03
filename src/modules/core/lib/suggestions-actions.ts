@@ -6,6 +6,8 @@
 
 import { connectDb, getSuggestions as dbGetSuggestions, markSuggestionAsRead as dbMarkSuggestionAsRead, deleteSuggestion as dbDeleteSuggestion, getUnreadSuggestionsCount as dbGetUnreadSuggestionsCount } from './db';
 import type { Suggestion } from '../types';
+import { revalidatePath } from 'next/cache';
+import { logInfo } from './logger';
 
 /**
  * Inserts a new suggestion into the database.
@@ -17,6 +19,8 @@ export async function addSuggestion(content: string, userId: number, userName: s
     const db = await connectDb();
     db.prepare('INSERT INTO suggestions (content, userId, userName, isRead, timestamp) VALUES (?, ?, ?, 0, ?)')
       .run(content, userId, userName, new Date().toISOString());
+    await logInfo('New suggestion submitted', { user: userName });
+    revalidatePath('/dashboard/admin/suggestions');
 }
 
 /**
@@ -32,7 +36,8 @@ export async function getSuggestions(): Promise<Suggestion[]> {
  * @param {number} id - The ID of the suggestion to mark as read.
  */
 export async function markSuggestionAsRead(id: number): Promise<void> {
-  return dbMarkSuggestionAsRead(id);
+  await dbMarkSuggestionAsRead(id);
+  revalidatePath('/dashboard/admin/suggestions');
 }
 
 /**
@@ -40,7 +45,8 @@ export async function markSuggestionAsRead(id: number): Promise<void> {
  * @param {number} id - The ID of the suggestion to delete.
  */
 export async function deleteSuggestion(id: number): Promise<void> {
-  return dbDeleteSuggestion(id);
+  await dbDeleteSuggestion(id);
+  revalidatePath('/dashboard/admin/suggestions');
 }
 
 /**

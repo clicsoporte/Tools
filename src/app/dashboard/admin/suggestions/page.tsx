@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
-import { getSuggestions, markSuggestionAsRead, deleteSuggestion as deleteSuggestionAction, getUnreadSuggestionsCount } from '@/modules/core/lib/suggestions-actions';
+import { getSuggestions, markSuggestionAsRead, deleteSuggestion as deleteSuggestionAction } from '@/modules/core/lib/suggestions-actions';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,21 +24,12 @@ export default function SuggestionsPage() {
     const { isAuthorized } = useAuthorization(['admin:suggestions:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { setUnreadSuggestionsCount } = useAuth(); // To update the badge count
+    const { updateUnreadSuggestionsCount } = useAuth(); // To update the badge count
 
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [suggestionToDelete, setSuggestionToDelete] = useState<Suggestion | null>(null);
-
-    const updateUnreadCount = useCallback(async () => {
-        try {
-            const count = await getUnreadSuggestionsCount();
-            setUnreadSuggestionsCount(count);
-        } catch (e) {
-            console.error("Failed to update unread suggestions count");
-        }
-    }, [setUnreadSuggestionsCount]);
 
     const fetchSuggestions = useCallback(async (isRefreshAction = false) => {
         if (isRefreshAction) {
@@ -49,7 +40,7 @@ export default function SuggestionsPage() {
         try {
             const data = await getSuggestions();
             setSuggestions(data);
-            await updateUnreadCount();
+            await updateUnreadSuggestionsCount();
         } catch (error) {
             toast({ title: "Error", description: "No se pudieron cargar las sugerencias.", variant: "destructive" });
         } finally {
@@ -59,7 +50,7 @@ export default function SuggestionsPage() {
                 setIsLoading(false);
             }
         }
-    }, [toast, updateUnreadCount]);
+    }, [toast, updateUnreadSuggestionsCount]);
 
     useEffect(() => {
         setTitle("Buzón de Sugerencias");
@@ -72,7 +63,7 @@ export default function SuggestionsPage() {
     const handleMarkAsRead = async (id: number) => {
         await markSuggestionAsRead(id);
         setSuggestions(prev => prev.map(s => s.id === id ? { ...s, isRead: 1 } : s));
-        await updateUnreadCount();
+        await updateUnreadSuggestionsCount();
     };
 
     const handleDelete = async () => {
@@ -81,7 +72,7 @@ export default function SuggestionsPage() {
         setSuggestions(prev => prev.filter(s => s.id !== suggestionToDelete.id));
         toast({ title: "Sugerencia Eliminada", variant: "destructive" });
         setSuggestionToDelete(null);
-        await updateUnreadCount();
+        await updateUnreadSuggestionsCount();
     };
 
     if (isLoading || isAuthorized === null) {
