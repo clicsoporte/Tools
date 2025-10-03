@@ -127,6 +127,7 @@ export default function HelpPage() {
                                 <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                                     <li>Modifica directamente los campos de cantidad y precio.</li>
                                     <li><strong>Atajos de Teclado (<Keyboard className="inline h-4 w-4" />):</strong> Usa la tecla `Enter` en los campos "Cantidad" y "Precio". El sistema te moverá eficientemente: de Cantidad a Precio, y de Precio de vuelta al buscador de productos para que puedas seguir añadiendo artículos sin usar el mouse.</li>
+                                    <li><strong>Uso en Móviles:</strong> En pantallas pequeñas, los campos de Cantidad y Precio ahora tienen más espacio. Si necesitas ver otras columnas como "Cabys" o "Unidad", puedes activarlas desde los checkboxes que aparecen encima de la tabla.</li>
                                 </ul>
                             </li>
                             <li>
@@ -496,7 +497,14 @@ export default function HelpPage() {
                         Control de Cambios (Changelog)
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <h4 className="font-semibold text-lg">Versión 1.5.1 <Badge variant="secondary">Actual</Badge></h4>
+                        <h4 className="font-semibold text-lg">Versión 1.5.2 <Badge variant="secondary">Actual</Badge></h4>
+                        <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
+                        <ul className="list-disc space-y-3 pl-6">
+                           <li>
+                                <strong>Mejora de UX en Cotizador:</strong> Se ha mejorado la interfaz del Cotizador en dispositivos móviles. Ahora, en pantallas pequeñas, los campos de Cantidad y Precio tienen más espacio, y se ha añadido una opción para mostrar u ocultar columnas secundarias, mejorando la usabilidad.
+                            </li>
+                        </ul>
+                        <h4 className="font-semibold text-lg">Versión 1.5.1</h4>
                         <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                         <ul className="list-disc space-y-3 pl-6">
                             <li>
@@ -530,3 +538,4 @@ export default function HelpPage() {
     </main>
   );
 }
+
