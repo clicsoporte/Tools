@@ -192,7 +192,7 @@ async function checkAndApplyMigrations(db: Database.Database) {
         const lawsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='exemption_laws'`).get();
         if (!lawsTable) {
              console.log("MIGRATION: Creating exemption_laws table.");
-             db.exec(`CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT NOT NULL, authNumber TEXT)`);
+             db.exec(`CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT, authNumber TEXT)`);
 
              if (apiTableInfo.some(col => col.name === 'zonaFrancaLaw')) {
                  const oldSettings = db.prepare('SELECT zonaFrancaLaw FROM api_settings WHERE id = 1').get() as { zonaFrancaLaw?: string };
