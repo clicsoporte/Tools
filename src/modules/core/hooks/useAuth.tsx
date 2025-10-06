@@ -6,9 +6,22 @@
 'use client';
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
-import type { User, Role, Company, Product, StockInfo, Customer } from "../types";
+import { useRouter } from "next/navigation";
+import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExchangeRateApiResponse, ExemptionLaw } from "../types";
 import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
-import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock } from '../lib/db';
+import { 
+    getAllRoles, 
+    getCompanySettings, 
+    getAllCustomers, 
+    getAllProducts, 
+    getAllStock,
+    getAllExemptions,
+    getExemptionLaws,
+    connectDb,
+    getDbModules
+} from '../lib/db';
+import { getExchangeRate } from "../lib/api-actions";
+import { getUnreadSuggestionsCount } from "../lib/suggestions-actions";
 
 /**
  * Defines the shape of the authentication context's value.
@@ -20,8 +33,19 @@ interface AuthContextType {
   customers: Customer[];
   products: Product[];
   stockLevels: StockInfo[];
+  allExemptions: Exemption[];
+  exemptionLaws: ExemptionLaw[];
   isLoading: boolean;
+  exchangeRateData: {
+      rate: number | null;
+      date: string | null;
+  };
+  unreadSuggestionsCount: number;
   refreshAuth: () => Promise<void>;
+  refreshAuthAndRedirect: (path: string) => Promise<void>;
+  refreshExchangeRate: () => Promise<void>;
+  setCompanyData: (data: Company) => void;
+  updateUnreadSuggestionsCount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,31 +57,78 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * @param {ReactNode} props.children - The child components to render.
  */
 export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [companyData, setCompanyData] = useState<Company | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
+  const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
+  const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
+  const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null; date: string | null }>({ rate: null, date: null });
+  const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+
+  const fetchExchangeRate = useCallback(async () => {
+    try {
+        const data: ExchangeRateApiResponse = await getExchangeRate();
+        if (data.venta && data.venta.valor) {
+            const date = new Date(data.venta.fecha).toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            setExchangeRateData({ rate: data.venta.valor, date });
+        }
+    } catch (error) {
+        console.error("Failed to fetch exchange rate on load:", error);
+    }
+  }, []);
+
+  const updateUnreadSuggestionsCount = useCallback(async () => {
+    try {
+        const count = await getUnreadSuggestionsCount();
+        setUnreadSuggestionsCount(count);
+    } catch (error) {
+        console.error("Failed to update unread suggestions count:", error);
+    }
+  }, []);
 
   const loadAuthData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [currentUser, allRoles, companySettings, dbCustomers, dbProducts, dbStock] = await Promise.all([
-        getCurrentUserClient(),
+      const currentUser = await getCurrentUserClient();
+      
+      if (!currentUser) {
+          setUser(null);
+          setIsLoading(false);
+          return;
+      }
+      
+      const dbModules = await getDbModules();
+      for (const module of dbModules) {
+          await connectDb(module.dbFile);
+      }
+
+      const [
+          allRoles, companySettings, dbCustomers, dbProducts, dbStock, 
+          dbExemptions, dbExemptionLaws
+      ] = await Promise.all([
         getAllRoles(),
         getCompanySettings(),
         getAllCustomers(),
         getAllProducts(),
         getAllStock(),
+        getAllExemptions(),
+        getExemptionLaws(),
+        fetchExchangeRate(),
+        updateUnreadSuggestionsCount(),
       ]);
-
+      
       setUser(currentUser);
       setCompanyData(companySettings);
       setCustomers(dbCustomers);
       setProducts(dbProducts);
       setStockLevels(dbStock);
+      setAllExemptions(dbExemptions);
+      setExemptionLaws(dbExemptionLaws);
 
       if (currentUser && allRoles.length > 0) {
         const role = allRoles.find(r => r.id === currentUser.role);
@@ -70,17 +141,18 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setUser(null);
       setUserRole(null);
       setCompanyData(null);
-      setCustomers([]);
-      setProducts([]);
-      setStockLevels([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fetchExchangeRate, updateUnreadSuggestionsCount]);
 
+  const refreshAuthAndRedirect = async (path: string) => {
+    await loadAuthData();
+    router.push(path);
+  };
+  
   useEffect(() => {
     loadAuthData();
-    // Listen for storage events (like logout or settings changes) to refresh data
     const handleStorageChange = () => loadAuthData();
     window.addEventListener('storage', handleStorageChange);
     return () => {
@@ -95,8 +167,16 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     customers,
     products,
     stockLevels,
+    allExemptions,
+    exemptionLaws,
     isLoading,
+    exchangeRateData,
+    unreadSuggestionsCount,
     refreshAuth: loadAuthData,
+    refreshAuthAndRedirect,
+    refreshExchangeRate: fetchExchangeRate,
+    setCompanyData,
+    updateUnreadSuggestionsCount,
   };
 
   return (

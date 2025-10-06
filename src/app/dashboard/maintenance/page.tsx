@@ -83,7 +83,7 @@ export default function MaintenancePage() {
             setUpdateBackups(backups);
             setDbModules(modules);
             if (backups.length > 0) {
-                const latestTimestamp = backups.reduce((latest, current) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
+                const latestTimestamp = backups.reduce((latest: string, current: UpdateBackupInfo) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
                 setSelectedRestoreTimestamp(latestTimestamp);
             }
         } catch(error: any) {

@@ -30,7 +30,6 @@ import {
   Warehouse,
   Search,
   PackagePlus,
-  MessageSquare,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -67,7 +66,7 @@ export function AppSidebar() {
     return pathname.startsWith(href);
   };
   
-  const hasAdminAccess = userRole?.permissions.some(p => p.startsWith('admin:'));
+  const hasAdminAccess = userRole?.id === 'admin' || userRole?.permissions.some(p => p.startsWith('admin:'));
 
 
   if (isLoading) {

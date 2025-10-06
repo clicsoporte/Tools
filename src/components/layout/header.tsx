@@ -12,7 +12,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import { importAllDataFromFiles } from "@/modules/core/lib/db";
+import { syncAllData } from "@/modules/core/lib/actions";
 import { addSuggestion } from "@/modules/core/lib/suggestions-actions";
 import { format, parseISO } from 'date-fns';
 import { cn } from "@/lib/utils";
@@ -20,7 +20,7 @@ import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import { Loader2, RefreshCw, Wrench, Clock, DollarSign, Send, MessageSquare } from "lucide-react";
+import { Loader2, RefreshCw, Clock, DollarSign, Send, MessageSquare } from "lucide-react";
 
 interface HeaderProps {
   title: string;
@@ -55,7 +55,7 @@ export function Header({ title }: HeaderProps) {
     setIsSyncing(true);
     toast({ title: "Iniciando Sincronización Completa", description: "Importando todos los datos desde el ERP..." });
     try {
-        const results = await importAllDataFromFiles();
+        const results = await syncAllData();
         toast({
             title: "Sincronización Completa Exitosa",
             description: `Se han procesado ${results.length} tipos de datos desde el ERP. Los datos se reflejarán automáticamente.`,
