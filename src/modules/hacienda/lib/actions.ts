@@ -12,14 +12,12 @@ import fs from 'fs';
 import path from 'path';
 import Papa from 'papaparse';
 
-const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
-
 let cabysCache: Map<string, { description: string, taxRate: number }> | null = null;
 
 interface CabysRow {
-    Codigo: string;
-    Descripcion: string;
-    Impuesto: string;
+    code: string;
+    description: string;
+    taxRate: number;
 }
 
 /**

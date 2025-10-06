@@ -6,7 +6,15 @@
 'use client';
 
 import type { User } from '@/modules/core/types';
-import { getAllUsers as getAllUsersServer, login as loginServer, saveAllUsers as saveAllUsersServer, comparePasswords as comparePasswordsServer, addUser as addUserServer, logout as logoutServer } from './auth';
+import { 
+    getAllUsers as getAllUsersServer, 
+    login as loginServer, 
+    saveAllUsers as saveAllUsersServer, 
+    comparePasswords as comparePasswordsServer, 
+    addUser as addUserServer, 
+    logout as logoutServer,
+    getInitialAuthData as getInitialAuthDataServer 
+} from './auth';
 
 const CURRENT_USER_ID_KEY = 'currentUserId';
 
@@ -90,4 +98,13 @@ export async function saveAllUsers(users: User[]): Promise<void> {
  */
 export async function comparePasswords(userId: number, password: string, clientInfo?: { ip: string, host: string }): Promise<boolean> {
     return await comparePasswordsServer(userId, password, clientInfo);
+}
+
+/**
+ * Fetches all the initial data required for the application's authentication context.
+ * This function acts as a wrapper around a server action to keep the data fetching logic
+ * on the server while being callable from the client.
+ */
+export async function getInitialAuthData() {
+    return await getInitialAuthDataServer();
 }

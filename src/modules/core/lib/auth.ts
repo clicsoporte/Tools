@@ -6,11 +6,14 @@
  */
 "use server";
 
-import { connectDb } from './db';
-import type { User } from '../types';
+import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getDbModules } from './db';
+import type { User, ExchangeRateApiResponse } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { headers } from 'next/headers';
+import { getExchangeRate } from './api-actions';
+import { getUnreadSuggestionsCount } from './suggestions-actions';
+
 
 const SALT_ROUNDS = 10;
 
@@ -206,4 +209,57 @@ export async function comparePasswords(userId: number, password: string, clientI
       await logWarn('Password comparison failed during settings update/recovery.', clientInfo);
     }
     return isMatch;
+}
+
+/**
+ * Fetches all the initial data required for the application's authentication context.
+ * This is a server action that aggregates data from various database functions.
+ */
+export async function getInitialAuthData() {
+    // Ensure all databases are initialized on first authenticated load
+    const dbModules = await getDbModules();
+    for (const module of dbModules) {
+        await connectDb(module.dbFile);
+    }
+    
+    const [
+        roles,
+        companySettings,
+        customers,
+        products,
+        stock,
+        exemptions,
+        exemptionLaws,
+        exchangeRate,
+        unreadSuggestions
+    ] = await Promise.all([
+        getAllRoles(),
+        getCompanySettings(),
+        getAllCustomers(),
+        getAllProducts(),
+        getAllStock(),
+        getAllExemptions(),
+        getExemptionLaws(),
+        getExchangeRate(),
+        getUnreadSuggestionsCount()
+    ]);
+    
+    let rateData = { rate: null, date: null };
+    const exchangeRateResponse = exchangeRate as ExchangeRateApiResponse;
+    if (exchangeRateResponse?.venta?.valor) {
+        rateData.rate = exchangeRateResponse.venta.valor;
+        rateData.date = new Date(exchangeRateResponse.venta.fecha).toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    }
+
+    return {
+        roles,
+        companySettings,
+        customers,
+        products,
+        stock,
+        exemptions,
+        exemptionLaws,
+        exchangeRate: rateData,
+        unreadSuggestions
+    };
 }

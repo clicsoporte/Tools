@@ -2,38 +2,24 @@
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
  * schema creation, data access, and migration logic for all application modules.
- * ALL FUNCTIONS IN THIS FILE ARE SERVER-ONLY.
  */
-"use server";
 
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { initialUsers, initialCompany, initialRoles } from './data';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, Warehouse, StockSettings, Location, InventoryItem, SqlConfig, ImportQuery, ItemLocation } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
+import { DB_MODULES, DB_FILE } from './data-modules';
 
-
-const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
-const CABYS_FILE_PATH = path.join(process.cwd(), 'public', 'data', 'cabys.csv');
-
-/**
- * Acts as a registry for all database modules in the application.
- * This structure allows the core `connectDb` function to be completely agnostic
- * of any specific module, promoting true modularity and decoupling.
- */
-const DB_MODULES: DatabaseModule[] = [
-    { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: DB_FILE, initFn: initializeMainDatabase, migrationFn: checkAndApplyMigrations },
-    { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
-    { id: 'production-planner', name: 'Planificador de Producción', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
-    { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db', initFn: initializeWarehouseDb, migrationFn: runWarehouseMigrations },
-];
+const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
+const UPDATE_BACKUP_DIR = 'update_backups';
 
 // This path is configured to work correctly within the Next.js build output directory,
 // which is crucial for serverless environments.
@@ -49,7 +35,7 @@ let dbConnections = new Map<string, Database.Database>();
  * @returns {Database.Database} The database connection instance.
  */
 export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Database> {
-    if (dbConnections.has(dbFile)) {
+    if (dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
         return dbConnections.get(dbFile)!;
     }
     
@@ -69,7 +55,6 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             await moduleConfig.initFn(db);
         }
     } else {
-        console.log(`Database ${dbFile} found. Checking for migrations...`);
         if (moduleConfig?.migrationFn) {
             try {
                 await moduleConfig.migrationFn(db);
@@ -100,10 +85,9 @@ async function checkAndApplyMigrations(db: Database.Database) {
         const companyTableInfo = db.prepare(`PRAGMA table_info(company_settings)`).all() as { name: string }[];
         const companyColumns = new Set(companyTableInfo.map(c => c.name));
         
-        if (!companyColumns.has('decimalPlaces')) {
-            console.log("MIGRATION: Adding decimalPlaces column to company_settings.");
-            db.exec(`ALTER TABLE company_settings ADD COLUMN decimalPlaces INTEGER DEFAULT 2`);
-        }
+        if (!companyColumns.has('decimalPlaces')) db.exec(`ALTER TABLE company_settings ADD COLUMN decimalPlaces INTEGER DEFAULT 2`);
+        if (!companyColumns.has('quoterShowTaxId')) db.exec(`ALTER TABLE company_settings ADD COLUMN quoterShowTaxId BOOLEAN DEFAULT TRUE`);
+        if (!companyColumns.has('syncWarningHours')) db.exec(`ALTER TABLE company_settings ADD COLUMN syncWarningHours INTEGER DEFAULT 12`);
         
         if (companyColumns.has('importPath')) {
             console.log("MIGRATION: Dropping importPath column from company_settings.");
@@ -128,30 +112,21 @@ async function checkAndApplyMigrations(db: Database.Database) {
             db.prepare(`UPDATE users SET role = 'admin' WHERE id = 1`).run();
         }
 
-        const draftsTableInfo = db.prepare(`PRAGMA table_info(quote_drafts)`).all() as { name: string }[];
-        const draftColumns = new Set(draftsTableInfo.map(c => c.name));
-        if (!draftColumns.has('userId')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN userId INTEGER;`);
-        if (!draftColumns.has('customerId')) {
-            db.exec(`ALTER TABLE quote_drafts ADD COLUMN customerId TEXT;`);
-            
-            const oldDrafts = db.prepare('SELECT id, customer FROM quote_drafts WHERE customer IS NOT NULL').all() as {id: string, customer: string}[];
-            for(const draft of oldDrafts) {
-                try {
-                    const customerObj = JSON.parse(draft.customer);
-                    if (customerObj && customerObj.id) {
-                        db.prepare('UPDATE quote_drafts SET customerId = ? WHERE id = ?').run(customerObj.id, draft.id);
-                    }
-                } catch {}
+        const draftsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='quote_drafts'`).get();
+        if (draftsTable) {
+            const draftsTableInfo = db.prepare(`PRAGMA table_info(quote_drafts)`).all() as { name: string }[];
+            const draftColumns = new Set(draftsTableInfo.map(c => c.name));
+            if (!draftColumns.has('userId')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN userId INTEGER;`);
+             if (!draftColumns.has('customerId')) {
+                db.exec(`ALTER TABLE quote_drafts ADD COLUMN customerId TEXT;`);
             }
-            // A more complex migration would be needed to remove the 'customer' column,
-            // but for now, we leave it to avoid data loss.
+            if (!draftColumns.has('lines')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN lines TEXT;`);
+            if (!draftColumns.has('totals')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN totals TEXT;`);
+            if (!draftColumns.has('notes')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN notes TEXT;`);
+            if (!draftColumns.has('currency')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN currency TEXT;`);
+            if (!draftColumns.has('exchangeRate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN exchangeRate REAL;`);
+            if (!draftColumns.has('purchaseOrderNumber')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN purchaseOrderNumber TEXT;`);
         }
-        if (!draftColumns.has('lines')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN lines TEXT;`);
-        if (!draftColumns.has('totals')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN totals TEXT;`);
-        if (!draftColumns.has('notes')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN notes TEXT;`);
-        if (!draftColumns.has('currency')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN currency TEXT;`);
-        if (!draftColumns.has('exchangeRate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN exchangeRate REAL;`);
-        if (!draftColumns.has('purchaseOrderNumber')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN purchaseOrderNumber TEXT;`);
 
         const usersToUpdate = db.prepare('SELECT id, password FROM users').all() as User[];
         const updateUserPassword = db.prepare('UPDATE users SET password = ? WHERE id = ?');
@@ -166,201 +141,47 @@ async function checkAndApplyMigrations(db: Database.Database) {
         if (updatedCount > 0) {
             console.log(`MIGRATION: Successfully hashed ${updatedCount} plaintext password(s).`);
         }
-
-        const exemptionsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='exemptions'`).get();
-        if (!exemptionsTable) {
-            console.log("MIGRATION: Creating exemptions table.");
-            db.exec(`
-                CREATE TABLE exemptions (
-                    code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT,
-                    startDate TEXT, endDate TEXT, percentage REAL, docType TEXT,
-                    institutionName TEXT, institutionCode TEXT
-                );
-            `);
-        }
         
-        const apiTableInfo = db.prepare(`PRAGMA table_info(api_settings)`).all() as { name: string }[];
-        if (!apiTableInfo.some(col => col.name === 'haciendaExemptionApi')) {
-            console.log("MIGRATION: Adding haciendaExemptionApi column to api_settings.");
-            db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaExemptionApi TEXT`);
+        const apiTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='api_settings'`).get();
+        if (apiTable) {
+            const apiTableInfo = db.prepare(`PRAGMA table_info(api_settings)`).all() as { name: string }[];
+            if (!apiTableInfo.some(col => col.name === 'haciendaExemptionApi')) db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaExemptionApi TEXT`);
+            if (!apiTableInfo.some(col => col.name === 'haciendaTributariaApi')) db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaTributariaApi TEXT`);
         }
-        if (!apiTableInfo.some(col => col.name === 'haciendaTributariaApi')) {
-            console.log("MIGRATION: Adding haciendaTributariaApi column to api_settings.");
-            db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaTributariaApi TEXT`);
-        }
-        
-        const lawsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='exemption_laws'`).get();
-        if (!lawsTable) {
-             console.log("MIGRATION: Creating exemption_laws table.");
-             db.exec(`CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT NOT NULL, authNumber TEXT)`);
-
-             if (apiTableInfo.some(col => col.name === 'zonaFrancaLaw')) {
-                 const oldSettings = db.prepare('SELECT zonaFrancaLaw FROM api_settings WHERE id = 1').get() as { zonaFrancaLaw?: string };
-                 if (oldSettings && oldSettings.zonaFrancaLaw) {
-                     db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName, authNumber) VALUES (?, ?, ?)')
-                       .run('99', 'Régimen de Zona Franca', oldSettings.zonaFrancaLaw);
-                 }
-             } else {
-                 db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName, authNumber) VALUES (?, ?, ?)')
-                       .run('99', 'Régimen de Zona Franca', '9635');
-             }
-
-             db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)')
-               .run('03', 'Exento para Compras Autorizadas', '04', 'Ventas a Diplomáticos', '05', 'Autorizado por Ley Especial', '06', 'Ventas a la CCSS', '07', 'Ventas a Instituciones Públicas');
-        }
-
-        if (apiTableInfo.some(col => col.name === 'zonaFrancaLaw')) {
-             console.log("MIGRATION: Dropping zonaFrancaLaw column from api_settings.");
-             db.exec(`
-                CREATE TABLE api_settings_new (id INTEGER PRIMARY KEY DEFAULT 1, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
-                INSERT INTO api_settings_new (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) SELECT id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi FROM api_settings;
-                DROP TABLE api_settings;
-                ALTER TABLE api_settings_new RENAME TO api_settings;
-             `);
-        }
-
-        const stockTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='stock'`).get();
-        if (!stockTable) {
-            console.log("MIGRATION: Creating stock table.");
-            db.exec(`CREATE TABLE IF NOT EXISTS stock (itemId TEXT PRIMARY KEY, stockByWarehouse TEXT NOT NULL, totalStock REAL NOT NULL);`);
-        }
-
-        const stockSettingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='stock_settings'`).get();
-         if (!stockSettingsTable) {
-            console.log("MIGRATION: Creating stock_settings table.");
-            db.exec(`CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);`);
-            const oldStockSettings = db.prepare("SELECT value FROM company_settings WHERE key = 'stockSettings'").get() as { value: string } | undefined;
-            if (oldStockSettings) {
-                console.log("MIGRATION: Moving stock settings to new table.");
-                db.prepare("INSERT INTO stock_settings (key, value) VALUES ('warehouses', ?)").run(oldStockSettings.value);
-                db.prepare("DELETE FROM company_settings WHERE key = 'stockSettings'").run();
-            }
-        }
-        
-        const sqlConfigTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='sql_config'`).get();
-        if (!sqlConfigTable) {
-            console.log("MIGRATION: Creating sql_config table.");
-            db.exec(`CREATE TABLE IF NOT EXISTS sql_config (key TEXT PRIMARY KEY, value TEXT);`);
-        }
-        
-        const importQueriesTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='import_queries'`).get();
-        if (!importQueriesTable) {
-            console.log("MIGRATION: Creating import_queries table.");
-            db.exec(`CREATE TABLE IF NOT EXISTS import_queries (type TEXT PRIMARY KEY, query TEXT);`);
-        }
-        
-        const cabysCatalogTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='cabys_catalog'`).get();
-        if (!cabysCatalogTable) {
-            console.log("MIGRATION: Creating cabys_catalog table.");
-            db.exec(`
-                CREATE TABLE cabys_catalog (
-                    code TEXT PRIMARY KEY,
-                    description TEXT NOT NULL,
-                    taxRate REAL
-                );
-            `);
-        }
-
 
     } catch (error) {
         console.error("Failed to apply migrations:", error);
     }
 }
-async function initializeMainDatabase(db: import('better-sqlite3').Database) {
+
+export async function initializeMainDatabase(db: import('better-sqlite3').Database) {
     const mainSchema = `
         CREATE TABLE users (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            phone TEXT,
-            whatsapp TEXT,
-            avatar TEXT,
-            role TEXT NOT NULL,
-            recentActivity TEXT,
-            securityQuestion TEXT,
-            securityAnswer TEXT
+            id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL,
+            phone TEXT, whatsapp TEXT, avatar TEXT, role TEXT NOT NULL, recentActivity TEXT,
+            securityQuestion TEXT, securityAnswer TEXT
         );
-
         CREATE TABLE company_settings (
-            id INTEGER PRIMARY KEY DEFAULT 1,
-            name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
-            logoUrl TEXT, systemName TEXT,
-            quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER,
-            searchDebounceTime INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
-            customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
-            stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT
+            id INTEGER PRIMARY KEY DEFAULT 1, name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
+            logoUrl TEXT, systemName TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER,
+            searchDebounceTime INTEGER, importMode TEXT, lastSyncTimestamp TEXT, customerFilePath TEXT,
+            productFilePath TEXT, exemptionFilePath TEXT, stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT,
+            quoterShowTaxId BOOLEAN, syncWarningHours INTEGER
         );
-        
-        CREATE TABLE api_settings (
-            id INTEGER PRIMARY KEY DEFAULT 1,
-            exchangeRateApi TEXT,
-            haciendaExemptionApi TEXT,
-            haciendaTributariaApi TEXT
-        );
-
-        CREATE TABLE exemption_laws (
-            docType TEXT PRIMARY KEY,
-            institutionName TEXT NOT NULL,
-            authNumber TEXT
-        );
-        
-        CREATE TABLE logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            type TEXT NOT NULL,
-            message TEXT NOT NULL,
-            details TEXT
-        );
-
-        CREATE TABLE customers (
-            id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT,
-            creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT
-        );
-
-        CREATE TABLE products (
-            id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT,
-            notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT
-        );
-
-        CREATE TABLE exemptions (
-            code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT,
-            endDate TEXT, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT
-        );
-
-        CREATE TABLE stock (
-            itemId TEXT PRIMARY KEY,
-            stockByWarehouse TEXT NOT NULL,
-            totalStock REAL NOT NULL
-        );
-        
-        CREATE TABLE stock_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        );
-
-        CREATE TABLE roles (
-            id TEXT PRIMARY KEY, name TEXT NOT NULL, permissions TEXT NOT NULL
-        );
-
-        CREATE TABLE quote_drafts (
-            id TEXT PRIMARY KEY, createdAt TEXT NOT NULL, userId INTEGER, customerId TEXT,
-            lines TEXT, totals TEXT, notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT
-        );
-
-        CREATE TABLE sql_config (
-            key TEXT PRIMARY KEY, value TEXT
-        );
-
-        CREATE TABLE import_queries (
-            type TEXT PRIMARY KEY, query TEXT
-        );
-        
-        CREATE TABLE cabys_catalog (
-            code TEXT PRIMARY KEY,
-            description TEXT NOT NULL,
-            taxRate REAL
-        );
+        CREATE TABLE api_settings (id INTEGER PRIMARY KEY DEFAULT 1, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
+        CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT NOT NULL, authNumber TEXT);
+        CREATE TABLE logs (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL, type TEXT NOT NULL, message TEXT NOT NULL, details TEXT);
+        CREATE TABLE customers (id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT, creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT);
+        CREATE TABLE products (id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT, notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT);
+        CREATE TABLE exemptions (code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT, endDate TEXT, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT);
+        CREATE TABLE stock (itemId TEXT PRIMARY KEY, stockByWarehouse TEXT NOT NULL, totalStock REAL NOT NULL);
+        CREATE TABLE stock_settings (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE roles (id TEXT PRIMARY KEY, name TEXT NOT NULL, permissions TEXT NOT NULL);
+        CREATE TABLE quote_drafts (id TEXT PRIMARY KEY, createdAt TEXT NOT NULL, userId INTEGER, customerId TEXT, customerDetails TEXT, lines TEXT, totals TEXT, notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT, deliveryAddress TEXT, deliveryDate TEXT, sellerName TEXT, sellerType TEXT, quoteDate TEXT, validUntilDate TEXT, paymentTerms TEXT, creditDays INTEGER);
+        CREATE TABLE sql_config (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE import_queries (type TEXT PRIMARY KEY, query TEXT);
+        CREATE TABLE cabys_catalog (code TEXT PRIMARY KEY, description TEXT NOT NULL, taxRate REAL);
+        CREATE TABLE suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, userId INTEGER NOT NULL, userName TEXT NOT NULL, isRead INTEGER DEFAULT 0, timestamp TEXT NOT NULL);
     `;
 
     db.exec(mainSchema);
@@ -371,9 +192,9 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
         userInsert.run({ ...user, password: hashedPassword });
     });
 
-    db.prepare(`INSERT INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, importMode) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    db.prepare(`INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, importMode, quoterShowTaxId, syncWarningHours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
-        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.searchDebounceTime, initialCompany.importMode
+        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.searchDebounceTime, initialCompany.importMode, 1, 12
     );
     
     db.prepare(`INSERT INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)`).run(
@@ -392,7 +213,11 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
 export async function getCompanySettings(): Promise<Company | null> {
     const db = await connectDb();
     try {
-        return db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as Company | null;
+        const settings = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as Company | null;
+        if (settings) {
+            settings.quoterShowTaxId = settings.quoterShowTaxId === 1;
+        }
+        return settings;
     } catch (error) {
         console.error("Failed to get company settings:", error);
         return null;
@@ -402,30 +227,62 @@ export async function getCompanySettings(): Promise<Company | null> {
 export async function saveCompanySettings(settings: Company): Promise<void> {
     const db = await connectDb();
     try {
+        const settingsToSave = { ...settings, quoterShowTaxId: settings.quoterShowTaxId ? 1 : 0 };
         db.prepare(`
             UPDATE company_settings SET 
                 name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email,
                 logoUrl = @logoUrl, systemName = @systemName, quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber, 
                 decimalPlaces = @decimalPlaces, searchDebounceTime = @searchDebounceTime,
-                customerFilePath = @customerFilePath, 
-                productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath, stockFilePath = @stockFilePath,
-                locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath, importMode = @importMode,
-                lastSyncTimestamp = @lastSyncTimestamp
+                customerFilePath = @customerFilePath, productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath,
+                stockFilePath = @stockFilePath, locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath,
+                importMode = @importMode, lastSyncTimestamp = @lastSyncTimestamp, quoterShowTaxId = @quoterShowTaxId, syncWarningHours = @syncWarningHours
             WHERE id = 1
-        `).run(settings);
+        `).run(settingsToSave);
     } catch (error) {
         console.error("Failed to save company settings:", error);
     }
 }
 
-export async function getLogs(): Promise<LogEntry[]> {
+export async function getLogs(filters: {type?: 'operational' | 'system' | 'all'; search?: string; dateRange?: DateRange;} = {}): Promise<LogEntry[]> {
     const db = await connectDb();
     try {
-      const logs = db.prepare('SELECT * FROM logs ORDER BY timestamp DESC').all() as LogEntry[];
-      return logs.map(log => ({...log, details: log.details ? JSON.parse(log.details) : null}));
+        let query = 'SELECT * FROM logs';
+        const whereClauses: string[] = [];
+        const params: any[] = [];
+        
+        if (filters.type && filters.type !== 'all') {
+            if (filters.type === 'operational') {
+                whereClauses.push("type = 'INFO'");
+            } else if (filters.type === 'system') {
+                whereClauses.push("type IN ('WARN', 'ERROR')");
+            }
+        }
+        if (filters.search) {
+            whereClauses.push("(message LIKE ? OR details LIKE ?)");
+            params.push(`%${filters.search}%`, `%${filters.search}%`);
+        }
+        if (filters.dateRange?.from) {
+             whereClauses.push("timestamp >= ?");
+             params.push(filters.dateRange.from.toISOString());
+        }
+        if (filters.dateRange?.to) {
+            whereClauses.push("timestamp <= ?");
+            const toDate = new Date(filters.dateRange.to);
+            toDate.setHours(23, 59, 59, 999);
+            params.push(toDate.toISOString());
+        }
+
+        if (whereClauses.length > 0) {
+            query += ` WHERE ${whereClauses.join(' AND ')}`;
+        }
+        
+        query += ' ORDER BY timestamp DESC LIMIT 500';
+
+        const logs = db.prepare(query).all(...params) as LogEntry[];
+        return logs.map(log => ({...log, details: log.details ? JSON.parse(log.details) : null}));
     } catch (error) {
-      console.error("Failed to get logs from database", error);
-      return [];
+        console.error("Failed to get logs from database", error);
+        return [];
     }
 };
 
@@ -443,10 +300,34 @@ export async function addLog(entry: Omit<LogEntry, "id" | "timestamp">) {
     }
 };
 
-export async function clearLogs() {
+export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
+    await addLog({ type: 'WARN', message: `Log cleanup initiated by ${clearedBy}`, details: { type, deleteAllTime } });
     const db = await connectDb();
     try {
-        db.prepare('DELETE FROM logs').run();
+        let query = 'DELETE FROM logs';
+        const whereClauses: string[] = [];
+        const params: any[] = [];
+        
+        if (!deleteAllTime) {
+            const date = new Date();
+            date.setDate(date.getDate() - 30);
+            whereClauses.push("timestamp < ?");
+            params.push(date.toISOString());
+        }
+        
+        if (type !== 'all') {
+            if (type === 'operational') {
+                whereClauses.push("type = 'INFO'");
+            } else if (type === 'system') {
+                whereClauses.push("type IN ('WARN', 'ERROR')");
+            }
+        }
+        
+        if(whereClauses.length > 0){
+            query += ` WHERE ${whereClauses.join(' AND ')}`;
+        }
+
+        db.prepare(query).run(...params);
     } catch (error) {
         console.error("Failed to clear logs from database", error);
     }
@@ -465,13 +346,7 @@ export async function getApiSettings(): Promise<ApiSettings | null> {
 export async function saveApiSettings(settings: ApiSettings): Promise<void> {
     const db = await connectDb();
     try {
-        db.prepare(`
-            UPDATE api_settings SET 
-                exchangeRateApi = @exchangeRateApi, 
-                haciendaExemptionApi = @haciendaExemptionApi,
-                haciendaTributariaApi = @haciendaTributariaApi
-            WHERE id = 1
-        `).run(settings);
+        db.prepare(`UPDATE api_settings SET exchangeRateApi = @exchangeRateApi, haciendaExemptionApi = @haciendaExemptionApi, haciendaTributariaApi = @haciendaTributariaApi WHERE id = 1`).run(settings);
     } catch (error) {
         console.error("Failed to save api settings:", error);
     }
@@ -490,17 +365,12 @@ export async function getExemptionLaws(): Promise<ExemptionLaw[]> {
 export async function saveExemptionLaws(laws: ExemptionLaw[]): Promise<void> {
     const db = await connectDb();
     const insert = db.prepare('INSERT OR REPLACE INTO exemption_laws (docType, institutionName, authNumber) VALUES (@docType, @institutionName, @authNumber)');
-    
     const transaction = db.transaction((lawsToSave) => {
         db.prepare('DELETE FROM exemption_laws').run();
         for(const law of lawsToSave) {
-            insert.run({
-                ...law,
-                authNumber: law.authNumber || null
-            });
+            insert.run({ ...law, authNumber: law.authNumber || null });
         }
     });
-
     try {
         transaction(laws);
     } catch (error) {
@@ -549,9 +419,6 @@ export async function saveAllProducts(products: Product[]): Promise<void> {
     const transaction = db.transaction((productsToSave) => {
         db.prepare('DELETE FROM products').run();
         for(let product of productsToSave) {
-            if (product.lastEntry instanceof Date) {
-                product.lastEntry = product.lastEntry.toISOString();
-            }
             insert.run(product);
         }
     });
@@ -579,12 +446,6 @@ export async function saveAllExemptions(exemptions: Exemption[]): Promise<void> 
     const transaction = db.transaction((exemptionsToSave) => {
         db.prepare('DELETE FROM exemptions').run();
         for(let exemption of exemptionsToSave) {
-             if (exemption.startDate instanceof Date) {
-                exemption.startDate = exemption.startDate.toISOString();
-            }
-            if (exemption.endDate instanceof Date) {
-                exemption.endDate = exemption.endDate.toISOString();
-            }
             insert.run(exemption);
         }
     });
@@ -626,16 +487,11 @@ export async function saveAllRoles(roles: Role[]): Promise<void> {
 export async function resetDefaultRoles(): Promise<void> {
     const db = await connectDb();
     const insertOrReplace = db.prepare('INSERT OR REPLACE INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
-
     const transaction = db.transaction(() => {
         for (const role of initialRoles) {
-            insertOrReplace.run({
-                ...role,
-                permissions: JSON.stringify(role.permissions),
-            });
+            insertOrReplace.run({ ...role, permissions: JSON.stringify(role.permissions) });
         }
     });
-
     try {
         transaction();
     } catch(error) {
@@ -660,7 +516,7 @@ export async function getAllQuoteDrafts(userId: number): Promise<QuoteDraft[]> {
 
 export async function saveQuoteDraft(draft: QuoteDraft): Promise<void> {
     const db = await connectDb();
-    const stmt = db.prepare('INSERT OR REPLACE INTO quote_drafts (id, createdAt, userId, customerId, lines, totals, notes, currency, exchangeRate, purchaseOrderNumber) VALUES (@id, @createdAt, @userId, @customerId, @lines, @totals, @notes, @currency, @exchangeRate, @purchaseOrderNumber)');
+    const stmt = db.prepare('INSERT OR REPLACE INTO quote_drafts (id, createdAt, userId, customerId, customerDetails, lines, totals, notes, currency, exchangeRate, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, quoteDate, validUntilDate, paymentTerms, creditDays) VALUES (@id, @createdAt, @userId, @customerId, @customerDetails, @lines, @totals, @notes, @currency, @exchangeRate, @purchaseOrderNumber, @deliveryAddress, @deliveryDate, @sellerName, @sellerType, @quoteDate, @validUntilDate, @paymentTerms, @creditDays)');
     try {
         stmt.run({
             ...draft,
@@ -685,103 +541,23 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'm
     return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
 }
 
-export async function backupDatabase(moduleId: string): Promise<Buffer> {
-    const module = DB_MODULES.find(m => m.id === moduleId);
-    if (!module) throw new Error("Module not found");
-
-    const dbPath = path.join(dbDirectory, module.dbFile);
-    if (!fs.existsSync(dbPath)) throw new Error("Database file not found");
-
-    return fs.readFileSync(dbPath);
-}
-
-export async function restoreDatabase(formData: FormData): Promise<void> {
-    const moduleId = formData.get('moduleId') as string;
-    const backupFile = formData.get('backupFile') as File | null;
-
-    if (!moduleId || !backupFile) {
-        throw new Error("Module ID and backup file are required.");
-    }
-    
-    const module = DB_MODULES.find(m => m.id === moduleId);
-    if (!module) throw new Error("Module not found");
-
-    if (dbConnections.has(module.dbFile)) {
-        dbConnections.get(module.dbFile)!.close();
-        dbConnections.delete(module.dbFile);
-    }
-
-    const dbPath = path.join(dbDirectory, module.dbFile);
-    const buffer = Buffer.from(await backupFile.arrayBuffer());
-    fs.writeFileSync(dbPath, buffer);
-    await connectDb(module.dbFile); // Reconnect to validate
-}
-
-export async function resetDatabase(moduleId: string): Promise<void> {
-    const module = DB_MODULES.find(m => m.id === moduleId);
-    if (!module) throw new Error("Module not found");
-
-    if (dbConnections.has(module.dbFile)) {
-        dbConnections.get(module.dbFile)!.close();
-        dbConnections.delete(module.dbFile);
-    }
-
-    const dbPath = path.join(dbDirectory, module.dbFile);
-    if (fs.existsSync(dbPath)) {
-        fs.unlinkSync(dbPath);
-    }
-    
-    // The connectDb function will automatically re-initialize it.
-    await connectDb(module.dbFile);
-}
-
 const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys') => {
     switch (type) {
-        case 'customers':
-            return {
-                'CLIENTE': 'id', 'NOMBRE': 'name', 'DIRECCION': 'address', 'TELEFONO1': 'phone',
-                'CONTRIBUYENTE': 'taxId', 'MONEDA': 'currency', 'LIMITE_CREDITO': 'creditLimit',
-                'CONDICION_PAGO': 'paymentCondition', 'VENDEDOR': 'salesperson', 'ACTIVO': 'active',
-                'E_MAIL': 'email', 'EMAIL_DOC_ELECTRONICO': 'electronicDocEmail',
-            };
-        case 'products':
-            return {
-                'ARTICULO': 'id', 'DESCRIPCION': 'description', 'CLASIFICACION_2': 'classification',
-                'ULTIMO_INGRESO': 'lastEntry', 'ACTIVO': 'active', 'NOTAS': 'notes',
-                'UNIDAD_VENTA': 'unit', 'CANASTA_BASICA': 'isBasicGood', 'CODIGO_HACIENDA': 'cabys'
-            };
-        case 'exemptions':
-             return {
-                'CODIGO': 'code', 'DESCRIPCION': 'description', 'CLIENTE': 'customer', 'NUM_AUTOR': 'authNumber',
-                'FECHA_RIGE': 'startDate', 'FECHA_VENCE': 'endDate', 'PORCENTAJE': 'percentage',
-                'TIPO_DOC': 'docType', 'NOMBRE_INSTITUCION': 'institutionName', 'CODIGO_INSTITUCION': 'institutionCode'
-            };
-        case 'stock':
-            return {
-                'ARTICULO': 'itemId', 'BODEGA': 'warehouseId', 'CANT_DISPONIBLE': 'stock'
-            };
-        case 'locations':
-             return {
-                'CODIGO': 'itemId', 'P. HORIZONTAL': 'hPos', 'P. VERTICAL': 'vPos', 
-                'RACK': 'rack', 'CLIENTE': 'client', 'DESCRIPCION': 'description'
-            };
-        case 'cabys':
-             return {
-                'CODIGO': 'Codigo', 'DESCRIPCION': 'Descripcion'
-            };
-        default:
-            return {};
+        case 'customers': return {'CLIENTE': 'id', 'NOMBRE': 'name', 'DIRECCION': 'address', 'TELEFONO1': 'phone', 'CONTRIBUYENTE': 'taxId', 'MONEDA': 'currency', 'LIMITE_CREDITO': 'creditLimit', 'CONDICION_PAGO': 'paymentCondition', 'VENDEDOR': 'salesperson', 'ACTIVO': 'active', 'E_MAIL': 'email', 'EMAIL_DOC_ELECTRONICO': 'electronicDocEmail'};
+        case 'products': return {'ARTICULO': 'id', 'DESCRIPCION': 'description', 'CLASIFICACION_2': 'classification', 'ULTIMO_INGRESO': 'lastEntry', 'ACTIVO': 'active', 'NOTAS': 'notes', 'UNIDAD_VENTA': 'unit', 'CANASTA_BASICA': 'isBasicGood', 'CODIGO_HACIENDA': 'cabys'};
+        case 'exemptions': return {'CODIGO': 'code', 'DESCRIPCION': 'description', 'CLIENTE': 'customer', 'NUM_AUTOR': 'authNumber', 'FECHA_RIGE': 'startDate', 'FECHA_VENCE': 'endDate', 'PORCENTAJE': 'percentage', 'TIPO_DOC': 'docType', 'NOMBRE_INSTITUCION': 'institutionName', 'CODIGO_INSTITUCION': 'institutionCode'};
+        case 'stock': return {'ARTICULO': 'itemId', 'BODEGA': 'warehouseId', 'CANT_DISPONIBLE': 'stock'};
+        case 'locations': return {'CODIGO': 'itemId', 'P. HORIZONTAL': 'hPos', 'P. VERTICAL': 'vPos', 'RACK': 'rack', 'CLIENTE': 'client', 'DESCRIPCION': 'description'};
+        case 'cabys': return {'Codigo': 'code', 'Descripcion': 'description', 'Impuesto': 'taxRate'};
+        default: return {};
     }
 }
 
 const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys') => {
-    if (lines.length < 2) {
-        throw new Error("El archivo está vacío o no contiene datos.");
-    }
+    if (lines.length < 2) throw new Error("El archivo está vacío o no contiene datos.");
     const headerMapping = createHeaderMapping(type);
     const header = lines[0].split('\t').map(h => h.trim().toUpperCase());
     const dataArray: any[] = [];
-    
     for (let i = 1; i < lines.length; i++) {
         const data = lines[i].split('\t');
         const dataObject: { [key: string]: any } = {};
@@ -789,16 +565,13 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
             const key = headerMapping[h as keyof typeof headerMapping];
             if (key) {
                 const value = data[index]?.replace(/[\n\r]/g, '').trim() || '';
-                if (key === 'creditLimit' || key === 'percentage' || key === 'stock' || key === 'rack' || key === 'hPos') {
-                    dataObject[key] = parseFloat(value) || 0;
-                } else {
-                    dataObject[key] = value;
-                }
+                if (['creditLimit', 'percentage', 'stock', 'rack', 'hPos', 'taxRate'].includes(key)) {
+                    dataObject[key] = parseFloat(value.replace('%','')) || 0;
+                    if(key === 'taxRate') dataObject[key] /= 100;
+                } else dataObject[key] = value;
             }
         });
-        if (Object.keys(dataObject).length > 0) {
-            dataArray.push(dataObject);
-        }
+        if (Object.keys(dataObject).length > 0) dataArray.push(dataObject);
     }
     return dataArray;
 };
@@ -806,7 +579,6 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
 export async function importDataFromFile(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
-    
     let filePath = '';
     switch(type) {
         case 'customers': filePath = companySettings.customerFilePath || ''; break;
@@ -816,92 +588,66 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
         case 'locations': filePath = companySettings.locationFilePath || ''; break;
         case 'cabys': filePath = companySettings.cabysFilePath || ''; break;
     }
-
-    if (!filePath) {
-        throw new Error(`La ruta de importación para ${type} no está configurada.`);
-    }
-    
-    if (!fs.existsSync(filePath)) {
-        throw new Error(`El archivo no fue encontrado en la ruta especificada: ${filePath}`);
-    }
-
+    if (!filePath) throw new Error(`La ruta de importación para ${type} no está configurada.`);
+    if (!fs.existsSync(filePath)) throw new Error(`El archivo no fue encontrado: ${filePath}`);
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     const isCsv = filePath.toLowerCase().endsWith('.csv');
-
     if (type === 'cabys' && isCsv) {
         const { count } = await updateCabysCatalogFromContent(fileContent);
         return { count, source: filePath };
     }
-    
     const lines = fileContent.split(/\r?\n/).filter(line => line.trim() !== '');
     const dataArray = parseData(lines, type);
-    
     if (type === 'customers') await saveAllCustomers(dataArray as Customer[]);
     else if (type === 'products') await saveAllProducts(dataArray as Product[]);
     else if (type === 'exemptions') await saveAllExemptions(dataArray as Exemption[]);
     else if (type === 'stock') {
         await saveAllStock(dataArray as { itemId: string, warehouseId: string, stock: number }[]);
         return { count: new Set(dataArray.map(item => item.itemId)).size, source: filePath };
-    }
-    else if (type === 'locations') await saveAllLocations(dataArray as ItemLocation[]);
-
+    } else if (type === 'locations') await saveAllLocations(dataArray as ItemLocation[]);
     return { count: dataArray.length, source: filePath };
 }
 
 async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'): Promise<{ count: number, source: string }> {
     const db = await connectDb();
     const queryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get(type) as { query: string } | undefined;
-    if (!queryRow || !queryRow.query) {
-        throw new Error(`No hay una consulta SQL configurada para importar ${type}.`);
-    }
-
+    if (!queryRow || !queryRow.query) throw new Error(`No hay una consulta SQL configurada para ${type}.`);
     const dataArray = await executeQuery(queryRow.query);
-    
     const headerMapping = createHeaderMapping(type);
     const mappedData = dataArray.map(row => {
         const newRow: { [key: string]: any } = {};
         for (const key in row) {
-            const newKey = headerMapping[key as keyof typeof headerMapping];
-            if (newKey) {
-                newRow[newKey] = row[key];
-            } else {
-                newRow[key] = row[key]; // Preserve unmapped columns
-            }
+            const newKey = headerMapping[key.toUpperCase() as keyof typeof headerMapping] || key;
+            newRow[newKey] = row[key];
         }
         return newRow;
     });
-
     if (type === 'customers') await saveAllCustomers(mappedData as Customer[]);
     else if (type === 'products') await saveAllProducts(mappedData as Product[]);
     else if (type === 'exemptions') await saveAllExemptions(mappedData as Exemption[]);
     else if (type === 'stock') {
         await saveAllStock(mappedData as { itemId: string, warehouseId: string, stock: number }[]);
         return { count: new Set(mappedData.map(item => item.itemId)).size, source: 'SQL Server' };
-    }
-    else if (type === 'locations') await saveAllLocations(mappedData as ItemLocation[]);
+    } else if (type === 'locations') await saveAllLocations(mappedData as ItemLocation[]);
     else if (type === 'cabys') {
-        const { count } = await updateCabysCatalogFromSqlData(mappedData);
+        const { count } = await updateCabysCatalog(mappedData);
         return { count, source: 'SQL Server' };
     }
-
     return { count: mappedData.length, source: 'SQL Server' };
 }
 
-async function updateCabysCatalogFromSqlData(data: any[]): Promise<{ count: number }> {
+async function updateCabysCatalog(data: any[]): Promise<{ count: number }> {
     const db = await connectDb();
     const transaction = db.transaction((rows) => {
         db.prepare('DELETE FROM cabys_catalog').run();
         const insertStmt = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
         for (const row of rows) {
-            const code = row.code || row.Codigo;
-            const description = row.description || row.Descripcion;
             const taxRate = row.taxRate ?? (row.Impuesto !== undefined ? parseFloat(String(row.Impuesto).replace('%', '')) / 100 : undefined);
-            if (code && description && taxRate !== undefined && !isNaN(taxRate)) {
-                insertStmt.run(code, description, taxRate);
+            if (row.code && row.description && taxRate !== undefined && !isNaN(taxRate)) {
+                insertStmt.run(row.code, row.description, taxRate);
             }
         }
     });
-
     transaction(data);
     return { count: data.length };
 }
@@ -910,43 +656,15 @@ async function updateCabysCatalogFromSqlData(data: any[]): Promise<{ count: numb
 export async function importData(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
-
-    if (companySettings.importMode === 'sql') {
-        return importDataFromSql(type);
-    } else {
-        return importDataFromFile(type);
-    }
-}
-
-export async function addUser(userData: Omit<User, 'id'>): Promise<void> {
-  const db = await connectDb();
-  
-  const hashedPassword = userData.password ? bcrypt.hashSync(userData.password, SALT_ROUNDS) : null;
-  
-  db.prepare(
-    `INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) 
-     VALUES (@name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)`
-  ).run({
-    ...userData,
-    password: hashedPassword,
-    phone: userData.phone || null,
-    whatsapp: userData.whatsapp || null,
-    avatar: userData.avatar || '',
-    recentActivity: userData.recentActivity || 'Usuario recién creado.',
-    securityQuestion: userData.securityQuestion || null,
-    securityAnswer: userData.securityAnswer || null,
-  });
+    if (companySettings.importMode === 'sql') return importDataFromSql(type);
+    else return importDataFromFile(type);
 }
 
 export async function getAllStock(): Promise<StockInfo[]> {
     const db = await connectDb();
     try {
         const stockRows = db.prepare('SELECT * FROM stock').all() as { itemId: string, stockByWarehouse: string, totalStock: number }[];
-        return stockRows.map(row => ({
-            itemId: row.itemId,
-            stockByWarehouse: JSON.parse(row.stockByWarehouse),
-            totalStock: row.totalStock
-        }));
+        return stockRows.map(row => ({ itemId: String(row.itemId), stockByWarehouse: JSON.parse(row.stockByWarehouse), totalStock: Number(row.totalStock) }));
     } catch (error) {
         console.error("Failed to get stock from database", error);
         return [];
@@ -956,14 +674,10 @@ export async function getAllStock(): Promise<StockInfo[]> {
 export async function saveAllStock(stockData: { itemId: string, warehouseId: string, stock: number }[]): Promise<void> {
     const db = await connectDb();
     const stockMap = new Map<string, { [key: string]: number }>();
-
     for (const item of stockData) {
-        if (!stockMap.has(item.itemId)) {
-            stockMap.set(item.itemId, {});
-        }
+        if (!stockMap.has(item.itemId)) stockMap.set(item.itemId, {});
         stockMap.get(item.itemId)![item.warehouseId] = item.stock;
     }
-
     const transaction = db.transaction(() => {
         db.prepare('DELETE FROM stock').run();
         const insertStmt = db.prepare('INSERT INTO stock (itemId, stockByWarehouse, totalStock) VALUES (?, ?, ?)');
@@ -972,7 +686,6 @@ export async function saveAllStock(stockData: { itemId: string, warehouseId: str
             insertStmt.run(itemId, JSON.stringify(stockByWarehouse), totalStock);
         }
     });
-
     try {
         transaction();
     } catch (error) {
@@ -983,30 +696,24 @@ export async function saveAllStock(stockData: { itemId: string, warehouseId: str
 
 export async function saveAllLocations(locationData: ItemLocation[]): Promise<void> {
     const db = await connectDb('warehouse.db');
-
     const insertLocation = db.prepare('INSERT OR IGNORE INTO locations (name, code, type) VALUES (@name, @code, @type)');
     const assignItem = db.prepare('INSERT OR IGNORE INTO item_locations (itemId, locationId, clientId) VALUES (?, ?, ?)');
-    
     const transaction = db.transaction((data: ItemLocation[]) => {
-        db.prepare('DELETE FROM item_locations WHERE clientId IS NOT NULL').run(); // Clear only client-specific locations
-        
+        db.prepare('DELETE FROM item_locations').run();
         const locationMap = new Map<string, number>();
         let existingLocations = db.prepare('SELECT id, code FROM locations').all() as {id: number, code: string}[];
         existingLocations.forEach(loc => locationMap.set(loc.code, loc.id));
-
         for (const item of data) {
-            const rackCode = `RACK-${(item as any).rack}`; // Type assertion to access legacy property
+            const rackCode = `RACK-${(item as any).rack}`;
             if (!locationMap.has(rackCode)) {
                 insertLocation.run({ name: rackCode, code: rackCode, type: 'rack' });
                 const newLocId = db.prepare('SELECT id FROM locations WHERE code = ?').get(rackCode) as {id: number};
                 locationMap.set(rackCode, newLocId.id);
             }
             const locationId = locationMap.get(rackCode)!;
-            
             assignItem.run(item.itemId, locationId, item.clientId || null);
         }
     });
-
     try {
         transaction(locationData);
     } catch (error) {
@@ -1019,9 +726,7 @@ export async function getStockSettings(): Promise<StockSettings> {
     const mainDb = await connectDb('intratool.db');
     try {
         const result = mainDb.prepare("SELECT value FROM stock_settings WHERE key = 'warehouses'").get() as { value: string } | undefined;
-        if (result) {
-            return { warehouses: JSON.parse(result.value) };
-        }
+        if (result) return { warehouses: JSON.parse(result.value) };
         return { warehouses: [] };
     } catch (error) {
         console.error("Failed to get stock settings from main DB:", error);
@@ -1030,148 +735,64 @@ export async function getStockSettings(): Promise<StockSettings> {
 }
 
 export async function saveStockSettings(settings: StockSettings): Promise<void> {
-    const db = await connectDb(DB_FILE); // Stock settings are in the main DB
+    const db = await connectDb(DB_FILE);
     try {
-        db.prepare("INSERT OR REPLACE INTO stock_settings (key, value) VALUES ('warehouses', ?)")
-          .run(JSON.stringify(settings.warehouses));
+        db.prepare("INSERT OR REPLACE INTO stock_settings (key, value) VALUES ('warehouses', ?)").run(JSON.stringify(settings.warehouses));
     } catch (error) {
         console.error("Failed to save stock settings:", error);
         throw error;
     }
 }
 
-/**
- * Normalizes a header string by converting to lowercase, removing diacritics, and trimming.
- * @param header The header string to normalize.
- * @returns The normalized header string.
- */
 const normalizeHeader = (header: string): string => {
     if (!header) return '';
-    return header
-        .toLowerCase()
-        .trim()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") // Remove accents
-        .replace(/[^a-z0-9\(\)]/g, ""); // Remove non-alphanumeric characters except parentheses
+    return header.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\(\)]/g, "");
 };
 
+interface CabysRow {
+  [key: string]: string;
+}
 
 async function updateCabysCatalogFromContent(fileContent: string): Promise<{ count: number }> {
-    const parsed = Papa.parse(fileContent, {
-        header: true,
-        skipEmptyLines: true,
-        delimiter: ';', // Explicitly set the delimiter to semicolon
-        transformHeader: (header) => header.trim(),
-    });
-
+    const parsed = Papa.parse<CabysRow>(fileContent, { header: true, skipEmptyLines: true, delimiter: ';', transformHeader: (header) => header.trim() });
     if (parsed.errors.length > 0) {
         const firstError = parsed.errors[0];
-        // Don't throw for "Too many fields", we can handle that.
-        if (firstError.code !== 'TooManyFields' && firstError.code !== 'TooFewFields') {
-          throw new Error(`Error al procesar el archivo CSV: ${firstError.message} en la línea ${firstError.row}.`);
-        }
+        if (firstError.code !== 'TooManyFields' && firstError.code !== 'TooFewFields') throw new Error(`Error al procesar CSV: ${firstError.message} en línea ${firstError.row}.`);
     }
-
-    const fields = parsed.meta.fields;
-    if (!fields) throw new Error("No se pudieron leer los encabezados del archivo CABYS.");
-
-    const normalizedFields = fields.map(normalizeHeader);
-    
-    const codeHeaderIndex = normalizedFields.findIndex(f => f.includes("categoria9") || f.includes("codigo"));
-    const descHeaderIndex = normalizedFields.findIndex(f => f.includes("descripcioncategoria9") || f.includes("descripcion"));
-    const taxHeaderIndex = normalizedFields.findIndex(f => f.includes("impuesto"));
-
-    if (codeHeaderIndex === -1 || descHeaderIndex === -1 || taxHeaderIndex === -1) {
-        console.error("Detected headers:", fields);
-        console.error("Normalized headers:", normalizedFields);
-        throw new Error('El archivo debe contener columnas para código, descripción e impuesto. No se encontraron las columnas requeridas.');
-    }
-    
-    const codeHeader = fields[codeHeaderIndex];
-    const descHeader = fields[descHeaderIndex];
-    const taxHeader = fields[taxHeaderIndex];
-
-
-    const db = await connectDb();
-    const transaction = db.transaction((data) => {
-        db.prepare('DELETE FROM cabys_catalog').run();
-        const insertStmt = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
-        
-        for (const row of data as any[]) {
-            const code = row[codeHeader];
-            const description = row[descHeader]?.replace(/"/g, '') || ''; // Remove quotes
-            const taxString = row[taxHeader]?.replace('%', '').trim();
-            const taxRate = parseFloat(taxString) / 100;
-            
-            if (code && description && !isNaN(taxRate)) {
-                insertStmt.run(code, description, taxRate);
-            }
-        }
-    });
-
-    transaction(parsed.data);
-    
-    // Write back the standardized file for future use
-    const standardizedData = parsed.data.map((row: any) => ({
-        Codigo: row[codeHeader],
-        Descripcion: row[descHeader],
-        Impuesto: row[taxHeader],
-    }));
-    const newCsvContent = Papa.unparse(standardizedData, { header: true, delimiter: ';' });
-    fs.writeFileSync(CABYS_FILE_PATH, newCsvContent);
-    
-    return { count: standardizedData.length };
+    return updateCabysCatalog(parsed.data);
 }
 
 export async function importAllDataFromFiles(): Promise<{ type: string; count: number; }[]> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
-    
-    const importTasks: { type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'; filePath: string | undefined }[] = [
-        { type: 'customers', filePath: companySettings.customerFilePath },
-        { type: 'products', filePath: companySettings.productFilePath },
-        { type: 'exemptions', filePath: companySettings.exemptionFilePath },
-        { type: 'stock', filePath: companySettings.stockFilePath },
-        { type: 'locations', filePath: companySettings.locationFilePath },
-        { type: 'cabys', filePath: companySettings.cabysFilePath },
+    const importTasks: { type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'; }[] = [
+        { type: 'customers' }, { type: 'products' }, { type: 'exemptions' },
+        { type: 'stock' }, { type: 'locations' }, { type: 'cabys' }
     ];
-    
     const results: { type: string; count: number; }[] = [];
-    
     for (const task of importTasks) {
-        if (companySettings.importMode === 'file' && !task.filePath) {
-            console.log(`Skipping ${task.type} import: no file path configured.`);
-            continue;
+        if (companySettings.importMode === 'file') {
+            const filePath = companySettings[`${task.type}FilePath` as keyof Company] as string | undefined;
+            if (!filePath) { console.log(`Skipping ${task.type} import: no file path.`); continue; }
         }
-
         try {
             const result = await importData(task.type);
             results.push({ type: task.type, count: result.count });
         } catch (error) {
             console.error(`Failed to import data for ${task.type}:`, error);
-            // We can decide whether to throw or just log and continue
         }
     }
-
     const db = await connectDb();
-    db.prepare('UPDATE company_settings SET lastSyncTimestamp = ? WHERE id = 1')
-      .run(new Date().toISOString());
-    
+    db.prepare('UPDATE company_settings SET lastSyncTimestamp = ? WHERE id = 1').run(new Date().toISOString());
     return results;
 }
 
 export async function saveSqlConfig(config: SqlConfig): Promise<void> {
     const db = await connectDb();
     const insert = db.prepare('INSERT OR REPLACE INTO sql_config (key, value) VALUES (@key, @value)');
-
     const transaction = db.transaction((cfg) => {
-        for(const key in cfg) {
-            if (cfg[key as keyof SqlConfig] !== undefined) {
-                 insert.run({ key, value: cfg[key as keyof SqlConfig] });
-            }
-        }
+        for(const key in cfg) if (cfg[key as keyof SqlConfig] !== undefined) insert.run({ key, value: cfg[key as keyof SqlConfig] });
     });
-
     try {
         transaction(config);
     } catch (error) {
@@ -1192,11 +813,7 @@ export async function getImportQueries(): Promise<ImportQuery[]> {
 export async function saveImportQueries(queries: ImportQuery[]): Promise<void> {
     const db = await connectDb();
     const insert = db.prepare('INSERT OR REPLACE INTO import_queries (type, query) VALUES (@type, @query)');
-    const transaction = db.transaction((qs) => {
-        for (const q of qs) {
-            insert.run(q);
-        }
-    });
+    const transaction = db.transaction((qs) => { for (const q of qs) insert.run(q); });
     try {
         transaction(queries);
     } catch (error) {
@@ -1206,4 +823,138 @@ export async function saveImportQueries(queries: ImportQuery[]): Promise<void> {
 
 export async function testSqlConnection(): Promise<void> {
     await executeQuery("SELECT 1"); 
+}
+
+export async function getCabysCatalog(): Promise<{ code: string; description: string; taxRate: number; }[]> {
+    const db = await connectDb();
+    return db.prepare('SELECT * FROM cabys_catalog').all() as { code: string; description: string; taxRate: number; }[];
+}
+
+export async function getSuggestions(): Promise<Suggestion[]> {
+  const db = await connectDb();
+  return db.prepare('SELECT * FROM suggestions ORDER BY timestamp DESC').all() as Suggestion[];
+}
+
+export async function getUnreadSuggestionsCount(): Promise<number> {
+  const db = await connectDb();
+  const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
+  return result.count;
+}
+
+export async function markSuggestionAsRead(id: number): Promise<void> {
+  const db = await connectDb();
+  db.prepare('UPDATE suggestions SET isRead = 1 WHERE id = ?').run(id);
+}
+
+export async function deleteSuggestion(id: number): Promise<void> {
+  const db = await connectDb();
+  db.prepare('DELETE FROM suggestions WHERE id = ?').run(id);
+}
+
+// --- Maintenance Functions ---
+
+const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
+
+export async function backupAllForUpdate(): Promise<void> {
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    const timestamp = new Date().toISOString();
+    for (const module of DB_MODULES) {
+        const dbPath = path.join(dbDirectory, module.dbFile);
+        if (fs.existsSync(dbPath)) {
+            const backupPath = path.join(backupDir, `${timestamp}_${module.dbFile}`);
+            fs.copyFileSync(dbPath, backupPath);
+        }
+    }
+}
+
+export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
+    if (!fs.existsSync(backupDir)) return [];
+    const files = fs.readdirSync(backupDir);
+    return files.map(file => {
+        const [date, ...rest] = file.split('_');
+        const dbFile = rest.join('_');
+        const module = DB_MODULES.find(m => m.dbFile === dbFile);
+        return {
+            moduleId: module?.id || 'unknown',
+            moduleName: module?.name || 'Base de Datos Desconocida',
+            fileName: file,
+            date: date
+        };
+    }).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function uploadBackupFile(formData: FormData): Promise<number> {
+    const files = formData.getAll('backupFiles') as File[];
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    const timestamp = new Date().toISOString();
+
+    for (const file of files) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const backupPath = path.join(backupDir, `${timestamp}_${file.name}`);
+        fs.writeFileSync(backupPath, buffer);
+    }
+    return files.length;
+}
+
+export async function restoreAllFromUpdateBackup(timestamp: string): Promise<void> {
+    const backups = await listAllUpdateBackups();
+    const backupsToRestore = backups.filter(b => b.date === timestamp);
+
+    if (backupsToRestore.length === 0) throw new Error("No se encontraron backups para la fecha seleccionada.");
+
+    for (const [key, connection] of dbConnections.entries()) {
+        if (connection.open) connection.close();
+        dbConnections.delete(key);
+    }
+    
+    for (const backup of backupsToRestore) {
+        const module = DB_MODULES.find(m => m.id === backup.moduleId);
+        if (module) {
+            const backupPath = path.join(backupDir, backup.fileName);
+            const dbPath = path.join(dbDirectory, module.dbFile);
+            fs.copyFileSync(backupPath, dbPath);
+        }
+    }
+}
+
+export async function deleteOldUpdateBackups(): Promise<number> {
+    const backups = await listAllUpdateBackups();
+    const uniqueTimestamps = [...new Set(backups.map(b => b.date))].sort((a,b) => b.localeCompare(a));
+    if (uniqueTimestamps.length <= 1) return 0;
+    
+    const timestampsToDelete = uniqueTimestamps.slice(1);
+    let deletedCount = 0;
+    for (const timestamp of timestampsToDelete) {
+        const filesToDelete = fs.readdirSync(backupDir).filter(file => file.startsWith(timestamp));
+        for (const file of filesToDelete) {
+            fs.unlinkSync(path.join(backupDir, file));
+            deletedCount++;
+        }
+    }
+    return deletedCount;
+}
+
+export async function factoryReset(moduleId: string): Promise<void> {
+    await addLog({ type: 'WARN', message: `FACTORY RESET triggered for module: ${moduleId}` });
+
+    const modulesToReset = moduleId === '__all__' ? DB_MODULES : DB_MODULES.filter(m => m.id === moduleId);
+
+    if (modulesToReset.length === 0) throw new Error("Módulo no encontrado para resetear.");
+
+    for (const module of modulesToReset) {
+        const dbPath = path.join(dbDirectory, module.dbFile);
+        if (dbConnections.has(module.dbFile)) {
+            dbConnections.get(module.dbFile)!.close();
+            dbConnections.delete(module.dbFile);
+        }
+        if (fs.existsSync(dbPath)) {
+            try {
+                fs.unlinkSync(dbPath);
+                 console.log(`Successfully deleted ${dbPath}`);
+            } catch(e) {
+                console.error(`Error deleting database file ${dbPath}`, e);
+                throw e;
+            }
+        }
+    }
 }

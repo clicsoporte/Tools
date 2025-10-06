@@ -8,19 +8,7 @@
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExchangeRateApiResponse, ExemptionLaw } from "../types";
-import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
-import { 
-    getAllRoles, 
-    getCompanySettings, 
-    getAllCustomers, 
-    getAllProducts, 
-    getAllStock,
-    getAllExemptions,
-    getExemptionLaws,
-    connectDb,
-    getDbModules
-} from '../lib/db';
-import { getExchangeRate } from "../lib/api-actions";
+import { getCurrentUser as getCurrentUserClient, getInitialAuthData } from '../lib/auth-client';
 import { getUnreadSuggestionsCount } from "../lib/suggestions-actions";
 
 /**
@@ -72,10 +60,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const fetchExchangeRate = useCallback(async () => {
     try {
-        const data: ExchangeRateApiResponse = await getExchangeRate();
-        if (data.venta && data.venta.valor) {
-            const date = new Date(data.venta.fecha).toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-            setExchangeRateData({ rate: data.venta.valor, date });
+        const data = await getInitialAuthData(); // Re-use initial data fetch
+        if (data.exchangeRate.rate) {
+            setExchangeRateData(data.exchangeRate);
         }
     } catch (error) {
         console.error("Failed to fetch exchange rate on load:", error);
@@ -102,36 +89,20 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
           return;
       }
       
-      const dbModules = await getDbModules();
-      for (const module of dbModules) {
-          await connectDb(module.dbFile);
-      }
-
-      const [
-          allRoles, companySettings, dbCustomers, dbProducts, dbStock, 
-          dbExemptions, dbExemptionLaws
-      ] = await Promise.all([
-        getAllRoles(),
-        getCompanySettings(),
-        getAllCustomers(),
-        getAllProducts(),
-        getAllStock(),
-        getAllExemptions(),
-        getExemptionLaws(),
-        fetchExchangeRate(),
-        updateUnreadSuggestionsCount(),
-      ]);
+      const data = await getInitialAuthData();
       
       setUser(currentUser);
-      setCompanyData(companySettings);
-      setCustomers(dbCustomers);
-      setProducts(dbProducts);
-      setStockLevels(dbStock);
-      setAllExemptions(dbExemptions);
-      setExemptionLaws(dbExemptionLaws);
+      setCompanyData(data.companySettings);
+      setCustomers(data.customers);
+      setProducts(data.products);
+      setStockLevels(data.stock);
+      setAllExemptions(data.exemptions);
+      setExemptionLaws(data.exemptionLaws);
+      setExchangeRateData(data.exchangeRate);
+      setUnreadSuggestionsCount(data.unreadSuggestions);
 
-      if (currentUser && allRoles.length > 0) {
-        const role = allRoles.find(r => r.id === currentUser.role);
+      if (currentUser && data.roles.length > 0) {
+        const role = data.roles.find(r => r.id === currentUser.role);
         setUserRole(role || null);
       } else {
         setUserRole(null);
@@ -144,7 +115,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchExchangeRate, updateUnreadSuggestionsCount]);
+  }, []);
 
   const refreshAuthAndRedirect = async (path: string) => {
     await loadAuthData();
