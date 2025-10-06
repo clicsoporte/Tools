@@ -3,6 +3,7 @@
  * server-side functions for all database operations. It includes initialization,
  * schema creation, data access, and migration logic for all application modules.
  */
+"use server";
 
 import Database from 'better-sqlite3';
 import path from 'path';
@@ -215,7 +216,7 @@ export async function getCompanySettings(): Promise<Company | null> {
     try {
         const settings = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as Company | null;
         if (settings) {
-            settings.quoterShowTaxId = settings.quoterShowTaxId === 1;
+            settings.quoterShowTaxId = !!settings.quoterShowTaxId;
         }
         return settings;
     } catch (error) {
@@ -301,9 +302,9 @@ export async function addLog(entry: Omit<LogEntry, "id" | "timestamp">) {
 };
 
 export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
-    await addLog({ type: 'WARN', message: `Log cleanup initiated by ${clearedBy}`, details: { type, deleteAllTime } });
     const db = await connectDb();
     try {
+        await addLog({ type: 'WARN', message: `Log cleanup initiated by ${clearedBy}`, details: { type, deleteAllTime } });
         let query = 'DELETE FROM logs';
         const whereClauses: string[] = [];
         const params: any[] = [];

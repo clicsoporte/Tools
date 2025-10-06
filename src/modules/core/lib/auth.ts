@@ -244,7 +244,7 @@ export async function getInitialAuthData() {
         getUnreadSuggestionsCount()
     ]);
     
-    let rateData = { rate: null, date: null };
+    let rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
     const exchangeRateResponse = exchangeRate as ExchangeRateApiResponse;
     if (exchangeRateResponse?.venta?.valor) {
         rateData.rate = exchangeRateResponse.venta.valor;
