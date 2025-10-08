@@ -95,7 +95,8 @@ Esta es una de las funcionalidades más críticas y flexibles, gestionada desde 
     2.  El sistema mapeará las columnas del resultado de tu consulta a los campos que la aplicación necesita, siempre y cuando los nombres de las columnas coincidan con los definidos en `createHeaderMapping` (ej. `SELECT ID_Cliente as CLIENTE, Nombre_Fiscal as NOMBRE, ID_Fiscal as CONTRIBUYENTE, ...`).
 -   **Ejecución**:
     -   Un administrador puede ejecutar la sincronización completa desde **Administración > Importar Datos**.
-    -   Se puede conceder un permiso especial (`admin:import:run`) a otros roles para que vean un botón de **"Sincronizar Datos del ERP"** en el panel principal, permitiéndoles actualizar los datos locales sin acceder a la configuración.
+    -   Se puede conceder un permiso especial (`admin:import:run`) a otros roles para que vean un botón de **"Sincronizar Datos del ERP"** en el panel principal.
+    -   **Alerta Visual:** Si ha pasado mucho tiempo desde la última sincronización (configurable en Administración > General), la fecha se mostrará en rojo y el botón de sincronización **parpadeará** para alertar al usuario.
 
 ---
 

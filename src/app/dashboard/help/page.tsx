@@ -361,7 +361,7 @@ export default function HelpPage() {
                             </div>
                             <div className="flex items-start gap-4">
                                 <Briefcase className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
-                                <div><h4 className="font-semibold">Configuración General</h4><p>Establece la identidad de tu empresa (nombre, logo, cédula jurídica) que aparecerá en los documentos y ajusta parámetros globales de la interfaz, como el tiempo de espera de la búsqueda.</p></div>
+                                <div><h4 className="font-semibold">Configuración General</h4><p>Establece la identidad de tu empresa (nombre, logo, cédula jurídica) que aparecerá en los documentos. Aquí también puedes ajustar parámetros globales como el tiempo de espera de la búsqueda o las horas para la alerta de sincronización (acepta decimales, ej: 0.5 para 30 min).</p></div>
                             </div>
                              <div className="flex items-start gap-4">
                                 <MessageSquare className="mt-1 h-6 w-6 text-green-600 shrink-0" />
@@ -452,7 +452,7 @@ export default function HelpPage() {
                             <ToggleRight className="h-4 w-4" />
                             <AlertTitle>Botón de Sincronización Rápida</AlertTitle>
                             <AlertDescription>
-                                Puedes dar permiso (`admin:import:run`) a ciertos roles para que vean un botón de "Sincronizar Datos del ERP" en el panel principal. Esto les permite actualizar los datos sin necesidad de acceder a la pantalla de configuración.
+                                Puedes dar permiso (`admin:import:run`) a ciertos roles para que vean un botón de "Sincronizar Datos del ERP" en el panel principal. Si los datos están desactualizados, este botón se pondrá rojo y parpadeará para alertar al usuario.
                             </AlertDescription>
                         </Alert>
                     </AccordionContent>
@@ -538,4 +538,5 @@ export default function HelpPage() {
     </main>
   );
 }
+
 
