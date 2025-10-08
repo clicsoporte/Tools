@@ -16,8 +16,10 @@ const nextConfig = {
       }
     ],
   },
-  serverActions: {
-    bodySizeLimit: '50mb',
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
   },
   // This is required to allow requests from the Firebase Studio development environment.
   allowedDevOrigins: ["https://*-firebase-studio-*.cloudworkstations.dev"],

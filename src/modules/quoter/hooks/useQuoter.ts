@@ -22,7 +22,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
-import { getExemptionStatus, isErrorResponse } from "@/modules/hacienda/lib/actions";
+import { getExemptionStatus, isErrorResponse as isHaciendaErrorResponse } from "@/modules/hacienda/lib/actions";
 import type { RowInput } from "jspdf-autotable";
 
 /**
@@ -58,6 +58,13 @@ interface LineInputRefs {
   qty: HTMLInputElement | null;
   price: HTMLInputElement | null;
 }
+
+type ErrorResponse = { error: boolean; message: string };
+
+function isErrorResponse(data: any): data is ErrorResponse {
+  return (data as ErrorResponse).error !== undefined;
+}
+
 
 /**
  * Normalizes a string value into a number.
@@ -153,7 +160,7 @@ export const useQuoter = () => {
 
     const data = await getExemptionStatus(authNumber);
         
-    if (isErrorResponse(data)) {
+    if (isHaciendaErrorResponse(data)) {
         logError("Error verifying exemption status", { message: data.message, authNumber });
         setExemptionInfo(prev => {
             if (!prev) return null;
@@ -176,10 +183,11 @@ export const useQuoter = () => {
     
     setExemptionInfo(prev => {
          if (!prev) return null;
+         const haciendaExemption = data as HaciendaExemptionApiResponse;
          return {
             ...prev,
-            haciendaExemption: data,
-            isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
+            haciendaExemption,
+            isHaciendaValid: isValid(parseISO(haciendaExemption.fechaVencimiento)) && new Date(haciendaExemption.fechaVencimiento) > new Date(),
             isLoading: false,
             apiError: false,
          }
