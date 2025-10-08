@@ -78,8 +78,12 @@ export default function GeneralSettingsPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (!companyData) return;
     const { id, value, type } = e.target;
-    const isNumber = type === 'number';
-    setCompanyData(prev => prev ? ({...prev, [id]: isNumber ? parseInt(value, 10) : value}) : null);
+    
+    if (type === 'number') {
+        setCompanyData(prev => prev ? ({...prev, [id]: value === '' ? null : parseFloat(value)}) : null);
+    } else {
+        setCompanyData(prev => prev ? ({...prev, [id]: value}) : null);
+    }
   }
 
   const handleSubmit = async () => {
@@ -213,6 +217,7 @@ export default function GeneralSettingsPage() {
                       <Input 
                           id="syncWarningHours"
                           type="number"
+                          step="0.1"
                           value={companyData.syncWarningHours ?? 12}
                           onChange={handleChange}
                       />
