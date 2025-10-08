@@ -6,7 +6,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 
@@ -18,6 +18,7 @@ type UseAuthorizationReturn = {
 
 export function useAuthorization(requiredPermissions: string[] = []): UseAuthorizationReturn {
     const router = useRouter();
+    const pathname = usePathname();
     const { toast } = useToast();
     const { user, userRole, isLoading } = useAuth(); // Use the new central auth context
 
@@ -38,7 +39,8 @@ export function useAuthorization(requiredPermissions: string[] = []): UseAuthori
     }, [isLoading, user, userRole, requiredPermissions, userPermissions]);
 
     useEffect(() => {
-        if (isAuthorized === false) {
+        // Only act if authorization status is definitively decided (not null) and it's negative
+        if (isAuthorized === false && pathname !== '/dashboard') {
             toast({
                 title: 'Acceso Denegado',
                 description: 'No tienes los permisos necesarios para ver esta página.',
@@ -48,7 +50,7 @@ export function useAuthorization(requiredPermissions: string[] = []): UseAuthori
             // because the user is logged in, just not permitted for this specific route.
             router.replace('/dashboard');
         }
-    }, [isAuthorized, router, toast]);
+    }, [isAuthorized, router, toast, pathname]);
 
     const hasPermission = (permission: string) => {
         if (isLoading || !userRole) return false;

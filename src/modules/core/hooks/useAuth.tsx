@@ -7,9 +7,11 @@
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExchangeRateApiResponse, ExemptionLaw } from "../types";
+import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw } from "../types";
 import { getCurrentUser as getCurrentUserClient, getInitialAuthData } from '../lib/auth-client';
 import { getUnreadSuggestionsCount } from "../lib/suggestions-actions";
+import { getCompanySettings, saveCompanySettings } from "../lib/db";
+import { getExchangeRate } from "../lib/api-actions";
 
 /**
  * Defines the shape of the authentication context's value.
@@ -60,12 +62,15 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const fetchExchangeRate = useCallback(async () => {
     try {
-        const data = await getInitialAuthData(); // Re-use initial data fetch
-        if (data.exchangeRate.rate) {
-            setExchangeRateData(data.exchangeRate);
+        const data = await getExchangeRate();
+        if (data.venta?.valor) {
+             setExchangeRateData({
+                rate: data.venta.valor,
+                date: new Date(data.venta.fecha).toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+             });
         }
     } catch (error) {
-        console.error("Failed to fetch exchange rate on load:", error);
+        console.error("Failed to fetch exchange rate on refresh:", error);
     }
   }, []);
 

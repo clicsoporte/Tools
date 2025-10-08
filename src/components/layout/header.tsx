@@ -62,6 +62,7 @@ export function Header({ title }: HeaderProps) {
         });
         await logInfo("Full ERP data synchronization completed via header button.", { results });
         if (companyData) {
+            // Update the company data in context without a full page refresh
             setCompanyData({ ...companyData, lastSyncTimestamp: new Date().toISOString() });
         }
     } catch (error: any) {

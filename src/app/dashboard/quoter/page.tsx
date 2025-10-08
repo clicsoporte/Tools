@@ -78,7 +78,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import { isErrorResponse } from "@/modules/quoter/hooks/useQuoter";
+import { isErrorResponse } from "@/modules/hacienda/lib/actions";
 
 const taxes = [
   { name: "IVA 13%", value: 0.13 },
