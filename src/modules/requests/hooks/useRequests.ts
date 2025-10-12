@@ -20,7 +20,7 @@ import {
 import type { 
     PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
     PurchaseRequestHistoryEntry, RequestSettings, Company, DateRange, 
-    AdministrativeActionPayload, Product, StockInfo
+    AdministrativeAction, AdministrativeActionPayload, Product, StockInfo
 } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -82,6 +82,52 @@ const priorityConfig = {
     urgent: { label: "Urgente", className: "text-red-600" }
 };
 
+type State = {
+    isLoading: boolean;
+    isSubmitting: boolean;
+    isNewRequestDialogOpen: boolean;
+    isEditRequestDialogOpen: boolean;
+    activeRequests: PurchaseRequest[];
+    archivedRequests: PurchaseRequest[];
+    viewingArchived: boolean;
+    archivedPage: number;
+    pageSize: number;
+    totalArchived: number;
+    requestSettings: RequestSettings | null;
+    companyData: Company | null;
+    newRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'>;
+    requestToEdit: PurchaseRequest | null;
+    searchTerm: string;
+    statusFilter: string;
+    classificationFilter: string;
+    dateFilter: DateRange | undefined;
+    showOnlyMyRequests: boolean;
+    clientSearchTerm: string;
+    isClientSearchOpen: boolean;
+    itemSearchTerm: string;
+    isItemSearchOpen: boolean;
+    isStatusDialogOpen: boolean;
+    requestToUpdate: PurchaseRequest | null;
+    newStatus: PurchaseRequestStatus | null;
+    statusUpdateNotes: string;
+    deliveredQuantity: number | string;
+    isHistoryDialogOpen: boolean;
+    historyRequest: PurchaseRequest | null;
+    history: PurchaseRequestHistoryEntry[];
+    isHistoryLoading: boolean;
+    isReopenDialogOpen: boolean;
+    reopenStep: number;
+    reopenConfirmationText: string;
+    arrivalDate: string;
+    isActionDialogOpen: boolean;
+    isErpOrderModalOpen: boolean;
+    isErpItemsModalOpen: boolean;
+    erpOrderNumber: string;
+    erpOrderHeader: any;
+    erpOrderLines: ErpOrderLine[];
+    isErpLoading: boolean;
+};
+
 
 export const useRequests = () => {
     const { isAuthorized, hasPermission } = useAuthorization(['requests:read']);
@@ -89,59 +135,49 @@ export const useRequests = () => {
     const { toast } = useToast();
     const { user: currentUser, customers: authCustomers, products: authProducts, stockLevels: authStockLevels, companyData: authCompanyData } = useAuth();
 
-    const [state, setState] = useState({
+    const [state, setState] = useState<State>({
         isLoading: true,
         isSubmitting: false,
         isNewRequestDialogOpen: false,
         isEditRequestDialogOpen: false,
-        activeRequests: [] as PurchaseRequest[],
-        archivedRequests: [] as PurchaseRequest[],
+        activeRequests: [],
+        archivedRequests: [],
         viewingArchived: false,
         archivedPage: 0,
         pageSize: 50,
         totalArchived: 0,
-        
-        requestSettings: null as RequestSettings | null,
-        companyData: null as Company | null,
-        
+        requestSettings: null,
+        companyData: null,
         newRequest: emptyRequest,
-        requestToEdit: null as PurchaseRequest | null,
-
+        requestToEdit: null,
         searchTerm: "",
         statusFilter: "all",
         classificationFilter: "all",
-        dateFilter: undefined as DateRange | undefined,
+        dateFilter: undefined,
         showOnlyMyRequests: false,
-        
         clientSearchTerm: "",
         isClientSearchOpen: false,
         itemSearchTerm: "",
         isItemSearchOpen: false,
-        
         isStatusDialogOpen: false,
-        requestToUpdate: null as PurchaseRequest | null,
-        newStatus: null as PurchaseRequestStatus | null,
+        requestToUpdate: null,
+        newStatus: null,
         statusUpdateNotes: "",
-        deliveredQuantity: "" as number | string,
-        
+        deliveredQuantity: "",
         isHistoryDialogOpen: false,
-        historyRequest: null as PurchaseRequest | null,
-        history: [] as PurchaseRequestHistoryEntry[],
+        historyRequest: null,
+        history: [],
         isHistoryLoading: false,
-
         isReopenDialogOpen: false,
         reopenStep: 0,
         reopenConfirmationText: '',
         arrivalDate: '',
-        
         isActionDialogOpen: false,
-
-        // State for "Pedir desde ERP" flow
         isErpOrderModalOpen: false,
         isErpItemsModalOpen: false,
         erpOrderNumber: '',
-        erpOrderHeader: null as any,
-        erpOrderLines: [] as ErpOrderLine[],
+        erpOrderHeader: null,
+        erpOrderLines: [],
         isErpLoading: false,
     });
     
@@ -149,9 +185,9 @@ export const useRequests = () => {
     const [debouncedClientSearch] = useDebounce(state.clientSearchTerm, state.companyData?.searchDebounceTime ?? 500);
     const [debouncedItemSearch] = useDebounce(state.itemSearchTerm, state.companyData?.searchDebounceTime ?? 500);
     
-    const updateState = (newState: Partial<typeof state>) => {
+    const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
-    };
+    }, []);
 
     const loadInitialData = useCallback(async (page = 0) => {
         let isMounted = true;
@@ -191,7 +227,7 @@ export const useRequests = () => {
             }
         }
          return () => { isMounted = false; };
-    }, [toast, state.viewingArchived, state.pageSize]);
+    }, [toast, state.viewingArchived, state.pageSize, updateState]);
     
     useEffect(() => {
         setTitle("Solicitud de Compra");
@@ -216,7 +252,7 @@ export const useRequests = () => {
 
     useEffect(() => {
         updateState({ companyData: authCompanyData });
-    }, [authCompanyData]);
+    }, [authCompanyData, updateState]);
 
     const handleCreateRequest = async () => {
         if (!state.newRequest.clientId || !state.newRequest.itemId || !state.newRequest.quantity || !state.newRequest.requiredDate || !currentUser) return;
@@ -635,6 +671,56 @@ export const useRequests = () => {
         doc.save(`sc_${request.consecutive}.pdf`);
     };
 
+    const actions = {
+        loadInitialData,
+        handleCreateRequest,
+        handleEditRequest,
+        openStatusDialog,
+        handleStatusUpdate,
+        handleOpenHistory,
+        handleReopenRequest,
+        handleSelectClient,
+        handleSelectItem,
+        handleExportPDF,
+        handleExportSingleRequestPDF,
+        openAdminActionDialog,
+        handleAdminAction,
+        handleFetchErpOrder,
+        handleErpLineChange,
+        handleCreateRequestsFromErp,
+        // UI state setters
+        setNewRequestDialogOpen: (isOpen: boolean) => updateState({ isNewRequestDialogOpen: isOpen }),
+        setEditRequestDialogOpen: (isOpen: boolean) => updateState({ isEditRequestDialogOpen: isOpen }),
+        setViewingArchived: (isArchived: boolean) => updateState({ viewingArchived: isArchived, archivedPage: 0 }),
+        setArchivedPage: (pageUpdate: (page: number) => number) => updateState({ archivedPage: pageUpdate(state.archivedPage) }),
+        setPageSize: (size: number) => updateState({ pageSize: size, archivedPage: 0 }),
+        setNewRequest: (updater: (prev: typeof emptyRequest) => typeof emptyRequest) => updateState({ newRequest: updater(state.newRequest) }),
+        setRequestToEdit: (updater: (prev: PurchaseRequest | null) => PurchaseRequest | null) => updateState({ requestToEdit: updater(state.requestToEdit) }),
+        setSearchTerm: (term: string) => updateState({ searchTerm: term }),
+        setStatusFilter: (filter: string) => updateState({ statusFilter: filter }),
+        setClassificationFilter: (filter: string) => updateState({ classificationFilter: filter }),
+        setDateFilter: (range: DateRange | undefined) => updateState({ dateFilter: range }),
+        setShowOnlyMyRequests: (show: boolean) => updateState({ showOnlyMyRequests: show }),
+        setClientSearchTerm: (term: string) => updateState({ clientSearchTerm: term }),
+        setClientSearchOpen: (isOpen: boolean) => updateState({ isClientSearchOpen: isOpen }),
+        setItemSearchTerm: (term: string) => updateState({ itemSearchTerm: term }),
+        setItemSearchOpen: (isOpen: boolean) => updateState({ isItemSearchOpen: isOpen }),
+        setStatusDialogOpen: (isOpen: boolean) => updateState({ isStatusDialogOpen: isOpen }),
+        setRequestToUpdate: (request: PurchaseRequest | null) => updateState({ requestToUpdate: request }),
+        setNewStatus: (status: PurchaseRequestStatus | null) => updateState({ newStatus: status }),
+        setStatusUpdateNotes: (notes: string) => updateState({ statusUpdateNotes: notes }),
+        setDeliveredQuantity: (qty: number | string) => updateState({ deliveredQuantity: qty }),
+        setHistoryDialogOpen: (isOpen: boolean) => updateState({ isHistoryDialogOpen: isOpen }),
+        setReopenDialogOpen: (isOpen: boolean) => updateState({ isReopenDialogOpen: isOpen }),
+        setReopenStep: (step: number) => updateState({ reopenStep: step }),
+        setReopenConfirmationText: (text: string) => updateState({ reopenConfirmationText: text }),
+        setArrivalDate: (date: string) => updateState({ arrivalDate: date }),
+        setActionDialogOpen: (isOpen: boolean) => updateState({ isActionDialogOpen: isOpen }),
+        setErpOrderModalOpen: (isOpen: boolean) => updateState({ isErpOrderModalOpen: isOpen }),
+        setErpItemsModalOpen: (isOpen: boolean) => updateState({ isErpItemsModalOpen: isOpen }),
+        setErpOrderNumber: (num: string) => updateState({ erpOrderNumber: num }),
+    };
+
     const selectors = {
         hasPermission,
         priorityConfig,
@@ -677,23 +763,6 @@ export const useRequests = () => {
         stockLevels: authStockLevels
     };
 
-    const actions = {
-        setNewRequestDialogOpen, setEditRequestDialogOpen, setViewingArchived, setArchivedPage,
-        setPageSize, setNewRequest, setRequestToEdit, setSearchTerm, setStatusFilter,
-        setClassificationFilter, setDateFilter, setClientSearchTerm, setClientSearchOpen,
-        setItemSearchTerm, setItemSearchOpen, setStatusDialogOpen, setNewStatus,
-        setStatusUpdateNotes, setDeliveredQuantity, setHistoryDialogOpen,
-        setReopenDialogOpen, setReopenStep, setReopenConfirmationText, loadInitialData,
-        handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
-        handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
-        setRequestToUpdate: (req: PurchaseRequest | null) => updateState({ requestToUpdate: req }),
-        handleExportPDF, handleExportSingleRequestPDF,
-        setArrivalDate: (date: string) => updateState({ arrivalDate: date }),
-        openAdminActionDialog, handleAdminAction, setActionDialogOpen,
-        setErpOrderModalOpen, setErpItemsModalOpen, setErpOrderNumber,
-        handleFetchErpOrder, handleErpLineChange, handleCreateRequestsFromErp, setShowOnlyMyRequests
-    };
-
     return {
         state,
         actions,
@@ -702,6 +771,3 @@ export const useRequests = () => {
         isAuthorized
     };
 };
-
-
-    

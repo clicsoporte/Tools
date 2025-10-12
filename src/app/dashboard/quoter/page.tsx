@@ -78,6 +78,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/modules/core/hooks/useAuth";
+import type { HaciendaExemptionApiResponse } from "@/modules/core/types";
 
 const taxes = [
   { name: "IVA 13%", value: 0.13 },
@@ -86,6 +87,10 @@ const taxes = [
   { name: "IVA Reducido 1%", value: 0.01 },
   { name: "Exento", value: 0 },
 ];
+
+function isApiSuccess(data: any): data is HaciendaExemptionApiResponse {
+    return data && typeof data === 'object' && !data.error && 'fechaVencimiento' in data;
+}
 
 export default function QuoterPage() {
   const {
@@ -384,7 +389,7 @@ export default function QuoterPage() {
                                       <AlertTriangle className="h-4 w-4"/>
                                       <span>Error de API o no encontrado</span>
                                   </div>
-                              ) : state.exemptionInfo.haciendaExemption ? (
+                              ) : state.exemptionInfo.haciendaExemption && isApiSuccess(state.exemptionInfo.haciendaExemption) ? (
                                   <>
                                       <div className={cn("flex items-center gap-1 font-medium", state.exemptionInfo.isHaciendaValid ? 'text-green-600' : 'text-red-600')}>
                                           {state.exemptionInfo.isHaciendaValid ? <ShieldCheck className="h-4 w-4"/> : <ShieldX className="h-4 w-4"/>}
