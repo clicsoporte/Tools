@@ -28,6 +28,7 @@ import {
   Map,
   PackagePlus,
   BookMarked,
+  MessageSquare,
 } from "lucide-react";
 
 /**
@@ -64,6 +65,7 @@ export const initialCompany: Company = {
     nextQuoteNumber: 1,
     decimalPlaces: 2,
     searchDebounceTime: 500,
+    syncWarningHours: 12,
     importMode: 'file',
     lastSyncTimestamp: null,
     customerFilePath: "",
@@ -208,6 +210,7 @@ export const initialRoles: Role[] = [
         "warehouse:inventory:assign",
         "warehouse:locations:manage",
         "hacienda:query",
+        "admin:suggestions:read"
     ],
   },
   {
@@ -275,10 +278,19 @@ export const adminTools: Tool[] = [
         textColor: "text-white",
       },
       {
+        id: "suggestions-viewer",
+        name: "Buzón de Sugerencias",
+        description: "Revisar el feedback enviado por los usuarios del sistema.",
+        href: "/dashboard/admin/suggestions",
+        icon: MessageSquare,
+        bgColor: "bg-green-600",
+        textColor: "text-white",
+      },
+      {
         id: "quoter-settings",
         name: "Config. Cotizador",
         description: "Gestionar prefijos y consecutivos del cotizador.",
-        href: "/dashboard/admin/general", // Points to the same page
+        href: "/dashboard/admin/quoter", 
         icon: BookMarked,
         bgColor: "bg-emerald-600",
         textColor: "text-white",

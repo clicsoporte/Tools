@@ -96,7 +96,7 @@ export default function PlannerPage() {
                     <div className="flex justify-between items-start gap-2">
                         <div>
                             <CardTitle className="text-lg">{order.consecutive} - [{order.productId}] {order.productDescription}</CardTitle>
-                            <CardDescription>Cliente: {order.customerName} ({order.customerTaxId})</CardDescription>
+                            <CardDescription>Cliente: {order.customerName} ({state.plannerSettings?.showCustomerTaxId ? order.customerTaxId : ''})</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {!!order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
