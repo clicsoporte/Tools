@@ -13,9 +13,6 @@ import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, Quo
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
-import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
-import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
-import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
 import { DB_MODULES, DB_FILE } from './data-modules';
 
 const SALT_ROUNDS = 10;
@@ -77,7 +74,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
  * This makes the app more resilient to schema changes over time without data loss.
  * @param {Database.Database} db - The database instance to check.
  */
-async function checkAndApplyMigrations(db: Database.Database) {
+export async function checkAndApplyMigrations(db: Database.Database) {
     // Main DB Migrations
     try {
         const companyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='company_settings'`).get();
@@ -208,6 +205,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
 
     console.log(`Database ${DB_FILE} initialized with default users, company settings, and roles.`);
+    await checkAndApplyMigrations(db);
 }
 
 export async function getCompanySettings(): Promise<Company | null> {
@@ -215,7 +213,7 @@ export async function getCompanySettings(): Promise<Company | null> {
     try {
         const settings = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as Company | null;
         if (settings) {
-            settings.quoterShowTaxId = !!settings.quoterShowTaxId;
+            settings.quoterShowTaxId = settings.quoterShowTaxId === 1;
         }
         return settings;
     } catch (error) {

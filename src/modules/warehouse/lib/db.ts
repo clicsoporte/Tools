@@ -77,6 +77,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
     `).run(JSON.stringify(defaultSettings));
     
     console.log(`Database ${WAREHOUSE_DB_FILE} initialized for Warehouse Management.`);
+    await runWarehouseMigrations(db);
 };
 
 export async function runWarehouseMigrations(db: import('better-sqlite3').Database) {
