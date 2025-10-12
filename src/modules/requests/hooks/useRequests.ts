@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
  * This hook encapsulates all state and actions for the module, keeping the UI component clean.
@@ -87,68 +88,69 @@ export const useRequests = () => {
     const { toast } = useToast();
     const { user: currentUser, customers: authCustomers, products: authProducts, stockLevels: authStockLevels, companyData: authCompanyData } = useAuth();
 
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isNewRequestDialogOpen, setNewRequestDialogOpen] = useState(false);
-    const [isEditRequestDialogOpen, setEditRequestDialogOpen] = useState(false);
-    const [activeRequests, setActiveRequests] = useState<PurchaseRequest[]>([]);
-    const [archivedRequests, setArchivedRequests] = useState<PurchaseRequest[]>([]);
-    const [viewingArchived, setViewingArchived] = useState(false);
-    const [archivedPage, setArchivedPage] = useState(0);
-    const [pageSize, setPageSize] = useState(50);
-    const [totalArchived, setTotalArchived] = useState(0);
+    const [state, setState] = useState({
+        isLoading: true,
+        isSubmitting: false,
+        isNewRequestDialogOpen: false,
+        isEditRequestDialogOpen: false,
+        activeRequests: [] as PurchaseRequest[],
+        archivedRequests: [] as PurchaseRequest[],
+        viewingArchived: false,
+        archivedPage: 0,
+        pageSize: 50,
+        totalArchived: 0,
+        
+        requestSettings: null as RequestSettings | null,
+        companyData: null as Company | null,
+        
+        newRequest: emptyRequest,
+        requestToEdit: null as PurchaseRequest | null,
+
+        searchTerm: "",
+        statusFilter: "all",
+        classificationFilter: "all",
+        dateFilter: undefined as DateRange | undefined,
+        showOnlyMyRequests: false,
+        
+        clientSearchTerm: "",
+        isClientSearchOpen: false,
+        itemSearchTerm: "",
+        isItemSearchOpen: false,
+        
+        isStatusDialogOpen: false,
+        requestToUpdate: null as PurchaseRequest | null,
+        newStatus: null as PurchaseRequestStatus | null,
+        statusUpdateNotes: "",
+        deliveredQuantity: "" as number | string,
+        
+        isHistoryDialogOpen: false,
+        historyRequest: null as PurchaseRequest | null,
+        history: [] as PurchaseRequestHistoryEntry[],
+        isHistoryLoading: false,
+
+        isReopenDialogOpen: false,
+        reopenStep: 0,
+        reopenConfirmationText: '',
+        arrivalDate: '',
+        
+        isActionDialogOpen: false,
+
+        // State for "Pedir desde ERP" flow
+        isErpOrderModalOpen: false,
+        isErpItemsModalOpen: false,
+        erpOrderNumber: '',
+        erpOrderHeader: null as any,
+        erpOrderLines: [] as ErpOrderLine[],
+        isErpLoading: false,
+    });
     
-    const [requestSettings, setRequestSettings] = useState<RequestSettings | null>(null);
-    const [companyData, setCompanyData] = useState<Company | null>(authCompanyData);
+    const [debouncedSearchTerm] = useDebounce(state.searchTerm, state.companyData?.searchDebounceTime ?? 500);
+    const [debouncedClientSearch] = useDebounce(state.clientSearchTerm, state.companyData?.searchDebounceTime ?? 500);
+    const [debouncedItemSearch] = useDebounce(state.itemSearchTerm, state.companyData?.searchDebounceTime ?? 500);
     
-    const [newRequest, setNewRequest] = useState(emptyRequest);
-    const [requestToEdit, setRequestToEdit] = useState<PurchaseRequest | null>(null);
-
-    const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const [classificationFilter, setClassificationFilter] = useState("all");
-    const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
-    const [showOnlyMyRequests, setShowOnlyMyRequests] = useState(false);
-    const [debouncedSearchTerm] = useDebounce(searchTerm, companyData?.searchDebounceTime ?? 500);
-
-    const [clientSearchTerm, setClientSearchTerm] = useState("");
-    const [isClientSearchOpen, setClientSearchOpen] = useState(false);
-    const [itemSearchTerm, setItemSearchTerm] = useState("");
-    const [isItemSearchOpen, setItemSearchOpen] = useState(false);
-    const [debouncedClientSearch] = useDebounce(clientSearchTerm, companyData?.searchDebounceTime ?? 500);
-    const [debouncedItemSearch] = useDebounce(itemSearchTerm, companyData?.searchDebounceTime ?? 500);
-    
-    const [isStatusDialogOpen, setStatusDialogOpen] = useState(false);
-    const [requestToUpdate, setRequestToUpdate] = useState<PurchaseRequest | null>(null);
-    const [newStatus, setNewStatus] = useState<PurchaseRequestStatus | null>(null);
-    const [statusUpdateNotes, setStatusUpdateNotes] = useState("");
-    const [deliveredQuantity, setDeliveredQuantity] = useState<number | string>("");
-    
-    const [isHistoryDialogOpen, setHistoryDialogOpen] = useState(false);
-    const [historyRequest, setHistoryRequest] = useState<PurchaseRequest | null>(null);
-    const [history, setHistory] = useState<PurchaseRequestHistoryEntry[]>([]);
-    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-
-    const [isReopenDialogOpen, setReopenDialogOpen] = useState(false);
-    const [reopenStep, setReopenStep] = useState(0);
-    const [reopenConfirmationText, setReopenConfirmationText] = useState('');
-    const [arrivalDate, setArrivalDate] = useState('');
-    
-    const [isActionDialogOpen, setActionDialogOpen] = useState(false);
-
-    // State for "Pedir desde ERP" flow
-    const [isErpOrderModalOpen, setErpOrderModalOpen] = useState(false);
-    const [isErpItemsModalOpen, setErpItemsModalOpen] = useState(false);
-    const [erpOrderNumber, setErpOrderNumber] = useState('');
-    const [erpOrderHeader, setErpOrderHeader] = useState<any>(null);
-    const [erpOrderLines, setErpOrderLines] = useState<ErpOrderLine[]>([]);
-    const [isErpLoading, setIsErpLoading] = useState(false);
-
-    useEffect(() => {
-        const today = new Date().toISOString().split('T')[0];
-        setNewRequest(prev => ({ ...prev, requiredDate: today }));
-    }, []);
-
+    const updateState = (newState: Partial<typeof state>) => {
+        setState(prevState => ({ ...prevState, ...newState }));
+    };
 
     const loadInitialData = useCallback(async (page = 0) => {
         let isMounted = true;
@@ -157,23 +159,25 @@ export const useRequests = () => {
              const [settingsData, requestsData] = await Promise.all([
                 getRequestSettings(),
                 getPurchaseRequests({
-                    page: viewingArchived ? page : undefined,
-                    pageSize: viewingArchived ? pageSize : undefined,
+                    page: state.viewingArchived ? page : undefined,
+                    pageSize: state.viewingArchived ? state.pageSize : undefined,
                 })
             ]);
             
             if (!isMounted) return;
 
-            setRequestSettings(settingsData);
+            updateState({ requestSettings: settingsData });
             
             const useWarehouse = settingsData.useWarehouseReception;
             const activeFilter = (o: PurchaseRequest) => useWarehouse ? o.status !== 'received-in-warehouse' && o.status !== 'canceled' : o.status !== 'received' && o.status !== 'canceled';
             
             const allRequests = requestsData.requests;
             
-            setActiveRequests(allRequests.filter(activeFilter));
-            setArchivedRequests(allRequests.filter(req => !activeFilter(req)));
-            setTotalArchived(requestsData.totalArchivedCount);
+            updateState({
+                activeRequests: allRequests.filter(activeFilter),
+                archivedRequests: allRequests.filter(req => !activeFilter(req)),
+                totalArchived: requestsData.totalArchivedCount,
+            });
 
         } catch (error) {
              if (isMounted) {
@@ -186,86 +190,94 @@ export const useRequests = () => {
             }
         }
          return () => { isMounted = false; };
-    }, [toast, viewingArchived, pageSize]);
+    }, [toast, state.viewingArchived, state.pageSize]);
     
     useEffect(() => {
         setTitle("Solicitud de Compra");
         if (isAuthorized) {
-            loadInitialData(archivedPage);
+            loadInitialData(state.archivedPage);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setTitle, isAuthorized]);
 
      useEffect(() => {
-        if (!isAuthorized || isLoading) return;
+        if (!isAuthorized || state.isLoading) return;
         let isMounted = true;
         const reload = async () => {
-            await loadInitialData(archivedPage);
+            await loadInitialData(state.archivedPage);
         };
         if(isMounted) {
             reload();
         }
         return () => { isMounted = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [archivedPage, pageSize, viewingArchived, isAuthorized]);
+    }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthorized]);
 
     useEffect(() => {
-        setCompanyData(authCompanyData);
+        updateState({ companyData: authCompanyData });
     }, [authCompanyData]);
 
     const handleCreateRequest = async () => {
-        if (!newRequest.clientId || !newRequest.itemId || !newRequest.quantity || !newRequest.requiredDate || !currentUser) return;
+        if (!state.newRequest.clientId || !state.newRequest.itemId || !state.newRequest.quantity || !state.newRequest.requiredDate || !currentUser) return;
         
         const requestWithFormattedDate = {
-            ...newRequest,
-            requiredDate: new Date(newRequest.requiredDate).toISOString().split('T')[0]
+            ...state.newRequest,
+            requiredDate: new Date(state.newRequest.requiredDate).toISOString().split('T')[0]
         };
 
-        setIsSubmitting(true);
+        updateState({ isSubmitting: true });
         try {
             const createdRequest = await savePurchaseRequest(requestWithFormattedDate, currentUser.name);
             toast({ title: "Solicitud Creada" });
-            setNewRequestDialogOpen(false);
-            setNewRequest(emptyRequest);
-            setActiveRequests(prev => [createdRequest, ...prev]);
+            updateState({
+                isNewRequestDialogOpen: false,
+                newRequest: emptyRequest,
+                clientSearchTerm: '',
+                itemSearchTerm: '',
+                activeRequests: [createdRequest, ...state.activeRequests]
+            });
         } catch (error: any) {
             logError("Failed to create request", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
         } finally {
-            setIsSubmitting(false);
+            updateState({ isSubmitting: false });
         }
     };
     
     const handleEditRequest = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!requestToEdit || !currentUser) return;
-        setIsSubmitting(true);
+        if (!state.requestToEdit || !currentUser) return;
+        updateState({ isSubmitting: true });
         try {
-            const updated = await updatePurchaseRequest({ requestId: requestToEdit.id, updatedBy: currentUser.name, ...requestToEdit });
-            setActiveRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
-            setArchivedRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+            const updated = await updatePurchaseRequest({ requestId: state.requestToEdit.id, updatedBy: currentUser.name, ...state.requestToEdit });
+            updateState({
+                activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r),
+                archivedRequests: state.archivedRequests.map(r => r.id === updated.id ? updated : r),
+                isEditRequestDialogOpen: false
+            });
             toast({ title: "Solicitud Actualizada" });
-            setEditRequestDialogOpen(false);
         } catch (error: any) {
             logError("Failed to edit request", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
         } finally {
-            setIsSubmitting(false);
+            updateState({ isSubmitting: false });
         }
     };
 
     const openStatusDialog = (request: PurchaseRequest, status: PurchaseRequestStatus) => {
-        setRequestToUpdate(request);
-        setNewStatus(status);
-        setStatusUpdateNotes(".");
-        setDeliveredQuantity(status === 'received' ? request.quantity : "");
-        setArrivalDate(''); 
-        setStatusDialogOpen(true);
+        updateState({
+            requestToUpdate: request,
+            newStatus: status,
+            statusUpdateNotes: ".",
+            deliveredQuantity: status === 'received' ? request.quantity : "",
+            arrivalDate: '',
+            isStatusDialogOpen: true
+        });
     };
 
-    const openAdminActionDialog = async (request: PurchaseRequest, action: 'unapproval-request' | 'cancellation-request') => {
+    const openAdminActionDialog = async (request: PurchaseRequest, action: AdministrativeAction) => {
         if (!currentUser) return;
-        setIsSubmitting(true);
+        updateState({ isSubmitting: true });
         try {
             const payload: AdministrativeActionPayload = {
                 entityId: request.id,
@@ -274,133 +286,134 @@ export const useRequests = () => {
                 updatedBy: currentUser.name,
             };
             const updated = await updatePendingAction(payload);
-            setActiveRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
-            setArchivedRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+            updateState({
+                activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r),
+                archivedRequests: state.archivedRequests.map(r => r.id === updated.id ? updated : r)
+            });
             toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
         } catch (error: any) {
             logError(`Failed to request ${action}`, { error: error.message });
             toast({ title: "Error al Solicitar", description: `No se pudo enviar la solicitud. ${error.message}`, variant: "destructive" });
         } finally {
-            setIsSubmitting(false);
+            updateState({ isSubmitting: false });
         }
     };
 
     const handleAdminAction = async (approve: boolean) => {
-        if (!requestToUpdate || !currentUser || !requestToUpdate.pendingAction || requestToUpdate.pendingAction === 'none') return;
-        setIsSubmitting(true);
+        if (!state.requestToUpdate || !currentUser || !state.requestToUpdate.pendingAction || state.requestToUpdate.pendingAction === 'none') return;
+        updateState({ isSubmitting: true });
 
         try {
             if (approve) {
-                const targetStatus = requestToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
+                const targetStatus = state.requestToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
                 await handleStatusUpdate(targetStatus);
             } else {
                  const updated = await updatePendingAction({
-                    entityId: requestToUpdate.id,
+                    entityId: state.requestToUpdate.id,
                     action: 'none',
-                    notes: statusUpdateNotes,
+                    notes: state.statusUpdateNotes,
                     updatedBy: currentUser.name,
                 });
                 toast({ title: 'Solicitud Rechazada' });
-                setActiveRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+                updateState({
+                    activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r)
+                });
             }
-            setActionDialogOpen(false);
+            updateState({ isActionDialogOpen: false });
         } catch (error: any) {
             logError("Failed to handle admin action", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
         } finally {
-            setIsSubmitting(false);
+            updateState({ isSubmitting: false });
         }
     };
     
     const handleStatusUpdate = async (statusOverride?: PurchaseRequestStatus) => {
-        const finalStatus = statusOverride || newStatus;
-        if (!requestToUpdate || !finalStatus || !currentUser) return;
-        setIsSubmitting(true);
+        const finalStatus = statusOverride || state.newStatus;
+        if (!state.requestToUpdate || !finalStatus || !currentUser) return;
+        updateState({ isSubmitting: true });
         try {
             await updatePurchaseRequestStatus({ 
-                requestId: requestToUpdate.id, 
+                requestId: state.requestToUpdate.id, 
                 status: finalStatus, 
-                notes: statusUpdateNotes, 
+                notes: state.statusUpdateNotes, 
                 updatedBy: currentUser.name, 
                 reopen: false, 
-                deliveredQuantity: finalStatus === 'received' ? Number(deliveredQuantity) : undefined,
-                arrivalDate: finalStatus === 'ordered' ? arrivalDate : undefined
+                deliveredQuantity: finalStatus === 'received' ? Number(state.deliveredQuantity) : undefined,
+                arrivalDate: finalStatus === 'ordered' ? state.arrivalDate : undefined
             });
             toast({ title: "Estado Actualizado" });
-            setStatusDialogOpen(false);
-            setActionDialogOpen(false);
-            await loadInitialData(viewingArchived ? archivedPage : 0);
+            updateState({ isStatusDialogOpen: false, isActionDialogOpen: false });
+            await loadInitialData(state.viewingArchived ? state.archivedPage : 0);
         } catch (error: any) {
             logError("Failed to update status", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
-            await loadInitialData(viewingArchived ? archivedPage : 0);
+            await loadInitialData(state.viewingArchived ? state.archivedPage : 0);
         } finally {
-            setIsSubmitting(false);
+            updateState({ isSubmitting: false });
         }
     };
     
     const handleOpenHistory = async (request: PurchaseRequest) => {
-        setHistoryRequest(request);
-        setHistoryDialogOpen(true);
-        setIsHistoryLoading(true);
+        updateState({ historyRequest: request, isHistoryDialogOpen: true, isHistoryLoading: true });
         try {
-            setHistory(await getRequestHistory(request.id));
+            updateState({ history: await getRequestHistory(request.id) });
         } catch (error: any) {
             logError("Failed to get history", {error: error.message});
             toast({ title: "Error", variant: "destructive" });
         } finally {
-            setIsHistoryLoading(false);
+            updateState({ isHistoryLoading: false });
         }
     };
     
     const handleReopenRequest = async () => {
-        if (!requestToUpdate || !currentUser || reopenStep !== 2 || reopenConfirmationText !== 'REABRIR') return;
-        setIsSubmitting(true);
+        if (!state.requestToUpdate || !currentUser || state.reopenStep !== 2 || state.reopenConfirmationText !== 'REABRIR') return;
+        updateState({ isSubmitting: true });
         try {
-            await updatePurchaseRequestStatus({ requestId: requestToUpdate.id, status: 'pending', notes: 'Solicitud reabierta.', updatedBy: currentUser.name, reopen: true });
+            await updatePurchaseRequestStatus({ requestId: state.requestToUpdate.id, status: 'pending', notes: 'Solicitud reabierta.', updatedBy: currentUser.name, reopen: true });
             toast({ title: "Solicitud Reabierta" });
-            setReopenDialogOpen(false);
+            updateState({ isReopenDialogOpen: false });
             await loadInitialData();
         } catch (error: any) {
             logError("Failed to reopen request", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
             await loadInitialData();
         } finally {
-            setIsSubmitting(false);
+            updateState({ isSubmitting: false });
         }
     };
     
     const handleSelectItem = (value: string) => {
-        setItemSearchOpen(false);
+        updateState({ isItemSearchOpen: false });
         const product = authProducts.find(p => p.id === value);
         if (product) {
             const stock = authStockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
             const dataToUpdate = { itemId: product.id, itemDescription: product.description || '', inventory: stock };
-            if (requestToEdit) setRequestToEdit(p => p ? { ...p, ...dataToUpdate } : null);
-            else setNewRequest(p => ({ ...p, ...dataToUpdate }));
-            setItemSearchTerm(`[${product.id}] - ${product.description}`);
+            if (state.requestToEdit) updateState({ requestToEdit: { ...state.requestToEdit, ...dataToUpdate }});
+            else updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
+            updateState({ itemSearchTerm: `[${product.id}] - ${product.description}` });
         }
     };
 
     const handleSelectClient = (value: string) => {
-        setClientSearchOpen(false);
+        updateState({ isClientSearchOpen: false });
         const client = authCustomers.find(c => c.id === value);
         if (client) {
             const dataToUpdate = { clientId: client.id, clientName: client.name, clientTaxId: client.taxId };
-            if (requestToEdit) setRequestToEdit(p => p ? { ...p, ...dataToUpdate } : null);
-            else setNewRequest(p => ({ ...p, ...dataToUpdate }));
-            setClientSearchTerm(`[${client.id}] ${client.name} (${client.taxId})`);
+            if (state.requestToEdit) updateState({ requestToEdit: { ...state.requestToEdit, ...dataToUpdate }});
+            else updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
+            updateState({ clientSearchTerm: `[${client.id}] ${client.name} (${client.taxId})` });
         }
     };
 
     const handleFetchErpOrder = async () => {
-        if (!erpOrderNumber) return;
-        setIsErpLoading(true);
+        if (!state.erpOrderNumber) return;
+        updateState({ isErpLoading: true });
         try {
-            const { header, lines } = await getErpOrderData(erpOrderNumber);
+            const { header, lines } = await getErpOrderData(state.erpOrderNumber);
             
             const client = authCustomers.find(c => c.id === header.CLIENTE);
-            setErpOrderHeader({ ...header, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' });
+            updateState({ erpOrderHeader: { ...header, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' } });
 
             const enrichedLines = lines.map(line => {
                 const product = authProducts.find(p => p.id === line.ARTICULO) || {id: line.ARTICULO, description: `Artículo ${line.ARTICULO} no encontrado`, active: 'N', cabys: '', classification: '', isBasicGood: 'N', lastEntry: '', notes: '', unit: ''};
@@ -415,48 +428,54 @@ export const useRequests = () => {
                     displayPrice: String(line.PRECIO_UNITARIO),
                 };
             });
-            setErpOrderLines(enrichedLines);
-            setErpOrderModalOpen(false);
-            setErpItemsModalOpen(true);
+            updateState({
+                erpOrderLines: enrichedLines,
+                isErpOrderModalOpen: false,
+                isErpItemsModalOpen: true,
+            });
         } catch (error: any) {
-            logError('Failed to fetch ERP order data', { error: error.message, orderNumber: erpOrderNumber });
+            logError('Failed to fetch ERP order data', { error: error.message, orderNumber: state.erpOrderNumber });
             toast({ title: "Error al Cargar Pedido", description: error.message, variant: "destructive" });
         } finally {
-            setIsErpLoading(false);
+            updateState({ isErpLoading: false });
         }
     };
 
-    const handleErpLineChange = (lineIndex: number, field: 'displayQuantity' | 'displayPrice' | 'selected', value: string | boolean) => {
-        setErpOrderLines(prevLines => {
-            const newLines = [...prevLines];
-            (newLines[lineIndex] as any)[field] = value;
-            return newLines;
-        });
+    const handleErpLineChange = (lineIndex: number, field: keyof ErpOrderLine, value: string | boolean) => {
+        if (lineIndex === -1) { // Select/Deselect all
+             updateState({ erpOrderLines: state.erpOrderLines.map(line => ({ ...line, selected: !!value })) });
+        } else {
+            updateState({
+                erpOrderLines: state.erpOrderLines.map((line, index) => 
+                    index === lineIndex ? { ...line, [field]: value } : line
+                )
+            });
+        }
     };
 
     const handleCreateRequestsFromErp = async () => {
-        if (!erpOrderHeader || !currentUser) return;
-        const selectedLines = erpOrderLines.filter(line => line.selected);
+        if (!state.erpOrderHeader || !currentUser) return;
+        const selectedLines = state.erpOrderLines.filter(line => line.selected);
         if (selectedLines.length === 0) {
             toast({ title: "No hay artículos seleccionados", description: "Marque al menos un artículo para crear solicitudes.", variant: "destructive" });
             return;
         }
 
-        setIsSubmitting(true);
+        updateState({ isSubmitting: true });
         try {
             for (const line of selectedLines) {
                 const requestPayload = {
-                    requiredDate: new Date(erpOrderHeader.FECHA_PROMETIDA).toISOString().split('T')[0],
-                    clientId: erpOrderHeader.CLIENTE,
-                    clientName: erpOrderHeader.CLIENTE_NOMBRE,
-                    clientTaxId: authCustomers.find(c => c.id === erpOrderHeader.CLIENTE)?.taxId || '',
+                    requiredDate: new Date(state.erpOrderHeader.FECHA_PROMETIDA).toISOString().split('T')[0],
+                    clientId: state.erpOrderHeader.CLIENTE,
+                    clientName: state.erpOrderHeader.CLIENTE_NOMBRE,
+                    clientTaxId: authCustomers.find(c => c.id === state.erpOrderHeader.CLIENTE)?.taxId || '',
                     itemId: line.ARTICULO,
                     itemDescription: line.product.description,
                     quantity: parseFloat(line.displayQuantity) || 0,
-                    notes: `Generado desde Pedido ERP: ${erpOrderNumber}`,
+                    notes: `Generado desde Pedido ERP: ${state.erpOrderNumber}`,
                     unitSalePrice: parseFloat(line.displayPrice) || 0,
-                    purchaseOrder: erpOrderHeader.ORDEN_COMPRA || '',
-                    erpOrderNumber: erpOrderNumber,
+                    purchaseOrder: state.erpOrderHeader.ORDEN_COMPRA || '',
+                    erpOrderNumber: state.erpOrderNumber,
                     erpOrderLine: line.PEDIDO_LINEA,
                     priority: 'medium' as PurchaseRequestPriority,
                     purchaseType: 'single' as const,
@@ -464,24 +483,23 @@ export const useRequests = () => {
                 await savePurchaseRequest(requestPayload, currentUser.name);
             }
             toast({ title: "Solicitudes Creadas", description: `Se crearon ${selectedLines.length} solicitudes de compra.` });
-            setErpItemsModalOpen(false);
-            setErpOrderNumber('');
+            updateState({ isErpItemsModalOpen: false, erpOrderNumber: '' });
             await loadInitialData();
         } catch (error: any) {
             logError("Failed to create requests from ERP order", { error: error.message });
             toast({ title: "Error al Crear Solicitudes", description: error.message, variant: "destructive" });
         } finally {
-            setIsSubmitting(false);
+            updateState({ isSubmitting: false });
         }
     };
 
     const handleExportPDF = async (orientation: 'portrait' | 'landscape' = 'portrait') => {
-        if (!companyData || !requestSettings) return;
+        if (!state.companyData || !state.requestSettings) return;
         
         let logoDataUrl: string | null = null;
-        if (companyData.logoUrl) {
+        if (state.companyData.logoUrl) {
             try {
-                const response = await fetch(companyData.logoUrl);
+                const response = await fetch(state.companyData.logoUrl);
                 const blob = await response.blob();
                 logoDataUrl = await new Promise((resolve) => {
                     const reader = new FileReader();
@@ -507,16 +525,16 @@ export const useRequests = () => {
         ];
     
         const doc = generateDocument({
-            docTitle: `Solicitudes de Compra (${viewingArchived ? 'Archivadas' : 'Activas'})`,
+            docTitle: `Solicitudes de Compra (${state.viewingArchived ? 'Archivadas' : 'Activas'})`,
             docId: '',
-            companyData: companyData,
+            companyData: state.companyData,
             logoDataUrl: logoDataUrl,
             meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
             blocks: [],
             table: {
-                columns: (requestSettings.pdfExportColumns || []).map(id => allPossibleColumns.find(c => c.id === id)?.header || id),
+                columns: (state.requestSettings.pdfExportColumns || []).map(id => allPossibleColumns.find(c => c.id === id)?.header || id),
                 rows: selectors.filteredRequests.map(request => {
-                    return (requestSettings.pdfExportColumns || []).map(id => {
+                    return (state.requestSettings?.pdfExportColumns || []).map(id => {
                          switch (id) {
                             case 'consecutive': return request.consecutive;
                             case 'itemDescription': return `[${request.itemId}] ${request.itemDescription}`;
@@ -531,7 +549,7 @@ export const useRequests = () => {
                         }
                     });
                 }),
-                columnStyles: (requestSettings.pdfExportColumns || []).reduce((acc, id, index) => {
+                columnStyles: (state.requestSettings.pdfExportColumns || []).reduce((acc, id, index) => {
                     const col = allPossibleColumns.find(c => c.id === id);
                     if (col?.width) {
                         acc[index] = { cellWidth: col.width };
@@ -543,8 +561,8 @@ export const useRequests = () => {
                 }, {} as { [key: number]: any })
             },
             totals: [],
-            topLegend: requestSettings.pdfTopLegend,
-            paperSize: requestSettings.pdfPaperSize,
+            topLegend: state.requestSettings.pdfTopLegend,
+            paperSize: state.requestSettings.pdfPaperSize,
             orientation: orientation,
         });
         
@@ -552,12 +570,12 @@ export const useRequests = () => {
     };
 
     const handleExportSingleRequestPDF = async (request: PurchaseRequest) => {
-        if (!companyData || !requestSettings) return;
+        if (!state.companyData || !state.requestSettings) return;
 
         let logoDataUrl: string | null = null;
-        if (companyData.logoUrl) {
+        if (state.companyData.logoUrl) {
             try {
-                const response = await fetch(companyData.logoUrl);
+                const response = await fetch(state.companyData.logoUrl);
                 const blob = await response.blob();
                 logoDataUrl = await new Promise((resolve) => {
                     const reader = new FileReader();
@@ -588,7 +606,7 @@ export const useRequests = () => {
         const doc = generateDocument({
             docTitle: 'Solicitud de Compra',
             docId: request.consecutive,
-            companyData,
+            companyData: state.companyData,
             logoDataUrl,
             meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
             blocks: [
@@ -633,7 +651,7 @@ export const useRequests = () => {
         }, [authProducts, debouncedItemSearch]),
         classifications: useMemo(() => Array.from(new Set(authProducts.map(p => p.classification).filter(Boolean))), [authProducts]),
         filteredRequests: useMemo(() => {
-            let requestsToFilter = viewingArchived ? archivedRequests : activeRequests;
+            let requestsToFilter = state.viewingArchived ? state.archivedRequests : state.activeRequests;
             
             const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
             return requestsToFilter.filter(request => {
@@ -641,18 +659,19 @@ export const useRequests = () => {
                 const targetText = `${request.consecutive} ${request.clientName} ${request.itemDescription} ${request.purchaseOrder || ''} ${request.erpOrderNumber || ''}`.toLowerCase();
                 
                 const searchMatch = debouncedSearchTerm ? searchTerms.every(term => targetText.includes(term)) : true;
-                const statusMatch = statusFilter === 'all' || request.status === statusFilter;
-                const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
-                const dateMatch = !dateFilter || !dateFilter.from || (new Date(request.requiredDate) >= dateFilter.from && new Date(request.requiredDate) <= (dateFilter.to || dateFilter.from));
-                const myRequestsMatch = !showOnlyMyRequests || request.requestedBy === currentUser?.name;
+                const statusMatch = state.statusFilter === 'all' || request.status === state.statusFilter;
+                const classificationMatch = state.classificationFilter === 'all' || (product && product.classification === state.classificationFilter);
+                const dateMatch = !state.dateFilter || !state.dateFilter.from || (new Date(request.requiredDate) >= state.dateFilter.from && new Date(request.requiredDate) <= (state.dateFilter.to || state.dateFilter.from));
+                const myRequestsMatch = !state.showOnlyMyRequests || request.requestedBy === currentUser?.name;
                 
                 return searchMatch && statusMatch && classificationMatch && dateMatch && myRequestsMatch;
             });
-        }, [viewingArchived, activeRequests, archivedRequests, debouncedSearchTerm, statusFilter, classificationFilter, authProducts, dateFilter, showOnlyMyRequests, currentUser?.name]),
+        }, [state.viewingArchived, state.activeRequests, state.archivedRequests, debouncedSearchTerm, state.statusFilter, state.classificationFilter, authProducts, state.dateFilter, state.showOnlyMyRequests, currentUser?.name]),
         stockLevels: authStockLevels
     };
 
     const actions = {
+        updateState,
         setNewRequestDialogOpen, setEditRequestDialogOpen, setViewingArchived, setArchivedPage,
         setPageSize, setNewRequest, setRequestToEdit, setSearchTerm, setStatusFilter,
         setClassificationFilter, setDateFilter, setClientSearchTerm, setClientSearchOpen,
@@ -668,17 +687,7 @@ export const useRequests = () => {
     };
 
     return {
-        state: {
-            isLoading, isSubmitting, isNewRequestDialogOpen, isEditRequestDialogOpen, activeRequests,
-            archivedRequests, viewingArchived, archivedPage, pageSize, totalArchived,
-            requestSettings, newRequest, requestToEdit, searchTerm, statusFilter,
-            classificationFilter, dateFilter, clientSearchTerm, isClientSearchOpen,
-            itemSearchTerm, isItemSearchOpen, isStatusDialogOpen, requestToUpdate, newStatus,
-            statusUpdateNotes, deliveredQuantity, isHistoryDialogOpen, historyRequest,
-            history, isHistoryLoading, isReopenDialogOpen, reopenStep, reopenConfirmationText,
-            companyData, arrivalDate, isActionDialogOpen, isErpOrderModalOpen, isErpItemsModalOpen,
-            erpOrderNumber, erpOrderHeader, erpOrderLines, isErpLoading, showOnlyMyRequests
-        },
+        state,
         actions,
         selectors,
         isLoading,

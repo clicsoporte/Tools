@@ -285,7 +285,7 @@ export default function PurchaseRequestPage() {
                     </DialogHeader>
                     <ScrollArea className="max-h-[60vh]">
                         <Table>
-                            <TableHeader><TableRow><TableHead className="w-10"><Checkbox onCheckedChange={(checked) => actions.handleErpLineChange(-1, 'selected', !!checked)}/></TableHead><TableHead>Artículo</TableHead><TableHead>Cant. Pedida</TableHead><TableHead>Inv. Actual</TableHead><TableHead>Cant. a Solicitar</TableHead><TableHead>Precio Venta</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="w-10"><Checkbox onCheckedChange={(checked) => erpOrderLines.forEach((_, index) => actions.handleErpLineChange(index, 'selected', !!checked))}/></TableHead><TableHead>Artículo</TableHead><TableHead>Cant. Pedida</TableHead><TableHead>Inv. Actual</TableHead><TableHead>Cant. a Solicitar</TableHead><TableHead>Precio Venta</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {erpOrderLines.map((line, index) => (
                                     <TableRow key={line.PEDIDO_LINEA} className={cn(!line.selected && 'text-muted-foreground', line.CANTIDAD_PEDIDA > (line.stock?.totalStock || 0) ? 'bg-red-50 hover:bg-red-100/60 dark:bg-red-900/20' : 'bg-green-50 hover:bg-green-100/60 dark:bg-green-900/20')}>
