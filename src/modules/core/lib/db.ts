@@ -74,7 +74,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
  * This makes the app more resilient to schema changes over time without data loss.
  * @param {Database.Database} db - The database instance to check.
  */
-export async function checkAndApplyMigrations(db: Database.Database) {
+export async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
     // Main DB Migrations
     try {
         const companyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='company_settings'`).get();
@@ -211,11 +211,11 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
 export async function getCompanySettings(): Promise<Company | null> {
     const db = await connectDb();
     try {
-        const settings = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as Company | null;
+        const settings = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as any;
         if (settings) {
             settings.quoterShowTaxId = settings.quoterShowTaxId === 1;
         }
-        return settings;
+        return settings as Company | null;
     } catch (error) {
         console.error("Failed to get company settings:", error);
         return null;
