@@ -133,7 +133,8 @@ export default function UsersPage() {
         if (isAuthorized) {
             fetchAllData();
         }
-    }, [setTitle, isAuthorized]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthorized]);
 
     /**
      * Persists the current state of users to the database.

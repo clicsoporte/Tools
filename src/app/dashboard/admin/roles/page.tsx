@@ -169,7 +169,8 @@ export default function RolesPage() {
         if (isAuthorized) {
             fetchRoles();
         }
-    }, [setTitle, isAuthorized]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthorized]);
     
     const handlePermissionChange = (roleId: string, permission: string, checked: boolean) => {
         setRoles(currentRoles => 
@@ -241,7 +242,7 @@ export default function RolesPage() {
         await logWarn("Los roles por defecto han sido reiniciados por un administrador.");
     }
     
-    if (!isAuthorized) {
+    if (isAuthorized === null) {
         return null;
     }
 

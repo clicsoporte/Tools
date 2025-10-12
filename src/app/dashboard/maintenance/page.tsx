@@ -269,6 +269,10 @@ export default function MaintenancePage() {
 
     const oldBackupsCount = uniqueTimestamps.length > 1 ? uniqueTimestamps.length - 1 : 0;
     
+    if (isAuthorized === null) {
+        return null;
+    }
+
     if (isLoading) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">

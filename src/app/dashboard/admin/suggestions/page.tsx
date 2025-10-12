@@ -75,7 +75,11 @@ export default function SuggestionsPage() {
         await updateUnreadSuggestionsCount();
     };
 
-    if (isLoading || isAuthorized === null) {
+    if (isAuthorized === null) {
+        return null;
+    }
+
+    if (isLoading) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card>
