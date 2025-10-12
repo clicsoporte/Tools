@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
  * This hook encapsulates all state and actions for the module, keeping the UI component clean.
@@ -154,7 +155,7 @@ export const useRequests = () => {
 
     const loadInitialData = useCallback(async (page = 0) => {
         let isMounted = true;
-        setIsLoading(true);
+        updateState({ isLoading: true });
         try {
              const [settingsData, requestsData] = await Promise.all([
                 getRequestSettings(),
@@ -186,7 +187,7 @@ export const useRequests = () => {
             }
         } finally {
             if (isMounted) {
-                setIsLoading(false);
+                updateState({ isLoading: false });
             }
         }
          return () => { isMounted = false; };
@@ -479,6 +480,12 @@ export const useRequests = () => {
                     erpOrderLine: line.PEDIDO_LINEA,
                     priority: 'medium' as PurchaseRequestPriority,
                     purchaseType: 'single' as const,
+                    route: '',
+                    shippingMethod: '',
+                    inventory: 0,
+                    manualSupplier: '',
+                    arrivalDate: '',
+                    pendingAction: 'none' as const,
                 };
                 await savePurchaseRequest(requestPayload, currentUser.name);
             }
@@ -671,7 +678,6 @@ export const useRequests = () => {
     };
 
     const actions = {
-        updateState,
         setNewRequestDialogOpen, setEditRequestDialogOpen, setViewingArchived, setArchivedPage,
         setPageSize, setNewRequest, setRequestToEdit, setSearchTerm, setStatusFilter,
         setClassificationFilter, setDateFilter, setClientSearchTerm, setClientSearchOpen,
@@ -680,8 +686,10 @@ export const useRequests = () => {
         setReopenDialogOpen, setReopenStep, setReopenConfirmationText, loadInitialData,
         handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
         handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
-        setRequestToUpdate, handleExportPDF, handleExportSingleRequestPDF,
-        setArrivalDate, openAdminActionDialog, handleAdminAction, setActionDialogOpen,
+        setRequestToUpdate: (req: PurchaseRequest | null) => updateState({ requestToUpdate: req }),
+        handleExportPDF, handleExportSingleRequestPDF,
+        setArrivalDate: (date: string) => updateState({ arrivalDate: date }),
+        openAdminActionDialog, handleAdminAction, setActionDialogOpen,
         setErpOrderModalOpen, setErpItemsModalOpen, setErpOrderNumber,
         handleFetchErpOrder, handleErpLineChange, handleCreateRequestsFromErp, setShowOnlyMyRequests
     };
@@ -690,7 +698,7 @@ export const useRequests = () => {
         state,
         actions,
         selectors,
-        isLoading,
+        isLoading: state.isLoading,
         isAuthorized
     };
 };
