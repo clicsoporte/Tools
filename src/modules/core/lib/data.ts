@@ -74,6 +74,7 @@ export const initialCompany: Company = {
     stockFilePath: "",
     locationFilePath: "",
     cabysFilePath: "",
+    supplierFilePath: "",
 };
 
 /**

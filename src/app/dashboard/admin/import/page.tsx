@@ -44,6 +44,7 @@ const importTypeFieldMapping: { [key in ImportType]?: keyof Company } = {
     stock: 'stockFilePath',
     locations: 'locationFilePath',
     cabys: 'cabysFilePath',
+    suppliers: 'supplierFilePath',
 };
 
 /**
@@ -73,13 +74,15 @@ export default function ImportDataPage() {
             setCompanyData(company);
             setSqlConfig(sql || {});
             
-            // Pre-fill with new ERP order queries if they don't exist
             const updatedQueries = [...queries];
             if (!queries.some(q => q.type === 'erp_order_headers')) {
                 updatedQueries.push({ type: 'erp_order_headers', query: "SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA], [TOTAL_UNIDADES], [MONEDA_PEDIDO], [USUARIO] FROM [SOFTLAND].[GAREND].[PEDIDO] WHERE [PEDIDO] = ?" });
             }
             if (!queries.some(q => q.type === 'erp_order_lines')) {
                 updatedQueries.push({ type: 'erp_order_lines', query: "SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [PRECIO_UNITARIO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA] WHERE [PEDIDO] = ?" });
+            }
+            if (!queries.some(q => q.type === 'suppliers')) {
+                updatedQueries.push({ type: 'suppliers', query: "SELECT [PROVEEDOR], [NOMBRE], [ALIAS], [E_MAIL], [TELEFONO1] FROM [SOFTLAND].[GAREND].[PROVEEDOR]" });
             }
             setImportQueries(updatedQueries);
         };

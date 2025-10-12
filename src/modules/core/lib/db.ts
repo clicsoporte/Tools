@@ -9,7 +9,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { initialUsers, initialCompany, initialRoles } from './data';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -98,6 +98,7 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
         if (!companyColumns.has('stockFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN stockFilePath TEXT`);
         if (!companyColumns.has('locationFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN locationFilePath TEXT`);
         if (!companyColumns.has('cabysFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN cabysFilePath TEXT`);
+        if (!companyColumns.has('supplierFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN supplierFilePath TEXT`);
         if (!companyColumns.has('importMode')) db.exec(`ALTER TABLE company_settings ADD COLUMN importMode TEXT DEFAULT 'file'`);
         if (!companyColumns.has('logoUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN logoUrl TEXT`);
         if (!companyColumns.has('searchDebounceTime')) db.exec(`ALTER TABLE company_settings ADD COLUMN searchDebounceTime INTEGER DEFAULT 500`);
@@ -146,6 +147,12 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
             if (!apiTableInfo.some(col => col.name === 'haciendaExemptionApi')) db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaExemptionApi TEXT`);
             if (!apiTableInfo.some(col => col.name === 'haciendaTributariaApi')) db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaTributariaApi TEXT`);
         }
+        
+        const suppliersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='suppliers'`).get();
+        if (!suppliersTable) {
+            console.log("MIGRATION: Creating suppliers table.");
+            db.exec(`CREATE TABLE suppliers (id TEXT PRIMARY KEY, name TEXT, alias TEXT, email TEXT, phone TEXT);`);
+        }
 
     } catch (error) {
         console.error("Failed to apply migrations:", error);
@@ -164,13 +171,14 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             logoUrl TEXT, systemName TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER,
             searchDebounceTime INTEGER, importMode TEXT, lastSyncTimestamp TEXT, customerFilePath TEXT,
             productFilePath TEXT, exemptionFilePath TEXT, stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT,
-            quoterShowTaxId BOOLEAN, syncWarningHours REAL
+            supplierFilePath TEXT, quoterShowTaxId BOOLEAN, syncWarningHours REAL
         );
         CREATE TABLE api_settings (id INTEGER PRIMARY KEY DEFAULT 1, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
         CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT NOT NULL, authNumber TEXT);
         CREATE TABLE logs (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL, type TEXT NOT NULL, message TEXT NOT NULL, details TEXT);
         CREATE TABLE customers (id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT, creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT);
         CREATE TABLE products (id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT, notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT);
+        CREATE TABLE suppliers (id TEXT PRIMARY KEY, name TEXT, alias TEXT, email TEXT, phone TEXT);
         CREATE TABLE exemptions (code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT, endDate TEXT, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT);
         CREATE TABLE stock (itemId TEXT PRIMARY KEY, stockByWarehouse TEXT NOT NULL, totalStock REAL NOT NULL);
         CREATE TABLE stock_settings (key TEXT PRIMARY KEY, value TEXT);
@@ -212,8 +220,9 @@ export async function getCompanySettings(): Promise<Company | null> {
     const db = await connectDb();
     try {
         const settings = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as any;
-        if (settings) {
-            settings.quoterShowTaxId = settings.quoterShowTaxId === 1;
+        if (settings && 'quoterShowTaxId' in settings) {
+            const quoterShowTaxIdValue = settings.quoterShowTaxId;
+            settings.quoterShowTaxId = quoterShowTaxIdValue === 1;
         }
         return settings as Company | null;
     } catch (error) {
@@ -233,6 +242,7 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
                 decimalPlaces = @decimalPlaces, searchDebounceTime = @searchDebounceTime,
                 customerFilePath = @customerFilePath, productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath,
                 stockFilePath = @stockFilePath, locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath,
+                supplierFilePath = @supplierFilePath,
                 importMode = @importMode, lastSyncTimestamp = @lastSyncTimestamp, quoterShowTaxId = @quoterShowTaxId, syncWarningHours = @syncWarningHours
             WHERE id = 1
         `).run(settingsToSave);
@@ -428,6 +438,32 @@ export async function saveAllProducts(products: Product[]): Promise<void> {
     }
 }
 
+export async function getAllSuppliers(): Promise<Supplier[]> {
+    const db = await connectDb();
+    try {
+        return db.prepare('SELECT * FROM suppliers').all() as Supplier[];
+    } catch (error) {
+        console.error("Failed to get all suppliers:", error);
+        return [];
+    }
+}
+
+export async function saveAllSuppliers(suppliers: Supplier[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT INTO suppliers (id, name, alias, email, phone) VALUES (@id, @name, @alias, @email, @phone)');
+    const transaction = db.transaction((suppliersToSave) => {
+        db.prepare('DELETE FROM suppliers').run();
+        for(const supplier of suppliersToSave) insert.run(supplier);
+    });
+    try {
+        transaction(suppliers);
+    } catch (error) {
+        console.error("Failed to save all suppliers:", error);
+        throw error;
+    }
+}
+
+
 export async function getAllExemptions(): Promise<Exemption[]> {
     const db = await connectDb();
     try {
@@ -539,7 +575,7 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'm
     return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
 }
 
-const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'erp_order_headers' | 'erp_order_lines' | 'suppliers') => {
+const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers') => {
     switch (type) {
         case 'customers': return {'CLIENTE': 'id', 'NOMBRE': 'name', 'DIRECCION': 'address', 'TELEFONO1': 'phone', 'CONTRIBUYENTE': 'taxId', 'MONEDA': 'currency', 'LIMITE_CREDITO': 'creditLimit', 'CONDICION_PAGO': 'paymentCondition', 'VENDEDOR': 'salesperson', 'ACTIVO': 'active', 'E_MAIL': 'email', 'EMAIL_DOC_ELECTRONICO': 'electronicDocEmail'};
         case 'products': return {'ARTICULO': 'id', 'DESCRIPCION': 'description', 'CLASIFICACION_2': 'classification', 'ULTIMO_INGRESO': 'lastEntry', 'ACTIVO': 'active', 'NOTAS': 'notes', 'UNIDAD_VENTA': 'unit', 'CANASTA_BASICA': 'isBasicGood', 'CODIGO_HACIENDA': 'cabys'};
@@ -547,14 +583,12 @@ const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'st
         case 'stock': return {'ARTICULO': 'itemId', 'BODEGA': 'warehouseId', 'CANT_DISPONIBLE': 'stock'};
         case 'locations': return {'CODIGO': 'itemId', 'P. HORIZONTAL': 'hPos', 'P. VERTICAL': 'vPos', 'RACK': 'rack', 'CLIENTE': 'client', 'DESCRIPCION': 'description'};
         case 'cabys': return {'Codigo': 'code', 'Descripcion': 'description', 'Impuesto': 'taxRate'};
-        case 'erp_order_headers': return {}; // Direct mapping is fine
-        case 'erp_order_lines': return {}; // Direct mapping is fine
-        case 'suppliers': return {}; // Direct mapping is fine
+        case 'suppliers': return {'PROVEEDOR': 'id', 'NOMBRE': 'name', 'ALIAS': 'alias', 'E_MAIL': 'email', 'TELEFONO1': 'phone'};
         default: return {};
     }
 }
 
-const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys') => {
+const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers') => {
     if (lines.length < 2) throw new Error("El archivo está vacío o no contiene datos.");
     const headerMapping = createHeaderMapping(type);
     const header = lines[0].split('\t').map(h => h.trim().toUpperCase());
@@ -577,7 +611,7 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
     return dataArray;
 };
 
-export async function importDataFromFile(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'): Promise<{ count: number, source: string }> {
+export async function importDataFromFile(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers'): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
     let filePath = '';
@@ -588,6 +622,7 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
         case 'stock': filePath = companySettings.stockFilePath || ''; break;
         case 'locations': filePath = companySettings.locationFilePath || ''; break;
         case 'cabys': filePath = companySettings.cabysFilePath || ''; break;
+        case 'suppliers': filePath = companySettings.supplierFilePath || ''; break;
     }
     if (!filePath) throw new Error(`La ruta de importación para ${type} no está configurada.`);
     if (!fs.existsSync(filePath)) throw new Error(`El archivo no fue encontrado: ${filePath}`);
@@ -606,10 +641,11 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
         await saveAllStock(dataArray as { itemId: string, warehouseId: string, stock: number }[]);
         return { count: new Set(dataArray.map(item => item.itemId)).size, source: filePath };
     } else if (type === 'locations') await saveAllLocations(dataArray as ItemLocation[]);
+    else if (type === 'suppliers') await saveAllSuppliers(dataArray as Supplier[]);
     return { count: dataArray.length, source: filePath };
 }
 
-async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'): Promise<{ count: number, source: string }> {
+async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers'): Promise<{ count: number, source: string }> {
     const db = await connectDb();
     const queryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get(type) as { query: string } | undefined;
     if (!queryRow || !queryRow.query) throw new Error(`No hay una consulta SQL configurada para ${type}.`);
@@ -633,6 +669,8 @@ async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' |
     else if (type === 'cabys') {
         const { count } = await updateCabysCatalog(mappedData);
         return { count, source: 'SQL Server' };
+    } else if (type === 'suppliers') {
+        await saveAllSuppliers(mappedData as Supplier[]);
     }
     return { count: mappedData.length, source: 'SQL Server' };
 }
@@ -766,9 +804,9 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
 export async function importAllDataFromFiles(): Promise<{ type: string; count: number; }[]> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
-    const importTasks: { type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'; }[] = [
+    const importTasks: { type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers'; }[] = [
         { type: 'customers' }, { type: 'products' }, { type: 'exemptions' },
-        { type: 'stock' }, { type: 'locations' }, { type: 'cabys' }
+        { type: 'stock' }, { type: 'locations' }, { type: 'cabys' }, { type: 'suppliers' }
     ];
     const results: { type: string; count: number; }[] = [];
     for (const task of importTasks) {

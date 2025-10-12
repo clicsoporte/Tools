@@ -50,6 +50,7 @@ export type Company = {
     stockFilePath?: string;
     locationFilePath?: string;
     cabysFilePath?: string;
+    supplierFilePath?: string;
 };
 
 /**
@@ -597,4 +598,13 @@ export type Suggestion = {
   userName: string;
   isRead: 0 | 1;
   timestamp: string;
+};
+
+// --- Supplier Type ---
+export type Supplier = {
+    id: string;      // PROVEEDOR
+    name: string;    // NOMBRE
+    alias: string;   // ALIAS
+    email: string;   // E_MAIL
+    phone: string;   // TELEFONO1
 };
