@@ -22,7 +22,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
-import { getExemptionStatus, isErrorResponse as isHaciendaErrorResponse } from "@/modules/hacienda/lib/actions";
+import { getExemptionStatus } from "@/modules/hacienda/lib/actions";
 import type { RowInput } from "jspdf-autotable";
 
 /**
@@ -59,9 +59,9 @@ interface LineInputRefs {
   price: HTMLInputElement | null;
 }
 
-type ErrorResponse = { error: boolean; message: string };
+type ErrorResponse = { error: boolean; message: string; status?: number };
 
-function isErrorResponse(data: any): data is ErrorResponse {
+function isHaciendaErrorResponse(data: any): data is ErrorResponse {
   return (data as ErrorResponse).error !== undefined;
 }
 

@@ -92,7 +92,7 @@ export async function getContributorInfo(taxpayerId: string): Promise<HaciendaCo
 }
 
 type ErrorResponse = { error: boolean; message: string; status?: number };
-export function isErrorResponse(data: any): data is ErrorResponse {
+function isErrorResponse(data: any): data is ErrorResponse {
   return (data as ErrorResponse).error !== undefined;
 }
 
