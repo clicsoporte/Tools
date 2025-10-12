@@ -123,7 +123,25 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const refreshAuthAndRedirect = async (path: string) => {
-    await loadAuthData();
+    // Calling loadAuthData() here would set isLoading=true, causing a flicker.
+    // Instead, we just re-fetch and set the data, then redirect.
+    // The main loading logic is for the initial app load.
+    const data = await getInitialAuthData();
+    const currentUser = await getCurrentUserClient();
+
+    if (currentUser) {
+        setUser(currentUser);
+        setCompanyData(data.companySettings);
+        setCustomers(data.customers);
+        setProducts(data.products);
+        setStockLevels(data.stock);
+        setAllExemptions(data.exemptions);
+        setExemptionLaws(data.exemptionLaws);
+        setExchangeRateData(data.exchangeRate);
+        setUnreadSuggestionsCount(data.unreadSuggestions);
+        const role = data.roles.find(r => r.id === currentUser.role);
+        setUserRole(role || null);
+    }
     router.push(path);
   };
   

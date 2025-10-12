@@ -935,25 +935,26 @@ export async function uploadBackupFile(formData: FormData): Promise<number> {
     return files.length;
 }
 
-export async function restoreAllFromUpdateBackup(timestamp: string): Promise<void> {
-    const backups = await listAllUpdateBackups();
-    const backupsToRestore = backups.filter(b => b.date === timestamp);
+export async function restoreDatabase(formData: FormData): Promise<void> {
+    const moduleId = formData.get('moduleId') as string;
+    const backupFile = formData.get('backupFile') as File | null;
 
-    if (backupsToRestore.length === 0) throw new Error("No se encontraron backups para la fecha seleccionada.");
-
-    for (const [key, connection] of dbConnections.entries()) {
-        if (connection.open) connection.close();
-        dbConnections.delete(key);
+    if (!moduleId || !backupFile) {
+        throw new Error("Module ID and backup file are required.");
     }
     
-    for (const backup of backupsToRestore) {
-        const module = DB_MODULES.find(m => m.id === backup.moduleId);
-        if (module) {
-            const backupPath = path.join(backupDir, backup.fileName);
-            const dbPath = path.join(dbDirectory, module.dbFile);
-            fs.copyFileSync(backupPath, dbPath);
-        }
+    const module = DB_MODULES.find(m => m.id === moduleId);
+    if (!module) throw new Error("Module not found");
+
+    if (dbConnections.has(module.dbFile)) {
+        dbConnections.get(module.dbFile)!.close();
+        dbConnections.delete(module.dbFile);
     }
+
+    const dbPath = path.join(dbDirectory, module.dbFile);
+    const buffer = Buffer.from(await backupFile.arrayBuffer());
+    fs.writeFileSync(dbPath, buffer);
+    await connectDb(module.dbFile); // Reconnect to validate
 }
 
 export async function deleteOldUpdateBackups(): Promise<number> {
