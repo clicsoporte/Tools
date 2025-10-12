@@ -539,7 +539,7 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'm
     return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
 }
 
-const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys') => {
+const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'erp_order_headers' | 'erp_order_lines' | 'suppliers') => {
     switch (type) {
         case 'customers': return {'CLIENTE': 'id', 'NOMBRE': 'name', 'DIRECCION': 'address', 'TELEFONO1': 'phone', 'CONTRIBUYENTE': 'taxId', 'MONEDA': 'currency', 'LIMITE_CREDITO': 'creditLimit', 'CONDICION_PAGO': 'paymentCondition', 'VENDEDOR': 'salesperson', 'ACTIVO': 'active', 'E_MAIL': 'email', 'EMAIL_DOC_ELECTRONICO': 'electronicDocEmail'};
         case 'products': return {'ARTICULO': 'id', 'DESCRIPCION': 'description', 'CLASIFICACION_2': 'classification', 'ULTIMO_INGRESO': 'lastEntry', 'ACTIVO': 'active', 'NOTAS': 'notes', 'UNIDAD_VENTA': 'unit', 'CANASTA_BASICA': 'isBasicGood', 'CODIGO_HACIENDA': 'cabys'};
@@ -547,6 +547,9 @@ const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'st
         case 'stock': return {'ARTICULO': 'itemId', 'BODEGA': 'warehouseId', 'CANT_DISPONIBLE': 'stock'};
         case 'locations': return {'CODIGO': 'itemId', 'P. HORIZONTAL': 'hPos', 'P. VERTICAL': 'vPos', 'RACK': 'rack', 'CLIENTE': 'client', 'DESCRIPCION': 'description'};
         case 'cabys': return {'Codigo': 'code', 'Descripcion': 'description', 'Impuesto': 'taxRate'};
+        case 'erp_order_headers': return {}; // Direct mapping is fine
+        case 'erp_order_lines': return {}; // Direct mapping is fine
+        case 'suppliers': return {}; // Direct mapping is fine
         default: return {};
     }
 }
@@ -651,11 +654,11 @@ async function updateCabysCatalog(data: any[]): Promise<{ count: number }> {
 }
 
 
-export async function importData(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys'): Promise<{ count: number, source: string }> {
+export async function importData(type: ImportQuery['type']): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
-    if (companySettings.importMode === 'sql') return importDataFromSql(type);
-    else return importDataFromFile(type);
+    if (companySettings.importMode === 'sql') return importDataFromSql(type as any); // Cast to avoid type error with new types
+    else return importDataFromFile(type as any);
 }
 
 export async function getAllStock(): Promise<StockInfo[]> {

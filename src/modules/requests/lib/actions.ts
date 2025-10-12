@@ -14,7 +14,8 @@ import {
     getRequestHistory as getRequestHistoryServer,
     getSettings,
     saveSettings,
-    updatePendingAction as updatePendingActionServer
+    updatePendingAction as updatePendingActionServer,
+    getErpOrderData as getErpOrderDataServer,
 } from './db';
 
 /**
@@ -119,4 +120,13 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     const updatedRequest = await updatePendingActionServer(payload);
     await logInfo(`Administrative action '${payload.action}' initiated for request ${updatedRequest.consecutive} by ${payload.updatedBy}.`);
     return updatedRequest;
+}
+
+/**
+ * Fetches the header and line items for a given ERP order number.
+ * @param orderNumber The ERP order number to fetch.
+ * @returns An object containing the order header and an array of lines.
+ */
+export async function getErpOrderData(orderNumber: string): Promise<{header: any, lines: any[]}> {
+    return getErpOrderDataServer(orderNumber);
 }

@@ -22,8 +22,8 @@ import { Switch } from '../../../../components/ui/switch';
 import { Textarea } from '../../../../components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys';
-const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys'];
+type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'erp_order_headers' | 'erp_order_lines' | 'suppliers';
+const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys', 'erp_order_headers', 'erp_order_lines', 'suppliers'];
 
 const importTypeTranslations: { [key in ImportType]: string } = {
     customers: 'Clientes',
@@ -31,10 +31,13 @@ const importTypeTranslations: { [key in ImportType]: string } = {
     exemptions: 'Exoneraciones',
     stock: 'Existencias',
     locations: 'Ubicaciones',
-    cabys: 'Catálogo CABYS'
+    cabys: 'Catálogo CABYS',
+    erp_order_headers: 'Pedidos ERP (Cabeceras)',
+    erp_order_lines: 'Pedidos ERP (Líneas)',
+    suppliers: 'Proveedores',
 };
 
-const importTypeFieldMapping: { [key in ImportType]: keyof Company } = {
+const importTypeFieldMapping: { [key in ImportType]?: keyof Company } = {
     customers: 'customerFilePath',
     products: 'productFilePath',
     exemptions: 'exemptionFilePath',
@@ -69,7 +72,16 @@ export default function ImportDataPage() {
             ]);
             setCompanyData(company);
             setSqlConfig(sql || {});
-            setImportQueries(queries || []);
+            
+            // Pre-fill with new ERP order queries if they don't exist
+            const updatedQueries = [...queries];
+            if (!queries.some(q => q.type === 'erp_order_headers')) {
+                updatedQueries.push({ type: 'erp_order_headers', query: "SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA], [TOTAL_UNIDADES], [MONEDA_PEDIDO], [USUARIO] FROM [SOFTLAND].[GAREND].[PEDIDO] WHERE [PEDIDO] = ?" });
+            }
+            if (!queries.some(q => q.type === 'erp_order_lines')) {
+                updatedQueries.push({ type: 'erp_order_lines', query: "SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [PRECIO_UNITARIO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA] WHERE [PEDIDO] = ?" });
+            }
+            setImportQueries(updatedQueries);
         };
         loadConfig();
     }, [setTitle]);
@@ -83,17 +95,9 @@ export default function ImportDataPage() {
         setIsProcessing(true);
         try {
             const result = await importData(type);
-            let itemType = 'registros';
-            if (type === 'customers') itemType = 'clientes';
-            if (type === 'products') itemType = 'artículos';
-            if (type === 'exemptions') itemType = 'exoneraciones';
-            if (type === 'stock') itemType = 'existencias';
-            if (type === 'locations') itemType = 'ubicaciones de almacén';
-            if (type === 'cabys') itemType = 'códigos CABYS';
-
             toast({
                 title: `Importación de ${importTypeTranslations[type]} Exitosa`,
-                description: `Se han cargado ${result.count} ${itemType} desde ${result.source}.`,
+                description: `Se han cargado ${result.count} registros desde ${result.source}.`,
             });
             await logInfo(`Importación de datos: ${result.count} ${type} cargados desde ${result.source}.`);
         } catch (error: any) {
@@ -197,6 +201,8 @@ export default function ImportDataPage() {
      */
     const renderFileImportCard = (type: ImportType) => {
         const fieldName = importTypeFieldMapping[type];
+        if (!fieldName) return null;
+
         return (
             <Card key={type} className="flex flex-col">
                 <CardHeader>
@@ -249,7 +255,7 @@ export default function ImportDataPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {companyData?.importMode === 'file' && importTypes.filter(t => t !== 'cabys').map(type => renderFileImportCard(type))}
+                        {companyData?.importMode === 'file' && Object.keys(importTypeFieldMapping).map(type => renderFileImportCard(type as ImportType))}
                         {renderFileImportCard('cabys')}
                     </CardContent>
                 </Card>

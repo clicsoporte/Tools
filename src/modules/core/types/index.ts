@@ -349,7 +349,8 @@ export type PurchaseRequest = {
   priority: PurchaseRequestPriority;
   purchaseType: PurchaseType;
   unitSalePrice?: number; // Precio de venta unitario sin IVA
-  erpOrderNumber?: string; // Número de pedido ERP
+  erpOrderNumber?: string; // Número de pedido ERP de origen
+  erpOrderLine?: number; // Número de línea del pedido ERP
   manualSupplier?: string; // Proveedor (manual)
   route?: string; // Ruta
   shippingMethod?: string; // Método de Envío
@@ -568,7 +569,7 @@ export type SqlConfig = {
 }
 
 export type ImportQuery = {
-    type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys';
+    type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'erp_order_headers' | 'erp_order_lines' | 'suppliers';
     query: string;
 }
 
