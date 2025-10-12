@@ -213,8 +213,7 @@ export async function getCompanySettings(): Promise<Company | null> {
     try {
         const settings = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as Company | null;
         if (settings) {
-            // Convert DB value (1/0) to boolean
-            settings.quoterShowTaxId = Boolean(settings.quoterShowTaxId);
+            settings.quoterShowTaxId = settings.quoterShowTaxId === 1;
         }
         return settings;
     } catch (error) {
