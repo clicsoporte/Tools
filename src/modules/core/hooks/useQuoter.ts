@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -22,7 +21,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
-import { getExemptionStatus, isErrorResponse as isHaciendaErrorResponse } from "@/modules/hacienda/lib/actions";
+import { getExemptionStatus } from "@/modules/hacienda/lib/actions";
 import type { RowInput } from "jspdf-autotable";
 
 /**
@@ -59,6 +58,13 @@ interface LineInputRefs {
   price: HTMLInputElement | null;
 }
 
+type ErrorResponse = { error: boolean; message: string; status?: number };
+
+function isHaciendaErrorResponse(data: any): data is ErrorResponse {
+  return data && (data as ErrorResponse).error !== undefined;
+}
+
+
 /**
  * Normalizes a string value into a number.
  * It handles both commas and dots as decimal separators and strips invalid characters.
@@ -72,6 +78,7 @@ const normalizeNumber = (value: string): number => {
     const parsed = parseFloat(validNumberString);
     return isNaN(parsed) ? 0 : parsed;
 };
+
 
 /**
  * Main hook for the Quoter component.
@@ -358,11 +365,11 @@ export const useQuoter = () => {
 
   const handleSelectCustomer = (customerId: string) => {
     setCustomerSearchOpen(false);
+    setExemptionInfo(null); // CRITICAL FIX: Reset exemption info when changing customer
     if (!customerId) {
         setSelectedCustomer(null);
         setCustomerDetails("");
         setCustomerSearchTerm("");
-        setExemptionInfo(null);
         return;
     }
     const customer = customers.find((c) => c.id === customerId);
@@ -404,8 +411,6 @@ export const useQuoter = () => {
           if (!isSpecial) {
               checkExemptionStatus(customerExemption.authNumber);
           }
-      } else {
-          setExemptionInfo(null);
       }
     }
   };
