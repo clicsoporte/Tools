@@ -13,12 +13,12 @@ import { logError } from '@/modules/core/lib/logger';
 import { 
     getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, 
     updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, 
-    updatePendingAction 
+    updatePendingAction, getErpOrderData
 } from '@/modules/requests/lib/actions';
 import type { 
     PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
     PurchaseRequestHistoryEntry, RequestSettings, Company, DateRange, 
-    AdministrativeActionPayload 
+    AdministrativeActionPayload, Product, StockInfo
 } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -38,6 +38,7 @@ const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' |
     unitSalePrice: 0,
     manualSupplier: '',
     erpOrderNumber: '',
+    erpOrderLine: 0,
     purchaseOrder: '',
     route: '',
     shippingMethod: '',
@@ -47,6 +48,21 @@ const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' |
     arrivalDate: '',
     pendingAction: 'none',
 };
+
+type ErpOrderLine = {
+    PEDIDO: string;
+    PEDIDO_LINEA: number;
+    ARTICULO: string;
+    PRECIO_UNITARIO: number;
+    CANTIDAD_PEDIDA: number;
+    // UI state
+    product: Product;
+    stock: StockInfo | null;
+    selected: boolean;
+    displayQuantity: string;
+    displayPrice: string;
+};
+
 
 const statusConfig: { [key: string]: { label: string, color: string } } = {
     pending: { label: "Pendiente", color: "bg-yellow-500" },
@@ -92,6 +108,7 @@ export const useRequests = () => {
     const [statusFilter, setStatusFilter] = useState("all");
     const [classificationFilter, setClassificationFilter] = useState("all");
     const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
+    const [showOnlyMyRequests, setShowOnlyMyRequests] = useState(false);
     const [debouncedSearchTerm] = useDebounce(searchTerm, companyData?.searchDebounceTime ?? 500);
 
     const [clientSearchTerm, setClientSearchTerm] = useState("");
@@ -118,6 +135,14 @@ export const useRequests = () => {
     const [arrivalDate, setArrivalDate] = useState('');
     
     const [isActionDialogOpen, setActionDialogOpen] = useState(false);
+
+    // State for "Pedir desde ERP" flow
+    const [isErpOrderModalOpen, setErpOrderModalOpen] = useState(false);
+    const [isErpItemsModalOpen, setErpItemsModalOpen] = useState(false);
+    const [erpOrderNumber, setErpOrderNumber] = useState('');
+    const [erpOrderHeader, setErpOrderHeader] = useState<any>(null);
+    const [erpOrderLines, setErpOrderLines] = useState<ErpOrderLine[]>([]);
+    const [isErpLoading, setIsErpLoading] = useState(false);
 
     useEffect(() => {
         const today = new Date().toISOString().split('T')[0];
@@ -368,6 +393,88 @@ export const useRequests = () => {
         }
     };
 
+    const handleFetchErpOrder = async () => {
+        if (!erpOrderNumber) return;
+        setIsErpLoading(true);
+        try {
+            const { header, lines } = await getErpOrderData(erpOrderNumber);
+            
+            const client = authCustomers.find(c => c.id === header.CLIENTE);
+            setErpOrderHeader({ ...header, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' });
+
+            const enrichedLines = lines.map(line => {
+                const product = authProducts.find(p => p.id === line.ARTICULO) || {id: line.ARTICULO, description: `Artículo ${line.ARTICULO} no encontrado`, active: 'N', cabys: '', classification: '', isBasicGood: 'N', lastEntry: '', notes: '', unit: ''};
+                const stock = authStockLevels.find(s => s.itemId === line.ARTICULO) || null;
+                const needsBuying = stock ? line.CANTIDAD_PEDIDA > stock.totalStock : true;
+                return {
+                    ...line,
+                    product,
+                    stock,
+                    selected: needsBuying,
+                    displayQuantity: String(line.CANTIDAD_PEDIDA),
+                    displayPrice: String(line.PRECIO_UNITARIO),
+                };
+            });
+            setErpOrderLines(enrichedLines);
+            setErpOrderModalOpen(false);
+            setErpItemsModalOpen(true);
+        } catch (error: any) {
+            logError('Failed to fetch ERP order data', { error: error.message, orderNumber: erpOrderNumber });
+            toast({ title: "Error al Cargar Pedido", description: error.message, variant: "destructive" });
+        } finally {
+            setIsErpLoading(false);
+        }
+    };
+
+    const handleErpLineChange = (lineIndex: number, field: 'displayQuantity' | 'displayPrice' | 'selected', value: string | boolean) => {
+        setErpOrderLines(prevLines => {
+            const newLines = [...prevLines];
+            (newLines[lineIndex] as any)[field] = value;
+            return newLines;
+        });
+    };
+
+    const handleCreateRequestsFromErp = async () => {
+        if (!erpOrderHeader || !currentUser) return;
+        const selectedLines = erpOrderLines.filter(line => line.selected);
+        if (selectedLines.length === 0) {
+            toast({ title: "No hay artículos seleccionados", description: "Marque al menos un artículo para crear solicitudes.", variant: "destructive" });
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            for (const line of selectedLines) {
+                const requestPayload = {
+                    requiredDate: new Date(erpOrderHeader.FECHA_PROMETIDA).toISOString().split('T')[0],
+                    clientId: erpOrderHeader.CLIENTE,
+                    clientName: erpOrderHeader.CLIENTE_NOMBRE,
+                    clientTaxId: authCustomers.find(c => c.id === erpOrderHeader.CLIENTE)?.taxId || '',
+                    itemId: line.ARTICULO,
+                    itemDescription: line.product.description,
+                    quantity: parseFloat(line.displayQuantity) || 0,
+                    notes: `Generado desde Pedido ERP: ${erpOrderNumber}`,
+                    unitSalePrice: parseFloat(line.displayPrice) || 0,
+                    purchaseOrder: erpOrderHeader.ORDEN_COMPRA || '',
+                    erpOrderNumber: erpOrderNumber,
+                    erpOrderLine: line.PEDIDO_LINEA,
+                    priority: 'medium' as PurchaseRequestPriority,
+                    purchaseType: 'single' as const,
+                };
+                await savePurchaseRequest(requestPayload, currentUser.name);
+            }
+            toast({ title: "Solicitudes Creadas", description: `Se crearon ${selectedLines.length} solicitudes de compra.` });
+            setErpItemsModalOpen(false);
+            setErpOrderNumber('');
+            await loadInitialData();
+        } catch (error: any) {
+            logError("Failed to create requests from ERP order", { error: error.message });
+            toast({ title: "Error al Crear Solicitudes", description: error.message, variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleExportPDF = async (orientation: 'portrait' | 'landscape' = 'portrait') => {
         if (!companyData || !requestSettings) return;
         
@@ -531,16 +638,17 @@ export const useRequests = () => {
             const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
             return requestsToFilter.filter(request => {
                 const product = authProducts.find(p => p.id === request.itemId);
-                const targetText = `${request.consecutive} ${request.clientName} ${request.itemDescription} ${request.purchaseOrder || ''}`.toLowerCase();
-                const searchMatch = debouncedSearchTerm ? searchTerms.every(term => targetText.includes(term)) : true;
+                const targetText = `${request.consecutive} ${request.clientName} ${request.itemDescription} ${request.purchaseOrder || ''} ${request.erpOrderNumber || ''}`.toLowerCase();
                 
+                const searchMatch = debouncedSearchTerm ? searchTerms.every(term => targetText.includes(term)) : true;
                 const statusMatch = statusFilter === 'all' || request.status === statusFilter;
                 const classificationMatch = classificationFilter === 'all' || (product && product.classification === classificationFilter);
                 const dateMatch = !dateFilter || !dateFilter.from || (new Date(request.requiredDate) >= dateFilter.from && new Date(request.requiredDate) <= (dateFilter.to || dateFilter.from));
+                const myRequestsMatch = !showOnlyMyRequests || request.requestedBy === currentUser?.name;
                 
-                return searchMatch && statusMatch && classificationMatch && dateMatch;
+                return searchMatch && statusMatch && classificationMatch && dateMatch && myRequestsMatch;
             });
-        }, [viewingArchived, activeRequests, archivedRequests, debouncedSearchTerm, statusFilter, classificationFilter, authProducts, dateFilter]),
+        }, [viewingArchived, activeRequests, archivedRequests, debouncedSearchTerm, statusFilter, classificationFilter, authProducts, dateFilter, showOnlyMyRequests, currentUser?.name]),
         stockLevels: authStockLevels
     };
 
@@ -554,7 +662,9 @@ export const useRequests = () => {
         handleCreateRequest, handleEditRequest, openStatusDialog, handleStatusUpdate,
         handleOpenHistory, handleReopenRequest, handleSelectClient, handleSelectItem,
         setRequestToUpdate, handleExportPDF, handleExportSingleRequestPDF,
-        setArrivalDate, openAdminActionDialog, handleAdminAction, setActionDialogOpen
+        setArrivalDate, openAdminActionDialog, handleAdminAction, setActionDialogOpen,
+        setErpOrderModalOpen, setErpItemsModalOpen, setErpOrderNumber,
+        handleFetchErpOrder, handleErpLineChange, handleCreateRequestsFromErp, setShowOnlyMyRequests
     };
 
     return {
@@ -566,7 +676,8 @@ export const useRequests = () => {
             itemSearchTerm, isItemSearchOpen, isStatusDialogOpen, requestToUpdate, newStatus,
             statusUpdateNotes, deliveredQuantity, isHistoryDialogOpen, historyRequest,
             history, isHistoryLoading, isReopenDialogOpen, reopenStep, reopenConfirmationText,
-            companyData, arrivalDate, isActionDialogOpen,
+            companyData, arrivalDate, isActionDialogOpen, isErpOrderModalOpen, isErpItemsModalOpen,
+            erpOrderNumber, erpOrderHeader, erpOrderLines, isErpLoading, showOnlyMyRequests
         },
         actions,
         selectors,

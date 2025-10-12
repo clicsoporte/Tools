@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User as UserIcon, ChevronLeft, ChevronRight, Clock, FileDown } from 'lucide-react';
+import { PlusCircle, FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User as UserIcon, ChevronLeft, ChevronRight, Clock, FileDown, Layers } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -36,12 +36,12 @@ export default function PurchaseRequestPage() {
     const {
         isSubmitting, isNewRequestDialogOpen, isEditRequestDialogOpen, viewingArchived,
         archivedPage, pageSize, totalArchived, requestSettings, newRequest, requestToEdit,
-        searchTerm, statusFilter, classificationFilter, dateFilter,
+        searchTerm, statusFilter, classificationFilter, dateFilter, showOnlyMyRequests,
         clientSearchTerm, isClientSearchOpen, itemSearchTerm, isItemSearchOpen,
         isStatusDialogOpen, requestToUpdate, newStatus, statusUpdateNotes, deliveredQuantity,
         isHistoryDialogOpen, historyRequest, history, isHistoryLoading,
         isReopenDialogOpen, reopenStep, reopenConfirmationText, arrivalDate,
-        isActionDialogOpen,
+        isActionDialogOpen, isErpOrderModalOpen, isErpItemsModalOpen, erpOrderNumber, erpOrderHeader, erpOrderLines, isErpLoading,
     } = state;
 
 
@@ -144,7 +144,7 @@ export default function PurchaseRequestPage() {
                          <div className="space-y-1"><p className="font-semibold text-muted-foreground">Precio Venta (s/IVA)</p><p>{request.unitSalePrice ? `₡${request.unitSalePrice.toLocaleString()}` : 'N/A'}</p></div>
                         {request.purchaseOrder && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº OC Cliente</p><p>{request.purchaseOrder}</p></div>}
                         {request.manualSupplier && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Proveedor</p><p>{request.manualSupplier}</p></div>}
-                        {request.erpOrderNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Pedido ERP</p><p>{request.erpOrderNumber}</p></div>}
+                        {request.erpOrderNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Pedido ERP</p><p>{request.erpOrderNumber} (L{request.erpOrderLine})</p></div>}
                         {request.route && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Ruta de Entrega</p><p>{request.route}</p></div>}
                          {request.shippingMethod && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Método de Envío</p><p>{request.shippingMethod}</p></div>}
                         <div className="space-y-1"><p className="font-semibold text-muted-foreground">Tipo de Compra</p><div className="flex items-center gap-2">{request.purchaseType === 'multiple' ? <Users className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}<span>{request.purchaseType === 'multiple' ? 'Múltiples Proveedores' : 'Proveedor Único'}</span></div></div>
@@ -200,6 +200,22 @@ export default function PurchaseRequestPage() {
                         <Button variant={viewingArchived ? "outline" : "secondary"} onClick={() => actions.setViewingArchived(false)}>Activas</Button>
                         <Button variant={viewingArchived ? "secondary" : "outline"} onClick={() => actions.setViewingArchived(true)}>Archivadas</Button>
                      </div>
+                      <Dialog open={isErpOrderModalOpen} onOpenChange={actions.setErpOrderModalOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="secondary"><Layers className="mr-2"/>Crear desde Pedido ERP</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader><DialogTitle>Buscar Pedido en ERP</DialogTitle><DialogDescription>Ingresa el número de pedido del ERP para cargar sus artículos.</DialogDescription></DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <Label htmlFor="erp-order-number">Nº de Pedido ERP</Label>
+                                <Input id="erp-order-number" value={erpOrderNumber} onChange={e => actions.setErpOrderNumber(e.target.value)} onKeyDown={e => e.key === 'Enter' && actions.handleFetchErpOrder()} placeholder="Ej: PE0000123456" />
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                                <Button onClick={actions.handleFetchErpOrder} disabled={isErpLoading}>{isErpLoading && <Loader2 className="mr-2 animate-spin"/>}Cargar Pedido</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                      {selectors.hasPermission('requests:create') && (
                         <Dialog open={isNewRequestDialogOpen} onOpenChange={actions.setNewRequestDialogOpen}>
                             <DialogTrigger asChild><Button><FilePlus className="mr-2"/> Nueva Solicitud</Button></DialogTrigger>
@@ -231,7 +247,7 @@ export default function PurchaseRequestPage() {
             <Card>
                  <CardContent className="p-4 space-y-4">
                     <div className="flex flex-col md:flex-row gap-4">
-                        <Input placeholder="Buscar por Nº solicitud, cliente o producto..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm" />
+                        <Input placeholder="Buscar por Nº solicitud, cliente, producto o pedido ERP..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm" />
                         <Select value={statusFilter} onValueChange={actions.setStatusFilter}><SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por estado..." /></SelectTrigger><SelectContent><SelectItem value="all">Todos los Estados</SelectItem>{Object.entries(selectors.statusConfig).map(([key, { label }]) => (<SelectItem key={key} value={key}>{label}</SelectItem>))}</SelectContent></Select>
                          <Select value={classificationFilter} onValueChange={actions.setClassificationFilter}><SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Filtrar por clasificación..." /></SelectTrigger><SelectContent><SelectItem value="all">Todas las Clasificaciones</SelectItem>{selectors.classifications.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
                          <Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full md:w-[240px] justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateFilter?.from ? (dateFilter.to ? (`${format(dateFilter.from, "LLL dd, y")} - ${format(dateFilter.to, "LLL dd, y")}`) : (format(dateFilter.from, "LLL dd, y"))) : (<span>Filtrar por fecha</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={dateFilter} onSelect={actions.setDateFilter} /></PopoverContent></Popover>
@@ -242,9 +258,15 @@ export default function PurchaseRequestPage() {
                                 <DropdownMenuItem onSelect={() => actions.handleExportPDF('landscape')}>Exportar Horizontal</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
+                        <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); actions.setShowOnlyMyRequests(false); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                     </div>
-                     {viewingArchived && (<div className="flex items-center gap-2"><Label htmlFor="page-size">Registros por página:</Label><Select value={String(pageSize)} onValueChange={(value) => actions.setPageSize(Number(value))}><SelectTrigger id="page-size" className="w-[100px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem><SelectItem value="200">200</SelectItem></SelectContent></Select></div>)}
+                     <div className="flex flex-wrap items-center gap-4">
+                        {viewingArchived && (<div className="flex items-center gap-2"><Label htmlFor="page-size">Registros por página:</Label><Select value={String(pageSize)} onValueChange={(value) => actions.setPageSize(Number(value))}><SelectTrigger id="page-size" className="w-[100px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem><SelectItem value="200">200</SelectItem></SelectContent></Select></div>)}
+                         <div className="flex items-center space-x-2">
+                            <Checkbox id="show-only-my-requests" checked={showOnlyMyRequests} onCheckedChange={(checked) => actions.setShowOnlyMyRequests(checked as boolean)} />
+                            <Label htmlFor="show-only-my-requests" className="font-normal">Mostrar solo mis solicitudes</Label>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
             <div className="space-y-4">
@@ -255,7 +277,36 @@ export default function PurchaseRequestPage() {
             <Dialog open={isStatusDialogOpen} onOpenChange={actions.setStatusDialogOpen}><DialogContent><DialogHeader><DialogTitle>Actualizar Estado de la Solicitud</DialogTitle><DialogDescription>Estás a punto de cambiar el estado de la solicitud {requestToUpdate?.consecutive} a "{newStatus ? selectors.statusConfig[newStatus].label : ''}".</DialogDescription></DialogHeader><div className="space-y-4 py-4">{newStatus === 'received' && (<div className="space-y-2"><Label htmlFor="status-delivered-quantity">Cantidad Recibida</Label><Input id="status-delivered-quantity" type="number" value={deliveredQuantity} onChange={(e) => actions.setDeliveredQuantity(e.target.value)} placeholder={`Cantidad solicitada: ${requestToUpdate?.quantity.toLocaleString()}`} /> <p className="text-xs text-muted-foreground">Introduce la cantidad final que se recibió del proveedor.</p></div>)} {newStatus === 'ordered' && (<div className="space-y-2"><Label htmlFor="status-arrival-date">Fecha Estimada de Llegada</Label><Input id="status-arrival-date" type="date" value={arrivalDate} onChange={(e) => actions.setArrivalDate(e.target.value)} /><p className="text-xs text-muted-foreground">Opcional: Fecha en que se espera recibir el producto.</p></div>)}<div className="space-y-2"><Label htmlFor="status-notes">Notas (Opcional)</Label><Textarea id="status-notes" value={statusUpdateNotes} onChange={(e) => actions.setStatusUpdateNotes(e.target.value)} placeholder="Ej: Aprobado por Gerencia, Orden de compra #1234" /></div></div><DialogFooter><DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose><Button onClick={() => actions.handleStatusUpdate()} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button></DialogFooter></DialogContent></Dialog>
             <Dialog open={isReopenDialogOpen} onOpenChange={(isOpen) => { actions.setReopenDialogOpen(isOpen); if (!isOpen) { actions.setReopenStep(0); actions.setReopenConfirmationText(''); }}}><DialogContent><DialogHeader><DialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive" />Reabrir Solicitud Finalizada</DialogTitle><DialogDescription>Estás a punto de reabrir la solicitud {requestToUpdate?.consecutive}. Esta acción es irreversible y moverá la solicitud de nuevo a "Pendiente".</DialogDescription></DialogHeader><div className="py-4 space-y-4"><div className="flex items-center space-x-2"><Checkbox id="reopen-confirm-checkbox" onCheckedChange={(checked) => actions.setReopenStep(checked ? 1 : 0)} /><Label htmlFor="reopen-confirm-checkbox" className="font-medium text-destructive">Entiendo que esta acción no se puede deshacer.</Label></div>{reopenStep > 0 && (<div className="space-y-2"><Label htmlFor="reopen-confirmation-text">Para confirmar, escribe "REABRIR" en el campo de abajo:</Label><Input id="reopen-confirmation-text" value={reopenConfirmationText} onChange={(e) => { actions.setReopenConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'REABRIR') {actions.setReopenStep(2);} else {actions.setReopenStep(1);}}} className="border-destructive focus-visible:ring-destructive" /></div>)}</div><DialogFooter><DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose><Button onClick={actions.handleReopenRequest} disabled={reopenStep !== 2 || reopenConfirmationText !== 'REABRIR' || isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Reabrir Solicitud</Button></DialogFooter></DialogContent></Dialog>
             <Dialog open={isHistoryDialogOpen} onOpenChange={actions.setHistoryDialogOpen}><DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Historial de Cambios - Solicitud {historyRequest?.consecutive}</DialogTitle><DialogDescription>Registro de todos los cambios de estado para esta solicitud.</DialogDescription></DialogHeader><div className="py-4">{isHistoryLoading ? (<div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div>) : history.length > 0 ? (<div className="max-h-96 overflow-y-auto"><Table><TableHeader><TableRow><TableHead>Fecha y Hora</TableHead><TableHead>Estado</TableHead><TableHead>Usuario</TableHead><TableHead>Notas</TableHead></TableRow></TableHeader><TableBody>{history.map(entry => (<TableRow key={entry.id}><TableCell>{format(parseISO(entry.timestamp), 'dd/MM/yyyy HH:mm:ss', { locale: es })}</TableCell><TableCell><Badge style={{backgroundColor: selectors.statusConfig[entry.status]?.color}} className="text-white">{selectors.statusConfig[entry.status]?.label || entry.status}</Badge></TableCell><TableCell>{entry.updatedBy}</TableCell><TableCell>{entry.notes || '-'}</TableCell></TableRow>))}</TableBody></Table></div>) : (<p className="text-center text-muted-foreground py-8">No hay historial de cambios para esta solicitud.</p>)}</div></DialogContent></Dialog>
-            {isSubmitting && (
+            <Dialog open={isErpItemsModalOpen} onOpenChange={actions.setErpItemsModalOpen}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Artículos del Pedido ERP: {erpOrderNumber}</DialogTitle>
+                        <DialogDescription>Cliente: {erpOrderHeader?.CLIENTE_NOMBRE}</DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[60vh]">
+                        <Table>
+                            <TableHeader><TableRow><TableHead className="w-10"><Checkbox onCheckedChange={(checked) => actions.handleErpLineChange(-1, 'selected', !!checked)}/></TableHead><TableHead>Artículo</TableHead><TableHead>Cant. Pedida</TableHead><TableHead>Inv. Actual</TableHead><TableHead>Cant. a Solicitar</TableHead><TableHead>Precio Venta</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {erpOrderLines.map((line, index) => (
+                                    <TableRow key={line.PEDIDO_LINEA} className={cn(!line.selected && 'text-muted-foreground', line.CANTIDAD_PEDIDA > (line.stock?.totalStock || 0) ? 'bg-red-50 hover:bg-red-100/60 dark:bg-red-900/20' : 'bg-green-50 hover:bg-green-100/60 dark:bg-green-900/20')}>
+                                        <TableCell><Checkbox checked={line.selected} onCheckedChange={(checked) => actions.handleErpLineChange(index, 'selected', !!checked)} /></TableCell>
+                                        <TableCell><p className="font-medium">{line.product.description}</p><p className="text-xs text-muted-foreground">{line.ARTICULO}</p></TableCell>
+                                        <TableCell>{line.CANTIDAD_PEDIDA}</TableCell>
+                                        <TableCell>{line.stock?.totalStock || 0}</TableCell>
+                                        <TableCell><Input value={line.displayQuantity} onChange={e => actions.handleErpLineChange(index, 'displayQuantity', e.target.value)} className="w-24" /></TableCell>
+                                        <TableCell><Input value={line.displayPrice} onChange={e => actions.handleErpLineChange(index, 'displayPrice', e.target.value)} className="w-28" /></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                        <Button onClick={actions.handleCreateRequestsFromErp} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Crear Solicitudes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {(isSubmitting || isLoading) && (
                 <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span>Procesando...</span>
