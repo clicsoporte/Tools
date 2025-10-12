@@ -88,7 +88,7 @@ async function checkAndApplyMigrations(db: Database.Database) {
         
         if (!companyColumns.has('decimalPlaces')) db.exec(`ALTER TABLE company_settings ADD COLUMN decimalPlaces INTEGER DEFAULT 2`);
         if (!companyColumns.has('quoterShowTaxId')) db.exec(`ALTER TABLE company_settings ADD COLUMN quoterShowTaxId BOOLEAN DEFAULT TRUE`);
-        if (!companyColumns.has('syncWarningHours')) db.exec(`ALTER TABLE company_settings ADD COLUMN syncWarningHours INTEGER DEFAULT 12`);
+        if (!companyColumns.has('syncWarningHours')) db.exec(`ALTER TABLE company_settings ADD COLUMN syncWarningHours REAL DEFAULT 12`);
         
         if (companyColumns.has('importPath')) {
             console.log("MIGRATION: Dropping importPath column from company_settings.");
@@ -167,7 +167,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             logoUrl TEXT, systemName TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER,
             searchDebounceTime INTEGER, importMode TEXT, lastSyncTimestamp TEXT, customerFilePath TEXT,
             productFilePath TEXT, exemptionFilePath TEXT, stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT,
-            quoterShowTaxId BOOLEAN, syncWarningHours INTEGER
+            quoterShowTaxId BOOLEAN, syncWarningHours REAL
         );
         CREATE TABLE api_settings (id INTEGER PRIMARY KEY DEFAULT 1, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
         CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT NOT NULL, authNumber TEXT);
@@ -208,7 +208,6 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
 
     console.log(`Database ${DB_FILE} initialized with default users, company settings, and roles.`);
-    await checkAndApplyMigrations(db);
 }
 
 export async function getCompanySettings(): Promise<Company | null> {
