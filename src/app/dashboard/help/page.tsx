@@ -17,7 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Layers } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -151,7 +151,9 @@ export default function HelpPage() {
                     <p>
                     Esta herramienta te permite crear, gestionar y dar seguimiento a las solicitudes de compra internas de manera centralizada.
                     </p>
-                    <ul className="list-disc space-y-3 pl-6">
+                    
+                    <h4 className="font-semibold text-lg pt-2 border-t">Flujo 1: Creación Manual</h4>
+                    <ol className="list-decimal space-y-3 pl-6">
                     <li>
                         <strong>Paso 1: Crear Solicitud (<FilePlusIcon className="inline h-4 w-4" />):</strong> Haz clic en "Nueva Solicitud" para abrir el formulario. Busca al cliente y el artículo de la misma forma que en el cotizador. Completa los campos como la cantidad requerida, la fecha en que lo necesitas y el proveedor (si lo conoces).
                     </li>
@@ -166,6 +168,32 @@ export default function HelpPage() {
                             <li><strong>Cancelada (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> La solicitud ha sido cancelada.</li>
                         </ul>
                     </li>
+                    </ol>
+
+                    <h4 className="font-semibold text-lg pt-2 border-t">Flujo 2: Creación Inteligente desde Pedido ERP</h4>
+                     <ol className="list-decimal space-y-3 pl-6">
+                        <li>
+                            <strong>Paso 1: Iniciar el Proceso (<Layers className="inline h-4 w-4"/>):</strong> Haz clic en el nuevo botón "Crear desde Pedido ERP".
+                        </li>
+                        <li>
+                            <strong>Paso 2: Buscar el Pedido:</strong> En la ventana emergente, introduce el número de pedido de venta de tu ERP (ej: PE0000125972) y haz clic en "Cargar Pedido". El sistema consultará el ERP en tiempo real.
+                        </li>
+                        <li>
+                            <strong>Paso 3: Selección Inteligente:</strong> Se abrirá una nueva ventana con una tabla de todos los artículos del pedido. Aquí ocurre la magia:
+                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                <li>Las filas en <span className="text-red-600 font-semibold">rojo</span> indican que la cantidad pedida es **mayor** al inventario actual del ERP. Estas filas vendrán **marcadas por defecto** para ser compradas.</li>
+                                <li>Las filas en <span className="text-green-600 font-semibold">verde</span> indican que **hay suficiente stock**. Estarán desmarcadas por defecto.</li>
+                                <li>Puedes **editar la cantidad a solicitar y el precio de venta** directamente en la tabla.</li>
+                                <li>Usa los checkboxes para anular las sugerencias y decidir manualmente qué comprar.</li>
+                            </ul>
+                        </li>
+                         <li>
+                            <strong>Paso 4: Crear Solicitudes en Lote:</strong> Al hacer clic en "Crear Solicitudes", el sistema generará automáticamente una solicitud de compra **independiente para cada artículo que hayas marcado**, usando las cantidades y precios que definiste.
+                        </li>
+                    </ol>
+                    
+                    <h4 className="font-semibold text-lg pt-2 border-t">Funcionalidades Comunes</h4>
+                    <ul className="list-disc space-y-3 pl-6">
                     <li>
                         <strong>Aviso de "Modificado" (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una solicitud es editada (cambiando cantidad, fecha, etc.) *después* de haber sido Aprobada u Ordenada, aparecerá una alerta visual "Modificado". Esto sirve como una advertencia para que todos los involucrados estén al tanto del cambio.
                     </li>
@@ -173,7 +201,7 @@ export default function HelpPage() {
                         <strong>Solicitar Cancelación:</strong> Si una solicitud ya está Aprobada u Ordenada, no se puede cancelar directamente. En su lugar, un usuario con permisos puede "Solicitar Cancelación". Esto pone la solicitud en un estado de espera y notifica a un administrador, quien debe aprobar o rechazar la cancelación, dejando un registro del motivo.
                     </li>
                     <li>
-                        <strong>Paso 4: Navegar en el Historial.</strong> Para mantener la velocidad, la vista de "Archivadas" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
+                        <strong>Navegar en el Historial:</strong> Para mantener la velocidad, la vista de "Archivadas" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
                     </li>
                     </ul>
                 </AccordionContent>
@@ -497,13 +525,38 @@ export default function HelpPage() {
                         Control de Cambios (Changelog)
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <h4 className="font-semibold text-lg">Versión 1.5.2 <Badge variant="secondary">Actual</Badge></h4>
+                        <h4 className="font-semibold text-lg">Versión 1.5.3 <Badge variant="secondary">Actual</Badge></h4>
+                        <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
+                        <ul className="list-disc space-y-3 pl-6">
+                           <li>
+                                <strong>Nueva Funcionalidad Mayor: Creación de Solicitudes desde Pedidos ERP.</strong> Se ha añadido un flujo de trabajo completamente nuevo en el módulo de "Solicitud de Compra".
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Nuevo botón "Crear desde Pedido ERP" permite buscar un pedido de venta del ERP por su número.</li>
+                                    <li>El sistema carga todos los artículos de ese pedido en una ventana emergente.</li>
+                                    <li>Compara automáticamente la cantidad pedida con el stock actual y resalta en rojo los artículos que necesitan ser comprados.</li>
+                                    <li>Permite al usuario seleccionar qué artículos desea comprar y editar cantidades y precios.</li>
+                                    <li>Genera solicitudes de compra individuales para cada artículo seleccionado, guardando una referencia al pedido del ERP para trazabilidad.</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Mejora en Módulo de Compras:</strong> Ahora se muestra el número de pedido ERP en las tarjetas de solicitud y se puede filtrar por este número.
+                            </li>
+                             <li>
+                                <strong>Mejora de UX:</strong> Se eliminaron los parpadeos de página al iniciar sesión y al refrescar datos en varias pantallas. Se optimizó el rendimiento del Header.
+                            </li>
+                             <li>
+                                <strong>Correcciones de Compilación y Estabilidad:</strong> Se resolvieron más de 50 errores de TypeScript y problemas de compilación para mejorar la robustez y la fiabilidad de la aplicación.
+                            </li>
+                        </ul>
+
+                        <h4 className="font-semibold text-lg">Versión 1.5.2</h4>
                         <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                         <ul className="list-disc space-y-3 pl-6">
                            <li>
                                 <strong>Mejora de UX en Cotizador:</strong> Se ha mejorado la interfaz del Cotizador en dispositivos móviles. Ahora, en pantallas pequeñas, los campos de Cantidad y Precio tienen más espacio, y se ha añadido una opción para mostrar u ocultar columnas secundarias, mejorando la usabilidad.
                             </li>
                         </ul>
+
                         <h4 className="font-semibold text-lg">Versión 1.5.1</h4>
                         <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                         <ul className="list-disc space-y-3 pl-6">
@@ -525,9 +578,6 @@ export default function HelpPage() {
                              <li>
                                 <strong>Corrección de Error en Cotizador:</strong> Se solucionó un fallo que impedía aplicar correctamente la exoneración de un cliente a los nuevos productos añadidos a una cotización.
                             </li>
-                             <li>
-                                <strong>Corrección de Error de Configuración:</strong> Se solucionó un error de `next.config.js` y se aumentó el límite de subida de archivos a 50MB para prevenir problemas con backups o imágenes grandes.
-                            </li>
                         </ul>
                     </AccordionContent>
                 </AccordionItem>
@@ -538,5 +588,6 @@ export default function HelpPage() {
     </main>
   );
 }
+
 
 

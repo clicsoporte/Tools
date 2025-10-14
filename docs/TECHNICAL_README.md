@@ -9,7 +9,7 @@ El diseño de Clic-Tools sigue una filosofía **modular, centrada en el servidor
 
 -   **Server Actions de Next.js:** Toda la lógica crítica que interactúa con la base de datos o APIs externas se ejecuta exclusivamente en el servidor a través de "Server Actions" (`'use server'`). Esto garantiza la seguridad (las credenciales nunca se exponen al cliente), centraliza la lógica de negocio y mejora el rendimiento al minimizar el código de cliente.
 
--   **Hooks para la Lógica de UI:** La lógica compleja del lado del cliente (manejo de estado, efectos, validaciones de formularios) se abstrae en hooks personalizados (ej: `usePlanner`, `useQuoter`). Esto mantiene los componentes de la página (`page.tsx`) limpios, declarativos y centrados únicamente en la renderización.
+-   **Hooks para la Lógica de UI:** La lógica compleja del lado del cliente (manejo de estado, efectos, validaciones de formularios) se abstrae en hooks personalizados (ej: `usePlanner`, `useQuoter`, `useRequests`). Esto mantiene los componentes de la página (`page.tsx`) limpios, declarativos y centrados únicamente en la renderización.
 
 -   **Contexto de Autenticación Centralizado (`useAuth`):** Se utiliza un `AuthContext` para cargar y proveer datos globales una sola vez por sesión (usuario, roles, clientes, productos, etc.). Esto evita la recarga redundante de datos en cada página y mejora drásticamente el rendimiento de la navegación entre módulos. El `useEffect` principal del proveedor está optimizado para ejecutarse solo una vez en la carga inicial.
 
@@ -25,16 +25,16 @@ El flujo de datos sigue un patrón claro y seguro:
     -   Llama al hook personalizado (ej: `usePlanner()`) para obtener el estado y las funciones necesarias para la UI.
     -   No contiene lógica de negocio. Es puramente declarativo.
 
-2.  **Hook de UI (`usePlanner.ts`):**
+2.  **Hook de UI (`usePlanner.ts`, `useRequests.ts`, etc.):**
     -   Centraliza toda la lógica de estado y de interfaz para una página.
     -   Usa `useState`, `useEffect`, `useMemo`, `useCallback` para gestionar el estado de los formularios, filtros, diálogos, etc.
     -   Consume datos globales del hook `useAuth()`.
-    -   Define funciones manejadoras de eventos (ej: `handleCreateOrder`).
-    -   Estas funciones **llaman directamente a las Server Actions** para ejecutar operaciones de negocio.
+    -   Define funciones manejadoras de eventos (ej: `handleCreateOrder`, `handleFetchErpOrder`).
+    -   Estas funciones **llaman directamente a las Server Actions** para ejecutar operaciones de negocio (ej: `saveProductionOrder`, `getErpOrderData`).
 
 3.  **Acciones del Servidor (archivos `actions.ts` y `db.ts` en cada módulo):**
     -   Marcadas con `'use server'`.
-    -   Aquí reside toda la interacción con la base de datos (SQLite).
+    -   Aquí reside toda la interacción con la base de datos (SQLite) y, a través de `sql-service.ts`, con la base de datos externa (MSSQL).
     -   Contienen la lógica de negocio real (cálculos, validaciones complejas, persistencia de datos).
     -   Son las únicas que tienen acceso directo a las bases de datos.
     -   Exportan funciones asíncronas que pueden ser llamadas de forma segura y directa por los componentes y hooks de cliente.

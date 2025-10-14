@@ -1,6 +1,6 @@
 # Clic-Tools: Documentación Técnica y Manual de Usuario
 
-**Clic-Tools v1.5.2** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
+**Clic-Tools v1.5.3** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
 
 ---
 
@@ -56,7 +56,8 @@
 
 ### 3.3. Solicitud de Compra (`/dashboard/requests`)
 - **Flujo de Aprobación:** Gestiona el ciclo de vida de una solicitud, desde "Pendiente" hasta "Recibida" y opcionalmente "En Bodega".
-- **Claridad del Cliente:** Muestra el nombre y la cédula del cliente asociado a la solicitud.
+- **Creación Inteligente desde ERP:** Permite crear solicitudes de compra automáticamente a partir de un pedido de venta del ERP. El sistema analiza el pedido, compara con el inventario actual y sugiere qué artículos comprar, ahorrando tiempo y reduciendo errores.
+- **Claridad del Cliente y Trazabilidad del ERP:** Muestra el nombre y la cédula del cliente asociado a la solicitud, así como el número de pedido del ERP del que se originó, creando una trazabilidad completa.
 - **Alertas y Trazabilidad:** Al igual que el planificador, las solicitudes modificadas post-aprobación se marcan visualmente, y cada cambio queda en un historial.
 - **Paginación de Archivados**: Las solicitudes archivadas se cargan por páginas, y la búsqueda es eficiente sobre todo el historial.
 
@@ -85,6 +86,7 @@ Esta es una de las funcionalidades más críticas y flexibles, gestionada desde 
     -   `articulos.txt`: `ARTICULO`, `DESCRIPCION`, etc.
     -   `exo.txt`: `CODIGO`, `CLIENTE`, `NUM_AUTOR`, etc.
     -   `inventarios.txt`: `ARTICULO`, `BODEGA`, `CANT_DISPONIBLE`.
+    -   `proveedores.txt`: `PROVEEDOR`, `NOMBRE`, `E_MAIL`, etc.
 
 ### Modo 2: Sincronización desde SQL Server (Recomendado)
 -   **Configuración**:
@@ -93,6 +95,7 @@ Esta es una de las funcionalidades más críticas y flexibles, gestionada desde 
 -   **Gestión de Consultas**:
     1.  Para cada tipo de dato (clientes, artículos, etc.), puedes pegar la consulta `SELECT` completa que extrae la información de tu ERP.
     2.  El sistema mapeará las columnas del resultado de tu consulta a los campos que la aplicación necesita, siempre y cuando los nombres de las columnas coincidan con los definidos en `createHeaderMapping` (ej. `SELECT ID_Cliente as CLIENTE, Nombre_Fiscal as NOMBRE, ID_Fiscal as CONTRIBUYENTE, ...`).
+    3.  **Consultas Específicas:** También se configuran aquí consultas más específicas, como la que obtiene los detalles de un pedido de venta del ERP por su número.
 -   **Ejecución**:
     -   Un administrador puede ejecutar la sincronización completa desde **Administración > Importar Datos**.
     -   Se puede conceder un permiso especial (`admin:import:run`) a otros roles para que vean un botón de **"Sincronizar Datos del ERP"** en el panel principal.
