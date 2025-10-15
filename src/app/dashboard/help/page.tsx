@@ -81,12 +81,12 @@ export default function HelpPage() {
                         </p>
                         <ul className="list-disc space-y-3 pl-6">
                             <li>
-                                <strong>Enviar una Sugerencia:</strong> En el panel principal, haz clic en el botón verde <strong>"Sugerencias y Mejoras"</strong> (<MessageSquare className="inline h-4 w-4" />). Se abrirá una ventana donde podrás escribir tu idea, reportar un problema o proponer una mejora. Al enviarla, los administradores serán notificados.
+                                <strong>Enviar una Sugerencia:</strong> En el panel principal, haz clic en el botón verde <strong>&quot;Sugerencias y Mejoras&quot;</strong> (<MessageSquare className="inline h-4 w-4" />). Se abrirá una ventana donde podrás escribir tu idea, reportar un problema o proponer una mejora. Al enviarla, los administradores serán notificados.
                             </li>
                             <li>
                                 <strong>Gestión para Administradores:</strong>
                                 <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                    <li>Los administradores verán un contador de sugerencias no leídas en el botón de "Configuración" del menú lateral.</li>
+                                    <li>Los administradores verán un contador de sugerencias no leídas en el botón de &quot;Configuración&quot; del menú lateral.</li>
                                     <li>Dentro de <strong>Administración &gt; Buzón de Sugerencias</strong>, podrán ver todas las sugerencias enviadas, quién las envió y cuándo.</li>
                                     <li>Las sugerencias nuevas aparecen resaltadas. Pueden marcarlas como leídas (<CheckCircle className="inline h-4 w-4 text-green-600"/>) o eliminarlas (<Trash2 className="inline h-4 w-4 text-red-600"/>).</li>
                                 </ul>
@@ -109,7 +109,7 @@ export default function HelpPage() {
                             <li>
                                 <strong>Paso 1: Seleccionar al Cliente y Verificar su Información.</strong>
                                 <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                    <li>Empieza a escribir el nombre, código o cédula del cliente en el campo "Buscar Cliente". El sistema te mostrará una lista de sugerencias. Haz clic o presiona `Enter` para seleccionarlo.</li>
+                                    <li>Empieza a escribir el nombre, código o cédula del cliente en el campo &quot;Buscar Cliente&quot;. El sistema te mostrará una lista de sugerencias. Haz clic o presiona `Enter` para seleccionarlo.</li>
                                     <li>Al seleccionar, aparecerá una tarjeta con los <strong>datos críticos del ERP</strong> (<CreditCard className="inline h-4 w-4"/>): cédula, límite de crédito, condición de pago y vendedor asignado. Esto te da una visión instantánea del estado del cliente.</li>
                                     <li><strong>Verificar Exoneración (<ShieldQuestion className="inline h-4 w-4" />):</strong> Si el cliente tiene una exoneración en el ERP, aparecerá una segunda tarjeta. El sistema consultará a Hacienda **en tiempo real** y te mostrará dos estados para que los compares: el del ERP y el de Hacienda. Esto te permite confirmar si la exoneración sigue vigente antes de aplicarla.</li>
                                 </ul>
@@ -117,24 +117,24 @@ export default function HelpPage() {
                             <li>
                                 <strong>Paso 2: Agregar Productos y Consultar Detalles.</strong>
                                 <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                    <li>En el campo "Agregar Producto", busca por código o descripción. El sistema te sugerirá productos y te mostrará el **inventario actual del ERP** entre paréntesis.</li>
+                                    <li>En el campo &quot;Agregar Producto&quot;, busca por código o descripción. El sistema te sugerirá productos y te mostrará el **inventario actual del ERP** entre paréntesis.</li>
                                     <li>Presiona `Enter` o haz clic para añadir el producto a la cotización. El sistema aplicará el impuesto automáticamente (13% por defecto, 1% para canasta básica, o 0% si el cliente tiene una exoneración válida).</li>
-                                    <li><strong>Consultar Info del Producto (<BadgeInfo className="inline h-4 w-4"/>):</strong> Haz clic en cualquier parte de la fila de un producto ya agregado. Aparecerá una tarjeta con información detallada del ERP: su **clasificación**, la **fecha del último ingreso** y notas importantes.</li>
+                                    <li><strong>Consultar Info del Producto (<BadgeInfo className="inline h-4 w-4"/>):</strong> Haz clic en cualquier parte de la fila de un producto ya agregado. Aparecerá una tarjeta con información detallada del ERP: su <strong>clasificación</strong>, la <strong>fecha del último ingreso</strong> y notas importantes.</li>
                                 </ul>
                             </li>
                             <li>
                                 <strong>Paso 3: Ajustar Cantidades y Precios.</strong>
                                 <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                                     <li>Modifica directamente los campos de cantidad y precio.</li>
-                                    <li><strong>Atajos de Teclado (<Keyboard className="inline h-4 w-4" />):</strong> Usa la tecla `Enter` en los campos "Cantidad" y "Precio". El sistema te moverá eficientemente: de Cantidad a Precio, y de Precio de vuelta al buscador de productos para que puedas seguir añadiendo artículos sin usar el mouse.</li>
-                                    <li><strong>Uso en Móviles:</strong> En pantallas pequeñas, los campos de Cantidad y Precio ahora tienen más espacio. Si necesitas ver otras columnas como "Cabys" o "Unidad", puedes activarlas desde los checkboxes que aparecen encima de la tabla.</li>
+                                    <li><strong>Atajos de Teclado (<Keyboard className="inline h-4 w-4" />):</strong> Usa la tecla `Enter` en los campos &quot;Cantidad&quot; y &quot;Precio&quot;. El sistema te moverá eficientemente: de Cantidad a Precio, y de Precio de vuelta al buscador de productos para que puedas seguir añadiendo artículos sin usar el mouse.</li>
+                                    <li><strong>Uso en Móviles:</strong> En pantallas pequeñas, los campos de Cantidad y Precio ahora tienen más espacio. Si necesitas ver otras columnas como &quot;Cabys&quot; o &quot;Unidad&quot;, puedes activarlas desde los checkboxes que aparecen encima de la tabla.</li>
                                 </ul>
                             </li>
                             <li>
                                 <strong>Paso 4: Finalizar y Generar.</strong>
                                 <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                                     <li>Ajusta las condiciones de pago, la validez de la oferta y añade cualquier nota adicional.</li>
-                                    <li><strong>Borradores (<Folder className="inline h-4 w-4" />):</strong> Si no terminaste, guarda la cotización como borrador. Puedes cargarla más tarde desde el botón "Ver Borradores".</li>
+                                    <li><strong>Borradores (<Folder className="inline h-4 w-4" />):</strong> Si no terminaste, guarda la cotización como borrador. Puedes cargarla más tarde desde el botón &quot;Ver Borradores&quot;.</li>
                                     <li><strong>Generar PDF (<FileDown className="inline h-4 w-4" />):</strong> Cuando todo esté listo, genera el PDF. El número de cotización se actualizará automáticamente para la próxima vez.</li>
                                 </ul>
                             </li>
@@ -155,7 +155,7 @@ export default function HelpPage() {
                     <h4 className="font-semibold text-lg pt-2 border-t">Flujo 1: Creación Manual</h4>
                     <ol className="list-decimal space-y-3 pl-6">
                     <li>
-                        <strong>Paso 1: Crear Solicitud (<FilePlusIcon className="inline h-4 w-4" />):</strong> Haz clic en "Nueva Solicitud" para abrir el formulario. Busca al cliente y el artículo de la misma forma que en el cotizador. Completa los campos como la cantidad requerida, la fecha en que lo necesitas y el proveedor (si lo conoces).
+                        <strong>Paso 1: Crear Solicitud (<FilePlusIcon className="inline h-4 w-4" />):</strong> Haz clic en &quot;Nueva Solicitud&quot; para abrir el formulario. Busca al cliente y el artículo de la misma forma que en el cotizador. Completa los campos como la cantidad requerida, la fecha en que lo necesitas y el proveedor (si lo conoces).
                     </li>
                     <li>
                         <strong>Paso 2: Entender el Flujo de Estados.</strong> Las solicitudes pasan por varios estados para un seguimiento claro:
@@ -173,10 +173,10 @@ export default function HelpPage() {
                     <h4 className="font-semibold text-lg pt-2 border-t">Flujo 2: Creación Inteligente desde Pedido ERP</h4>
                      <ol className="list-decimal space-y-3 pl-6">
                         <li>
-                            <strong>Paso 1: Iniciar el Proceso (<Layers className="inline h-4 w-4"/>):</strong> Haz clic en el nuevo botón "Crear desde Pedido ERP".
+                            <strong>Paso 1: Iniciar el Proceso (<Layers className="inline h-4 w-4"/>):</strong> Haz clic en el nuevo botón &quot;Crear desde Pedido ERP&quot;.
                         </li>
                         <li>
-                            <strong>Paso 2: Buscar el Pedido:</strong> En la ventana emergente, introduce el número de pedido de venta de tu ERP (ej: PE0000125972) y haz clic en "Cargar Pedido". El sistema consultará el ERP en tiempo real.
+                            <strong>Paso 2: Buscar el Pedido:</strong> En la ventana emergente, introduce el número de pedido de venta de tu ERP (ej: PE0000125972) y haz clic en &quot;Cargar Pedido&quot;. El sistema consultará el ERP en tiempo real.
                         </li>
                         <li>
                             <strong>Paso 3: Selección Inteligente:</strong> Se abrirá una nueva ventana con una tabla de todos los artículos del pedido. Aquí ocurre la magia:
@@ -188,20 +188,20 @@ export default function HelpPage() {
                             </ul>
                         </li>
                          <li>
-                            <strong>Paso 4: Crear Solicitudes en Lote:</strong> Al hacer clic en "Crear Solicitudes", el sistema generará automáticamente una solicitud de compra **independiente para cada artículo que hayas marcado**, usando las cantidades y precios que definiste.
+                            <strong>Paso 4: Crear Solicitudes en Lote:</strong> Al hacer clic en &quot;Crear Solicitudes&quot;, el sistema generará automáticamente una solicitud de compra **independiente para cada artículo que hayas marcado**, usando las cantidades y precios que definiste.
                         </li>
                     </ol>
                     
                     <h4 className="font-semibold text-lg pt-2 border-t">Funcionalidades Comunes</h4>
                     <ul className="list-disc space-y-3 pl-6">
                     <li>
-                        <strong>Aviso de "Modificado" (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una solicitud es editada (cambiando cantidad, fecha, etc.) *después* de haber sido Aprobada u Ordenada, aparecerá una alerta visual "Modificado". Esto sirve como una advertencia para que todos los involucrados estén al tanto del cambio.
+                        <strong>Aviso de &quot;Modificado&quot; (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una solicitud es editada (cambiando cantidad, fecha, etc.) *después* de haber sido Aprobada u Ordenada, aparecerá una alerta visual &quot;Modificado&quot;. Esto sirve como una advertencia para que todos los involucrados estén al tanto del cambio.
                     </li>
                     <li>
-                        <strong>Solicitar Cancelación:</strong> Si una solicitud ya está Aprobada u Ordenada, no se puede cancelar directamente. En su lugar, un usuario con permisos puede "Solicitar Cancelación". Esto pone la solicitud en un estado de espera y notifica a un administrador, quien debe aprobar o rechazar la cancelación, dejando un registro del motivo.
+                        <strong>Solicitar Cancelación:</strong> Si una solicitud ya está Aprobada u Ordenada, no se puede cancelar directamente. En su lugar, un usuario con permisos puede &quot;Solicitar Cancelación&quot;. Esto pone la solicitud en un estado de espera y notifica a un administrador, quien debe aprobar o rechazar la cancelación, dejando un registro del motivo.
                     </li>
                     <li>
-                        <strong>Navegar en el Historial:</strong> Para mantener la velocidad, la vista de "Archivadas" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
+                        <strong>Navegar en el Historial:</strong> Para mantener la velocidad, la vista de &quot;Archivadas&quot; carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
                     </li>
                     </ul>
                 </AccordionContent>
@@ -235,15 +235,15 @@ export default function HelpPage() {
                         <li>
                             <strong>Paso 3: Alertas y Solicitudes de Cambio.</strong>
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                <li><strong>Aviso de "Modificado" (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una orden se edita después de ser aprobada, aparecerá esta alerta para notificar a todos sobre el cambio.</li>
-                                <li><strong>Solicitar Desaprobación (<Undo2 className="inline h-4 w-4 text-orange-600"/>):</strong> Si una orden ya aprobada necesita un cambio mayor (ej: cambiar de producto), un usuario puede "Solicitar Desaprobación". Esto bloquea la orden y requiere que un administrador la apruebe o rechace para devolverla al estado "Pendiente".</li>
+                                <li><strong>Aviso de &quot;Modificado&quot; (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una orden se edita después de ser aprobada, aparecerá esta alerta para notificar a todos sobre el cambio.</li>
+                                <li><strong>Solicitar Desaprobación (<Undo2 className="inline h-4 w-4 text-orange-600"/>):</strong> Si una orden ya aprobada necesita un cambio mayor (ej: cambiar de producto), un usuario puede &quot;Solicitar Desaprobación&quot;. Esto bloquea la orden y requiere que un administrador la apruebe o rechace para devolverla al estado &quot;Pendiente&quot;.</li>
                                 <li><strong>Solicitar Cancelación (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> Similar a la desaprobación, permite pedir la cancelación de una orden que ya está en el flujo, requiriendo aprobación administrativa.</li>
                             </ul>
                         </li>
                         <li>
                             <strong>Paso 4: Programación y Prioridades.</strong>
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                <li><strong>Programación por Rango:</strong> Haz clic en el área de "Fecha Programada" para abrir un calendario y seleccionar un rango de fechas de inicio y fin.</li>
+                                <li><strong>Programación por Rango:</strong> Haz clic en el área de &quot;Fecha Programada&quot; para abrir un calendario y seleccionar un rango de fechas de inicio y fin.</li>
                                 <li><strong>Asignación:</strong> Asigna cada orden a una máquina, proceso u operario específico desde el menú desplegable. Estas opciones se configuran en Administración.</li>
                                 <li><strong>Prioridades y Cuenta Regresiva:</strong> Usa el selector de prioridad y fíjate en el indicador de días restantes (basado en la fecha de entrega) para organizar el trabajo.</li>
                             </ul>
@@ -265,20 +265,20 @@ export default function HelpPage() {
                         
                         <ul className="list-none space-y-3 pl-0">
                             <li>
-                                <strong className="text-base">1. El Molde (Definir Jerarquía):</strong> Aquí le dices al sistema cómo organizas tu almacén, pero sin crear nada real todavía. Es solo la plantilla. Por ejemplo: le dices que usas "Bodegas", que dentro de ellas hay "Pasillos", y que en los pasillos hay "Racks".
+                                <strong className="text-base">1. El Molde (Definir Jerarquía):</strong> Aquí le dices al sistema cómo organizas tu almacén, pero sin crear nada real todavía. Es solo la plantilla. Por ejemplo: le dices que usas &quot;Bodegas&quot;, que dentro de ellas hay &quot;Pasillos&quot;, y que en los pasillos hay &quot;Racks&quot;.
                             </li>
                             <li>
-                                <strong className="text-base">2. El Árbol (Crear Ubicaciones Reales):</strong> Una vez que tienes el "molde", aquí es donde creas el árbol real de tu almacén. Aquí es donde dices: "Ok, voy a crear una ubicación de tipo `Bodega` y se va a llamar `Bodega 04`". Luego, "dentro de Bodega 04, voy a crear una ubicación de tipo `Pasillo` y se va a llamar `Pasillo Bolsas 01`", y así sucesivamente.
+                                <strong className="text-base">2. El Árbol (Crear Ubicaciones Reales):</strong> Una vez que tienes el &quot;molde&quot;, aquí es donde creas el árbol real de tu almacén. Aquí es donde dices: &quot;Ok, voy a crear una ubicación de tipo `Bodega` y se va a llamar `Bodega 04`&quot;. Luego, &quot;dentro de Bodega 04, voy a crear una ubicación de tipo `Pasillo` y se va a llamar `Pasillo Bolsas 01`&quot;, y así sucesivamente.
                             </li>
                         </ul>
 
                         <h4 className="font-semibold text-lg pt-4 border-t">Tutorial Práctico: Configurando tu Almacén desde Cero</h4>
                         <p>Usemos un ejemplo real: tienes una bodega (`04`), con un pasillo (`01`) entre dos racks (`01` y `02`).</p>
 
-                        <h5 className="font-semibold">Paso 1: Crear el "Molde" (La Jerarquía)</h5>
+                        <h5 className="font-semibold">Paso 1: Crear el &quot;Molde&quot; (La Jerarquía)</h5>
                         <ol className="list-decimal space-y-2 pl-6">
                             <li>Ve a <strong>Administración &gt; Config. Almacenes</strong>.</li>
-                            <li>En la sección <strong>"Paso 1: Definir Jerarquía del Almacén"</strong>, borra los niveles que existan.</li>
+                            <li>En la sección <strong>&quot;Paso 1: Definir Jerarquía del Almacén&quot;</strong>, borra los niveles que existan.</li>
                             <li>Añade, en orden, los siguientes niveles:
                                 <ul className="list-[circle] space-y-1 pl-5 mt-2">
                                     <li>Bodega</li>
@@ -289,13 +289,13 @@ export default function HelpPage() {
                             <li>Haz clic en <strong>Guardar Niveles</strong>.</li>
                         </ol>
 
-                        <h5 className="font-semibold">Paso 2: Construir el "Árbol" (Las Ubicaciones Reales)</h5>
-                        <p>Ahora, en la sección <strong>"Paso 2: Crear Ubicaciones Reales"</strong>, vamos a construir el almacén pieza por pieza:</p>
+                        <h5 className="font-semibold">Paso 2: Construir el &quot;Árbol&quot; (Las Ubicaciones Reales)</h5>
+                        <p>Ahora, en la sección <strong>&quot;Paso 2: Crear Ubicaciones Reales&quot;</strong>, vamos a construir el almacén pieza por pieza:</p>
                         <ol className="list-decimal space-y-3 pl-6">
                             <li>
                                 <strong>Crear la Bodega:</strong>
                                 <ul className="list-[circle] space-y-1 pl-5 mt-2 text-sm">
-                                    <li>Haz clic en <strong>"Añadir Ubicación"</strong>.</li>
+                                    <li>Haz clic en <strong>&quot;Añadir Ubicación&quot;</strong>.</li>
                                     <li><strong>Nombre:</strong> `Bodega 04`, <strong>Código:</strong> `B04`.</li>
                                     <li><strong>Tipo de Ubicación:</strong> `Nivel 1: Bodega`.</li>
                                     <li><strong>Ubicación Padre:</strong> Déjalo en `Sin padre`.</li>
@@ -305,7 +305,7 @@ export default function HelpPage() {
                             <li>
                                 <strong>Crear el Pasillo:</strong>
                                 <ul className="list-[circle] space-y-1 pl-5 mt-2 text-sm">
-                                    <li>Haz clic de nuevo en <strong>"Añadir Ubicación"</strong>.</li>
+                                    <li>Haz clic de nuevo en <strong>&quot;Añadir Ubicación&quot;</strong>.</li>
                                     <li><strong>Nombre:</strong> `Pasillo 01`, <strong>Código:</strong> `P01`.</li>
                                     <li><strong>Tipo de Ubicación:</strong> `Nivel 2: Pasillo`.</li>
                                     <li><strong>Ubicación Padre:</strong> Selecciona `Bodega 04`.</li>
@@ -340,7 +340,7 @@ export default function HelpPage() {
                                 </ul>
                             </li>
                              <li>
-                                <strong>Búsquedas Individuales:</strong> También puedes usar las pestañas "Situación Tributaria" y "Exoneraciones" para hacer consultas directas a Hacienda ingresando una cédula o un número de autorización, respectively.
+                                <strong>Búsquedas Individuales:</strong> También puedes usar las pestañas &quot;Situación Tributaria&quot; y &quot;Exoneraciones&quot; para hacer consultas directas a Hacienda ingresando una cédula o un número de autorización, respectively.
                             </li>
                         </ul>
                     </AccordionContent>
@@ -385,7 +385,7 @@ export default function HelpPage() {
                             </div>
                             <div className="flex items-start gap-4">
                                 <ShieldCheck className="mt-1 h-6 w-6 text-green-500 shrink-0" />
-                                <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: "Supervisor") y asignar permisos específicos para cada módulo.</p></div>
+                                <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos específicos para cada módulo.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
                                 <Briefcase className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
@@ -393,15 +393,15 @@ export default function HelpPage() {
                             </div>
                              <div className="flex items-start gap-4">
                                 <MessageSquare className="mt-1 h-6 w-6 text-green-600 shrink-0" />
-                                <div><h4 className="font-semibold">Buzón de Sugerencias</h4><p>Lee y gestiona el feedback enviado por los usuarios a través del botón "Sugerencias y Mejoras". Es el canal de comunicación directo para mejorar la aplicación.</p></div>
+                                <div><h4 className="font-semibold">Buzón de Sugerencias</h4><p>Lee y gestiona el feedback enviado por los usuarios a través del botón &quot;Sugerencias y Mejoras&quot;. Es el canal de comunicación directo para mejorar la aplicación.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
                                 <DollarSign className="mt-1 h-6 w-6 text-emerald-600 shrink-0" />
-                                <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el comportamiento del Cotizador, definiendo el prefijo (ej. "COT-") y el número con el que iniciará la siguiente cotización.</p></div>
+                                <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el comportamiento del Cotizador, definiendo el prefijo (ej. &quot;COT-&quot;) y el número con el que iniciará la siguiente cotización.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
                                 <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
-                                <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador de Producción. Aquí puedes crear y nombrar las "máquinas" o "procesos" que se asignarán a las órdenes de producción.</p></div>
+                                <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador de Producción. Aquí puedes crear y nombrar las &quot;máquinas&quot; o &quot;procesos&quot; que se asignarán a las órdenes de producción.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
                                 <Store className="mt-1 h-6 w-6 text-amber-700 shrink-0" />
@@ -459,29 +459,29 @@ export default function HelpPage() {
                         
                         <h4 className="font-semibold">Modo 1: Desde Archivos (.txt / .csv)</h4>
                         <ol className="list-decimal space-y-2 pl-6">
-                            <li>Activa el interruptor en "Importar desde Archivos".</li>
+                            <li>Activa el interruptor en &quot;Importar desde Archivos&quot;.</li>
                             <li>Asegúrate de que tus archivos de texto (`.txt` separados por tabulador o `.csv` para CABYS) estén en una carpeta en el servidor.</li>
                             <li>En cada tarjeta, introduce la <strong>ruta completa</strong> al archivo correspondiente (ej: `C:\\import_data\\clientes.txt`).</li>
-                            <li>Haz clic en el botón "Procesar Archivo" de cada tarjeta para cargar los datos.</li>
+                            <li>Haz clic en el botón &quot;Procesar Archivo&quot; de cada tarjeta para cargar los datos.</li>
                         </ol>
 
                         <h4 className="font-semibold">Modo 2: Desde SQL Server (Recomendado)</h4>
                         <p>Este método es el más robusto y eficiente. Sincroniza los datos directamente desde tu ERP a la base de datos local de la aplicación.</p>
                         <ol className="list-decimal space-y-2 pl-6">
-                            <li>Activa el interruptor en "Importar desde SQL Server".</li>
-                            <li>Despliega la sección <strong>"Configuración de Conexión a SQL Server"</strong>.</li>
+                            <li>Activa el interruptor en &quot;Importar desde SQL Server&quot;.</li>
+                            <li>Despliega la sección <strong>&quot;Configuración de Conexión a SQL Server&quot;</strong>.</li>
                             <li>Rellena los datos de tu servidor ERP. <strong>Importante:</strong> Por seguridad, se recomienda crear un usuario de SQL que solo tenga permisos de <strong>lectura (`SELECT`)</strong> sobre las tablas o vistas necesarias.</li>
                             <li>Guarda la configuración. Estos datos se almacenarán de forma segura en un archivo `.env` en el servidor.</li>
-                            <li>Despliega la sección <strong>"Gestión de Consultas SQL"</strong>.</li>
+                            <li>Despliega la sección <strong>&quot;Gestión de Consultas SQL&quot;</strong>.</li>
                             <li>Para cada tipo de dato (Clientes, Artículos, etc.), pega la consulta `SELECT` completa que extrae la información de tu ERP. Asegúrate de que los nombres de las columnas en tu `SELECT` coincidan con los esperados por el sistema (ej. `SELECT ID_Cliente AS CLIENTE, NombreCliente AS NOMBRE, ... FROM VistaClientes`).</li>
                             <li>Guarda las consultas.</li>
-                            <li>Una vez configurado, solo tienes que hacer clic en el botón grande <strong>"Importar Todos los Datos desde ERP"</strong> para ejecutar todas las consultas y actualizar la base de datos local.</li>
+                            <li>Una vez configurado, solo tienes que hacer clic en el botón grande <strong>&quot;Importar Todos los Datos desde ERP&quot;</strong> para ejecutar todas las consultas y actualizar la base de datos local.</li>
                         </ol>
                         <Alert>
                             <ToggleRight className="h-4 w-4" />
                             <AlertTitle>Botón de Sincronización Rápida</AlertTitle>
                             <AlertDescription>
-                                Puedes dar permiso (`admin:import:run`) a ciertos roles para que vean un botón de "Sincronizar Datos del ERP" en el panel principal. Si los datos están desactualizados, este botón se pondrá rojo y parpadeará para alertar al usuario.
+                                Puedes dar permiso (`admin:import:run`) a ciertos roles para que vean un botón de &quot;Sincronizar Datos del ERP&quot; en el panel principal. Si los datos están desactualizados, este botón se pondrá rojo y parpadeará para alertar al usuario.
                             </AlertDescription>
                         </Alert>
                     </AccordionContent>
@@ -530,9 +530,9 @@ export default function HelpPage() {
                         <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                         <ul className="list-disc space-y-3 pl-6">
                            <li>
-                                <strong>Nueva Funcionalidad Mayor: Creación de Solicitudes desde Pedidos ERP.</strong> Se ha añadido un flujo de trabajo completamente nuevo en el módulo de "Solicitud de Compra".
+                                <strong>Nueva Funcionalidad Mayor: Creación de Solicitudes desde Pedidos ERP.</strong> Se ha añadido un flujo de trabajo completamente nuevo en el módulo de &quot;Solicitud de Compra&quot;.
                                 <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                    <li>Nuevo botón "Crear desde Pedido ERP" permite buscar un pedido de venta del ERP por su número.</li>
+                                    <li>Nuevo botón &quot;Crear desde Pedido ERP&quot; permite buscar un pedido de venta del ERP por su número.</li>
                                     <li>El sistema carga todos los artículos de ese pedido en una ventana emergente.</li>
                                     <li>Compara automáticamente la cantidad pedida con el stock actual y resalta en rojo los artículos que necesitan ser comprados.</li>
                                     <li>Permite al usuario seleccionar qué artículos desea comprar y editar cantidades y precios.</li>
@@ -565,13 +565,13 @@ export default function HelpPage() {
                                 <strong>Nueva Funcionalidad: Buzón de Sugerencias.</strong> Se añadió una herramienta para que los usuarios puedan enviar feedback directamente a los administradores.
                             </li>
                              <li>
-                                <strong>Mejora Crítica de Auditoría:</strong> La acción de "Limpiar Logs" ahora siempre deja un registro de quién y cuándo se realizó la limpieza, incluso si se borran todos los datos.
+                                <strong>Mejora Crítica de Auditoría:</strong> La acción de &quot;Limpiar Logs&quot; ahora siempre deja un registro de quién y cuándo se realizó la limpieza, incluso si se borran todos los datos.
                             </li>
                             <li>
-                                <strong>Mejora de UX: Eliminación de Parpadeos.</strong> Se eliminaron los parpadeos (recargas visuales de página completa) al usar los botones de "Refrescar" en el Buzón de Sugerencias y el Visor de Eventos, y al guardar cambios en las configuraciones.
+                                <strong>Mejora de UX: Eliminación de Parpadeos.</strong> Se eliminaron los parpadeos (recargas visuales de página completa) al usar los botones de &quot;Refrescar&quot; en el Buzón de Sugerencias y el Visor de Eventos, y al guardar cambios en las configuraciones.
                             </li>
                             <li>
-                                <strong>Mejora de UX: Actualización Instantánea.</strong> La fecha de "Última Sincronización" en el panel principal ahora se actualiza instantáneamente después de una sincronización del ERP, sin necesidad de recargar la página.
+                                <strong>Mejora de UX: Actualización Instantánea.</strong> La fecha de &quot;Última Sincronización&quot; en el panel principal ahora se actualiza instantáneamente después de una sincronización del ERP, sin necesidad de recargar la página.
                             </li>
                             <li>
                                 <strong>Implementación de Logging Completo:</strong> Se añadió registro de eventos (auditoría) para acciones críticas en todos los módulos: inicio/cierre de sesión, gestión de usuarios, guardado de configuraciones, backups, etc.

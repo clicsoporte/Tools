@@ -231,7 +231,7 @@ export default function PlannerPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Gestionar Solicitud Pendiente</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            La orden tiene una solicitud de "{order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}" pendiente. Puedes aprobar o rechazar esta solicitud.
+                                            La orden tiene una solicitud de &quot;{order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}&quot; pendiente. Puedes aprobar o rechazar esta solicitud.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <div className="py-4 space-y-2">
@@ -247,8 +247,8 @@ export default function PlannerPage() {
                             </AlertDialog>
                         </div>
                     )}
-                     {order.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas de la Orden:</p><p className="text-muted-foreground">"{order.notes}"</p></div>)}
-                     {order.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">"{order.lastStatusUpdateNotes}" - <span className="italic">{order.lastStatusUpdateBy}</span></p></div>)}
+                     {order.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas de la Orden:</p><p className="text-muted-foreground">&quot;{order.notes}&quot;</p></div>)}
+                     {order.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">&quot;{order.lastStatusUpdateNotes}&quot; - <span className="italic">{order.lastStatusUpdateBy}</span></p></div>)}
                      {order.hasBeenModified && order.lastModifiedBy && (<div className="mt-2 text-xs text-red-700 bg-red-100 p-2 rounded-md"><p className="font-semibold">Última Modificación por:</p><p className="">{order.lastModifiedBy} el {format(parseISO(order.lastModifiedAt as string), "dd/MM/yy 'a las' HH:mm")}</p></div>)}
                 </CardContent>
                 <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
@@ -475,7 +475,7 @@ export default function PlannerPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Actualizar Estado de la Orden</DialogTitle>
-                        <DialogDescription>Estás a punto de cambiar el estado a "{state.newStatus ? selectors.statusConfig[state.newStatus]?.label : ''}".</DialogDescription>
+                        <DialogDescription>Estás a punto de cambiar el estado a &quot;{state.newStatus ? selectors.statusConfig[state.newStatus]?.label : ''}&quot;.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         {state.newStatus === 'completed' && (
@@ -512,7 +512,7 @@ export default function PlannerPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive" /> Reabrir Orden Finalizada</DialogTitle>
-                        <DialogDescription>Estás a punto de reabrir la orden {state.orderToUpdate?.consecutive}. Esta acción es irreversible y moverá la orden de nuevo a "Pendiente".</DialogDescription>
+                        <DialogDescription>Estás a punto de reabrir la orden {state.orderToUpdate?.consecutive}. Esta acción es irreversible y moverá la orden de nuevo a &quot;Pendiente&quot;.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div className="flex items-center space-x-2">
@@ -521,7 +521,7 @@ export default function PlannerPage() {
                         </div>
                         {state.reopenStep > 0 && (
                             <div className="space-y-2">
-                                <Label htmlFor="reopen-confirmation-text">Para confirmar, escribe "REABRIR" en el campo de abajo:</Label>
+                                <Label htmlFor="reopen-confirmation-text">Para confirmar, escribe &quot;REABRIR&quot; en el campo de abajo:</Label>
                                 <Input id="reopen-confirmation-text" value={state.reopenConfirmationText} onChange={(e) => { actions.setReopenConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'REABRIR') {actions.setReopenStep(2);} else {actions.setReopenStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
                             </div>
                         )}
