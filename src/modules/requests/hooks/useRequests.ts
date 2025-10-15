@@ -422,6 +422,8 @@ export const useRequests = () => {
             if (state.requestToEdit) updateState({ requestToEdit: { ...state.requestToEdit, ...dataToUpdate }});
             else updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
             updateState({ itemSearchTerm: `[${product.id}] - ${product.description}` });
+        } else {
+             updateState({ itemSearchTerm: '' });
         }
     };
 
@@ -430,9 +432,14 @@ export const useRequests = () => {
         const client = authCustomers.find(c => c.id === value);
         if (client) {
             const dataToUpdate = { clientId: client.id, clientName: client.name, clientTaxId: client.taxId };
-            if (state.requestToEdit) updateState({ requestToEdit: { ...state.requestToEdit, ...dataToUpdate }});
-            else updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
+            if (state.requestToEdit) {
+                updateState({ requestToEdit: { ...state.requestToEdit, ...dataToUpdate }});
+            } else {
+                updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
+            }
             updateState({ clientSearchTerm: `[${client.id}] ${client.name} (${client.taxId})` });
+        } else {
+            updateState({ clientSearchTerm: '' });
         }
     };
 
