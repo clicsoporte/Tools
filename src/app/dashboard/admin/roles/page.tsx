@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "../../../../components/ui/button";
 import {
   Card,
@@ -170,7 +170,7 @@ export default function RolesPage() {
             fetchRoles();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAuthorized]);
+    }, [isAuthorized, fetchRoles]);
     
     const handlePermissionChange = (roleId: string, permission: string, checked: boolean) => {
         setRoles(currentRoles => 
