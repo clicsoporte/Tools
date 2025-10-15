@@ -125,20 +125,36 @@ async function getConnectionPool(): Promise<sql.ConnectionPool> {
 /**
  * Executes a read-only SQL query against the configured database.
  * @param {string} query - The SELECT query to execute.
+ * @param {AbortSignal} [signal] - An optional AbortSignal to cancel the query.
  * @returns {Promise<any[]>} A promise that resolves to an array of records.
- * @throws {Error} If the query is invalid or if the database connection fails.
+ * @throws {Error} If the query is invalid, is aborted, or if the database connection fails.
  */
-export async function executeQuery(query: string): Promise<any[]> {
+export async function executeQuery(query: string, signal?: AbortSignal): Promise<any[]> {
     validateSelectOnly(query);
     
     let connection: sql.ConnectionPool;
     
     try {
         connection = await getConnectionPool();
-        const result = await connection.request().query(query);
+        const request = connection.request();
+        if (signal) {
+            signal.addEventListener('abort', () => {
+                request.cancel();
+            });
+            if (signal.aborted) {
+                throw new Error("Query was aborted.");
+            }
+        }
+        
+        const result = await request.query(query);
         return result.recordset;
         
     } catch (err: any) {
+        if (err.name === 'AbortError' || err.message.includes('Canceled')) {
+            console.log(`Query was canceled: ${query.substring(0, 100)}...`);
+            throw new Error("La consulta al ERP fue cancelada.");
+        }
+
         logError("Error al ejecutar consulta SELECT", { 
             error: err.message,
             code: err.code,

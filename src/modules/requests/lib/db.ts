@@ -1,5 +1,4 @@
-
-
+_PRIVATE[
 /**
  * @fileoverview Server-side functions for the purchase requests database.
  */
@@ -517,7 +516,7 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 }
 
 
-export async function getErpOrderData(orderNumber: string): Promise<{headers: any[], lines: any[]}> {
+export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[]}> {
     const db = await connectDb();
     
     const headerQueryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get('erp_order_headers') as { query: string } | undefined;
@@ -529,19 +528,21 @@ export async function getErpOrderData(orderNumber: string): Promise<{headers: an
 
     const sanitizedValue = orderNumber.replace(/'/g, "''");
     
-    const headerQuery = headerQueryRow.query.replace('?', `'${sanitizedValue}'`);
-    const linesQuery = linesQueryRow.query.replace('?', `'${sanitizedValue}'`);
+    const headerQuery = headerQueryRow.query.replace('?', ` LIKE '${sanitizedValue}%'`);
+    const linesQuery = linesQueryRow.query.replace('?', ` LIKE '${sanitizedValue}%'`);
 
     let headerResult, linesResult;
     try {
         [headerResult, linesResult] = await Promise.all([
-            executeQuery(headerQuery),
-            executeQuery(linesQuery)
+            executeQuery(headerQuery, signal),
+            executeQuery(linesQuery, signal)
         ]);
     } catch (e: any) {
-        // Log the specific query that failed for easier debugging
-        logError('Error ejecutando consulta de Pedido ERP', { error: e.message, query: e.query || 'Unknown query' });
-        throw e; // Re-throw the original error
+        if (e.name === 'AbortError') {
+            throw e;
+        }
+        logError('Error ejecutando consulta de Pedido ERP', { error: e.message, headerQuery, linesQuery });
+        throw e;
     }
     
     if (headerResult.length === 0) {

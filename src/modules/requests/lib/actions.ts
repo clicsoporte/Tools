@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for interacting with the request module's server-side DB functions.
  * This abstraction layer ensures components only call client-safe functions.
@@ -126,8 +125,9 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 /**
  * Fetches the header and line items for a given ERP order number.
  * @param orderNumber The ERP order number to fetch.
- * @returns An object containing the order header and an array of lines.
+ * @param signal The AbortSignal to cancel the request.
+ * @returns An object containing the order headers and an array of lines.
  */
-export async function getErpOrderData(orderNumber: string): Promise<{headers: any[], lines: any[]}> {
-    return getErpOrderDataServer(orderNumber);
+export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[]}> {
+    return getErpOrderDataServer(orderNumber, signal);
 }

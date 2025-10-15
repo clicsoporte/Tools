@@ -216,7 +216,7 @@ export default function PurchaseRequestPage() {
                                     <p className="font-semibold">Múltiples pedidos encontrados. Por favor, selecciona uno:</p>
                                     <ScrollArea className="h-60">
                                         <div className="space-y-2 pr-4">
-                                            {erpOrderHeaders.map(header => (
+                                            {erpOrderHeaders.map((header: any) => (
                                                 <Card key={header.PEDIDO} className="cursor-pointer hover:bg-muted" onClick={() => actions.handleSelectErpOrderHeader(header)}>
                                                     <CardContent className="p-3">
                                                         <p className="font-bold">{header.PEDIDO}</p>
@@ -230,7 +230,7 @@ export default function PurchaseRequestPage() {
                                 </div>
                             )}
                             <DialogFooter>
-                                <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                                <Button variant="ghost" onClick={() => actions.handleCancelErpFetch()}>Cancelar</Button>
                                 <Button onClick={actions.handleFetchErpOrder} disabled={isErpLoading}>{isErpLoading && <Loader2 className="mr-2 animate-spin"/>}Cargar Pedido</Button>
                             </DialogFooter>
                         </DialogContent>
@@ -318,6 +318,7 @@ export default function PurchaseRequestPage() {
         </main>
     );
 }
+
 
 
 
