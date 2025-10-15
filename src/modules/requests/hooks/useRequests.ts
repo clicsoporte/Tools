@@ -13,7 +13,7 @@ import { logError } from '@/modules/core/lib/logger';
 import { 
     getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, 
     updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, 
-    updatePendingAction, getErpOrderData
+    updatePendingAction, getErpOrderData, saveRequestSettings as saveSettingsServer
 } from '@/modules/requests/lib/actions';
 import type { 
     PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
@@ -269,7 +269,7 @@ export const useRequests = () => {
             }
 
             if (needsUpdate) {
-                await saveRequestSettings(settings);
+                await saveSettingsServer(settings);
             }
             updateState({ requestSettings: settings });
         };
@@ -506,6 +506,12 @@ export const useRequests = () => {
                 const enrichedHeaders = headers.map((h: any) => {
                     const client = authCustomers.find(c => c.id === h.CLIENTE);
                     return { ...h, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
+                }).sort((a: any, b: any) => {
+                    // Prioritize exact match
+                    if (a.PEDIDO === state.erpOrderNumber) return -1;
+                    if (b.PEDIDO === state.erpOrderNumber) return 1;
+                    // Then sort alphabetically
+                    return a.PEDIDO.localeCompare(b.PEDIDO);
                 });
                 updateState({ erpOrderHeaders: enrichedHeaders });
             } else {
@@ -843,4 +849,3 @@ export const useRequests = () => {
         isAuthorized
     };
 };
-
