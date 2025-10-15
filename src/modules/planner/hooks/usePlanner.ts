@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
  * This hook encapsulates all state and actions for the planner, keeping the UI component clean.
@@ -433,7 +434,7 @@ export const usePlanner = () => {
                 };
 
                 if (state.orderToEdit) {
-                    updateState({ orderToEdit: { ...state.orderToEdit, ...dataToUpdate }});
+                    actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
                 } else {
                     updateState({ newOrder: { ...state.newOrder, ...dataToUpdate }});
                 }
@@ -448,7 +449,7 @@ export const usePlanner = () => {
             if (customer) {
                 const dataToUpdate = { customerId: customer.id, customerName: customer.name, customerTaxId: customer.taxId };
                 if (state.orderToEdit) {
-                    updateState({ orderToEdit: { ...state.orderToEdit, ...dataToUpdate }});
+                     actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
                 } else {
                     updateState({ newOrder: { ...state.newOrder, ...dataToUpdate }});
                 }
@@ -704,3 +705,6 @@ export const usePlanner = () => {
         isAuthorized,
     };
 };
+
+
+    
