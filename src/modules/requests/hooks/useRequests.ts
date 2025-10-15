@@ -239,14 +239,7 @@ export const useRequests = () => {
 
      useEffect(() => {
         if (!isAuthorized || state.isLoading) return;
-        let isMounted = true;
-        const reload = async () => {
-            await loadInitialData(state.archivedPage);
-        };
-        if(isMounted) {
-            reload();
-        }
-        return () => { isMounted = false; };
+        loadInitialData(state.archivedPage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthorized]);
 
@@ -694,7 +687,7 @@ export const useRequests = () => {
         setArchivedPage: (updater: (prev: number) => number) => updateState({ archivedPage: updater(state.archivedPage) }),
         setPageSize: (size: number) => updateState({ pageSize: size, archivedPage: 0 }),
         setNewRequest: (updater: (prev: State['newRequest']) => State['newRequest']) => updateState({ newRequest: updater(state.newRequest) }),
-        setRequestToEdit: (updater: (prev: PurchaseRequest | null) => PurchaseRequest | null) => updateState({ requestToEdit: updater(state.requestToEdit) }),
+        setRequestToEdit: (request: PurchaseRequest | null) => updateState({ requestToEdit: request }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
         setStatusFilter: (filter: string) => updateState({ statusFilter: filter }),
         setClassificationFilter: (filter: string) => updateState({ classificationFilter: filter }),

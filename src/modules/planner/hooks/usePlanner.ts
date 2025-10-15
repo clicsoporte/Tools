@@ -195,8 +195,8 @@ export const usePlanner = () => {
         setNewOrder: (partialOrder: Partial<typeof state.newOrder>) => {
             updateState({ newOrder: { ...state.newOrder, ...partialOrder } });
         },
-        setOrderToEdit: (partialOrder: Partial<ProductionOrder> | null) => {
-            updateState({ orderToEdit: partialOrder ? { ...(state.orderToEdit || {} as ProductionOrder), ...partialOrder } : null });
+        setOrderToEdit: (order: ProductionOrder | null) => {
+            updateState({ orderToEdit: order });
         },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
@@ -395,7 +395,7 @@ export const usePlanner = () => {
             try {
                 updateState({ history: await getOrderHistory(order.id) });
             } catch (error: any) {
-                logError("Failed to get history", { error: error.message });
+                logError("Failed to get history", {error: error.message});
                 toast({ title: "Error", variant: "destructive" });
             } finally {
                 updateState({ isHistoryLoading: false });
@@ -429,8 +429,7 @@ export const usePlanner = () => {
                     inventoryErp: stock,
                     inventory: stock,
                 };
-                if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
-                else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
+                actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
                 updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
             }
         },
@@ -440,8 +439,7 @@ export const usePlanner = () => {
             const customer = customers.find(c => c.id === value);
             if (customer) {
                 const dataToUpdate = { customerId: customer.id, customerName: customer.name, customerTaxId: customer.taxId };
-                if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
-                else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
+                actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
                 updateState({ customerSearchTerm: `[${customer.id}] ${customer.name} (${customer.taxId})` });
             }
         },
