@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React from 'react';
@@ -29,6 +27,26 @@ import type { PurchaseRequest } from '@/modules/core/types';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
+const HighlightedText = ({ text, highlight }: { text: string; highlight: string }) => {
+    if (!highlight) {
+        return <span>{text}</span>;
+    }
+    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+    return (
+        <span>
+            {parts.map((part, i) =>
+                part.toLowerCase() === highlight.toLowerCase() ? (
+                    <span key={i} className="text-green-600 font-bold">
+                        {part}
+                    </span>
+                ) : (
+                    part
+                )
+            )}
+        </span>
+    );
+};
+
 
 export default function PurchaseRequestPage() {
     const { state, actions, selectors, isLoading, isAuthorized } = useRequests();
@@ -42,6 +60,7 @@ export default function PurchaseRequestPage() {
         isHistoryDialogOpen, historyRequest, history, isHistoryLoading,
         isReopenDialogOpen, reopenStep, reopenConfirmationText, arrivalDate,
         isActionDialogOpen, isErpOrderModalOpen, isErpItemsModalOpen, erpOrderNumber, erpOrderHeaders, selectedErpOrderHeader, erpOrderLines, isErpLoading,
+        showOnlyShortageItems
     } = state;
 
 
@@ -219,7 +238,7 @@ export default function PurchaseRequestPage() {
                                             {erpOrderHeaders.map((header: any) => (
                                                 <Card key={header.PEDIDO} className="cursor-pointer hover:bg-muted" onClick={() => actions.handleSelectErpOrderHeader(header)}>
                                                     <CardContent className="p-3">
-                                                        <p className="font-bold">{header.PEDIDO}</p>
+                                                        <p className="font-bold"><HighlightedText text={header.PEDIDO} highlight={erpOrderNumber} /></p>
                                                         <p className="text-sm">{header.CLIENTE_NOMBRE}</p>
                                                         <p className="text-xs text-muted-foreground">Fecha: {format(new Date(header.FECHA_PEDIDO), 'dd/MM/yyyy')}</p>
                                                     </CardContent>
@@ -231,7 +250,7 @@ export default function PurchaseRequestPage() {
                             )}
                             <DialogFooter>
                                 <Button variant="ghost" onClick={() => actions.handleCancelErpFetch()}>Cancelar</Button>
-                                <Button onClick={actions.handleFetchErpOrder} disabled={isErpLoading}>{isErpLoading && <Loader2 className="mr-2 animate-spin"/>}Cargar Pedido</Button>
+                                <Button onClick={actions.handleFetchErpOrder} disabled={isErpLoading || !erpOrderNumber}>{isErpLoading && <Loader2 className="mr-2 animate-spin"/>}Cargar Pedido</Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
@@ -286,11 +305,15 @@ export default function PurchaseRequestPage() {
                         <DialogTitle>Artículos del Pedido ERP: {erpOrderNumber}</DialogTitle>
                         <DialogDescription>Cliente: {selectedErpOrderHeader?.CLIENTE_NOMBRE}</DialogDescription>
                     </DialogHeader>
+                    <div className="flex items-center space-x-2 my-4">
+                        <Checkbox id="show-only-shortage" checked={showOnlyShortageItems} onCheckedChange={(checked) => actions.setShowOnlyShortageItems(checked as boolean)} />
+                        <Label htmlFor="show-only-shortage" className="font-normal">Mostrar solo artículos con faltante</Label>
+                    </div>
                     <ScrollArea className="max-h-[60vh]">
                         <Table>
                             <TableHeader><TableRow><TableHead className="w-10"><Checkbox onCheckedChange={(checked) => actions.handleErpLineChange(-1, 'selected', !!checked)}/></TableHead><TableHead>Artículo</TableHead><TableHead>Cant. Pedida</TableHead><TableHead>Inv. Actual</TableHead><TableHead>Cant. a Solicitar</TableHead><TableHead>Precio Venta</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {erpOrderLines.map((line, index) => (
+                                {selectors.visibleErpOrderLines.map((line, index) => (
                                     <TableRow key={line.PEDIDO_LINEA} className={cn(!line.selected && 'text-muted-foreground', line.CANTIDAD_PEDIDA > (line.stock?.totalStock || 0) ? 'bg-red-50 hover:bg-red-100/60 dark:bg-red-900/20' : 'bg-green-50 hover:bg-green-100/60 dark:bg-green-900/20')}>
                                         <TableCell><Checkbox checked={line.selected} onCheckedChange={(checked) => actions.handleErpLineChange(index, 'selected', !!checked)} /></TableCell>
                                         <TableCell><p className="font-medium">{line.product.description}</p><p className="text-xs text-muted-foreground">{line.ARTICULO}</p></TableCell>
@@ -318,10 +341,3 @@ export default function PurchaseRequestPage() {
         </main>
     );
 }
-
-
-
-
-
-
-
