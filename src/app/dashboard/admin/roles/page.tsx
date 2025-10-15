@@ -169,8 +169,7 @@ export default function RolesPage() {
         if (isAuthorized) {
             fetchRoles();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAuthorized, fetchRoles]);
+    }, [isAuthorized, fetchRoles, setTitle]);
     
     const handlePermissionChange = (roleId: string, permission: string, checked: boolean) => {
         setRoles(currentRoles => 

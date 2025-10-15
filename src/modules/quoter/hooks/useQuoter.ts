@@ -62,7 +62,7 @@ interface LineInputRefs {
 type ErrorResponse = { error: boolean; message: string; status?: number };
 
 function isHaciendaErrorResponse(data: any): data is ErrorResponse {
-  return (data as ErrorResponse).error !== undefined;
+  return data && (data as ErrorResponse).error !== undefined;
 }
 
 
@@ -243,7 +243,7 @@ export const useQuoter = () => {
         const lastLineRefs = lineInputRefs.current.get(lastLine.id);
         lastLineRefs?.qty?.focus();
     }
-  }, [lines.length]);
+  }, [lines.length, lines]);
 
   const customerOptions = useMemo(() => {
     if (debouncedCustomerSearch.length < 2) return [];
@@ -254,7 +254,7 @@ export const useQuoter = () => {
         const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
         return searchTerms.every(term => targetText.includes(term));
       })
-      .map((c) => ({ value: c.id, label: `[${c.id}] - ${c.name} (${c.taxId})` }));
+      .map((c) => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
   }, [customers, showInactiveCustomers, debouncedCustomerSearch]);
 
   const productOptions = useMemo(() => {
@@ -679,7 +679,7 @@ export const useQuoter = () => {
     const totalTaxes = lines.reduce((acc, line) => acc + (line.quantity * line.price * line.tax), 0);
     const total = subtotal + totalTaxes;
     return { subtotal, totalTaxes, total };
-  }, [lines, decimalPlaces]);
+  }, [lines]);
 
   
   const selectors = { totals, customerOptions, productOptions };

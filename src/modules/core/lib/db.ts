@@ -932,8 +932,8 @@ export async function uploadBackupFile(formData: FormData): Promise<number> {
     for (const file of files) {
         // Security: Prevent path traversal attacks
         const sanitizedFileName = path.basename(file.name);
-        if (sanitizedFileName !== file.name) {
-            throw new Error(`Nombre de archivo inválido: ${file.name}`);
+        if (sanitizedFileName !== file.name || !sanitizedFileName.endsWith('.db')) {
+            throw new Error(`Nombre de archivo inválido o tipo no permitido: ${file.name}`);
         }
         
         const buffer = Buffer.from(await file.arrayBuffer());
@@ -997,6 +997,7 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
         }
     }
 }
+
 
 export async function deleteOldUpdateBackups(): Promise<number> {
     const backups = await listAllUpdateBackups();
