@@ -138,6 +138,14 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
             console.log("MIGRATION (requests.db): Adding showCustomerTaxId to settings.");
             db.prepare(`INSERT INTO request_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
         }
+        if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'erpHeaderQuery'`).get()) {
+             db.prepare(`INSERT INTO request_settings (key, value) VALUES ('erpHeaderQuery', ?)`)
+               .run("SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA] FROM [SOFTLAND].[GAREND].[PEDIDO] WHERE [ESTADO] <> 'F' AND [PEDIDO] = ?");
+        }
+         if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'erpLinesQuery'`).get()) {
+            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('erpLinesQuery', ?)`)
+              .run("SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA] WHERE [PEDIDO] = ?");
+        }
     }
 }
 
@@ -157,6 +165,8 @@ export async function getSettings(): Promise<RequestSettings> {
         pdfExportColumns: [],
         pdfPaperSize: 'letter',
         pdfOrientation: 'portrait',
+        erpHeaderQuery: '',
+        erpLinesQuery: '',
     };
 
     for (const row of settingsRows) {
@@ -170,6 +180,8 @@ export async function getSettings(): Promise<RequestSettings> {
         else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
         else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
         else if (row.key === 'pdfOrientation') settings.pdfOrientation = row.value as 'portrait' | 'landscape';
+        else if (row.key === 'erpHeaderQuery') settings.erpHeaderQuery = row.value;
+        else if (row.key === 'erpLinesQuery') settings.erpLinesQuery = row.value;
     }
     return settings;
 }
@@ -178,7 +190,7 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
+        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation', 'erpHeaderQuery', 'erpLinesQuery'];
         for (const key of keys) {
              if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -515,35 +527,35 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 }
 
 export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[]}> {
-    const mainDb = await connectDb();
-    const erpHeaderQueryRow = mainDb.prepare(`SELECT query FROM import_queries WHERE type = 'erp_order_headers'`).get() as { query: string } | undefined;
-    const erpLinesQueryRow = mainDb.prepare(`SELECT query FROM import_queries WHERE type = 'erp_order_lines'`).get() as { query: string } | undefined;
+    const settings = await getSettings();
 
-    if (!erpHeaderQueryRow?.query || !erpLinesQueryRow?.query) {
-        throw new Error(`Las consultas para 'erp_order_headers' o 'erp_order_lines' no están configuradas.`);
+    if (!settings.erpHeaderQuery || !settings.erpLinesQuery) {
+        throw new Error(`Las consultas para 'erp_order_headers' o 'erp_order_lines' no están configuradas en los ajustes del módulo de Compras.`);
     }
 
     const sanitizedValue = orderNumber.replace(/'/g, "''");
     
-    let headerQuery = erpHeaderQueryRow.query;
-    if (headerQuery.includes('?')) {
-        headerQuery = headerQuery.replace('?', `'${sanitizedValue}'`);
+    let headerQuery: string;
+    if (settings.erpHeaderQuery.includes('?')) {
+        headerQuery = settings.erpHeaderQuery.replace('?', `'${sanitizedValue}'`);
     } else {
-        const whereIndex = headerQuery.toLowerCase().lastIndexOf('where');
-        const orderByIndex = headerQuery.toLowerCase().lastIndexOf('order by');
+        const whereIndex = settings.erpHeaderQuery.toLowerCase().lastIndexOf('where');
+        const orderByIndex = settings.erpHeaderQuery.toLowerCase().lastIndexOf('order by');
         const condition = ` [PEDIDO] LIKE '${sanitizedValue}%' `;
 
         if (whereIndex > -1) {
+            let baseQuery = settings.erpHeaderQuery;
             if (orderByIndex > whereIndex) {
-                 headerQuery = headerQuery.slice(0, orderByIndex) + ` AND ${condition} ` + headerQuery.slice(orderByIndex);
+                 baseQuery = baseQuery.slice(0, orderByIndex);
+                headerQuery = `${baseQuery} AND ${condition} ${settings.erpHeaderQuery.slice(orderByIndex)}`;
             } else {
-                headerQuery += ` AND ${condition}`;
+                headerQuery = `${baseQuery} AND ${condition}`;
             }
         } else {
-             if (orderByIndex > -1) {
-                headerQuery = headerQuery.slice(0, orderByIndex) + ` WHERE ${condition} ` + headerQuery.slice(orderByIndex);
+            if (orderByIndex > -1) {
+                headerQuery = `${settings.erpHeaderQuery.slice(0, orderByIndex)} WHERE ${condition} ${settings.erpHeaderQuery.slice(orderByIndex)}`;
             } else {
-                headerQuery += ` WHERE ${condition}`;
+                headerQuery = `${settings.erpHeaderQuery} WHERE ${condition}`;
             }
         }
     }
@@ -564,23 +576,22 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
     const selectedHeader = headers[0];
     const finalOrderNumber = selectedHeader.PEDIDO;
 
-    let linesQuery = erpLinesQueryRow.query;
+    let linesQuery = settings.erpLinesQuery;
     if (linesQuery.includes('?')) {
         linesQuery = linesQuery.replace('?', `'${finalOrderNumber}'`);
     } else {
         const whereIndex = linesQuery.toLowerCase().lastIndexOf('where');
         const orderByIndex = linesQuery.toLowerCase().lastIndexOf('order by');
         const condition = ` [PEDIDO] = '${finalOrderNumber}' `;
-        
         if (whereIndex > -1) {
-            if (orderByIndex > whereIndex) {
-                linesQuery = linesQuery.slice(0, orderByIndex) + ` AND ${condition} ` + linesQuery.slice(orderByIndex);
+             if (orderByIndex > whereIndex) {
+                 linesQuery = `${linesQuery.slice(0, orderByIndex)} AND ${condition} ${linesQuery.slice(orderByIndex)}`;
             } else {
                 linesQuery += ` AND ${condition}`;
             }
         } else {
             if (orderByIndex > -1) {
-                linesQuery = linesQuery.slice(0, orderByIndex) + ` WHERE ${condition} ` + linesQuery.slice(orderByIndex);
+                linesQuery = `${linesQuery.slice(0, orderByIndex)} WHERE ${condition} ${linesQuery.slice(orderByIndex)}`;
             } else {
                 linesQuery += ` WHERE ${condition}`;
             }

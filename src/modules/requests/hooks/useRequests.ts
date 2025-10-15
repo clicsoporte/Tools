@@ -255,8 +255,8 @@ export const useRequests = () => {
         const fetchSettingsAndQueries = async () => {
             const settings = await getRequestSettings();
             
-            const defaultHeaderQuery = `SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA], [TOTAL_UNIDADES], [MONEDA_PEDIDO], [USUARIO] FROM [SOFTLAND].[GAREND].[PEDIDO] WHERE [ESTADO] <> 'F' AND [PEDIDO] = ?`;
-            const defaultLinesQuery = `SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [PRECIO_UNITARIO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA] WHERE [PEDIDO] = ?`;
+            const defaultHeaderQuery = `SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA] FROM [SOFTLAND].[GAREND].[PEDIDO] WHERE [ESTADO] <> 'F' AND [PEDIDO] = ?`;
+            const defaultLinesQuery = `SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA] WHERE [PEDIDO] = ?`;
 
             let needsUpdate = false;
             if (!settings.erpHeaderQuery || !settings.erpHeaderQuery.includes('[PEDIDO] = ?')) {
@@ -507,10 +507,8 @@ export const useRequests = () => {
                     const client = authCustomers.find(c => c.id === h.CLIENTE);
                     return { ...h, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
                 }).sort((a: any, b: any) => {
-                    // Prioritize exact match
                     if (a.PEDIDO === state.erpOrderNumber) return -1;
                     if (b.PEDIDO === state.erpOrderNumber) return 1;
-                    // Then sort alphabetically
                     return a.PEDIDO.localeCompare(b.PEDIDO);
                 });
                 updateState({ erpOrderHeaders: enrichedHeaders });

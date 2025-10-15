@@ -395,6 +395,8 @@ export type RequestSettings = {
     pdfExportColumns: string[];
     pdfPaperSize: 'letter' | 'legal';
     pdfOrientation: 'portrait' | 'landscape';
+    erpHeaderQuery?: string;
+    erpLinesQuery?: string;
 };
 
 export type UpdateRequestStatusPayload = {
@@ -608,3 +610,4 @@ export type Supplier = {
     email: string;   // E_MAIL
     phone: string;   // TELEFONO1
 };
+
