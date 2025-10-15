@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
  * This hook encapsulates all state and actions for the planner, keeping the UI component clean.
@@ -18,7 +19,7 @@ import {
 import type { 
     ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, 
     ProductionOrderHistoryEntry, User, PlannerSettings, DateRange, 
-    NotePayload, UpdateProductionOrderPayload, AdministrativeActionPayload 
+    NotePayload, UpdateProductionOrderPayload, AdministrativeActionPayload, Product, StockInfo 
 } from '../../core/types';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -423,13 +424,20 @@ export const usePlanner = () => {
             const product = products.find(p => p.id === value);
             if (product) {
                 const stock = stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
+                
                 const dataToUpdate = { 
                     productId: product.id, 
                     productDescription: product.description || '', 
                     inventoryErp: stock,
                     inventory: stock,
                 };
-                actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
+
+                if (state.orderToEdit) {
+                    updateState({ orderToEdit: { ...state.orderToEdit, ...dataToUpdate }});
+                } else {
+                    updateState({ newOrder: { ...state.newOrder, ...dataToUpdate }});
+                }
+
                 updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
             }
         },
@@ -439,7 +447,11 @@ export const usePlanner = () => {
             const customer = customers.find(c => c.id === value);
             if (customer) {
                 const dataToUpdate = { customerId: customer.id, customerName: customer.name, customerTaxId: customer.taxId };
-                actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
+                if (state.orderToEdit) {
+                    updateState({ orderToEdit: { ...state.orderToEdit, ...dataToUpdate }});
+                } else {
+                    updateState({ newOrder: { ...state.newOrder, ...dataToUpdate }});
+                }
                 updateState({ customerSearchTerm: `[${customer.id}] ${customer.name} (${customer.taxId})` });
             }
         },
