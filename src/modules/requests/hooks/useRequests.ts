@@ -461,7 +461,7 @@ export const useRequests = () => {
             if (headers.length === 1) {
                 await processSingleErpOrder(headers[0], lines);
             } else {
-                const enrichedHeaders = headers.map(h => {
+                const enrichedHeaders = headers.map((h: any) => {
                     const client = authCustomers.find(c => c.id === h.CLIENTE);
                     return { ...h, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
                 });
@@ -804,4 +804,3 @@ export const useRequests = () => {
         isAuthorized
     };
 };
-

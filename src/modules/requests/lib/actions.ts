@@ -127,6 +127,6 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
  * @param orderNumber The ERP order number to fetch.
  * @returns An object containing the order header and an array of lines.
  */
-export async function getErpOrderData(orderNumber: string): Promise<{header: any, lines: any[]}> {
+export async function getErpOrderData(orderNumber: string): Promise<{headers: any[], lines: any[]}> {
     return getErpOrderDataServer(orderNumber);
 }
