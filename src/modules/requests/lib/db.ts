@@ -513,7 +513,7 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest;
 }
 
-export async function getErpOrderData(orderNumber: string): Promise<{header: any, lines: any[]}> {
+export async function getErpOrderData(orderNumber: string): Promise<{headers: any[], lines: any[]}> {
     const db = await connectDb();
     
     const headerQueryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get('erp_order_headers') as { query: string } | undefined;
@@ -527,19 +527,13 @@ export async function getErpOrderData(orderNumber: string): Promise<{header: any
     }
 
     const buildQuery = (baseQuery: string, value: string) => {
-        const sanitizedValue = value.replace(/'/g, "''"); // Basic SQL injection sanitation
-        const condition = `[PEDIDO] = '${sanitizedValue}'`;
-
-        // Check if the query already has a placeholder for the order number
-        if (baseQuery.includes('?')) {
-            return baseQuery.replace('?', `'${sanitizedValue}'`);
-        }
-
-        // Otherwise, intelligently add the WHERE clause
-        if (baseQuery.toLowerCase().includes(' where ')) {
-            return `${baseQuery} AND ${condition}`;
+        const sanitizedValue = value.replace(/'/g, "''");
+        const likeCondition = `[PEDIDO] LIKE '${sanitizedValue}%'`;
+    
+        if (baseQuery.toLowerCase().includes('where')) {
+            return `${baseQuery} AND ${likeCondition}`;
         } else {
-            return `${baseQuery} WHERE ${condition}`;
+            return `${baseQuery} WHERE ${likeCondition}`;
         }
     };
     
@@ -556,8 +550,9 @@ export async function getErpOrderData(orderNumber: string): Promise<{header: any
         throw new Error(`No se encontró el pedido ERP con el número: ${orderNumber}`);
     }
 
-    return { header: headerResult[0], lines: linesResult };
+    return { headers: headerResult, lines: linesResult };
 }
 
 
     
+

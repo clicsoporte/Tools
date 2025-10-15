@@ -20,7 +20,7 @@ import {
 import type { 
     PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
     PurchaseRequestHistoryEntry, RequestSettings, Company, DateRange, 
-    AdministrativeAction, AdministrativeActionPayload, Product, StockInfo
+    AdministrativeAction, AdministrativeActionPayload, Product, StockInfo 
 } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -123,7 +123,8 @@ type State = {
     isErpOrderModalOpen: boolean;
     isErpItemsModalOpen: boolean;
     erpOrderNumber: string;
-    erpOrderHeader: any;
+    erpOrderHeaders: any[];
+    selectedErpOrderHeader: any;
     erpOrderLines: ErpOrderLine[];
     isErpLoading: boolean;
 };
@@ -176,7 +177,8 @@ export const useRequests = () => {
         isErpOrderModalOpen: false,
         isErpItemsModalOpen: false,
         erpOrderNumber: '',
-        erpOrderHeader: null,
+        erpOrderHeaders: [],
+        selectedErpOrderHeader: null,
         erpOrderLines: [],
         isErpLoading: false,
     });
@@ -419,8 +421,13 @@ export const useRequests = () => {
         if (product) {
             const stock = authStockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
             const dataToUpdate = { itemId: product.id, itemDescription: product.description || '', inventory: stock };
-            if (state.requestToEdit) updateState({ requestToEdit: { ...state.requestToEdit, ...dataToUpdate }});
-            else updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
+            if (state.requestToEdit) {
+                 updateState({
+                    requestToEdit: state.requestToEdit ? { ...state.requestToEdit, ...dataToUpdate } : null
+                });
+            } else {
+                updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
+            }
             updateState({ itemSearchTerm: `[${product.id}] - ${product.description}` });
         } else {
              updateState({ itemSearchTerm: '' });
@@ -433,7 +440,9 @@ export const useRequests = () => {
         if (client) {
             const dataToUpdate = { clientId: client.id, clientName: client.name, clientTaxId: client.taxId };
             if (state.requestToEdit) {
-                updateState({ requestToEdit: { ...state.requestToEdit, ...dataToUpdate }});
+                 updateState({
+                    requestToEdit: state.requestToEdit ? { ...state.requestToEdit, ...dataToUpdate } : null
+                });
             } else {
                 updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
             }
@@ -447,29 +456,18 @@ export const useRequests = () => {
         if (!state.erpOrderNumber) return;
         updateState({ isErpLoading: true });
         try {
-            const { header, lines } = await getErpOrderData(state.erpOrderNumber);
-            
-            const client = authCustomers.find(c => c.id === header.CLIENTE);
-            updateState({ erpOrderHeader: { ...header, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' } });
+            const { headers, lines } = await getErpOrderData(state.erpOrderNumber);
 
-            const enrichedLines = lines.map(line => {
-                const product = authProducts.find(p => p.id === line.ARTICULO) || {id: line.ARTICULO, description: `Artículo ${line.ARTICULO} no encontrado`, active: 'N', cabys: '', classification: '', isBasicGood: 'N', lastEntry: '', notes: '', unit: ''};
-                const stock = authStockLevels.find(s => s.itemId === line.ARTICULO) || null;
-                const needsBuying = stock ? line.CANTIDAD_PEDIDA > stock.totalStock : true;
-                return {
-                    ...line,
-                    product,
-                    stock,
-                    selected: needsBuying,
-                    displayQuantity: String(line.CANTIDAD_PEDIDA),
-                    displayPrice: String(line.PRECIO_UNITARIO),
-                };
-            });
-            updateState({
-                erpOrderLines: enrichedLines,
-                isErpOrderModalOpen: false,
-                isErpItemsModalOpen: true,
-            });
+            if (headers.length === 1) {
+                await processSingleErpOrder(headers[0], lines);
+            } else {
+                const enrichedHeaders = headers.map(h => {
+                    const client = authCustomers.find(c => c.id === h.CLIENTE);
+                    return { ...h, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
+                });
+                updateState({ erpOrderHeaders: enrichedHeaders, isErpOrderModalOpen: true });
+            }
+            
         } catch (error: any) {
             logError('Failed to fetch ERP order data', { error: error.message, orderNumber: state.erpOrderNumber });
             toast({ title: "Error al Cargar Pedido", description: error.message, variant: "destructive" });
@@ -477,6 +475,45 @@ export const useRequests = () => {
             updateState({ isErpLoading: false });
         }
     };
+    
+    const processSingleErpOrder = async (header: any, lines: any[]) => {
+        const client = authCustomers.find(c => c.id === header.CLIENTE);
+        const enrichedHeader = { ...header, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
+        
+        const enrichedLines = lines.map(line => {
+            const product = authProducts.find(p => p.id === line.ARTICULO) || {id: line.ARTICULO, description: `Artículo ${line.ARTICULO} no encontrado`, active: 'N', cabys: '', classification: '', isBasicGood: 'N', lastEntry: '', notes: '', unit: ''};
+            const stock = authStockLevels.find(s => s.itemId === line.ARTICULO) || null;
+            const needsBuying = stock ? line.CANTIDAD_PEDIDA > stock.totalStock : true;
+            return {
+                ...line,
+                product,
+                stock,
+                selected: needsBuying,
+                displayQuantity: String(line.CANTIDAD_PEDIDA),
+                displayPrice: String(line.PRECIO_UNITARIO),
+            };
+        });
+        updateState({
+            selectedErpOrderHeader: enrichedHeader,
+            erpOrderLines: enrichedLines,
+            isErpOrderModalOpen: false,
+            isErpItemsModalOpen: true,
+        });
+    };
+
+    const handleSelectErpOrderHeader = async (header: any) => {
+        updateState({ isErpLoading: true, isErpOrderModalOpen: false });
+        try {
+            const { lines } = await getErpOrderData(header.PEDIDO);
+            await processSingleErpOrder(header, lines);
+        } catch (error: any) {
+             logError('Failed to fetch lines for selected ERP order', { error: error.message, orderNumber: header.PEDIDO });
+            toast({ title: "Error al Cargar Líneas", description: error.message, variant: "destructive" });
+        } finally {
+             updateState({ isErpLoading: false });
+        }
+    };
+
 
     const handleErpLineChange = (lineIndex: number, field: keyof ErpOrderLine, value: string | boolean) => {
         if (lineIndex === -1) { // Select/Deselect all
@@ -491,7 +528,7 @@ export const useRequests = () => {
     };
 
     const handleCreateRequestsFromErp = async () => {
-        if (!state.erpOrderHeader || !currentUser) return;
+        if (!state.selectedErpOrderHeader || !currentUser) return;
         const selectedLines = state.erpOrderLines.filter(line => line.selected);
         if (selectedLines.length === 0) {
             toast({ title: "No hay artículos seleccionados", description: "Marque al menos un artículo para crear solicitudes.", variant: "destructive" });
@@ -502,16 +539,16 @@ export const useRequests = () => {
         try {
             for (const line of selectedLines) {
                 const requestPayload = {
-                    requiredDate: new Date(state.erpOrderHeader.FECHA_PROMETIDA).toISOString().split('T')[0],
-                    clientId: state.erpOrderHeader.CLIENTE,
-                    clientName: state.erpOrderHeader.CLIENTE_NOMBRE,
-                    clientTaxId: authCustomers.find(c => c.id === state.erpOrderHeader.CLIENTE)?.taxId || '',
+                    requiredDate: new Date(state.selectedErpOrderHeader.FECHA_PROMETIDA).toISOString().split('T')[0],
+                    clientId: state.selectedErpOrderHeader.CLIENTE,
+                    clientName: state.selectedErpOrderHeader.CLIENTE_NOMBRE,
+                    clientTaxId: authCustomers.find(c => c.id === state.selectedErpOrderHeader.CLIENTE)?.taxId || '',
                     itemId: line.ARTICULO,
                     itemDescription: line.product.description,
                     quantity: parseFloat(line.displayQuantity) || 0,
                     notes: `Generado desde Pedido ERP: ${state.erpOrderNumber}`,
                     unitSalePrice: parseFloat(line.displayPrice) || 0,
-                    purchaseOrder: state.erpOrderHeader.ORDEN_COMPRA || '',
+                    purchaseOrder: state.selectedErpOrderHeader.ORDEN_COMPRA || '',
                     erpOrderNumber: state.erpOrderNumber,
                     erpOrderLine: line.PEDIDO_LINEA,
                     priority: 'medium' as PurchaseRequestPriority,
@@ -567,7 +604,7 @@ export const useRequests = () => {
             { id: 'manualSupplier', header: 'Proveedor', width: 70 },
         ];
     
-        const doc = generateDocument({
+        generateDocument({
             docTitle: `Solicitudes de Compra (${state.viewingArchived ? 'Archivadas' : 'Activas'})`,
             docId: '',
             companyData: state.companyData,
@@ -607,9 +644,7 @@ export const useRequests = () => {
             topLegend: state.requestSettings.pdfTopLegend,
             paperSize: state.requestSettings.pdfPaperSize,
             orientation: orientation,
-        });
-        
-        doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);
+        }).save(`solicitudes_compra_${new Date().getTime()}.pdf`);
     };
 
     const handleExportSingleRequestPDF = async (request: PurchaseRequest) => {
@@ -646,7 +681,7 @@ export const useRequests = () => {
                 { title: 'Última actualización:', content: `${request.lastStatusUpdateBy || 'N/A'} - ${request.lastStatusUpdateNotes || ''}` }
             ];
 
-        const doc = generateDocument({
+        generateDocument({
             docTitle: 'Solicitud de Compra',
             docId: request.consecutive,
             companyData: state.companyData,
@@ -666,9 +701,7 @@ export const useRequests = () => {
                 columnStyles: {},
             },
             totals: []
-        });
-
-        doc.save(`sc_${request.consecutive}.pdf`);
+        }).save(`sc_${request.consecutive}.pdf`);
     };
 
     const actions = {
@@ -688,7 +721,8 @@ export const useRequests = () => {
         handleFetchErpOrder,
         handleErpLineChange,
         handleCreateRequestsFromErp,
-        setNewRequestDialogOpen: (isOpen: boolean) => updateState({ isNewRequestDialogOpen: isOpen }),
+        handleSelectErpOrderHeader,
+        setNewRequestDialogOpen: (isOpen: boolean) => updateState({ isNewRequestDialogOpen: isOpen, newRequest: emptyRequest, clientSearchTerm: '', itemSearchTerm: '' }),
         setEditRequestDialogOpen: (isOpen: boolean) => updateState({ isEditRequestDialogOpen: isOpen }),
         setViewingArchived: (isArchived: boolean) => updateState({ viewingArchived: isArchived, archivedPage: 0 }),
         setArchivedPage: (updater: (prev: number) => number) => updateState({ archivedPage: updater(state.archivedPage) }),
@@ -715,7 +749,7 @@ export const useRequests = () => {
         setReopenConfirmationText: (text: string) => updateState({ reopenConfirmationText: text }),
         setArrivalDate: (date: string) => updateState({ arrivalDate: date }),
         setActionDialogOpen: (isOpen: boolean) => updateState({ isActionDialogOpen: isOpen }),
-        setErpOrderModalOpen: (isOpen: boolean) => updateState({ isErpOrderModalOpen: isOpen }),
+        setErpOrderModalOpen: (isOpen: boolean) => updateState({ isErpOrderModalOpen: isOpen, erpOrderHeaders: [], erpOrderNumber: '' }),
         setErpItemsModalOpen: (isOpen: boolean) => updateState({ isErpItemsModalOpen: isOpen }),
         setErpOrderNumber: (num: string) => updateState({ erpOrderNumber: num }),
     };
@@ -770,3 +804,4 @@ export const useRequests = () => {
         isAuthorized
     };
 };
+
