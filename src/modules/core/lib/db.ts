@@ -14,7 +14,7 @@ import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
 import { DB_MODULES, DB_FILE } from './data-modules';
-import { logInfo, logWarn } from './logger';
+import { logInfo, logWarn, logError } from './logger';
 
 const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
@@ -314,7 +314,7 @@ export async function clearLogs(clearedBy: string, type: 'operational' | 'system
     try {
         const auditLog = { 
             type: 'WARN', 
-            message: `Log cleanup initiated by ${clearedBy}`, 
+            message: `Limpieza de registros iniciada por ${clearedBy}`, 
             details: { type, deleteAllTime } 
         };
 
@@ -347,7 +347,7 @@ export async function clearLogs(clearedBy: string, type: 'operational' | 'system
     } catch (error) {
         console.error("Failed to clear logs from database", error);
         // If deletion fails, try to log the failure.
-        await addLog({ type: 'ERROR', message: `Failed to clear logs by ${clearedBy}`, details: { error: (error as Error).message } });
+        await addLog({ type: 'ERROR', message: `Fallo al limpiar registros por ${clearedBy}`, details: { error: (error as Error).message } });
     }
 };
 
@@ -658,9 +658,11 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
 async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers'): Promise<{ count: number, source: string }> {
     const db = await connectDb();
     const queryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get(type) as { query: string } | undefined;
-    if (!queryRow || !queryRow.query) throw new Error(`No hay una consulta SQL configurada para ${type}.`);
+    if (!queryRow || !queryRow.query) {
+        throw new Error(`No hay una consulta SQL configurada para ${type}.`);
+    }
     
-    await logInfo(`Importing ${type} from SQL`, { query: queryRow.query });
+    await logInfo(`Importando ${type} desde SQL...`);
     
     const dataArray = await executeQuery(queryRow.query);
     const headerMapping = createHeaderMapping(type);
@@ -815,28 +817,45 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
     return updateCabysCatalog(parsed.data);
 }
 
-export async function importAllDataFromFiles(): Promise<{ type: string; count: number; }[]> {
+export async function importAllDataFromFiles(): Promise<{ type: string; count: number }[]> {
+    const db = await connectDb();
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
-    const importTasks: { type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers'; }[] = [
+    
+    const importTasks: { type: ImportQuery['type'] }[] = [
         { type: 'customers' }, { type: 'products' }, { type: 'exemptions' },
         { type: 'stock' }, { type: 'locations' }, { type: 'cabys' }, { type: 'suppliers' }
     ];
+    
     const results: { type: string; count: number; }[] = [];
+    
     for (const task of importTasks) {
-        if (companySettings.importMode === 'file') {
-            const filePath = companySettings[`${task.type}FilePath` as keyof Company] as string | undefined;
-            if (!filePath) { console.log(`Skipping ${task.type} import: no file path.`); continue; }
-        }
         try {
+            if (companySettings.importMode === 'file') {
+                const filePath = companySettings[`${task.type}FilePath` as keyof Company] as string | undefined;
+                if (!filePath) {
+                    console.log(`Skipping file import for ${task.type}: no file path configured.`);
+                    continue;
+                }
+            }
             const result = await importData(task.type);
             results.push({ type: task.type, count: result.count });
-        } catch (error) {
-            console.error(`Failed to import data for ${task.type}:`, error);
+        } catch (error: any) {
+            const queryRow = companySettings.importMode === 'sql' 
+                ? db.prepare('SELECT query FROM import_queries WHERE type = ?').get(task.type) as { query: string } | undefined
+                : undefined;
+                
+            await logError(`Error al importar datos para '${task.type}'`, {
+                errorMessage: error.message,
+                importMode: companySettings.importMode,
+                query: queryRow?.query // This will only be defined for SQL import errors
+            });
         }
     }
-    const db = await connectDb();
-    db.prepare('UPDATE company_settings SET lastSyncTimestamp = ? WHERE id = 1').run(new Date().toISOString());
+
+    db.prepare('UPDATE company_settings SET lastSyncTimestamp = ? WHERE id = 1')
+      .run(new Date().toISOString());
+    
     return results;
 }
 
