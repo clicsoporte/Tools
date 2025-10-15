@@ -157,12 +157,12 @@ export default function RolesPage() {
     const { setTitle } = usePageTitle();
     const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
 
-    const fetchRoles = async () => {
+    const fetchRoles = useCallback(async () => {
         setIsLoading(true);
         const savedRoles = await getAllRoles();
         setRoles(savedRoles);
         setIsLoading(false);
-    };
+    }, []);
 
     useEffect(() => {
         setTitle("Gestión de Roles");
@@ -286,7 +286,7 @@ export default function RolesPage() {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>¿Restablecer Roles por Defecto?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Esta acción restaurará los roles por defecto ('admin', 'viewer', 'planner-user', 'requester-user') a sus permisos originales.
+                                    Esta acción restaurará los roles por defecto (&apos;admin&apos;, &apos;viewer&apos;, &apos;planner-user&apos;, &apos;requester-user&apos;) a sus permisos originales.
                                     Los roles personalizados que hayas creado no se verán afectados.
                                     Esto es útil si los permisos por defecto se han corrompido.
                                 </AlertDialogDescription>
@@ -385,7 +385,7 @@ export default function RolesPage() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar el rol "{role.name}"?</AlertDialogTitle>
+                                <AlertDialogTitle>¿Eliminar el rol &quot;{role.name}&quot;?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                     Esta acción no se puede deshacer. Los usuarios asignados a este rol perderán sus permisos.
                                 </AlertDialogDescription>

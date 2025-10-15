@@ -114,9 +114,9 @@ export const usePlanner = () => {
     const [debouncedCustomerSearch] = useDebounce(state.customerSearchTerm, authCompanyData?.searchDebounceTime ?? 500);
     const [debouncedProductSearch] = useDebounce(state.productSearchTerm, authCompanyData?.searchDebounceTime ?? 500);
     
-    const updateState = (newState: Partial<typeof state>) => {
+    const updateState = useCallback((newState: Partial<typeof state>) => {
         setState(prevState => ({ ...prevState, ...newState }));
-    };
+    }, []);
 
     const loadInitialData = useCallback(async (page = 0) => {
         let isMounted = true;
@@ -163,7 +163,7 @@ export const usePlanner = () => {
             }
         }
         return () => { isMounted = false; };
-    }, [toast, state.viewingArchived, state.pageSize]);
+    }, [toast, state.viewingArchived, state.pageSize, updateState]);
     
     useEffect(() => {
         setTitle("Planificador OP");

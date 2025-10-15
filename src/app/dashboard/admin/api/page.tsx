@@ -247,7 +247,7 @@ export default function ApiSettingsPage() {
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>¿Eliminar esta ley?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Esta acción no se puede deshacer. Se eliminará la ley '{law.institutionName}'.
+                                                            Esta acción no se puede deshacer. Se eliminará la ley &apos;{law.institutionName}&apos;.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>

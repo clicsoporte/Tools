@@ -24,7 +24,7 @@ const UPDATE_BACKUP_DIR = 'update_backups';
 // which is crucial for serverless environments.
 const dbDirectory = path.join(process.cwd(), 'dbs');
 
-let dbConnections = new Map<string, Database.Database>();
+const dbConnections = new Map<string, Database.Database>();
 
 /**
  * Establishes a connection to a specific SQLite database file.
@@ -223,8 +223,7 @@ export async function getCompanySettings(): Promise<Company | null> {
         const settings = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as any;
         if (settings && 'quoterShowTaxId' in settings) {
             // Manually handle boolean conversion from integer
-            const quoterShowTaxIdValue = settings.quoterShowTaxId;
-            settings.quoterShowTaxId = Boolean(quoterShowTaxIdValue);
+            settings.quoterShowTaxId = Boolean(settings.quoterShowTaxId);
         }
         return settings as Company | null;
     } catch (error) {
@@ -900,10 +899,10 @@ const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
 export async function backupAllForUpdate(): Promise<void> {
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
     const timestamp = new Date().toISOString();
-    for (const module of DB_MODULES) {
-        const dbPath = path.join(dbDirectory, module.dbFile);
+    for (const dbModule of DB_MODULES) {
+        const dbPath = path.join(dbDirectory, dbModule.dbFile);
         if (fs.existsSync(dbPath)) {
-            const backupPath = path.join(backupDir, `${timestamp}_${module.dbFile}`);
+            const backupPath = path.join(backupDir, `${timestamp}_${dbModule.dbFile}`);
             fs.copyFileSync(dbPath, backupPath);
         }
     }
@@ -915,10 +914,10 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
     return files.map(file => {
         const [date, ...rest] = file.split('_');
         const dbFile = rest.join('_');
-        const module = DB_MODULES.find(m => m.dbFile === dbFile);
+        const dbModule = DB_MODULES.find(m => m.dbFile === dbFile);
         return {
-            moduleId: module?.id || 'unknown',
-            moduleName: module?.name || 'Base de Datos Desconocida',
+            moduleId: dbModule?.id || 'unknown',
+            moduleName: dbModule?.name || 'Base de Datos Desconocida',
             fileName: file,
             date: date
         };
@@ -952,21 +951,51 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
         throw new Error("Module ID and backup file are required.");
     }
     
-    const module = DB_MODULES.find(m => m.id === moduleId);
-    if (!module) throw new Error("Module not found");
+    const dbModule = DB_MODULES.find(m => m.id === moduleId);
+    if (!dbModule) throw new Error("Module not found");
 
-    if (dbConnections.has(module.dbFile)) {
-        const connection = dbConnections.get(module.dbFile);
+    if (dbConnections.has(dbModule.dbFile)) {
+        const connection = dbConnections.get(dbModule.dbFile);
         if (connection && connection.open) {
             connection.close();
         }
-        dbConnections.delete(module.dbFile);
+        dbConnections.delete(dbModule.dbFile);
     }
 
-    const dbPath = path.join(dbDirectory, module.dbFile);
+    const dbPath = path.join(dbDirectory, dbModule.dbFile);
     const buffer = Buffer.from(await backupFile.arrayBuffer());
     fs.writeFileSync(dbPath, buffer);
-    await connectDb(module.dbFile); // Reconnect to validate
+    await connectDb(dbModule.dbFile); // Reconnect to validate
+}
+
+export async function restoreAllFromUpdateBackup(timestamp: string): Promise<void> {
+    const backups = await listAllUpdateBackups();
+    const backupsToRestore = backups.filter(b => b.date === timestamp);
+
+    if (backupsToRestore.length === 0) {
+        throw new Error("No se encontraron archivos de backup para la fecha y hora seleccionada.");
+    }
+    
+    await logWarn(`System restore initiated from backup point: ${timestamp}`);
+
+    for (const backup of backupsToRestore) {
+        const dbModule = DB_MODULES.find(m => m.id === backup.moduleId);
+        if (dbModule) {
+            const backupPath = path.join(backupDir, backup.fileName);
+            const targetDbPath = path.join(dbDirectory, dbModule.dbFile);
+            
+            if (dbConnections.has(dbModule.dbFile)) {
+                 const connection = dbConnections.get(dbModule.dbFile);
+                if (connection && connection.open) {
+                    connection.close();
+                }
+                dbConnections.delete(dbModule.dbFile);
+            }
+
+            fs.copyFileSync(backupPath, targetDbPath);
+            console.log(`Restored ${dbModule.dbFile} from ${backup.fileName}`);
+        }
+    }
 }
 
 export async function deleteOldUpdateBackups(): Promise<number> {
@@ -993,14 +1022,14 @@ export async function factoryReset(moduleId: string): Promise<void> {
 
     if (modulesToReset.length === 0) throw new Error("Módulo no encontrado para resetear.");
 
-    for (const module of modulesToReset) {
-        const dbPath = path.join(dbDirectory, module.dbFile);
-        if (dbConnections.has(module.dbFile)) {
-            const connection = dbConnections.get(module.dbFile);
+    for (const dbModule of modulesToReset) {
+        const dbPath = path.join(dbDirectory, dbModule.dbFile);
+        if (dbConnections.has(dbModule.dbFile)) {
+            const connection = dbConnections.get(dbModule.dbFile);
             if (connection && connection.open) {
                 connection.close();
             }
-            dbConnections.delete(module.dbFile);
+            dbConnections.delete(dbModule.dbFile);
         }
         if (fs.existsSync(dbPath)) {
             try {
@@ -1010,36 +1039,6 @@ export async function factoryReset(moduleId: string): Promise<void> {
                 console.error(`Error deleting database file ${dbPath}`, e);
                 throw e;
             }
-        }
-    }
-}
-
-export async function restoreAllFromUpdateBackup(timestamp: string): Promise<void> {
-    const backups = await listAllUpdateBackups();
-    const backupsToRestore = backups.filter(b => b.date === timestamp);
-
-    if (backupsToRestore.length === 0) {
-        throw new Error("No se encontraron archivos de backup para la fecha y hora seleccionada.");
-    }
-    
-    await logWarn(`System restore initiated from backup point: ${timestamp}`);
-
-    for (const backup of backupsToRestore) {
-        const module = DB_MODULES.find(m => m.id === backup.moduleId);
-        if (module) {
-            const backupPath = path.join(backupDir, backup.fileName);
-            const targetDbPath = path.join(dbDirectory, module.dbFile);
-            
-            if (dbConnections.has(module.dbFile)) {
-                 const connection = dbConnections.get(module.dbFile);
-                if (connection && connection.open) {
-                    connection.close();
-                }
-                dbConnections.delete(module.dbFile);
-            }
-
-            fs.copyFileSync(backupPath, targetDbPath);
-            console.log(`Restored ${module.dbFile} from ${backup.fileName}`);
         }
     }
 }

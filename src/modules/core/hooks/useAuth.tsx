@@ -123,6 +123,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const refreshAuthAndRedirect = async (path: string) => {
+    // Don't set loading to true here to avoid a flicker on login
     const data = await getInitialAuthData();
     const currentUser = await getCurrentUserClient();
 

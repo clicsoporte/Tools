@@ -111,7 +111,7 @@ export default function StockSettingsPage() {
                         <CardTitle>Gestión de Bodegas</CardTitle>
                         <CardDescription>
                             Configura las bodegas para el desglose de inventario. El sistema mostrará por defecto
-                            la bodega marcada como "Predeterminada".
+                            la bodega marcada como &quot;Predeterminada&quot;.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">

@@ -214,7 +214,7 @@ export default function RequestSettingsPage() {
                                     checked={settings.useWarehouseReception}
                                     onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, useWarehouseReception: checked } : null)}
                                 />
-                                <Label htmlFor="use-warehouse">Habilitar paso de "Recibido en Bodega"</Label>
+                                <Label htmlFor="use-warehouse">Habilitar paso de &quot;Recibido en Bodega&quot;</Label>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
                                 Si se activa, las solicitudes recibidas necesitarán un paso adicional para ser archivadas.

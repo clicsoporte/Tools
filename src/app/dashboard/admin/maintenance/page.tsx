@@ -456,7 +456,7 @@ export default function MaintenancePage() {
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    Esta acción borrará **TODA** la información del módulo seleccionado ("{dbModules.find(m => m.id === moduleToReset)?.name || ''}"). La aplicación lo reinicializará en blanco. La página se recargará. Esta acción no se puede deshacer.
+                                                    Esta acción borrará **TODA** la información del módulo seleccionado (&quot;{dbModules.find(m => m.id === moduleToReset)?.name || ''}&quot;). La aplicación lo reinicializará en blanco. La página se recargará. Esta acción no se puede deshacer.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                              <div className="py-4 space-y-4">
@@ -466,7 +466,7 @@ export default function MaintenancePage() {
                                                 </div>
                                                 {resetStep > 0 && (
                                                     <div className="space-y-2">
-                                                        <Label htmlFor="reset-confirmation-text">Para confirmar, escribe "RESETEAR" en el campo:</Label>
+                                                        <Label htmlFor="reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR&quot; en el campo:</Label>
                                                         <Input id="reset-confirmation-text" value={resetConfirmationText} onChange={(e) => { setResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR') {setResetStep(2);} else {setResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
                                                     </div>
                                                 )}
@@ -504,7 +504,7 @@ export default function MaintenancePage() {
                                             </div>
                                             {fullResetStep > 0 && (
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="full-reset-confirmation-text">Para confirmar, escribe "RESETEAR TODO" en el campo:</Label>
+                                                    <Label htmlFor="full-reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR TODO&quot; en el campo:</Label>
                                                     <Input id="full-reset-confirmation-text" value={fullResetConfirmationText} onChange={(e) => { setFullResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR TODO') {setFullResetStep(2);} else {setFullResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
                                                 </div>
                                             )}

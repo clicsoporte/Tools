@@ -211,7 +211,7 @@ export default function PlannerSettingsPage() {
                                     onChange={(e) => setSettings(prev => prev ? { ...prev, assignmentLabel: e.target.value } : null)}
                                 />
                                 <p className="text-sm text-muted-foreground">
-                                    Cambia el texto que se muestra para la asignación (ej: "Máquina", "Proceso", "Operario").
+                                    Cambia el texto que se muestra para la asignación (ej: &quot;Máquina&quot;, &quot;Proceso&quot;, &quot;Operario&quot;).
                                 </p>
                             </div>
                         </div>
@@ -231,7 +231,7 @@ export default function PlannerSettingsPage() {
                                     checked={settings.useWarehouseReception}
                                     onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, useWarehouseReception: checked } : null)}
                                 />
-                                <Label htmlFor="use-warehouse">Habilitar paso de "Recibido en Bodega"</Label>
+                                <Label htmlFor="use-warehouse">Habilitar paso de &quot;Recibido en Bodega&quot;</Label>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
                                 Si se activa, las órdenes completadas necesitarán un paso adicional para ser archivadas.
@@ -245,7 +245,7 @@ export default function PlannerSettingsPage() {
                                 <Label htmlFor="require-machine">Requerir asignación para iniciar la orden</Label>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
-                               Si se activa, será obligatorio realizar una asignación a la orden antes de poder cambiar su estado a "En Progreso".
+                               Si se activa, será obligatorio realizar una asignación a la orden antes de poder cambiar su estado a &quot;En Progreso&quot;.
                             </p>
                         </div>
                     </CardContent>
@@ -367,7 +367,7 @@ export default function PlannerSettingsPage() {
                                 <CardTitle>Detección de Cambios</CardTitle>
                             </AccordionTrigger>
                             <AccordionContent className="p-6 pt-0">
-                                <CardDescription className="mb-4">Selecciona qué campos, al ser modificados después de que una orden sea aprobada, activarán la alerta "Modificado".</CardDescription>
+                                <CardDescription className="mb-4">Selecciona qué campos, al ser modificados después de que una orden sea aprobada, activarán la alerta &quot;Modificado&quot;.</CardDescription>
                                 <div className="space-y-4 p-4 border rounded-md">
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                         {availableFieldsToTrack.map(field => (

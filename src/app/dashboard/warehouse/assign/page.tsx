@@ -86,6 +86,7 @@ export default function AssignInventoryPage() {
     useEffect(() => {
         setTitle("Asignar Inventario a Ubicación");
         loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setTitle]);
 
     const fetchItemData = useCallback(async (itemId: string) => {

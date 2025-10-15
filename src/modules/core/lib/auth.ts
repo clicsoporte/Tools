@@ -218,8 +218,8 @@ export async function comparePasswords(userId: number, password: string, clientI
 export async function getInitialAuthData() {
     // Ensure all databases are initialized on first authenticated load
     const dbModules = await getDbModules();
-    for (const module of dbModules) {
-        await connectDb(module.dbFile);
+    for (const dbModule of dbModules) {
+        await connectDb(dbModule.dbFile);
     }
     
     const [

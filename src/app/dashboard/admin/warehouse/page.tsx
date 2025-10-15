@@ -287,7 +287,7 @@ export default function WarehouseSettingsPage() {
                             <AccordionContent className="p-6 pt-0">
                                 <div className="flex items-center justify-between mb-4">
                                     <CardDescription>
-                                        Usa los niveles que definiste en el Paso 1 para construir la estructura real de tu almacén. Por ejemplo, crea una `Bodega` llamada "Bodega Principal", luego un `Pasillo` dentro de ella.
+                                        Usa los niveles que definiste en el Paso 1 para construir la estructura real de tu almacén. Por ejemplo, crea una &quot;Bodega&quot; llamada &quot;Bodega Principal&quot;, luego un &quot;Pasillo&quot; dentro de ella.
                                     </CardDescription>
                                     <Button onClick={() => openLocationForm()}>
                                         <PlusCircle className="mr-2"/> Añadir Ubicación
@@ -353,7 +353,7 @@ export default function WarehouseSettingsPage() {
                   <AlertDialog open={!!locationToDelete} onOpenChange={(open) => !open && setLocationToDelete(null)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>¿Eliminar "{locationToDelete?.name}"?</AlertDialogTitle>
+                            <AlertDialogTitle>¿Eliminar &quot;{locationToDelete?.name}&quot;?</AlertDialogTitle>
                             <AlertDialogDescription>
                                 Esta acción no se puede deshacer. Se eliminará la ubicación y TODAS las ubicaciones hijas que contenga. 
                                 El inventario asociado no se eliminará, pero quedará sin ubicación.

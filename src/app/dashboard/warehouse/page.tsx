@@ -322,7 +322,7 @@ export default function WarehousePage() {
                                 ))
                             ) : debouncedSearchTerm ? (
                                 <div className="text-center py-10 text-muted-foreground">
-                                    <p>No se encontraron resultados para "{debouncedSearchTerm}".</p>
+                                    <p>No se encontraron resultados para &quot;{debouncedSearchTerm}&quot;.</p>
                                 </div>
                             ) : (
                                  <div className="text-center py-10 text-muted-foreground">
