@@ -46,17 +46,17 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
     const dbExists = fs.existsSync(dbPath);
     const db = new Database(dbPath);
 
-    const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
+    const dbModule = DB_MODULES.find(m => m.dbFile === dbFile);
 
     if (!dbExists) {
         console.log(`Database ${dbFile} not found, creating and initializing...`);
-        if (moduleConfig?.initFn) {
-            await moduleConfig.initFn(db);
+        if (dbModule?.initFn) {
+            await dbModule.initFn(db);
         }
     } else {
-        if (moduleConfig?.migrationFn) {
+        if (dbModule?.migrationFn) {
             try {
-                await moduleConfig.migrationFn(db);
+                await dbModule.migrationFn(db);
             } catch (error) {
                 console.error(`Migration failed for ${dbFile}, but continuing. Error:`, error);
             }
@@ -313,7 +313,7 @@ export async function clearLogs(clearedBy: string, type: 'operational' | 'system
     const db = await connectDb();
     try {
         const auditLog = { 
-            type: 'WARN', 
+            type: 'WARN' as const, 
             message: `Limpieza de registros iniciada por ${clearedBy}`, 
             details: { type, deleteAllTime } 
         };
@@ -817,7 +817,7 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
     return updateCabysCatalog(parsed.data);
 }
 
-export async function importAllDataFromFiles(): Promise<{ type: string; count: number }[]> {
+export async function importAllDataFromFiles(): Promise<{ type: string; count: number; }[]> {
     const db = await connectDb();
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
@@ -841,14 +841,14 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
             const result = await importData(task.type);
             results.push({ type: task.type, count: result.count });
         } catch (error: any) {
-            const queryRow = companySettings.importMode === 'sql' 
+             const queryRow = companySettings.importMode === 'sql' 
                 ? db.prepare('SELECT query FROM import_queries WHERE type = ?').get(task.type) as { query: string } | undefined
                 : undefined;
                 
             await logError(`Error al importar datos para '${task.type}'`, {
                 errorMessage: error.message,
                 importMode: companySettings.importMode,
-                query: queryRow?.query // This will only be defined for SQL import errors
+                query: queryRow?.query
             });
         }
     }
