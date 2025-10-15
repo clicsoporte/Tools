@@ -224,7 +224,7 @@ export async function getCompanySettings(): Promise<Company | null> {
         if (settings && 'quoterShowTaxId' in settings) {
             // Manually handle boolean conversion from integer
             const quoterShowTaxIdValue = settings.quoterShowTaxId;
-            settings.quoterShowTaxId = quoterShowTaxIdValue === 1;
+            settings.quoterShowTaxId = Boolean(quoterShowTaxIdValue);
         }
         return settings as Company | null;
     } catch (error) {
@@ -931,8 +931,14 @@ export async function uploadBackupFile(formData: FormData): Promise<number> {
     const timestamp = new Date().toISOString();
 
     for (const file of files) {
+        // Security: Prevent path traversal attacks
+        const sanitizedFileName = path.basename(file.name);
+        if (sanitizedFileName !== file.name) {
+            throw new Error(`Nombre de archivo inválido: ${file.name}`);
+        }
+        
         const buffer = Buffer.from(await file.arrayBuffer());
-        const backupPath = path.join(backupDir, `${timestamp}_${file.name}`);
+        const backupPath = path.join(backupDir, `${timestamp}_${sanitizedFileName}`);
         fs.writeFileSync(backupPath, buffer);
     }
     return files.length;
@@ -950,7 +956,10 @@ export async function restoreDatabase(formData: FormData): Promise<void> {
     if (!module) throw new Error("Module not found");
 
     if (dbConnections.has(module.dbFile)) {
-        dbConnections.get(module.dbFile)!.close();
+        const connection = dbConnections.get(module.dbFile);
+        if (connection && connection.open) {
+            connection.close();
+        }
         dbConnections.delete(module.dbFile);
     }
 
@@ -987,7 +996,10 @@ export async function factoryReset(moduleId: string): Promise<void> {
     for (const module of modulesToReset) {
         const dbPath = path.join(dbDirectory, module.dbFile);
         if (dbConnections.has(module.dbFile)) {
-            dbConnections.get(module.dbFile)!.close();
+            const connection = dbConnections.get(module.dbFile);
+            if (connection && connection.open) {
+                connection.close();
+            }
             dbConnections.delete(module.dbFile);
         }
         if (fs.existsSync(dbPath)) {
@@ -1019,7 +1031,10 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
             const targetDbPath = path.join(dbDirectory, module.dbFile);
             
             if (dbConnections.has(module.dbFile)) {
-                dbConnections.get(module.dbFile)!.close();
+                 const connection = dbConnections.get(module.dbFile);
+                if (connection && connection.open) {
+                    connection.close();
+                }
                 dbConnections.delete(module.dbFile);
             }
 

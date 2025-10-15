@@ -429,6 +429,7 @@ export default function HelpPage() {
                                     <ul className="list-disc pl-5 text-sm space-y-1 mt-2">
                                         <li><strong>Crear un Punto de Restauración (<Save className="inline h-4 w-4"/>):</strong> Genera una copia de seguridad completa de todas las bases de datos del sistema. Es vital hacer esto antes de una actualización.</li>
                                         <li><strong>Restaurar desde un Backup:</strong> Selecciona una fecha de la lista de puntos de restauración disponibles. Cada punto tiene un ícono de descarga (<Download className="inline h-4 w-4"/>) para que puedas guardar una copia local. Usa el checkbox para ver todos los puntos guardados.</li>
+                                        <li><strong>Subir Backups Manuales (<UploadCloud className="inline h-4 w-4"/>):</strong> Arrastra y suelta archivos de base de datos (.db) para añadirlos como puntos de restauración. El sistema valida que los nombres sean seguros para evitar ataques.</li>
                                         <li><strong>Limpiar Backups Antiguos (<Trash2 className="inline h-4 w-4"/>):</strong> Para ahorrar espacio, esta opción elimina todos los puntos de restauración excepto el más reciente, garantizando que siempre tengas un respaldo.</li>
                                         <li><strong>Zona de Peligro (<AlertTriangle className="inline h-4 w-4"/>):</strong> Permite resetear los datos de un módulo específico (ej: borrar todas las órdenes de producción) sin afectar al resto del sistema, o hacer un reseteo de fábrica total que borra todo.</li>
                                     </ul>
@@ -588,6 +589,3 @@ export default function HelpPage() {
     </main>
   );
 }
-
-
-
