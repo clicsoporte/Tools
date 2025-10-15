@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Server-side functions for the purchase requests database.
  */
@@ -515,27 +516,23 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest;
 }
 
+
 export async function getErpOrderData(orderNumber: string): Promise<{headers: any[], lines: any[]}> {
     const db = await connectDb();
     
     const headerQueryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get('erp_order_headers') as { query: string } | undefined;
-    if (!headerQueryRow || !headerQueryRow.query) {
-        throw new Error(`No hay una consulta SQL configurada para importar erp_order_headers.`);
-    }
-
     const linesQueryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get('erp_order_lines') as { query: string } | undefined;
-     if (!linesQueryRow || !linesQueryRow.query) {
-        throw new Error(`No hay una consulta SQL configurada para importar erp_order_lines.`);
-    }
-    
-    const sanitizedValue = orderNumber.replace(/'/g, "''");
-    const likeCondition = `[PEDIDO] LIKE '${sanitizedValue}%'`;
-    
-    const headerQuery = headerQueryRow.query.replace('[PEDIDO] = ?', likeCondition);
-    const linesQuery = linesQueryRow.query.replace('[PEDIDO] = ?', likeCondition);
-    
-    let headerResult, linesResult;
 
+    if (!headerQueryRow?.query || !linesQueryRow?.query) {
+        throw new Error(`Las consultas para 'erp_order_headers' o 'erp_order_lines' no están configuradas.`);
+    }
+
+    const sanitizedValue = orderNumber.replace(/'/g, "''");
+    
+    const headerQuery = headerQueryRow.query.replace('?', `'${sanitizedValue}'`);
+    const linesQuery = linesQueryRow.query.replace('?', `'${sanitizedValue}'`);
+
+    let headerResult, linesResult;
     try {
         [headerResult, linesResult] = await Promise.all([
             executeQuery(headerQuery),
@@ -543,7 +540,7 @@ export async function getErpOrderData(orderNumber: string): Promise<{headers: an
         ]);
     } catch (e: any) {
         // Log the specific query that failed for easier debugging
-        await logError('Error executing ERP order query', { error: e.message, failedQuery: e.query, headerQuery, linesQuery });
+        logError('Error ejecutando consulta de Pedido ERP', { error: e.message, query: e.query || 'Unknown query' });
         throw e; // Re-throw the original error
     }
     
