@@ -14,7 +14,7 @@ import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
 import { DB_MODULES, DB_FILE } from './data-modules';
-import { logWarn } from './logger';
+import { logInfo, logWarn } from './logger';
 
 const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
@@ -275,9 +275,9 @@ export async function getLogs(filters: {type?: 'operational' | 'system' | 'all';
              params.push(filters.dateRange.from.toISOString());
         }
         if (filters.dateRange?.to) {
-            whereClauses.push("timestamp <= ?");
             const toDate = new Date(filters.dateRange.to);
             toDate.setHours(23, 59, 59, 999);
+            whereClauses.push("timestamp <= ?");
             params.push(toDate.toISOString());
         }
 
@@ -312,7 +312,12 @@ export async function addLog(entry: Omit<LogEntry, "id" | "timestamp">) {
 export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
     const db = await connectDb();
     try {
-        await addLog({ type: 'WARN', message: `Log cleanup initiated by ${clearedBy}`, details: { type, deleteAllTime } });
+        const auditLog = { 
+            type: 'WARN', 
+            message: `Log cleanup initiated by ${clearedBy}`, 
+            details: { type, deleteAllTime } 
+        };
+
         let query = 'DELETE FROM logs';
         const whereClauses: string[] = [];
         const params: any[] = [];
@@ -337,8 +342,12 @@ export async function clearLogs(clearedBy: string, type: 'operational' | 'system
         }
 
         db.prepare(query).run(...params);
+        await addLog(auditLog); // Add the audit log AFTER the delete operation.
+
     } catch (error) {
         console.error("Failed to clear logs from database", error);
+        // If deletion fails, try to log the failure.
+        await addLog({ type: 'ERROR', message: `Failed to clear logs by ${clearedBy}`, details: { error: (error as Error).message } });
     }
 };
 
@@ -650,6 +659,9 @@ async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' |
     const db = await connectDb();
     const queryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get(type) as { query: string } | undefined;
     if (!queryRow || !queryRow.query) throw new Error(`No hay una consulta SQL configurada para ${type}.`);
+    
+    await logInfo(`Importing ${type} from SQL`, { query: queryRow.query });
+    
     const dataArray = await executeQuery(queryRow.query);
     const headerMapping = createHeaderMapping(type);
     const mappedData = dataArray.map(row => {
@@ -1043,3 +1055,5 @@ export async function factoryReset(moduleId: string): Promise<void> {
         }
     }
 }
+
+    
