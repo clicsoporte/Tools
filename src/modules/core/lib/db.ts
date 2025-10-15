@@ -312,8 +312,8 @@ export async function addLog(entry: Omit<LogEntry, "id" | "timestamp">) {
 export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
     const db = await connectDb();
     try {
-        const auditLog = { 
-            type: 'WARN' as const, 
+        const auditLog: Omit<LogEntry, "id" | "timestamp"> = { 
+            type: 'WARN',
             message: `Limpieza de registros iniciada por ${clearedBy}`, 
             details: { type, deleteAllTime } 
         };
@@ -434,12 +434,19 @@ export async function getAllProducts(): Promise<Product[]> {
 export async function saveAllProducts(products: Product[]): Promise<void> {
     const db = await connectDb();
     const insert = db.prepare('INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood, cabys) VALUES (@id, @description, @classification, @lastEntry, @active, @notes, @unit, @isBasicGood, @cabys)');
+    
     const transaction = db.transaction((productsToSave) => {
         db.prepare('DELETE FROM products').run();
         for(let product of productsToSave) {
-            insert.run(product);
+            // Ensure date objects are converted to strings before binding
+            const productToSave = {
+                ...product,
+                lastEntry: product.lastEntry instanceof Date ? product.lastEntry.toISOString() : product.lastEntry,
+            };
+            insert.run(productToSave);
         }
     });
+
     try {
         transaction(products);
     } catch (error) {
@@ -447,6 +454,7 @@ export async function saveAllProducts(products: Product[]): Promise<void> {
         throw error;
     }
 }
+
 
 export async function getAllSuppliers(): Promise<Supplier[]> {
     const db = await connectDb();
@@ -487,12 +495,19 @@ export async function getAllExemptions(): Promise<Exemption[]> {
 export async function saveAllExemptions(exemptions: Exemption[]): Promise<void> {
     const db = await connectDb();
     const insert = db.prepare('INSERT OR REPLACE INTO exemptions (code, description, customer, authNumber, startDate, endDate, percentage, docType, institutionName, institutionCode) VALUES (@code, @description, @customer, @authNumber, @startDate, @endDate, @percentage, @docType, @institutionName, @institutionCode)');
+    
     const transaction = db.transaction((exemptionsToSave) => {
         db.prepare('DELETE FROM exemptions').run();
         for(let exemption of exemptionsToSave) {
-            insert.run(exemption);
+             const exemptionToSave = {
+                ...exemption,
+                startDate: exemption.startDate instanceof Date ? exemption.startDate.toISOString() : exemption.startDate,
+                endDate: exemption.endDate instanceof Date ? exemption.endDate.toISOString() : exemption.endDate,
+             };
+            insert.run(exemptionToSave);
         }
     });
+
     try {
         transaction(exemptions);
     } catch (error) {
@@ -500,6 +515,7 @@ export async function saveAllExemptions(exemptions: Exemption[]): Promise<void> 
         throw error;
     }
 }
+
 
 export async function getAllRoles(): Promise<Role[]> {
     const db = await connectDb();
@@ -662,7 +678,7 @@ async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' |
         throw new Error(`No hay una consulta SQL configurada para ${type}.`);
     }
     
-    await logInfo(`Importando ${type} desde SQL...`);
+    await logInfo(`Importando ${type} desde SQL...`, { query: queryRow.query });
     
     const dataArray = await executeQuery(queryRow.query);
     const headerMapping = createHeaderMapping(type);

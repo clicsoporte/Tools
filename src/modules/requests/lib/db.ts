@@ -527,19 +527,22 @@ export async function getErpOrderData(orderNumber: string): Promise<{header: any
     }
 
     const buildQuery = (baseQuery: string, value: string) => {
+        const sanitizedValue = value.replace(/'/g, "''"); // Basic SQL injection sanitation
+        const condition = `[PEDIDO] = '${sanitizedValue}'`;
+
+        // Check if the query already has a placeholder for the order number
         if (baseQuery.includes('?')) {
-            // Placeholder exists, assume it's for the WHERE clause value
-            return baseQuery.replace('?', `'${value}'`);
+            return baseQuery.replace('?', `'${sanitizedValue}'`);
+        }
+
+        // Otherwise, intelligently add the WHERE clause
+        if (baseQuery.toLowerCase().includes(' where ')) {
+            return `${baseQuery} AND ${condition}`;
         } else {
-            // No placeholder, so we append the WHERE clause.
-            const condition = `[PEDIDO] = '${value}'`;
-            if (baseQuery.toLowerCase().includes('where')) {
-                return `${baseQuery} AND ${condition}`;
-            } else {
-                return `${baseQuery} WHERE ${condition}`;
-            }
+            return `${baseQuery} WHERE ${condition}`;
         }
     };
+    
 
     const headerQuery = buildQuery(headerQueryRow.query, orderNumber);
     const linesQuery = buildQuery(linesQueryRow.query, orderNumber);
