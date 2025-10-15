@@ -157,8 +157,6 @@ export async function getSettings(): Promise<RequestSettings> {
         pdfExportColumns: [],
         pdfPaperSize: 'letter',
         pdfOrientation: 'portrait',
-        erpHeaderQuery: '',
-        erpLinesQuery: '',
     };
 
     for (const row of settingsRows) {
@@ -172,8 +170,6 @@ export async function getSettings(): Promise<RequestSettings> {
         else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
         else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
         else if (row.key === 'pdfOrientation') settings.pdfOrientation = row.value as 'portrait' | 'landscape';
-        else if (row.key === 'erpHeaderQuery') settings.erpHeaderQuery = row.value;
-        else if (row.key === 'erpLinesQuery') settings.erpLinesQuery = row.value;
     }
     return settings;
 }
@@ -182,7 +178,7 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation', 'erpHeaderQuery', 'erpLinesQuery'];
+        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
         for (const key of keys) {
              if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -519,33 +515,85 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 }
 
 export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[]}> {
-    const settings = await getSettings();
-    if (!settings.erpHeaderQuery || !settings.erpLinesQuery) {
+    const mainDb = await connectDb();
+    const erpHeaderQueryRow = mainDb.prepare(`SELECT query FROM import_queries WHERE type = 'erp_order_headers'`).get() as { query: string } | undefined;
+    const erpLinesQueryRow = mainDb.prepare(`SELECT query FROM import_queries WHERE type = 'erp_order_lines'`).get() as { query: string } | undefined;
+
+    if (!erpHeaderQueryRow?.query || !erpLinesQueryRow?.query) {
         throw new Error(`Las consultas para 'erp_order_headers' o 'erp_order_lines' no están configuradas.`);
     }
 
     const sanitizedValue = orderNumber.replace(/'/g, "''");
     
-    const headerQuery = settings.erpHeaderQuery.replace('?', `LIKE '${sanitizedValue}%'`);
-    const linesQuery = settings.erpLinesQuery.replace('?', `LIKE '${sanitizedValue}%'`);
+    let headerQuery = erpHeaderQueryRow.query;
+    if (headerQuery.includes('?')) {
+        headerQuery = headerQuery.replace('?', `'${sanitizedValue}'`);
+    } else {
+        const whereIndex = headerQuery.toLowerCase().lastIndexOf('where');
+        const orderByIndex = headerQuery.toLowerCase().lastIndexOf('order by');
+        const condition = ` [PEDIDO] LIKE '${sanitizedValue}%' `;
 
-    let headerResult, linesResult;
-    try {
-        [headerResult, linesResult] = await Promise.all([
-            executeQuery(headerQuery, signal),
-            executeQuery(linesQuery.replace(`'${sanitizedValue}%'`, `'${headerResult[0].PEDIDO}'`), signal)
-        ]);
-    } catch (e: any) {
-        if (e.name === 'AbortError') {
-            throw e;
+        if (whereIndex > -1) {
+            if (orderByIndex > whereIndex) {
+                 headerQuery = headerQuery.slice(0, orderByIndex) + ` AND ${condition} ` + headerQuery.slice(orderByIndex);
+            } else {
+                headerQuery += ` AND ${condition}`;
+            }
+        } else {
+             if (orderByIndex > -1) {
+                headerQuery = headerQuery.slice(0, orderByIndex) + ` WHERE ${condition} ` + headerQuery.slice(orderByIndex);
+            } else {
+                headerQuery += ` WHERE ${condition}`;
+            }
         }
-        await logError('Error ejecutando consulta de Pedido ERP', { error: e.message, headerQuery, linesQuery });
-        throw e;
     }
     
-    if (headerResult.length === 0) {
-        throw new Error(`No se encontró el pedido ERP con el número: ${orderNumber}`);
+    let headers: any[] = [];
+    try {
+        headers = await executeQuery(headerQuery, signal);
+    } catch(e: any) {
+        await logError('Error ejecutando consulta de cabecera de Pedido ERP', { error: e.message, query: headerQuery });
+        throw e;
     }
 
-    return { headers: headerResult, lines: linesResult };
+    if (signal?.aborted) throw new Error('Aborted');
+    if (headers.length === 0) {
+        return { headers: [], lines: [] };
+    }
+
+    const selectedHeader = headers[0];
+    const finalOrderNumber = selectedHeader.PEDIDO;
+
+    let linesQuery = erpLinesQueryRow.query;
+    if (linesQuery.includes('?')) {
+        linesQuery = linesQuery.replace('?', `'${finalOrderNumber}'`);
+    } else {
+        const whereIndex = linesQuery.toLowerCase().lastIndexOf('where');
+        const orderByIndex = linesQuery.toLowerCase().lastIndexOf('order by');
+        const condition = ` [PEDIDO] = '${finalOrderNumber}' `;
+        
+        if (whereIndex > -1) {
+            if (orderByIndex > whereIndex) {
+                linesQuery = linesQuery.slice(0, orderByIndex) + ` AND ${condition} ` + linesQuery.slice(orderByIndex);
+            } else {
+                linesQuery += ` AND ${condition}`;
+            }
+        } else {
+            if (orderByIndex > -1) {
+                linesQuery = linesQuery.slice(0, orderByIndex) + ` WHERE ${condition} ` + linesQuery.slice(orderByIndex);
+            } else {
+                linesQuery += ` WHERE ${condition}`;
+            }
+        }
+    }
+
+    let lines: any[] = [];
+    try {
+        lines = await executeQuery(linesQuery, signal);
+    } catch (e: any) {
+        await logError('Error ejecutando consulta de líneas de Pedido ERP', { error: e.message, query: linesQuery });
+        throw e;
+    }
+
+    return { headers, lines };
 }
