@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the purchase requests database.
  */
@@ -7,6 +8,7 @@ import { connectDb } from '../../core/lib/db';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
+import { logError } from '@/modules/core/lib/logger';
 
 const REQUESTS_DB_FILE = 'requests.db';
 
@@ -525,26 +527,25 @@ export async function getErpOrderData(orderNumber: string): Promise<{headers: an
      if (!linesQueryRow || !linesQueryRow.query) {
         throw new Error(`No hay una consulta SQL configurada para importar erp_order_lines.`);
     }
-
-    const buildQuery = (baseQuery: string, value: string) => {
-        const sanitizedValue = value.replace(/'/g, "''");
-        const likeCondition = `[PEDIDO] LIKE '${sanitizedValue}%'`;
     
-        if (baseQuery.toLowerCase().includes('where')) {
-            return `${baseQuery} AND ${likeCondition}`;
-        } else {
-            return `${baseQuery} WHERE ${likeCondition}`;
-        }
-    };
+    const sanitizedValue = orderNumber.replace(/'/g, "''");
+    const likeCondition = `[PEDIDO] LIKE '${sanitizedValue}%'`;
     
+    const headerQuery = headerQueryRow.query.replace('[PEDIDO] = ?', likeCondition);
+    const linesQuery = linesQueryRow.query.replace('[PEDIDO] = ?', likeCondition);
+    
+    let headerResult, linesResult;
 
-    const headerQuery = buildQuery(headerQueryRow.query, orderNumber);
-    const linesQuery = buildQuery(linesQueryRow.query, orderNumber);
-
-    const [headerResult, linesResult] = await Promise.all([
-        executeQuery(headerQuery),
-        executeQuery(linesQuery)
-    ]);
+    try {
+        [headerResult, linesResult] = await Promise.all([
+            executeQuery(headerQuery),
+            executeQuery(linesQuery)
+        ]);
+    } catch (e: any) {
+        // Log the specific query that failed for easier debugging
+        await logError('Error executing ERP order query', { error: e.message, failedQuery: e.query, headerQuery, linesQuery });
+        throw e; // Re-throw the original error
+    }
     
     if (headerResult.length === 0) {
         throw new Error(`No se encontró el pedido ERP con el número: ${orderNumber}`);
@@ -552,7 +553,3 @@ export async function getErpOrderData(orderNumber: string): Promise<{headers: an
 
     return { headers: headerResult, lines: linesResult };
 }
-
-
-    
-
