@@ -14,6 +14,7 @@ import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
 import { DB_MODULES, DB_FILE } from './data-modules';
+import { logWarn } from './logger';
 
 const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
@@ -221,6 +222,7 @@ export async function getCompanySettings(): Promise<Company | null> {
     try {
         const settings = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as any;
         if (settings && 'quoterShowTaxId' in settings) {
+            // Manually handle boolean conversion from integer
             const quoterShowTaxIdValue = settings.quoterShowTaxId;
             settings.quoterShowTaxId = quoterShowTaxIdValue === 1;
         }
@@ -776,7 +778,8 @@ export async function getStockSettings(): Promise<StockSettings> {
 export async function saveStockSettings(settings: StockSettings): Promise<void> {
     const db = await connectDb(DB_FILE);
     try {
-        db.prepare("INSERT OR REPLACE INTO stock_settings (key, value) VALUES ('warehouses', ?)").run(JSON.stringify(settings.warehouses));
+        db.prepare("INSERT OR REPLACE INTO stock_settings (key, value) VALUES ('warehouses', ?)")
+          .run(JSON.stringify(settings.warehouses));
     } catch (error) {
         console.error("Failed to save stock settings:", error);
         throw error;
@@ -995,6 +998,33 @@ export async function factoryReset(moduleId: string): Promise<void> {
                 console.error(`Error deleting database file ${dbPath}`, e);
                 throw e;
             }
+        }
+    }
+}
+
+export async function restoreAllFromUpdateBackup(timestamp: string): Promise<void> {
+    const backups = await listAllUpdateBackups();
+    const backupsToRestore = backups.filter(b => b.date === timestamp);
+
+    if (backupsToRestore.length === 0) {
+        throw new Error("No se encontraron archivos de backup para la fecha y hora seleccionada.");
+    }
+    
+    await logWarn(`System restore initiated from backup point: ${timestamp}`);
+
+    for (const backup of backupsToRestore) {
+        const module = DB_MODULES.find(m => m.id === backup.moduleId);
+        if (module) {
+            const backupPath = path.join(backupDir, backup.fileName);
+            const targetDbPath = path.join(dbDirectory, module.dbFile);
+            
+            if (dbConnections.has(module.dbFile)) {
+                dbConnections.get(module.dbFile)!.close();
+                dbConnections.delete(module.dbFile);
+            }
+
+            fs.copyFileSync(backupPath, targetDbPath);
+            console.log(`Restored ${module.dbFile} from ${backup.fileName}`);
         }
     }
 }
