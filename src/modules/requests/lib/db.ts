@@ -526,10 +526,23 @@ export async function getErpOrderData(orderNumber: string): Promise<{header: any
         throw new Error(`No hay una consulta SQL configurada para importar erp_order_lines.`);
     }
 
-    // It's not safe to directly inject the orderNumber. We'll use a placeholder if the query supports it.
-    // For now, let's assume simple replacement is acceptable in this trusted environment, but this is a security risk.
-    const headerQuery = headerQueryRow.query.replace('?', `'${orderNumber}'`);
-    const linesQuery = linesQueryRow.query.replace('?', `'${orderNumber}'`);
+    const buildQuery = (baseQuery: string, value: string) => {
+        if (baseQuery.includes('?')) {
+            // Placeholder exists, assume it's for the WHERE clause value
+            return baseQuery.replace('?', `'${value}'`);
+        } else {
+            // No placeholder, so we append the WHERE clause.
+            const condition = `[PEDIDO] = '${value}'`;
+            if (baseQuery.toLowerCase().includes('where')) {
+                return `${baseQuery} AND ${condition}`;
+            } else {
+                return `${baseQuery} WHERE ${condition}`;
+            }
+        }
+    };
+
+    const headerQuery = buildQuery(headerQueryRow.query, orderNumber);
+    const linesQuery = buildQuery(linesQueryRow.query, orderNumber);
 
     const [headerResult, linesResult] = await Promise.all([
         executeQuery(headerQuery),
