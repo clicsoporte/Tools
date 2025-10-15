@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -15,7 +15,7 @@ import { logError } from '@/modules/core/lib/logger';
 import { 
     getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, 
     updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, 
-    updatePendingAction, getErpOrderData, saveRequestSettings
+    updatePendingAction, getErpOrderData
 } from '@/modules/requests/lib/actions';
 import type { 
     PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
@@ -135,6 +135,8 @@ export const useRequests = () => {
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user: currentUser, customers: authCustomers, products: authProducts, stockLevels: authStockLevels, companyData: authCompanyData } = useAuth();
+    
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     const [state, setState] = useState<State>({
         isLoading: true,
@@ -248,6 +250,34 @@ export const useRequests = () => {
     useEffect(() => {
         updateState({ companyData: authCompanyData });
     }, [authCompanyData, updateState]);
+    
+    useEffect(() => {
+        const fetchSettingsAndQueries = async () => {
+            const settings = await getRequestSettings();
+            
+            const defaultHeaderQuery = `SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA], [TOTAL_UNIDADES], [MONEDA_PEDIDO], [USUARIO] FROM [SOFTLAND].[GAREND].[PEDIDO] WHERE [ESTADO] <> 'F' AND [PEDIDO] = ?`;
+            const defaultLinesQuery = `SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [PRECIO_UNITARIO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA] WHERE [PEDIDO] = ?`;
+
+            let needsUpdate = false;
+            if (!settings.erpHeaderQuery || !settings.erpHeaderQuery.includes('[PEDIDO] = ?')) {
+                settings.erpHeaderQuery = defaultHeaderQuery;
+                needsUpdate = true;
+            }
+            if (!settings.erpLinesQuery || !settings.erpLinesQuery.includes('[PEDIDO] = ?')) {
+                settings.erpLinesQuery = defaultLinesQuery;
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+                await saveRequestSettings(settings);
+            }
+            updateState({ requestSettings: settings });
+        };
+
+        if (isAuthorized) {
+            fetchSettingsAndQueries();
+        }
+    }, [isAuthorized, updateState]);
 
     const handleCreateRequest = async () => {
         if (!state.newRequest.clientId || !state.newRequest.itemId || !state.newRequest.quantity || !state.newRequest.requiredDate || !currentUser) return;
@@ -454,9 +484,21 @@ export const useRequests = () => {
 
     const handleFetchErpOrder = async () => {
         if (!state.erpOrderNumber) return;
+        
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+        const signal = abortControllerRef.current.signal;
+
         updateState({ isErpLoading: true });
         try {
-            const { headers, lines } = await getErpOrderData(state.erpOrderNumber);
+            const { headers, lines } = await getErpOrderData(state.erpOrderNumber, signal);
+
+            if (signal.aborted) {
+                console.log("Fetch ERP order aborted by user.");
+                return;
+            }
 
             if (headers.length === 1) {
                 await processSingleErpOrder(headers[0], lines);
@@ -465,15 +507,35 @@ export const useRequests = () => {
                     const client = authCustomers.find(c => c.id === h.CLIENTE);
                     return { ...h, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
                 });
-                updateState({ erpOrderHeaders: enrichedHeaders, isErpOrderModalOpen: true });
+                updateState({ erpOrderHeaders: enrichedHeaders });
+            } else {
+                 toast({ title: "Pedido no encontrado", description: `No se encontró ningún pedido con el número: ${state.erpOrderNumber}`, variant: "destructive" });
             }
             
         } catch (error: any) {
-            logError('Failed to fetch ERP order data', { error: error.message, orderNumber: state.erpOrderNumber });
-            toast({ title: "Error al Cargar Pedido", description: error.message, variant: "destructive" });
+             if (error.name === 'AbortError') {
+                toast({ title: "Búsqueda Cancelada", description: "La búsqueda del pedido ERP fue cancelada.", variant: "default" });
+            } else {
+                logError('Failed to fetch ERP order data', { error: error.message, orderNumber: state.erpOrderNumber });
+                toast({ title: "Error al Cargar Pedido", description: error.message, variant: "destructive" });
+            }
         } finally {
-            updateState({ isErpLoading: false });
+            if (!signal.aborted) {
+                updateState({ isErpLoading: false });
+            }
         }
+    };
+
+    const handleCancelErpFetch = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        updateState({
+            isErpLoading: false,
+            isErpOrderModalOpen: false,
+            erpOrderHeaders: [],
+            erpOrderNumber: ''
+        });
     };
     
     const processSingleErpOrder = async (header: any, lines: any[]) => {
@@ -503,10 +565,17 @@ export const useRequests = () => {
 
     const handleSelectErpOrderHeader = async (header: any) => {
         updateState({ isErpLoading: true, isErpOrderModalOpen: false });
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+        const signal = abortControllerRef.current.signal;
         try {
-            const { lines } = await getErpOrderData(header.PEDIDO);
+            const { lines } = await getErpOrderData(header.PEDIDO, signal);
+             if (signal.aborted) return;
             await processSingleErpOrder(header, lines);
         } catch (error: any) {
+            if (error.name === 'AbortError') return;
              logError('Failed to fetch lines for selected ERP order', { error: error.message, orderNumber: header.PEDIDO });
             toast({ title: "Error al Cargar Líneas", description: error.message, variant: "destructive" });
         } finally {
@@ -722,6 +791,7 @@ export const useRequests = () => {
         handleErpLineChange,
         handleCreateRequestsFromErp,
         handleSelectErpOrderHeader,
+        handleCancelErpFetch,
         setNewRequestDialogOpen: (isOpen: boolean) => updateState({ isNewRequestDialogOpen: isOpen, newRequest: emptyRequest, clientSearchTerm: '', itemSearchTerm: '' }),
         setEditRequestDialogOpen: (isOpen: boolean) => updateState({ isEditRequestDialogOpen: isOpen }),
         setViewingArchived: (isArchived: boolean) => updateState({ viewingArchived: isArchived, archivedPage: 0 }),
@@ -804,3 +874,4 @@ export const useRequests = () => {
         isAuthorized
     };
 };
+

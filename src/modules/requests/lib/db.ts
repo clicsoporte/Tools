@@ -1,4 +1,3 @@
-_PRIVATE[
 /**
  * @fileoverview Server-side functions for the purchase requests database.
  */
@@ -158,6 +157,8 @@ export async function getSettings(): Promise<RequestSettings> {
         pdfExportColumns: [],
         pdfPaperSize: 'letter',
         pdfOrientation: 'portrait',
+        erpHeaderQuery: '',
+        erpLinesQuery: '',
     };
 
     for (const row of settingsRows) {
@@ -171,6 +172,8 @@ export async function getSettings(): Promise<RequestSettings> {
         else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
         else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
         else if (row.key === 'pdfOrientation') settings.pdfOrientation = row.value as 'portrait' | 'landscape';
+        else if (row.key === 'erpHeaderQuery') settings.erpHeaderQuery = row.value;
+        else if (row.key === 'erpLinesQuery') settings.erpLinesQuery = row.value;
     }
     return settings;
 }
@@ -179,7 +182,7 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
+        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation', 'erpHeaderQuery', 'erpLinesQuery'];
         for (const key of keys) {
              if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -515,33 +518,28 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest;
 }
 
-
 export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[]}> {
-    const db = await connectDb();
-    
-    const headerQueryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get('erp_order_headers') as { query: string } | undefined;
-    const linesQueryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get('erp_order_lines') as { query: string } | undefined;
-
-    if (!headerQueryRow?.query || !linesQueryRow?.query) {
+    const settings = await getSettings();
+    if (!settings.erpHeaderQuery || !settings.erpLinesQuery) {
         throw new Error(`Las consultas para 'erp_order_headers' o 'erp_order_lines' no están configuradas.`);
     }
 
     const sanitizedValue = orderNumber.replace(/'/g, "''");
     
-    const headerQuery = headerQueryRow.query.replace('?', ` LIKE '${sanitizedValue}%'`);
-    const linesQuery = linesQueryRow.query.replace('?', ` LIKE '${sanitizedValue}%'`);
+    const headerQuery = settings.erpHeaderQuery.replace('?', `LIKE '${sanitizedValue}%'`);
+    const linesQuery = settings.erpLinesQuery.replace('?', `LIKE '${sanitizedValue}%'`);
 
     let headerResult, linesResult;
     try {
         [headerResult, linesResult] = await Promise.all([
             executeQuery(headerQuery, signal),
-            executeQuery(linesQuery, signal)
+            executeQuery(linesQuery.replace(`'${sanitizedValue}%'`, `'${headerResult[0].PEDIDO}'`), signal)
         ]);
     } catch (e: any) {
         if (e.name === 'AbortError') {
             throw e;
         }
-        logError('Error ejecutando consulta de Pedido ERP', { error: e.message, headerQuery, linesQuery });
+        await logError('Error ejecutando consulta de Pedido ERP', { error: e.message, headerQuery, linesQuery });
         throw e;
     }
     
