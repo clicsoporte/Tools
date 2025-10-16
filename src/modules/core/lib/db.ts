@@ -1126,16 +1126,29 @@ export async function factoryReset(moduleId: string): Promise<void> {
 export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise<void> {
     const db = await connectDb();
     const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA, TOTAL_UNIDADES, MONEDA_PEDIDO, USUARIO) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA, @TOTAL_UNIDADES, @MONEDA_PEDIDO, @USUARIO)');
+    
     const transaction = db.transaction((headersToSave) => {
         db.prepare('DELETE FROM erp_order_headers').run();
         for(const header of headersToSave) {
-            insert.run(header);
+            const sanitizedHeader = {
+                PEDIDO: String(header.PEDIDO),
+                ESTADO: String(header.ESTADO),
+                CLIENTE: String(header.CLIENTE),
+                FECHA_PEDIDO: header.FECHA_PEDIDO instanceof Date ? header.FECHA_PEDIDO.toISOString() : header.FECHA_PEDIDO,
+                FECHA_PROMETIDA: header.FECHA_PROMETIDA instanceof Date ? header.FECHA_PROMETIDA.toISOString() : header.FECHA_PROMETIDA,
+                ORDEN_COMPRA: header.ORDEN_COMPRA || null,
+                TOTAL_UNIDADES: header.TOTAL_UNIDADES || 0,
+                MONEDA_PEDIDO: header.MONEDA_PEDIDO || null,
+                USUARIO: header.USUARIO || null
+            };
+            insert.run(sanitizedHeader);
         }
     });
     try {
         transaction(headers);
     } catch (error) {
         console.error("Failed to save ERP order headers:", error);
+        throw error;
     }
 }
 
@@ -1152,5 +1165,6 @@ export async function saveAllErpOrderLines(lines: ErpOrderLine[]): Promise<void>
         transaction(lines);
     } catch (error) {
         console.error("Failed to save ERP order lines:", error);
+        throw error;
     }
 }
