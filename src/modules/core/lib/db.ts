@@ -662,6 +662,12 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
 export async function importDataFromFile(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines'): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
+    
+    // Prevent attempting to import types that are only available via SQL
+    if (['erp_order_headers', 'erp_order_lines'].includes(type)) {
+        return { count: 0, source: 'file (skipped)' };
+    }
+
     let filePath = '';
     switch(type) {
         case 'customers': filePath = companySettings.customerFilePath || ''; break;
@@ -671,8 +677,6 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
         case 'locations': filePath = companySettings.locationFilePath || ''; break;
         case 'cabys': filePath = companySettings.cabysFilePath || ''; break;
         case 'suppliers': filePath = companySettings.supplierFilePath || ''; break;
-        case 'erp_order_headers': return { count: 0, source: 'file' }; // Not supported from file
-        case 'erp_order_lines': return { count: 0, source: 'file' }; // Not supported from file
     }
     if (!filePath) throw new Error(`La ruta de importación para ${type} no está configurada.`);
     if (!fs.existsSync(filePath)) throw new Error(`El archivo no fue encontrado: ${filePath}`);
@@ -1002,29 +1006,7 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
     }).sort((a, b) => b.date.localeCompare(a.date));
 }
 
-export async function uploadBackupFile(formData: FormData): Promise<number> {
-    const files = formData.getAll('backupFiles') as File[];
-    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-    const timestamp = new Date().toISOString();
-
-    for (const file of files) {
-        // Security: Prevent path traversal attacks
-        const sanitizedFileName = path.basename(file.name);
-        if (sanitizedFileName !== file.name || !sanitizedFileName.endsWith('.db')) {
-            throw new Error(`Nombre de archivo inválido o tipo no permitido: ${file.name}`);
-        }
-        
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const backupPath = path.join(backupDir, `${timestamp}_${sanitizedFileName}`);
-        fs.writeFileSync(backupPath, buffer);
-    }
-    return files.length;
-}
-
-export async function restoreDatabase(formData: FormData): Promise<void> {
-    const moduleId = formData.get('moduleId') as string;
-    const backupFile = formData.get('backupFile') as File | null;
-
+export async function restoreDatabase(moduleId: string, backupFile: File): Promise<void> {
     if (!moduleId || !backupFile) {
         throw new Error("Module ID and backup file are required.");
     }
@@ -1127,24 +1109,24 @@ export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise
     const db = await connectDb();
     const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA, TOTAL_UNIDADES, MONEDA_PEDIDO, USUARIO) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA, @TOTAL_UNIDADES, @MONEDA_PEDIDO, @USUARIO)');
     
-    const transaction = db.transaction((headersToSave) => {
-        db.prepare('DELETE FROM erp_order_headers').run();
-        for(const header of headersToSave) {
-            const sanitizedHeader = {
-                PEDIDO: String(header.PEDIDO),
-                ESTADO: String(header.ESTADO),
-                CLIENTE: String(header.CLIENTE),
-                FECHA_PEDIDO: header.FECHA_PEDIDO instanceof Date ? header.FECHA_PEDIDO.toISOString() : header.FECHA_PEDIDO,
-                FECHA_PROMETIDA: header.FECHA_PROMETIDA instanceof Date ? header.FECHA_PROMETIDA.toISOString() : header.FECHA_PROMETIDA,
-                ORDEN_COMPRA: header.ORDEN_COMPRA || null,
-                TOTAL_UNIDADES: header.TOTAL_UNIDADES || 0,
-                MONEDA_PEDIDO: header.MONEDA_PEDIDO || null,
-                USUARIO: header.USUARIO || null
-            };
-            insert.run(sanitizedHeader);
-        }
-    });
     try {
+        const transaction = db.transaction((headersToSave: ErpOrderHeader[]) => {
+            db.prepare('DELETE FROM erp_order_headers').run();
+            for(const header of headersToSave) {
+                const sanitizedHeader = {
+                    PEDIDO: String(header.PEDIDO),
+                    ESTADO: String(header.ESTADO),
+                    CLIENTE: String(header.CLIENTE),
+                    FECHA_PEDIDO: header.FECHA_PEDIDO instanceof Date ? header.FECHA_PEDIDO.toISOString() : String(header.FECHA_PEDIDO),
+                    FECHA_PROMETIDA: header.FECHA_PROMETIDA instanceof Date ? header.FECHA_PROMETIDA.toISOString() : String(header.FECHA_PROMETIDA),
+                    ORDEN_COMPRA: header.ORDEN_COMPRA || null,
+                    TOTAL_UNIDADES: header.TOTAL_UNIDADES || null,
+                    MONEDA_PEDIDO: header.MONEDA_PEDIDO || null,
+                    USUARIO: header.USUARIO || null
+                };
+                insert.run(sanitizedHeader);
+            }
+        });
         transaction(headers);
     } catch (error) {
         console.error("Failed to save ERP order headers:", error);
