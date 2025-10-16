@@ -284,7 +284,7 @@ export default function LogViewerPage() {
                         <TableCell>
                             <span className="font-medium">{log.message}</span>
                             {log.details && (
-                                <pre className="mt-2 text-xs text-muted-foreground bg-muted p-2 rounded-md overflow-x-auto">
+                                <pre className="mt-2 text-xs text-muted-foreground bg-muted p-2 rounded-md overflow-x-auto whitespace-pre-wrap">
                                     {JSON.stringify(log.details, null, 2)}
                                 </pre>
                             )}

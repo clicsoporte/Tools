@@ -7,7 +7,7 @@ import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries as ge
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
-import { logError } from '@/modules/core/lib/logger';
+import { logError, logInfo } from '@/modules/core/lib/logger';
 
 const REQUESTS_DB_FILE = 'requests.db';
 
@@ -528,11 +528,14 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 
 export async function getErpOrderData(orderNumber: string): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}> {
     const mainDb = await connectDb();
+
+    await logInfo("Buscando pedido ERP en DB local", { searchTerm: orderNumber });
     
-    const headersRaw = mainDb.prepare('SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?').all(`%${orderNumber}%`);
+    const headersRaw = mainDb.prepare('SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?').all(`%${orderNumber}`);
     const headers: ErpOrderHeader[] = JSON.parse(JSON.stringify(headersRaw));
 
     if (headers.length === 0) {
+        await logWarn("Pedido ERP no encontrado en DB local", { searchTerm: orderNumber });
         return { headers: [], lines: [], inventory: [] };
     }
 
