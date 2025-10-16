@@ -526,7 +526,7 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest;
 }
 
-export async function getRealTimeInventory(itemIds: string[]): Promise<StockInfo[]> {
+export async function getRealTimeInventory(itemIds: string[], signal?: AbortSignal): Promise<StockInfo[]> {
     if (itemIds.length === 0) {
         return [];
     }
@@ -536,16 +536,18 @@ export async function getRealTimeInventory(itemIds: string[]): Promise<StockInfo
 
     if (!stockQueryTemplate) {
         console.warn("Real-time stock query not configured. Falling back to local stock data.");
-        return getAllStockFromMainDb();
+        // This fallback might be desired in some cases, but for real-time check it's better to fail.
+        // For now, we will throw an error to make it explicit.
+        throw new Error("La consulta de inventario en tiempo real no está configurada.");
     }
     
-    // Sanitize item IDs to prevent SQL injection, although they should be safe as they come from our DB.
     const sanitizedItemIds = itemIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
-    const baseQuery = stockQueryTemplate.replace(/order by .*/i, '');
-    const stockQuery = `${baseQuery} WHERE ARTICULO IN (${sanitizedItemIds})`;
+    const stockQuery = `${stockQueryTemplate} WHERE ARTICULO IN (${sanitizedItemIds})`;
 
     try {
-        const stockData = await executeQuery(stockQuery, undefined);
+        const stockDataRaw = await executeQuery(stockQuery, signal);
+        // Sanitize the raw data from the DB to prevent serialization issues
+        const stockData = JSON.parse(JSON.stringify(stockDataRaw));
         
         const stockMap = new Map<string, { [key: string]: number }>();
         for (const item of stockData) {
@@ -578,46 +580,47 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
 
     const sanitizedValue = orderNumber.replace(/'/g, "''");
     
-    // Use the stored query but inject the WHERE clause for the specific order number.
-    const headerBaseQuery = settings.erpHeaderQuery.replace(/order by .*/i, '');
-    const headerQuery = `${headerBaseQuery} AND [PEDIDO] LIKE '${sanitizedValue}%'`;
+    const headerBaseQuery = settings.erpHeaderQuery.replace(/where\s/i, 'WHERE 1=1 AND ');
+    const headerQuery = `${headerBaseQuery} AND [PEDIDO] LIKE '%${sanitizedValue}%'`;
     
-    let headers: any[] = [];
+    let headersRaw: any[] = [];
     try {
-        headers = await executeQuery(headerQuery, signal);
+        headersRaw = await executeQuery(headerQuery, signal);
     } catch(e: any) {
         await logError('Error ejecutando consulta de cabecera de Pedido ERP', { error: e.message, query: headerQuery });
         throw e;
     }
 
     if (signal?.aborted) throw new Error('Aborted');
-    if (headers.length === 0) {
+    if (headersRaw.length === 0) {
         return { headers: [], lines: [], inventory: [] };
     }
+    
+    const headers = JSON.parse(JSON.stringify(headersRaw));
+    
+    const orderNumbers = headers.map(h => h.PEDIDO);
+    const sanitizedOrderNumbers = orderNumbers.map(n => `'${n.replace(/'/g, "''")}'`).join(',');
 
-    // Use only the first result if multiple headers match a partial search
-    const selectedHeader = headers[0];
-    const finalOrderNumber = selectedHeader.PEDIDO;
-
-    // Inject the WHERE clause into the lines query
-    const linesBaseQuery = settings.erpLinesQuery.replace(/order by .*/i, '');
-    const linesQuery = `${linesBaseQuery} AND [PEDIDO] = '${finalOrderNumber}'`;
-
-    let lines: any[] = [];
+    const linesBaseQuery = settings.erpLinesQuery.replace(/where\s/i, 'WHERE 1=1 AND ');
+    const linesQuery = `${linesBaseQuery} AND [PEDIDO] IN (${sanitizedOrderNumbers})`;
+    
+    let linesRaw: any[] = [];
     try {
-        lines = await executeQuery(linesQuery, signal);
+        linesRaw = await executeQuery(linesQuery, signal);
     } catch (e: any) {
         await logError('Error ejecutando consulta de líneas de Pedido ERP', { error: e.message, query: linesQuery });
         throw e;
     }
+    
+    const lines = JSON.parse(JSON.stringify(linesRaw));
 
     if (signal?.aborted) throw new Error('Aborted');
     if (lines.length === 0) {
-        return JSON.parse(JSON.stringify({ headers, lines: [], inventory: [] }));
+        return { headers, lines: [], inventory: [] };
     }
 
-    const itemIds = lines.map(line => line.ARTICULO);
-    const inventory = await getRealTimeInventory(itemIds);
+    const itemIds = [...new Set(lines.map(line => line.ARTICULO))];
+    const inventory = await getRealTimeInventory(itemIds, signal);
 
-    return JSON.parse(JSON.stringify({ headers, lines, inventory }));
+    return { headers, lines, inventory };
 }
