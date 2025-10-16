@@ -4,7 +4,7 @@
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload, StockInfo } from '../../core/types';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine } from '../../core/types';
 import { logInfo } from '@/modules/core/lib/logger';
 import { 
     getRequests, 
@@ -125,9 +125,8 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 /**
  * Fetches the header and line items for a given ERP order number.
  * @param orderNumber The ERP order number to fetch.
- * @param signal The AbortSignal to cancel the request.
  * @returns An object containing the order headers, an array of lines, and the real-time inventory for those lines.
  */
-export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[], inventory: StockInfo[]}> {
-    return getErpOrderDataServer(orderNumber, signal);
+export async function getErpOrderData(orderNumber: string): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}> {
+    return getErpOrderDataServer(orderNumber);
 }
