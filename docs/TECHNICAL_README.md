@@ -1,4 +1,3 @@
-
 # Clic-Tools: Guía de Arquitectura Técnica
 
 ## 1. Filosofía de Diseño
@@ -11,7 +10,7 @@ El diseño de Clic-Tools sigue una filosofía **modular, centrada en el servidor
 
 -   **Hooks para la Lógica de UI:** La lógica compleja del lado del cliente (manejo de estado, efectos, validaciones de formularios) se abstrae en hooks personalizados (ej: `usePlanner`, `useQuoter`, `useRequests`). Esto mantiene los componentes de la página (`page.tsx`) limpios, declarativos y centrados únicamente en la renderización.
 
--   **Contexto de Autenticación Centralizado (`useAuth`):** Se utiliza un `AuthContext` para cargar y proveer datos globales una sola vez por sesión (usuario, roles, clientes, productos, etc.). Esto evita la recarga redundante de datos en cada página y mejora drásticamente el rendimiento de la navegación entre módulos. El `useEffect` principal del proveedor está optimizado para ejecutarse solo una vez en la carga inicial.
+-   **Contexto de Autenticación Centralizado (`useAuth`):** Se utiliza un `AuthContext` para cargar y proveer datos globales una sola vez por sesión (usuario, roles, clientes, productos, etc.). Esto evita la recarga redundante de datos en cada página y mejora drásticamente el rendimiento de la navegación entre módulos. El `useEffect` principal del proveedor está optimizado para ejecutarse solo una vez en la carga inicial y se actualiza de forma inteligente para evitar recargas de página completas.
 
 ## 2. Flujo de Datos y Arquitectura
 
@@ -55,9 +54,10 @@ El sistema utiliza una arquitectura de **múltiples bases de datos SQLite** para
 
 ## 4. Flujo de Autenticación y Autorización
 
--   **Login:** El usuario ingresa credenciales en `AuthForm`, que llama a una Server Action en `auth.ts`. Esta compara el hash de la contraseña de forma segura en el servidor. Si es exitoso, el ID del usuario se guarda en `sessionStorage`.
--   **Carga de Contexto:** El `AuthProvider` lee el ID del usuario desde `sessionStorage` y carga todos los datos necesarios (perfil de usuario, rol, permisos, datos de la compañía, etc.) desde el servidor.
--   **Protección de Rutas:** El layout principal (`/dashboard/layout.tsx`) actúa como guardián. Si el `useAuth` hook indica que no hay un usuario autenticado, redirige inmediatamente a la página de login (`/`).
+-   **Login:** El usuario ingresa credenciales en `AuthForm`, que llama a una Server Action en `auth.ts`. Esta compara el hash de la contraseña de forma segura en el servidor. Si es exitoso, el ID del usuario se guarda en `sessionStorage` y el contexto `useAuth` se actualiza para redirigir sin recargar la página.
+-   **Carga de Contexto:** El `AuthProvider` lee el ID del usuario desde `sessionStorage` y carga todos los datos necesarios (perfil de usuario, rol, permisos, datos de la compañía, etc.) desde el servidor una sola vez.
+-   **Protección de Rutas:** El layout principal (`/dashboard/layout.tsx`) actúa como guardián. Si `useAuth` indica que no hay un usuario autenticado, redirige inmediatamente a la página de login (`/`).
 -   **Autorización por Permisos:** El hook `useAuthorization` verifica si el rol del usuario actual contiene los permisos necesarios para una página o acción específica. Si no los tiene, muestra un mensaje de "Acceso Denegado" y redirige al dashboard principal.
+    -   **Permisos Granulares:** Se utilizan permisos como `requests:read:all` y `planner:read:all` para controlar si un usuario puede ver solo sus propios documentos o los de todos, añadiendo una capa de seguridad y control de visibilidad.
 
     

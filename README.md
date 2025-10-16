@@ -49,12 +49,14 @@
 
 ### 3.2. Planificador (`/dashboard/planner`)
 - **Gestión de Órdenes:** Permite crear, editar y visualizar órdenes de producción, mostrando siempre el nombre y la cédula del cliente para mayor claridad.
+- **Visibilidad Controlada:** Por defecto, los usuarios solo ven las órdenes que ellos han creado. Un permiso especial (`planner:read:all`) permite a supervisores y administradores ver todas las órdenes.
 - **Flujo de Estados Completo:** Controla el ciclo de vida de una orden (Pendiente, Aprobada, En Progreso, Completada, etc.).
 - **Trazabilidad:** Cada cambio de estado, nota o modificación queda registrada en un historial detallado por orden.
 - **Alertas Visuales:** Las órdenes modificadas después de ser aprobadas se marcan visualmente para alertar a los supervisores.
 - **Paginación de Archivados**: Para manejar un gran volumen de datos, las órdenes archivadas se cargan por páginas. La búsqueda y el filtrado se aplican de forma eficiente sobre todo el conjunto de datos archivados del lado del servidor.
 
 ### 3.3. Solicitud de Compra (`/dashboard/requests`)
+- **Visibilidad Controlada:** Igual que el planificador, los usuarios ven por defecto solo sus propias solicitudes. El permiso `requests:read:all` otorga visibilidad total.
 - **Flujo de Aprobación:** Gestiona el ciclo de vida de una solicitud, desde "Pendiente" hasta "Recibida" y opcionalmente "En Bodega".
 - **Creación Inteligente desde ERP:** Permite crear solicitudes de compra automáticamente a partir de un pedido de venta del ERP. El sistema analiza el pedido, compara con el inventario actual y sugiere qué artículos comprar, ahorrando tiempo y reduciendo errores.
 - **Claridad del Cliente y Trazabilidad del ERP:** Muestra el nombre y la cédula del cliente asociado a la solicitud, así como el número de pedido del ERP del que se originó, creando una trazabilidad completa.
@@ -145,8 +147,8 @@ Actualizar la aplicación a una nueva versión sin perder datos es un proceso cr
 ### Proceso de Actualización Seguro:
 
 1.  **Paso 1: Realizar una Copia de Seguridad (¡CRÍTICO!)**
-    -   Antes de hacer cualquier cambio, haz una copia de seguridad completa de la carpeta `dbs/`. Esta carpeta contiene todos los datos de tu aplicación (usuarios, órdenes, solicitudes, etc.). Simplemente copia y pega esta carpeta en un lugar seguro.
-    -   Haz también una copia del archivo `.env.local` si lo estás usando para la conexión SQL.
+    -   Antes de hacer cualquier cambio, ve a **Administración > Mantenimiento** y haz clic en **"Crear Punto de Restauración"**. Esto generará una copia segura de todas las bases de datos del sistema.
+    -   Haz también una copia manual del archivo `.env.local` si lo estás usando para la conexión SQL.
 
 2.  **Paso 2: Reemplazar los Archivos de la Aplicación**
     -   Detén la aplicación en el servidor (ej: `pm2 stop clic-tools` o deteniendo el sitio en IIS).
@@ -164,7 +166,7 @@ Actualizar la aplicación a una nueva versión sin perder datos es un proceso cr
 
 5.  **Paso 5: Verificar**
     -   Accede a la aplicación y verifica que tus datos sigan ahí y que las nuevas funcionalidades operen correctamente.
-    -   Si algo sale catastróficamente mal, puedes restaurar tu copia de seguridad de la carpeta `dbs/` y el código de la versión anterior para volver al estado previo.
+    -   Si algo sale catastróficamente mal, puedes usar la interfaz de **Mantenimiento** para restaurar el sistema al punto que creaste en el paso 1.
 
 ---
 

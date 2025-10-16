@@ -184,7 +184,7 @@ export default function HelpPage() {
                                 <li>Las filas en <span className="text-red-600 font-semibold">rojo</span> indican que la cantidad pedida es **mayor** al inventario actual del ERP. Estas filas vendrán **marcadas por defecto** para ser compradas.</li>
                                 <li>Las filas en <span className="text-green-600 font-semibold">verde</span> indican que **hay suficiente stock**. Estarán desmarcadas por defecto.</li>
                                 <li>Puedes **editar la cantidad a solicitar y el precio de venta** directamente en la tabla.</li>
-                                <li>Usa los checkboxes para anular las sugerencias y decidir manualmente qué comprar.</li>
+                                <li>Usa los checkboxes para anular las sugerencias y decidir manually qué comprar.</li>
                             </ul>
                         </li>
                          <li>
@@ -194,6 +194,9 @@ export default function HelpPage() {
                     
                     <h4 className="font-semibold text-lg pt-2 border-t">Funcionalidades Comunes</h4>
                     <ul className="list-disc space-y-3 pl-6">
+                    <li>
+                        <strong>Visibilidad por Defecto:</strong> Por seguridad y claridad, la vista de solicitudes siempre mostrará por defecto solo los documentos que tú has creado. Si tienes el permiso `requests:read:all`, podrás desmarcar la casilla "Mostrar solo mis solicitudes" para ver las de todos los usuarios.
+                    </li>
                     <li>
                         <strong>Aviso de &quot;Modificado&quot; (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una solicitud es editada (cambiando cantidad, fecha, etc.) *después* de haber sido Aprobada u Ordenada, aparecerá una alerta visual &quot;Modificado&quot;. Esto sirve como una advertencia para que todos los involucrados estén al tanto del cambio.
                     </li>
@@ -217,6 +220,9 @@ export default function HelpPage() {
                     Organiza y visualiza la carga de trabajo del taller o la producción. Permite un seguimiento detallado de cada orden.
                     </p>
                     <ul className="list-disc space-y-3 pl-6">
+                        <li>
+                            <strong>Visibilidad por Defecto:</strong> Al igual que en Compras, el planificador te mostrará por defecto solo las órdenes que tú has creado. Los usuarios con el permiso `planner:read:all` pueden desmarcar el filtro para tener una vista global de la producción.
+                        </li>
                         <li>
                             <strong>Paso 1: Crear Órdenes.</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
                         </li>
@@ -425,13 +431,10 @@ export default function HelpPage() {
                             <div className="flex items-start gap-4">
                                 <DatabaseZap className="mt-1 h-6 w-6 text-red-500 shrink-0" />
                                 <div><h4 className="font-semibold">Mantenimiento</h4>
-                                    <p>Herramientas críticas. Aquí puedes:</p>
+                                    <p>Herramientas críticas, ahora separadas en secciones para mayor claridad y seguridad:</p>
                                     <ul className="list-disc pl-5 text-sm space-y-1 mt-2">
-                                        <li><strong>Crear un Punto de Restauración (<Save className="inline h-4 w-4"/>):</strong> Genera una copia de seguridad completa de todas las bases de datos del sistema. Es vital hacer esto antes de una actualización.</li>
-                                        <li><strong>Restaurar desde un Backup:</strong> Selecciona una fecha de la lista de puntos de restauración disponibles. Cada punto tiene un ícono de descarga (<Download className="inline h-4 w-4"/>) para que puedas guardar una copia local. Usa el checkbox para ver todos los puntos guardados.</li>
-                                        <li><strong>Subir Backups Manuales (<UploadCloud className="inline h-4 w-4"/>):</strong> Arrastra y suelta archivos de base de datos (.db) para añadirlos como puntos de restauración. El sistema valida que los nombres sean seguros para evitar ataques.</li>
-                                        <li><strong>Limpiar Backups Antiguos (<Trash2 className="inline h-4 w-4"/>):</strong> Para ahorrar espacio, esta opción elimina todos los puntos de restauración excepto el más reciente, garantizando que siempre tengas un respaldo.</li>
-                                        <li><strong>Zona de Peligro (<AlertTriangle className="inline h-4 w-4"/>):</strong> Permite resetear los datos de un módulo específico (ej: borrar todas las órdenes de producción) sin afectar al resto del sistema, o hacer un reseteo de fábrica total que borra todo.</li>
+                                        <li><strong>Backups y Puntos de Restauración:</strong> Gestiona backups de **todo el sistema**. Crea un "Punto de Restauración" antes de una actualización y restáuralo si algo sale mal.</li>
+                                        <li><strong>Zona de Peligro:</strong> Acciones que afectan módulos **individuales**. Aquí puedes restaurar la base de datos de un solo módulo (ej: `planner.db`) desde un archivo que subas, o resetear un módulo a su estado de fábrica. Estas acciones requieren confirmación estricta para evitar accidentes.</li>
                                     </ul>
                                 </div>
                             </div>
@@ -449,44 +452,6 @@ export default function HelpPage() {
                     </AccordionContent>
                 </AccordionItem>
 
-                <AccordionItem value="item-import">
-                    <AccordionTrigger className="text-lg font-semibold">
-                    <DatabaseZap className="mr-4 h-6 w-6 text-red-500" />
-                    Guía Técnica: Importación de Datos (Archivos y SQL)
-                    </AccordionTrigger>
-                    <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <p>La importación se gestiona desde <strong>Administración &gt; Importar Datos</strong>. Aquí puedes elegir el método que mejor se adapte a tus necesidades.</p>
-                        
-                        <h4 className="font-semibold">Modo 1: Desde Archivos (.txt / .csv)</h4>
-                        <ol className="list-decimal space-y-2 pl-6">
-                            <li>Activa el interruptor en &quot;Importar desde Archivos&quot;.</li>
-                            <li>Asegúrate de que tus archivos de texto (`.txt` separados por tabulador o `.csv` para CABYS) estén en una carpeta en el servidor.</li>
-                            <li>En cada tarjeta, introduce la <strong>ruta completa</strong> al archivo correspondiente (ej: `C:\\import_data\\clientes.txt`).</li>
-                            <li>Haz clic en el botón &quot;Procesar Archivo&quot; de cada tarjeta para cargar los datos.</li>
-                        </ol>
-
-                        <h4 className="font-semibold">Modo 2: Desde SQL Server (Recomendado)</h4>
-                        <p>Este método es el más robusto y eficiente. Sincroniza los datos directamente desde tu ERP a la base de datos local de la aplicación.</p>
-                        <ol className="list-decimal space-y-2 pl-6">
-                            <li>Activa el interruptor en &quot;Importar desde SQL Server&quot;.</li>
-                            <li>Despliega la sección <strong>&quot;Configuración de Conexión a SQL Server&quot;</strong>.</li>
-                            <li>Rellena los datos de tu servidor ERP. <strong>Importante:</strong> Por seguridad, se recomienda crear un usuario de SQL que solo tenga permisos de <strong>lectura (`SELECT`)</strong> sobre las tablas o vistas necesarias.</li>
-                            <li>Guarda la configuración. Estos datos se almacenarán de forma segura en un archivo `.env` en el servidor.</li>
-                            <li>Despliega la sección <strong>&quot;Gestión de Consultas SQL&quot;</strong>.</li>
-                            <li>Para cada tipo de dato (Clientes, Artículos, etc.), pega la consulta `SELECT` completa que extrae la información de tu ERP. Asegúrate de que los nombres de las columnas en tu `SELECT` coincidan con los esperados por el sistema (ej. `SELECT ID_Cliente AS CLIENTE, NombreCliente AS NOMBRE, ... FROM VistaClientes`).</li>
-                            <li>Guarda las consultas.</li>
-                            <li>Una vez configurado, solo tienes que hacer clic en el botón grande <strong>&quot;Importar Todos los Datos desde ERP&quot;</strong> para ejecutar todas las consultas y actualizar la base de datos local.</li>
-                        </ol>
-                        <Alert>
-                            <ToggleRight className="h-4 w-4" />
-                            <AlertTitle>Botón de Sincronización Rápida</AlertTitle>
-                            <AlertDescription>
-                                Puedes dar permiso (`admin:import:run`) a ciertos roles para que vean un botón de &quot;Sincronizar Datos del ERP&quot; en el panel principal. Si los datos están desactualizados, este botón se pondrá rojo y parpadeará para alertar al usuario.
-                            </AlertDescription>
-                        </Alert>
-                    </AccordionContent>
-                </AccordionItem>
-                
                 <AccordionItem value="item-update">
                     <AccordionTrigger className="text-lg font-semibold">
                     <Wrench className="mr-4 h-6 w-6 text-slate-600" />
@@ -498,7 +463,7 @@ export default function HelpPage() {
                         <h4 className="font-semibold">Proceso de Actualización Seguro:</h4>
                         <ol className="list-decimal space-y-3 pl-6">
                             <li>
-                                <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve al directorio de la aplicación en tu servidor y haz una copia de seguridad completa de la carpeta `dbs/`. Esta carpeta contiene todas tus bases de datos (usuarios, órdenes, solicitudes, etc.).
+                                <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve a **Administración &gt; Mantenimiento** y haz clic en **"Crear Punto de Restauración"**. Esto generará una copia segura de todas las bases de datos del sistema.
                             </li>
                             <li>
                                 <strong>Paso 2: Reemplazar Archivos.</strong> Detén la aplicación (por ejemplo, usando `pm2 stop clic-tools`). Luego, borra todos los archivos y carpetas de la versión anterior **excepto** la carpeta `dbs/` y, si existe, el archivo `.env.local`. Después, copia todos los archivos de la nueva versión en su lugar.
@@ -540,44 +505,16 @@ export default function HelpPage() {
                                 </ul>
                             </li>
                             <li>
-                                <strong>Mejora en Módulo de Compras:</strong> Ahora se muestra el número de pedido ERP en las tarjetas de solicitud y se puede filtrar por este número.
-                            </li>
-                             <li>
-                                <strong>Mejora de UX:</strong> Se eliminaron los parpadeos de página al iniciar sesión y al refrescar datos en varias pantallas. Se optimizó el rendimiento del Header.
-                            </li>
-                             <li>
-                                <strong>Correcciones de Compilación y Estabilidad:</strong> Se resolvieron más de 50 errores de TypeScript y problemas de compilación para mejorar la robustez y la fiabilidad de la aplicación.
-                            </li>
-                        </ul>
-
-                        <h4 className="font-semibold text-lg">Versión 1.5.2</h4>
-                        <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
-                        <ul className="list-disc space-y-3 pl-6">
-                           <li>
-                                <strong>Mejora de UX en Cotizador:</strong> Se ha mejorado la interfaz del Cotizador en dispositivos móviles. Ahora, en pantallas pequeñas, los campos de Cantidad y Precio tienen más espacio, y se ha añadido una opción para mostrar u ocultar columnas secundarias, mejorando la usabilidad.
-                            </li>
-                        </ul>
-
-                        <h4 className="font-semibold text-lg">Versión 1.5.1</h4>
-                        <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
-                        <ul className="list-disc space-y-3 pl-6">
-                            <li>
-                                <strong>Nueva Funcionalidad: Buzón de Sugerencias.</strong> Se añadió una herramienta para que los usuarios puedan enviar feedback directamente a los administradores.
-                            </li>
-                             <li>
-                                <strong>Mejora Crítica de Auditoría:</strong> La acción de &quot;Limpiar Logs&quot; ahora siempre deja un registro de quién y cuándo se realizó la limpieza, incluso si se borran todos los datos.
+                                <strong>Nueva Funcionalidad de Seguridad:</strong> Se implementó un sistema de permisos granulares (`planner:read:all` y `requests:read:all`) para que, por defecto, los usuarios solo vean sus propias órdenes y solicitudes. Solo los usuarios con estos permisos (como los administradores) pueden desmarcar el filtro para ver todo.
                             </li>
                             <li>
-                                <strong>Mejora de UX: Eliminación de Parpadeos.</strong> Se eliminaron los parpadeos (recargas visuales de página completa) al usar los botones de &quot;Refrescar&quot; en el Buzón de Sugerencias y el Visor de Eventos, y al guardar cambios en las configuraciones.
+                                <strong>Mejora Mayor en Mantenimiento:</strong> Se rediseñó la página de Mantenimiento para separar claramente los "Puntos de Restauración" de todo el sistema y las acciones de riesgo en módulos individuales (como restaurar o resetear una sola base de datos), haciendo el proceso más seguro e intuitivo.
                             </li>
                             <li>
-                                <strong>Mejora de UX: Actualización Instantánea.</strong> La fecha de &quot;Última Sincronización&quot; en el panel principal ahora se actualiza instantáneamente después de una sincronización del ERP, sin necesidad de recargar la página.
-                            </li>
-                            <li>
-                                <strong>Implementación de Logging Completo:</strong> Se añadió registro de eventos (auditoría) para acciones críticas en todos los módulos: inicio/cierre de sesión, gestión de usuarios, guardado de configuraciones, backups, etc.
+                                <strong>Mejora de Rendimiento y UX:</strong> Se eliminaron los parpadeos y recargas de página completas al iniciar sesión y al refrescar datos globales, logrando una experiencia de usuario más fluida y rápida.
                             </li>
                              <li>
-                                <strong>Corrección de Error en Cotizador:</strong> Se solucionó un fallo que impedía aplicar correctamente la exoneración de un cliente a los nuevos productos añadidos a una cotización.
+                                <strong>Corrección de Errores de Importación:</strong> Se solucionaron errores críticos en la importación de datos desde SQL Server, incluyendo problemas de mapeo de columnas y de tipos de datos, asegurando que las cabeceras de los pedidos del ERP se carguen correctamente.
                             </li>
                         </ul>
                     </AccordionContent>
