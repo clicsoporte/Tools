@@ -619,6 +619,7 @@ export type ErpOrderHeader = {
     FECHA_PEDIDO: string;
     FECHA_PROMETIDA: string;
     ORDEN_COMPRA?: string;
+    CLIENTE_NOMBRE?: string;
 };
 
 export type ErpOrderLine = {
