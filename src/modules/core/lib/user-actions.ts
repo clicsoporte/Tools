@@ -24,7 +24,7 @@ export async function createFirstUser(
 ): Promise<void> {
   const db = await connectDb();
   
-  const userCount = getUserCount();
+  const userCount = await getUserCount();
   if (userCount > 0) {
     await logError("Attempted to create first user when users already exist.", clientInfo);
     throw new Error("La configuración inicial ya fue completada. No se puede crear otro usuario administrador de esta forma.");

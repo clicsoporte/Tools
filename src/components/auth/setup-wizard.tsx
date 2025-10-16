@@ -31,7 +31,9 @@ export function SetupWizard({ clientInfo }: SetupWizardProps) {
     name: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    phone: "",
+    whatsapp: ""
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

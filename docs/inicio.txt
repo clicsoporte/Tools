@@ -1,75 +1,16 @@
-======================================================================
-     Guía Técnica: Flujo de Arranque y Configuración Inicial
-======================================================================
+La lógica de cómo debe funcionar la página de inicio (/) es la siguiente:
 
-Este documento describe el flujo lógico que sigue la aplicación desde
-que se inicia por primera vez (estado "de fábrica") hasta que el primer
-usuario administrador es creado y el sistema está operativo.
+1.  **Comprobación en el Servidor:** Cada vez que un usuario accede a la ruta raíz `/`, el componente de servidor de esa página debe realizar una única y rápida consulta a la base de datos `intratool.db`.
 
------------------------------
-1. Resumen del Flujo
------------------------------
+2.  **La Pregunta Clave:** La consulta es simple: `SELECT COUNT(*) FROM users;`. Esto nos dice cuántos usuarios existen en el sistema.
 
-El sistema está diseñado para guiar al usuario a través de un asistente de
-configuración la primera vez que se ejecuta, asegurando que no haya
-credenciales por defecto y que la configuración inicial sea segura.
+3.  **Dos Escenarios:**
+    *   **Escenario A (Configuración Inicial):** Si el resultado de la consulta es `0` (cero), significa que es la primera vez que se ejecuta la aplicación. En este caso, la página **no debe mostrar el formulario de login**. En su lugar, debe renderizar un "Asistente de Configuración" especial. Este asistente es un formulario que solicita:
+        *   Nombre completo del administrador.
+        *   Correo electrónico.
+        *   Contraseña (y confirmación de contraseña).
+        Al enviar este formulario, se creará el **primer usuario con el rol de `admin`**.
 
-El sistema no permitirá el acceso a ninguna función hasta que la
-configuración inicial se haya completado.
+    *   **Escenario B (Operación Normal):** Si el resultado de la consulta es `1` o más, significa que la aplicación ya está configurada. En este caso, la página debe mostrar el **formulario de login estándar**, permitiendo a los usuarios existentes iniciar sesión.
 
------------------------------
-2. Lógica de la Página Principal (`src/app/page.tsx`)
------------------------------
-
-La página de inicio actúa como el orquestador principal del arranque.
-En cada carga, realiza las siguientes comprobaciones en el lado del servidor:
-
-**Paso 1: Verificar si Existen Usuarios**
-- Llama a `getUserCount()` de `src/modules/core/lib/db.ts` para contar
-  los registros en la tabla `users` de la base de datos principal (`intratool.db`).
-
-- **Si `userCount` es `0`:**
-  - Se renderiza el componente `SetupWizard` (`src/components/auth/setup-wizard.tsx`).
-  - Este asistente es un formulario que obliga al usuario a crear la primera
-    cuenta, que será la del administrador.
-  - La aplicación no avanzará hasta que este formulario se complete con éxito.
-
-- **Si `userCount` es mayor a `0`:**
-  - Se renderiza el componente `AuthForm` (`src/components/auth/auth-form.tsx`),
-    que es el formulario de inicio de sesión normal.
-
------------------------------
-3. Asistente de Configuración (`SetupWizard`)
------------------------------
-
-Este componente se muestra únicamente cuando no hay usuarios en el sistema.
-
-- **Renderiza un formulario para crear el primer usuario:**
-  - Solicita:
-    - Nombre Completo
-    - Correo Electrónico
-    - Contraseña
-    - Confirmar Contraseña
-
-- **Acción al enviar el formulario:**
-  - Llama a la acción de servidor `createFirstUser` de `src/modules/core/lib/user-actions.ts`.
-  - Esta función:
-    1. Verifica una vez más que no existan otros usuarios para evitar condiciones de carrera.
-    2. Hashea la contraseña proporcionada de forma segura usando bcrypt.
-    3. Inserta el nuevo usuario en la tabla `users` con `id = 1` y el rol de 'admin'.
-    4. Registra el evento en los logs del sistema.
-
------------------------------
-4. Flujo Final
------------------------------
-
-Después de que el primer usuario es creado a través del asistente:
-
-1. El usuario es notificado de que la cuenta se creó con éxito.
-2. La página de inicio se recarga.
-3. En la nueva carga, `getUserCount()` ahora devuelve `1`.
-4. El sistema muestra el `AuthForm` (formulario de login).
-5. El usuario ahora puede iniciar sesión con las credenciales que acaba de crear.
-
-Este flujo garantiza que la configuración inicial sea obligatoria, segura,
-guiada y no dependa de credenciales predefinidas en el código.
+Esta lógica asegura que las credenciales por defecto (`jonathan@clicsoporte.com`) ya no existan en el código, y que el primer administrador configure su propia cuenta de forma segura e intuitiva en el primer arranque.
