@@ -159,6 +159,12 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
         if (!erpHeadersTable) {
             console.log("MIGRATION: Creating erp_order_headers table.");
             db.exec(`CREATE TABLE erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT);`);
+        } else {
+            const erpHeadersInfo = db.prepare(`PRAGMA table_info(erp_order_headers)`).all() as { name: string }[];
+            const erpHeadersColumns = new Set(erpHeadersInfo.map(c => c.name));
+             if (!erpHeadersColumns.has('MONEDA_PEDIDO')) db.exec(`ALTER TABLE erp_order_headers ADD COLUMN MONEDA_PEDIDO TEXT`);
+             if (!erpHeadersColumns.has('TOTAL_UNIDADES')) db.exec(`ALTER TABLE erp_order_headers ADD COLUMN TOTAL_UNIDADES REAL`);
+             if (!erpHeadersColumns.has('USUARIO')) db.exec(`ALTER TABLE erp_order_headers ADD COLUMN USUARIO TEXT`);
         }
 
         const erpLinesTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_order_lines'`).get();
@@ -201,7 +207,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE import_queries (type TEXT PRIMARY KEY, query TEXT);
         CREATE TABLE cabys_catalog (code TEXT PRIMARY KEY, description TEXT NOT NULL, taxRate REAL);
         CREATE TABLE suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, userId INTEGER NOT NULL, userName TEXT NOT NULL, isRead INTEGER DEFAULT 0, timestamp TEXT NOT NULL);
-        CREATE TABLE erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT);
+        CREATE TABLE erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT, TOTAL_UNIDADES REAL, MONEDA_PEDIDO TEXT, USUARIO TEXT);
         CREATE TABLE erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));
     `;
 
@@ -624,7 +630,7 @@ const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'st
         case 'locations': return {'CODIGO': 'itemId', 'P. HORIZONTAL': 'hPos', 'P. VERTICAL': 'vPos', 'RACK': 'rack', 'CLIENTE': 'client', 'DESCRIPCION': 'description'};
         case 'cabys': return {'Codigo': 'code', 'Descripcion': 'description', 'Impuesto': 'taxRate'};
         case 'suppliers': return {'PROVEEDOR': 'id', 'NOMBRE': 'name', 'ALIAS': 'alias', 'E_MAIL': 'email', 'TELEFONO1': 'phone'};
-        case 'erp_order_headers': return {'PEDIDO': 'PEDIDO', 'ESTADO': 'ESTADO', 'CLIENTE': 'CLIENTE', 'FECHA_PEDIDO': 'FECHA_PEDIDO', 'FECHA_PROMETIDA': 'FECHA_PROMETIDA', 'ORDEN_COMPRA': 'ORDEN_COMPRA'};
+        case 'erp_order_headers': return {'PEDIDO': 'PEDIDO', 'ESTADO': 'ESTADO', 'CLIENTE': 'CLIENTE', 'FECHA_PEDIDO': 'FECHA_PEDIDO', 'FECHA_PROMETIDA': 'FECHA_PROMETIDA', 'ORDEN_COMPRA': 'ORDEN_COMPRA', 'TOTAL_UNIDADES': 'TOTAL_UNIDADES', 'MONEDA_PEDIDO': 'MONEDA_PEDIDO', 'USUARIO': 'USUARIO'};
         case 'erp_order_lines': return {'PEDIDO': 'PEDIDO', 'PEDIDO_LINEA': 'PEDIDO_LINEA', 'ARTICULO': 'ARTICULO', 'CANTIDAD_PEDIDA': 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO': 'PRECIO_UNITARIO'};
         default: return {};
     }
@@ -642,7 +648,7 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
             const key = headerMapping[h as keyof typeof headerMapping];
             if (key) {
                 const value = data[index]?.replace(/[\n\r]/g, '').trim() || '';
-                if (['creditLimit', 'percentage', 'stock', 'rack', 'hPos', 'taxRate', 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO'].includes(key)) {
+                if (['creditLimit', 'percentage', 'stock', 'rack', 'hPos', 'taxRate', 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO', 'TOTAL_UNIDADES'].includes(key)) {
                     dataObject[key] = parseFloat(value.replace('%','')) || 0;
                     if(key === 'taxRate') dataObject[key] /= 100;
                 } else dataObject[key] = value;
@@ -1119,9 +1125,12 @@ export async function factoryReset(moduleId: string): Promise<void> {
 // --- ERP Order Import ---
 export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA, TOTAL_UNIDADES, MONEDA_PEDIDO, USUARIO) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA, @TOTAL_UNIDADES, @MONEDA_PEDIDO, @USUARIO)');
     const transaction = db.transaction((headersToSave) => {
-        for(const header of headersToSave) insert.run(header);
+        db.prepare('DELETE FROM erp_order_headers').run();
+        for(const header of headersToSave) {
+            insert.run(header);
+        }
     });
     try {
         transaction(headers);
@@ -1134,7 +1143,10 @@ export async function saveAllErpOrderLines(lines: ErpOrderLine[]): Promise<void>
     const db = await connectDb();
     const insert = db.prepare('INSERT OR REPLACE INTO erp_order_lines (PEDIDO, PEDIDO_LINEA, ARTICULO, CANTIDAD_PEDIDA, PRECIO_UNITARIO) VALUES (@PEDIDO, @PEDIDO_LINEA, @ARTICULO, @CANTIDAD_PEDIDA, @PRECIO_UNITARIO)');
     const transaction = db.transaction((linesToSave) => {
-        for(const line of linesToSave) insert.run(line);
+        db.prepare('DELETE FROM erp_order_lines').run();
+        for(const line of linesToSave) {
+            insert.run(line);
+        }
     });
     try {
         transaction(lines);

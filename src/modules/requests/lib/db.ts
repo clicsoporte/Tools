@@ -3,11 +3,10 @@
  */
 "use server";
 
-import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries as getImportQueriesFromMain } from '../../core/lib/db';
+import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries as getImportQueriesFromMain, logInfo, logError, logWarn } from '../../core/lib/db';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
-import { logError, logInfo } from '@/modules/core/lib/logger';
 
 const REQUESTS_DB_FILE = 'requests.db';
 
@@ -138,14 +137,6 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
             console.log("MIGRATION (requests.db): Adding showCustomerTaxId to settings.");
             db.prepare(`INSERT INTO request_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
         }
-        if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'erpHeaderQuery'`).get()) {
-            console.log("MIGRATION (requests.db): Adding erpHeaderQuery to settings.");
-            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('erpHeaderQuery', 'SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA] FROM [GAREND].[PEDIDO] WHERE [PEDIDO] = ?')`).run();
-        }
-        if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'erpLinesQuery'`).get()) {
-            console.log("MIGRATION (requests.db): Adding erpLinesQuery to settings.");
-            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('erpLinesQuery', 'SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [CANTIDAD_PEDIDA], [PRECIO_UNITARIO] FROM [GAREND].[PEDIDO_LINEA] WHERE [PEDIDO] = ?')`).run();
-        }
     }
 }
 
@@ -165,8 +156,6 @@ export async function getSettings(): Promise<RequestSettings> {
         pdfExportColumns: [],
         pdfPaperSize: 'letter',
         pdfOrientation: 'portrait',
-        erpHeaderQuery: '',
-        erpLinesQuery: '',
     };
 
     for (const row of settingsRows) {
@@ -180,8 +169,6 @@ export async function getSettings(): Promise<RequestSettings> {
         else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
         else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
         else if (row.key === 'pdfOrientation') settings.pdfOrientation = row.value as 'portrait' | 'landscape';
-        else if (row.key === 'erpHeaderQuery') settings.erpHeaderQuery = row.value;
-        else if (row.key === 'erpLinesQuery') settings.erpLinesQuery = row.value;
     }
     return settings;
 }
@@ -190,7 +177,7 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation', 'erpHeaderQuery', 'erpLinesQuery'];
+        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
         for (const key of keys) {
              if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -529,7 +516,7 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 export async function getErpOrderData(orderNumber: string): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}> {
     const mainDb = await connectDb();
 
-    await logInfo("Buscando pedido ERP en DB local", { searchTerm: orderNumber });
+    await logInfo("Buscando pedido ERP en DB local", { searchTerm: orderNumber, query: `LIKE %${orderNumber}` });
     
     const headersRaw = mainDb.prepare('SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?').all(`%${orderNumber}`);
     const headers: ErpOrderHeader[] = JSON.parse(JSON.stringify(headersRaw));
@@ -539,8 +526,12 @@ export async function getErpOrderData(orderNumber: string): Promise<{headers: Er
         return { headers: [], lines: [], inventory: [] };
     }
 
-    const orderNumbers = headers.map((h: ErpOrderHeader) => h.PEDIDO);
+    const orderNumbers: string[] = headers.map((h: ErpOrderHeader) => h.PEDIDO);
     const sanitizedOrderNumbers = orderNumbers.map((n: string) => `'${n.replace(/'/g, "''")}'`).join(',');
+
+    if (!sanitizedOrderNumbers) {
+        return { headers, lines: [], inventory: [] };
+    }
 
     const linesRaw = mainDb.prepare(`SELECT * FROM erp_order_lines WHERE PEDIDO IN (${sanitizedOrderNumbers})`).all();
     const lines: ErpOrderLine[] = JSON.parse(JSON.stringify(linesRaw));
@@ -549,7 +540,7 @@ export async function getErpOrderData(orderNumber: string): Promise<{headers: Er
          return { headers, lines: [], inventory: [] };
     }
 
-    const itemIds = [...new Set(lines.map((line: ErpOrderLine) => line.ARTICULO))];
+    const itemIds = [...new Set(lines.map((line: ErpOrderLine) => line.ARTICULO))] as string[];
     const inventory = await getAllStockFromMainDb();
     const relevantInventory = inventory.filter(inv => itemIds.includes(inv.itemId));
 
