@@ -128,4 +128,6 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
  * @param signal The AbortSignal to cancel the request.
  * @returns An object containing the order headers, an array of lines, and the real-time inventory for those lines.
  */
-export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[], inventory: StockInfo[]
+export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[], inventory: StockInfo[]}> {
+    return getErpOrderDataServer(orderNumber, signal);
+}
