@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
  * This hook encapsulates all state and actions for the module, keeping the UI component clean.
@@ -154,7 +155,7 @@ export const useRequests = () => {
         statusFilter: "all",
         classificationFilter: "all",
         dateFilter: undefined,
-        showOnlyMyRequests: false,
+        showOnlyMyRequests: true,
         clientSearchTerm: "",
         isClientSearchOpen: false,
         itemSearchTerm: "",
