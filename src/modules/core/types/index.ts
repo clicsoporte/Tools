@@ -616,8 +616,8 @@ export type ErpOrderHeader = {
     PEDIDO: string;
     ESTADO: string;
     CLIENTE: string;
-    FECHA_PEDIDO: string;
-    FECHA_PROMETIDA: string;
+    FECHA_PEDIDO: string | Date;
+    FECHA_PROMETIDA: string | Date;
     ORDEN_COMPRA?: string;
     CLIENTE_NOMBRE?: string;
     TOTAL_UNIDADES?: number;
