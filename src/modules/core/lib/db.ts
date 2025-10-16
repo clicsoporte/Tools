@@ -15,12 +15,29 @@ import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, Quo
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
-import { DB_MODULES, DB_FILE } from './data-modules';
 import { logInfo, logWarn, logError } from './logger';
+import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
+import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
+import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
 
+
+const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
 const UPDATE_BACKUP_DIR = 'update_backups';
+
+/**
+ * Acts as a registry for all database modules in the application.
+ * This structure allows the core `connectDb` function to be completely agnostic
+ * of any specific module, promoting true modularity and decoupling.
+ */
+const DB_MODULES: DatabaseModule[] = [
+    { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: DB_FILE, initFn: initializeMainDatabase, migrationFn: checkAndApplyMigrations },
+    { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
+    { id: 'production-planner', name: 'Planificador de Producción', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
+    { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db', initFn: initializeWarehouseDb, migrationFn: runWarehouseMigrations },
+];
+
 
 // This path is configured to work correctly within the Next.js build output directory,
 // which is crucial for serverless environments.
@@ -81,7 +98,10 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
     // Main DB Migrations
     try {
         const companyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='company_settings'`).get();
-        if(!companyTable) return; // DB not initialized yet, migrations will fail.
+        if(!companyTable) {
+             console.log("Migration check skipped: Main database not initialized yet.");
+             return;
+        }
         
         const companyTableInfo = db.prepare(`PRAGMA table_info(company_settings)`).all() as { name: string }[];
         const companyColumns = new Set(companyTableInfo.map(c => c.name));

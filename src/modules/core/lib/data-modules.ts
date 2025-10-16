@@ -1,23 +1,1174 @@
 /**
- * @fileoverview This file acts as a central registry for all database modules in the application.
- * This structure allows the core `connectDb` function to be completely agnostic
- * of any specific module, promoting true modularity and decoupling.
+ * @fileoverview This file handles the SQLite database connection and provides
+ * server-side functions for all database operations. It includes initialization,
+ * schema creation, data access, and migration logic for all application modules.
  */
+"use server";
 
-import { initializeMainDatabase, checkAndApplyMigrations } from './db';
-import { runPlannerMigrations, initializePlannerDb } from '../../planner/lib/db';
-import { runRequestMigrations, initializeRequestsDb } from '../../requests/lib/db';
-import { runWarehouseMigrations, initializeWarehouseDb } from '../../warehouse/lib/db';
-import type { DatabaseModule } from '../types';
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { initialUsers, initialCompany, initialRoles } from './data';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine } from '@/modules/core/types';
+import bcrypt from 'bcryptjs';
+import Papa from 'papaparse';
+import { executeQuery } from './sql-service';
+import { logInfo, logWarn, logError } from './logger';
+import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
+import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
+import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
 
-export const DB_FILE = 'intratool.db';
+
+const DB_FILE = 'intratool.db';
+const SALT_ROUNDS = 10;
+const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
+const UPDATE_BACKUP_DIR = 'update_backups';
 
 /**
  * Acts as a registry for all database modules in the application.
+ * This structure allows the core `connectDb` function to be completely agnostic
+ * of any specific module, promoting true modularity and decoupling.
  */
-export const DB_MODULES: DatabaseModule[] = [
+const DB_MODULES: DatabaseModule[] = [
     { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: DB_FILE, initFn: initializeMainDatabase, migrationFn: checkAndApplyMigrations },
     { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
     { id: 'production-planner', name: 'Planificador de Producción', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
     { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db', initFn: initializeWarehouseDb, migrationFn: runWarehouseMigrations },
 ];
+
+
+// This path is configured to work correctly within the Next.js build output directory,
+// which is crucial for serverless environments.
+const dbDirectory = path.join(process.cwd(), 'dbs');
+
+const dbConnections = new Map<string, Database.Database>();
+
+/**
+ * Establishes a connection to a specific SQLite database file.
+ * If the database file does not exist, it creates it and initializes the schema and default data.
+ * It manages multiple connections in a map to support a multi-database architecture.
+ * @param {string} dbFile - The filename of the database to connect to.
+ * @returns {Database.Database} The database connection instance.
+ */
+export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Database> {
+    if (dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
+        return dbConnections.get(dbFile)!;
+    }
+    
+    const dbPath = path.join(dbDirectory, dbFile);
+    if (!fs.existsSync(dbDirectory)) {
+        fs.mkdirSync(dbDirectory, { recursive: true });
+    }
+
+    const dbExists = fs.existsSync(dbPath);
+    const db = new Database(dbPath);
+
+    const dbModule = DB_MODULES.find(m => m.dbFile === dbFile);
+
+    if (!dbExists) {
+        console.log(`Database ${dbFile} not found, creating and initializing...`);
+        if (dbModule?.initFn) {
+            await dbModule.initFn(db);
+        }
+    } else {
+        if (dbModule?.migrationFn) {
+            try {
+                await dbModule.migrationFn(db);
+            } catch (error) {
+                console.error(`Migration failed for ${dbFile}, but continuing. Error:`, error);
+            }
+        }
+    }
+
+    // WAL mode can improve performance and concurrency.
+    db.pragma('journal_mode = WAL');
+    dbConnections.set(dbFile, db);
+    return db;
+}
+
+
+/**
+ * Checks the database schema and applies necessary alterations (migrations).
+ * This makes the app more resilient to schema changes over time without data loss.
+ * @param {Database.Database} db - The database instance to check.
+ */
+export async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
+    // Main DB Migrations
+    try {
+        const companyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='company_settings'`).get();
+        if(!companyTable) {
+             console.log("Migration check skipped: Main database not initialized yet.");
+             return;
+        }
+        
+        const companyTableInfo = db.prepare(`PRAGMA table_info(company_settings)`).all() as { name: string }[];
+        const companyColumns = new Set(companyTableInfo.map(c => c.name));
+        
+        if (!companyColumns.has('decimalPlaces')) db.exec(`ALTER TABLE company_settings ADD COLUMN decimalPlaces INTEGER DEFAULT 2`);
+        if (!companyColumns.has('quoterShowTaxId')) db.exec(`ALTER TABLE company_settings ADD COLUMN quoterShowTaxId BOOLEAN DEFAULT TRUE`);
+        if (!companyColumns.has('syncWarningHours')) db.exec(`ALTER TABLE company_settings ADD COLUMN syncWarningHours REAL DEFAULT 12`);
+        
+        if (companyColumns.has('importPath')) {
+            console.log("MIGRATION: Dropping importPath column from company_settings.");
+            db.exec(`ALTER TABLE company_settings DROP COLUMN importPath`);
+        }
+        
+        if (!companyColumns.has('customerFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN customerFilePath TEXT`);
+        if (!companyColumns.has('productFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN productFilePath TEXT`);
+        if (!companyColumns.has('exemptionFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN exemptionFilePath TEXT`);
+        if (!companyColumns.has('stockFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN stockFilePath TEXT`);
+        if (!companyColumns.has('locationFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN locationFilePath TEXT`);
+        if (!companyColumns.has('cabysFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN cabysFilePath TEXT`);
+        if (!companyColumns.has('supplierFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN supplierFilePath TEXT`);
+        if (!companyColumns.has('importMode')) db.exec(`ALTER TABLE company_settings ADD COLUMN importMode TEXT DEFAULT 'file'`);
+        if (!companyColumns.has('logoUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN logoUrl TEXT`);
+        if (!companyColumns.has('searchDebounceTime')) db.exec(`ALTER TABLE company_settings ADD COLUMN searchDebounceTime INTEGER DEFAULT 500`);
+        if (!companyColumns.has('lastSyncTimestamp')) db.exec(`ALTER TABLE company_settings ADD COLUMN lastSyncTimestamp TEXT`);
+
+
+        const adminUser = db.prepare('SELECT role FROM users WHERE id = 1').get() as { role: string } | undefined;
+        if (adminUser && adminUser.role !== 'admin') {
+            console.log("MIGRATION: Ensuring user with ID 1 is an admin.");
+            db.prepare(`UPDATE users SET role = 'admin' WHERE id = 1`).run();
+        }
+
+        const draftsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='quote_drafts'`).get();
+        if (draftsTable) {
+            const draftsTableInfo = db.prepare(`PRAGMA table_info(quote_drafts)`).all() as { name: string }[];
+            const draftColumns = new Set(draftsTableInfo.map(c => c.name));
+            if (!draftColumns.has('userId')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN userId INTEGER;`);
+             if (!draftColumns.has('customerId')) {
+                db.exec(`ALTER TABLE quote_drafts ADD COLUMN customerId TEXT;`);
+            }
+            if (!draftColumns.has('lines')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN lines TEXT;`);
+            if (!draftColumns.has('totals')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN totals TEXT;`);
+            if (!draftColumns.has('notes')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN notes TEXT;`);
+            if (!draftColumns.has('currency')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN currency TEXT;`);
+            if (!draftColumns.has('exchangeRate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN exchangeRate REAL;`);
+            if (!draftColumns.has('purchaseOrderNumber')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN purchaseOrderNumber TEXT;`);
+        }
+
+        const usersToUpdate = db.prepare('SELECT id, password FROM users').all() as User[];
+        const updateUserPassword = db.prepare('UPDATE users SET password = ? WHERE id = ?');
+        let updatedCount = 0;
+        for (const user of usersToUpdate) {
+            if (user.password && !user.password.startsWith('$2a$')) {
+                const hashedPassword = bcrypt.hashSync(user.password, SALT_ROUNDS);
+                updateUserPassword.run(hashedPassword, user.id);
+                updatedCount++;
+            }
+        }
+        if (updatedCount > 0) {
+            console.log(`MIGRATION: Successfully hashed ${updatedCount} plaintext password(s).`);
+        }
+        
+        const apiTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='api_settings'`).get();
+        if (apiTable) {
+            const apiTableInfo = db.prepare(`PRAGMA table_info(api_settings)`).all() as { name: string }[];
+            if (!apiTableInfo.some(col => col.name === 'haciendaExemptionApi')) db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaExemptionApi TEXT`);
+            if (!apiTableInfo.some(col => col.name === 'haciendaTributariaApi')) db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaTributariaApi TEXT`);
+        }
+        
+        const suppliersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='suppliers'`).get();
+        if (!suppliersTable) {
+            console.log("MIGRATION: Creating suppliers table.");
+            db.exec(`CREATE TABLE suppliers (id TEXT PRIMARY KEY, name TEXT, alias TEXT, email TEXT, phone TEXT);`);
+        }
+
+        const erpHeadersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_order_headers'`).get();
+        if (!erpHeadersTable) {
+            console.log("MIGRATION: Creating erp_order_headers table.");
+            db.exec(`CREATE TABLE erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT);`);
+        } else {
+            const erpHeadersInfo = db.prepare(`PRAGMA table_info(erp_order_headers)`).all() as { name: string }[];
+            const erpHeadersColumns = new Set(erpHeadersInfo.map(c => c.name));
+             if (!erpHeadersColumns.has('MONEDA_PEDIDO')) db.exec(`ALTER TABLE erp_order_headers ADD COLUMN MONEDA_PEDIDO TEXT`);
+             if (!erpHeadersColumns.has('TOTAL_UNIDADES')) db.exec(`ALTER TABLE erp_order_headers ADD COLUMN TOTAL_UNIDADES REAL`);
+             if (!erpHeadersColumns.has('USUARIO')) db.exec(`ALTER TABLE erp_order_headers ADD COLUMN USUARIO TEXT`);
+        }
+
+        const erpLinesTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_order_lines'`).get();
+        if (!erpLinesTable) {
+            console.log("MIGRATION: Creating erp_order_lines table.");
+            db.exec(`CREATE TABLE erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));`);
+        }
+
+    } catch (error) {
+        console.error("Failed to apply migrations:", error);
+    }
+}
+
+export async function initializeMainDatabase(db: import('better-sqlite3').Database) {
+    const mainSchema = `
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL,
+            phone TEXT, whatsapp TEXT, avatar TEXT, role TEXT NOT NULL, recentActivity TEXT,
+            securityQuestion TEXT, securityAnswer TEXT
+        );
+        CREATE TABLE company_settings (
+            id INTEGER PRIMARY KEY DEFAULT 1, name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
+            logoUrl TEXT, systemName TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER,
+            searchDebounceTime INTEGER, importMode TEXT, lastSyncTimestamp TEXT, customerFilePath TEXT,
+            productFilePath TEXT, exemptionFilePath TEXT, stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT,
+            supplierFilePath TEXT, quoterShowTaxId BOOLEAN, syncWarningHours REAL
+        );
+        CREATE TABLE api_settings (id INTEGER PRIMARY KEY DEFAULT 1, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
+        CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT NOT NULL, authNumber TEXT);
+        CREATE TABLE logs (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL, type TEXT NOT NULL, message TEXT NOT NULL, details TEXT);
+        CREATE TABLE customers (id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT, creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT);
+        CREATE TABLE products (id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT, notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT);
+        CREATE TABLE suppliers (id TEXT PRIMARY KEY, name TEXT, alias TEXT, email TEXT, phone TEXT);
+        CREATE TABLE exemptions (code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT, endDate TEXT, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT);
+        CREATE TABLE stock (itemId TEXT PRIMARY KEY, stockByWarehouse TEXT NOT NULL, totalStock REAL NOT NULL);
+        CREATE TABLE stock_settings (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE roles (id TEXT PRIMARY KEY, name TEXT NOT NULL, permissions TEXT NOT NULL);
+        CREATE TABLE quote_drafts (id TEXT PRIMARY KEY, createdAt TEXT NOT NULL, userId INTEGER, customerId TEXT, customerDetails TEXT, lines TEXT, totals TEXT, notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT, deliveryAddress TEXT, deliveryDate TEXT, sellerName TEXT, sellerType TEXT, quoteDate TEXT, validUntilDate TEXT, paymentTerms TEXT, creditDays INTEGER);
+        CREATE TABLE sql_config (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE import_queries (type TEXT PRIMARY KEY, query TEXT);
+        CREATE TABLE cabys_catalog (code TEXT PRIMARY KEY, description TEXT NOT NULL, taxRate REAL);
+        CREATE TABLE suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, userId INTEGER NOT NULL, userName TEXT NOT NULL, isRead INTEGER DEFAULT 0, timestamp TEXT NOT NULL);
+        CREATE TABLE erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT, TOTAL_UNIDADES REAL, MONEDA_PEDIDO TEXT, USUARIO TEXT);
+        CREATE TABLE erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));
+    `;
+
+    db.exec(mainSchema);
+
+    const userInsert = db.prepare('INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)');
+    initialUsers.forEach(user => {
+        const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
+        userInsert.run({ ...user, password: hashedPassword });
+    });
+
+    db.prepare(`INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, importMode, quoterShowTaxId, syncWarningHours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
+        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.searchDebounceTime, initialCompany.importMode, 1, 12
+    );
+    
+    db.prepare(`INSERT INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)`).run(
+        'https://api.hacienda.go.cr/indicadores/tc/dolar', 
+        'https://api.hacienda.go.cr/fe/ex?autorizacion=',
+        'https://api.hacienda.go.cr/fe/ae?identificacion='
+    );
+
+    const roleInsert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
+    initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
+
+    console.log(`Database ${DB_FILE} initialized with default users, company settings, and roles.`);
+    await checkAndApplyMigrations(db);
+}
+
+export async function getCompanySettings(): Promise<Company | null> {
+    const db = await connectDb();
+    try {
+        const settings = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as any;
+        if (settings && 'quoterShowTaxId' in settings) {
+            // Manually handle boolean conversion from integer
+            settings.quoterShowTaxId = Boolean(settings.quoterShowTaxId);
+        }
+        return settings as Company | null;
+    } catch (error) {
+        console.error("Failed to get company settings:", error);
+        return null;
+    }
+}
+
+export async function saveCompanySettings(settings: Company): Promise<void> {
+    const db = await connectDb();
+    try {
+        const settingsToSave = { ...settings, quoterShowTaxId: settings.quoterShowTaxId ? 1 : 0 };
+        db.prepare(`
+            UPDATE company_settings SET 
+                name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email,
+                logoUrl = @logoUrl, systemName = @systemName, quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber, 
+                decimalPlaces = @decimalPlaces, searchDebounceTime = @searchDebounceTime,
+                customerFilePath = @customerFilePath, productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath,
+                stockFilePath = @stockFilePath, locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath,
+                supplierFilePath = @supplierFilePath,
+                importMode = @importMode, lastSyncTimestamp = @lastSyncTimestamp, quoterShowTaxId = @quoterShowTaxId, syncWarningHours = @syncWarningHours
+            WHERE id = 1
+        `).run(settingsToSave);
+    } catch (error) {
+        console.error("Failed to save company settings:", error);
+    }
+}
+
+export async function getLogs(filters: {type?: 'operational' | 'system' | 'all'; search?: string; dateRange?: DateRange;} = {}): Promise<LogEntry[]> {
+    const db = await connectDb();
+    try {
+        let query = 'SELECT * FROM logs';
+        const whereClauses: string[] = [];
+        const params: any[] = [];
+        
+        if (filters.type && filters.type !== 'all') {
+            if (filters.type === 'operational') {
+                whereClauses.push("type = 'INFO'");
+            } else if (filters.type === 'system') {
+                whereClauses.push("type IN ('WARN', 'ERROR')");
+            }
+        }
+        if (filters.search) {
+            whereClauses.push("(message LIKE ? OR details LIKE ?)");
+            params.push(`%${filters.search}%`, `%${filters.search}%`);
+        }
+        if (filters.dateRange?.from) {
+             whereClauses.push("timestamp >= ?");
+             params.push(filters.dateRange.from.toISOString());
+        }
+        if (filters.dateRange?.to) {
+            const toDate = new Date(filters.dateRange.to);
+            toDate.setHours(23, 59, 59, 999);
+            whereClauses.push("timestamp <= ?");
+            params.push(toDate.toISOString());
+        }
+
+        if (whereClauses.length > 0) {
+            query += ` WHERE ${whereClauses.join(' AND ')}`;
+        }
+        
+        query += ' ORDER BY timestamp DESC LIMIT 500';
+
+        const logs = db.prepare(query).all(...params) as LogEntry[];
+        return logs.map(log => ({...log, details: log.details ? JSON.parse(log.details) : null}));
+    } catch (error) {
+        console.error("Failed to get logs from database", error);
+        return [];
+    }
+};
+
+export async function addLog(entry: Omit<LogEntry, "id" | "timestamp">) {
+    const db = await connectDb();
+    try {
+      const newEntry = {
+        ...entry,
+        timestamp: new Date().toISOString(),
+        details: entry.details ? JSON.stringify(entry.details) : null,
+      };
+      db.prepare('INSERT INTO logs (timestamp, type, message, details) VALUES (@timestamp, @type, @message, @details)').run(newEntry);
+    } catch (error) {
+      console.error("Failed to add log to database", error);
+    }
+};
+
+export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
+    const db = await connectDb();
+    try {
+        const auditLog: Omit<LogEntry, "id" | "timestamp"> = { 
+            type: 'WARN',
+            message: `Limpieza de registros iniciada por ${clearedBy}`, 
+            details: { type, deleteAllTime } 
+        };
+
+        let query = 'DELETE FROM logs';
+        const whereClauses: string[] = [];
+        const params: any[] = [];
+        
+        if (!deleteAllTime) {
+            const date = new Date();
+            date.setDate(date.getDate() - 30);
+            whereClauses.push("timestamp < ?");
+            params.push(date.toISOString());
+        }
+        
+        if (type !== 'all') {
+            if (type === 'operational') {
+                whereClauses.push("type = 'INFO'");
+            } else if (type === 'system') {
+                whereClauses.push("type IN ('WARN', 'ERROR')");
+            }
+        }
+        
+        if(whereClauses.length > 0){
+            query += ` WHERE ${whereClauses.join(' AND ')}`;
+        }
+
+        db.prepare(query).run(...params);
+        await addLog(auditLog); // Add the audit log AFTER the delete operation.
+
+    } catch (error) {
+        console.error("Failed to clear logs from database", error);
+        // If deletion fails, try to log the failure.
+        await addLog({ type: 'ERROR', message: `Fallo al limpiar registros por ${clearedBy}`, details: { error: (error as Error).message } });
+    }
+};
+
+export async function getApiSettings(): Promise<ApiSettings | null> {
+    const db = await connectDb();
+    try {
+        return db.prepare('SELECT * FROM api_settings WHERE id = 1').get() as ApiSettings | null;
+    } catch (error) {
+        console.error("Failed to get api settings:", error);
+        return null;
+    }
+}
+
+export async function saveApiSettings(settings: ApiSettings): Promise<void> {
+    const db = await connectDb();
+    try {
+        db.prepare(`UPDATE api_settings SET exchangeRateApi = @exchangeRateApi, haciendaExemptionApi = @haciendaExemptionApi, haciendaTributariaApi = @haciendaTributariaApi WHERE id = 1`).run(settings);
+    } catch (error) {
+        console.error("Failed to save api settings:", error);
+    }
+}
+
+export async function getExemptionLaws(): Promise<ExemptionLaw[]> {
+    const db = await connectDb();
+    try {
+        return db.prepare('SELECT * FROM exemption_laws').all() as ExemptionLaw[];
+    } catch (error) {
+        console.error("Failed to get exemption laws:", error);
+        return [];
+    }
+}
+
+export async function saveExemptionLaws(laws: ExemptionLaw[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO exemption_laws (docType, institutionName, authNumber) VALUES (@docType, @institutionName, @authNumber)');
+    const transaction = db.transaction((lawsToSave) => {
+        db.prepare('DELETE FROM exemption_laws').run();
+        for(const law of lawsToSave) {
+            insert.run({ ...law, authNumber: law.authNumber || null });
+        }
+    });
+    try {
+        transaction(laws);
+    } catch (error) {
+        console.error("Failed to save exemption laws:", error);
+        throw new Error("Database transaction failed to save exemption laws.");
+    }
+}
+
+export async function getAllCustomers(): Promise<Customer[]> {
+    const db = await connectDb();
+    try {
+        return db.prepare('SELECT * FROM customers').all() as Customer[];
+    } catch (error) {
+        console.error("Failed to get all customers:", error);
+        return [];
+    }
+}
+
+export async function saveAllCustomers(customers: Customer[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT INTO customers (id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail) VALUES (@id, @name, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail)');
+    const transaction = db.transaction((customersToSave) => {
+        db.prepare('DELETE FROM customers').run();
+        for(const customer of customersToSave) insert.run(customer);
+    });
+    try {
+        transaction(customers);
+    } catch (error) {
+        console.error("Failed to save all customers:", error);
+    }
+}
+
+export async function getAllProducts(): Promise<Product[]> {
+    const db = await connectDb();
+    try {
+        return db.prepare('SELECT * FROM products').all() as Product[];
+    } catch (error) {
+        console.error("Failed to get all products:", error);
+        return [];
+    }
+}
+
+export async function saveAllProducts(products: Product[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood, cabys) VALUES (@id, @description, @classification, @lastEntry, @active, @notes, @unit, @isBasicGood, @cabys)');
+    
+    const transaction = db.transaction((productsToSave) => {
+        db.prepare('DELETE FROM products').run();
+        for(let product of productsToSave) {
+            // Ensure date objects are converted to strings before binding
+            const productToSave = {
+                ...product,
+                lastEntry: typeof product.lastEntry === 'object' && product.lastEntry !== null ? (product.lastEntry as Date).toISOString() : product.lastEntry,
+            };
+            insert.run(productToSave);
+        }
+    });
+
+    try {
+        transaction(products);
+    } catch (error) {
+        console.error("Failed to save all products:", error);
+        throw error;
+    }
+}
+
+
+export async function getAllSuppliers(): Promise<Supplier[]> {
+    const db = await connectDb();
+    try {
+        return db.prepare('SELECT * FROM suppliers').all() as Supplier[];
+    } catch (error) {
+        console.error("Failed to get all suppliers:", error);
+        return [];
+    }
+}
+
+export async function saveAllSuppliers(suppliers: Supplier[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT INTO suppliers (id, name, alias, email, phone) VALUES (@id, @name, @alias, @email, @phone)');
+    const transaction = db.transaction((suppliersToSave) => {
+        db.prepare('DELETE FROM suppliers').run();
+        for(const supplier of suppliersToSave) insert.run(supplier);
+    });
+    try {
+        transaction(suppliers);
+    } catch (error) {
+        console.error("Failed to save all suppliers:", error);
+        throw error;
+    }
+}
+
+
+export async function getAllExemptions(): Promise<Exemption[]> {
+    const db = await connectDb();
+    try {
+        return db.prepare('SELECT * FROM exemptions').all() as Exemption[];
+    } catch (error) {
+        console.error("Failed to get all exemptions:", error);
+        return [];
+    }
+}
+
+export async function saveAllExemptions(exemptions: Exemption[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO exemptions (code, description, customer, authNumber, startDate, endDate, percentage, docType, institutionName, institutionCode) VALUES (@code, @description, @customer, @authNumber, @startDate, @endDate, @percentage, @docType, @institutionName, @institutionCode)');
+    
+    const transaction = db.transaction((exemptionsToSave) => {
+        db.prepare('DELETE FROM exemptions').run();
+        for(let exemption of exemptionsToSave) {
+             const exemptionToSave = {
+                ...exemption,
+                startDate: typeof exemption.startDate === 'object' && exemption.startDate !== null ? (exemption.startDate as Date).toISOString() : exemption.startDate,
+                endDate: typeof exemption.endDate === 'object' && exemption.endDate !== null ? (exemption.endDate as Date).toISOString() : exemption.endDate,
+             };
+            insert.run(exemptionToSave);
+        }
+    });
+
+    try {
+        transaction(exemptions);
+    } catch (error) {
+        console.error("Failed to save all exemptions:", error);
+        throw error;
+    }
+}
+
+
+export async function getAllRoles(): Promise<Role[]> {
+    const db = await connectDb();
+    try {
+        const roles = db.prepare('SELECT * FROM roles').all() as any[];
+        return roles.map(role => ({ ...role, permissions: JSON.parse(role.permissions) }));
+    } catch (error) {
+        console.error("Failed to get all roles:", error);
+        return [];
+    }
+}
+
+export async function saveAllRoles(roles: Role[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
+    const transaction = db.transaction((rolesToSave) => {
+        db.prepare('DELETE FROM roles').run();
+        for(const role of rolesToSave) {
+            insert.run({ ...role, permissions: JSON.stringify(role.permissions) });
+        }
+    });
+    try {
+        transaction(roles);
+    } catch (error) {
+        console.error("Failed to save all roles:", error);
+    }
+}
+
+export async function resetDefaultRoles(): Promise<void> {
+    const db = await connectDb();
+    const insertOrReplace = db.prepare('INSERT OR REPLACE INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
+    const transaction = db.transaction(() => {
+        for (const role of initialRoles) {
+            insertOrReplace.run({ ...role, permissions: JSON.stringify(role.permissions) });
+        }
+    });
+    try {
+        transaction();
+    } catch(error) {
+        console.error("Failed to reset default roles:", error);
+    }
+}
+
+export async function getAllQuoteDrafts(userId: number): Promise<QuoteDraft[]> {
+    const db = await connectDb();
+    try {
+        const drafts = db.prepare('SELECT * FROM quote_drafts WHERE userId = ? ORDER BY createdAt DESC').all(userId) as any[];
+        return drafts.map(draft => ({
+            ...draft,
+            lines: draft.lines ? JSON.parse(draft.lines) : [],
+            totals: draft.totals ? JSON.parse(draft.totals) : {},
+        }));
+    } catch (error) {
+        console.error("Failed to get all quote drafts:", error);
+        return [];
+    }
+}
+
+export async function saveQuoteDraft(draft: QuoteDraft): Promise<void> {
+    const db = await connectDb();
+    const stmt = db.prepare('INSERT OR REPLACE INTO quote_drafts (id, createdAt, userId, customerId, customerDetails, lines, totals, notes, currency, exchangeRate, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, quoteDate, validUntilDate, paymentTerms, creditDays) VALUES (@id, @createdAt, @userId, @customerId, @customerDetails, @lines, @totals, @notes, @currency, @exchangeRate, @purchaseOrderNumber, @deliveryAddress, @deliveryDate, @sellerName, @sellerType, @quoteDate, @validUntilDate, @paymentTerms, @creditDays)');
+    try {
+        stmt.run({
+            ...draft,
+            lines: JSON.stringify(draft.lines),
+            totals: JSON.stringify(draft.totals),
+        });
+    } catch (error) {
+        console.error("Failed to save quote draft:", error);
+    }
+}
+
+export async function deleteQuoteDraft(draftId: string): Promise<void> {
+    const db = await connectDb();
+    try {
+        db.prepare('DELETE FROM quote_drafts WHERE id = ?').run(draftId);
+    } catch (error) {
+        console.error("Failed to delete quote draft:", error);
+    }
+}
+
+export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]> {
+    return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
+}
+
+const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines') => {
+    switch (type) {
+        case 'customers': return {'CLIENTE': 'id', 'NOMBRE': 'name', 'DIRECCION': 'address', 'TELEFONO1': 'phone', 'CONTRIBUYENTE': 'taxId', 'MONEDA': 'currency', 'LIMITE_CREDITO': 'creditLimit', 'CONDICION_PAGO': 'paymentCondition', 'VENDEDOR': 'salesperson', 'ACTIVO': 'active', 'E_MAIL': 'email', 'EMAIL_DOC_ELECTRONICO': 'electronicDocEmail'};
+        case 'products': return {'ARTICULO': 'id', 'DESCRIPCION': 'description', 'CLASIFICACION_2': 'classification', 'ULTIMO_INGRESO': 'lastEntry', 'ACTIVO': 'active', 'NOTAS': 'notes', 'UNIDAD_VENTA': 'unit', 'CANASTA_BASICA': 'isBasicGood', 'CODIGO_HACIENDA': 'cabys'};
+        case 'exemptions': return {'CODIGO': 'code', 'DESCRIPCION': 'description', 'CLIENTE': 'customer', 'NUM_AUTOR': 'authNumber', 'FECHA_RIGE': 'startDate', 'FECHA_VENCE': 'endDate', 'PORCENTAJE': 'percentage', 'TIPO_DOC': 'docType', 'NOMBRE_INSTITUCION': 'institutionName', 'CODIGO_INSTITUCION': 'institutionCode'};
+        case 'stock': return {'ARTICULO': 'itemId', 'BODEGA': 'warehouseId', 'CANT_DISPONIBLE': 'stock'};
+        case 'locations': return {'CODIGO': 'itemId', 'P. HORIZONTAL': 'hPos', 'P. VERTICAL': 'vPos', 'RACK': 'rack', 'CLIENTE': 'client', 'DESCRIPCION': 'description'};
+        case 'cabys': return {'Codigo': 'code', 'Descripcion': 'description', 'Impuesto': 'taxRate'};
+        case 'suppliers': return {'PROVEEDOR': 'id', 'NOMBRE': 'name', 'ALIAS': 'alias', 'E_MAIL': 'email', 'TELEFONO1': 'phone'};
+        case 'erp_order_headers': return {'PEDIDO': 'PEDIDO', 'ESTADO': 'ESTADO', 'CLIENTE': 'CLIENTE', 'FECHA_PEDIDO': 'FECHA_PEDIDO', 'FECHA_PROMETIDA': 'FECHA_PROMETIDA', 'ORDEN_COMPRA': 'ORDEN_COMPRA', 'TOTAL_UNIDADES': 'TOTAL_UNIDADES', 'MONEDA_PEDIDO': 'MONEDA_PEDIDO', 'USUARIO': 'USUARIO'};
+        case 'erp_order_lines': return {'PEDIDO': 'PEDIDO', 'PEDIDO_LINEA': 'PEDIDO_LINEA', 'ARTICULO': 'ARTICULO', 'CANTIDAD_PEDIDA': 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO': 'PRECIO_UNITARIO'};
+        default: return {};
+    }
+}
+
+const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines') => {
+    if (lines.length < 2) throw new Error("El archivo está vacío o no contiene datos.");
+    const headerMapping = createHeaderMapping(type);
+    const header = lines[0].split('\t').map(h => h.trim().toUpperCase());
+    const dataArray: any[] = [];
+    for (let i = 1; i < lines.length; i++) {
+        const data = lines[i].split('\t');
+        const dataObject: { [key: string]: any } = {};
+        header.forEach((h, index) => {
+            const key = headerMapping[h as keyof typeof headerMapping];
+            if (key) {
+                const value = data[index]?.replace(/[\n\r]/g, '').trim() || '';
+                if (['creditLimit', 'percentage', 'stock', 'rack', 'hPos', 'taxRate', 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO', 'TOTAL_UNIDADES'].includes(key)) {
+                    dataObject[key] = parseFloat(value.replace('%','')) || 0;
+                    if(key === 'taxRate') dataObject[key] /= 100;
+                } else dataObject[key] = value;
+            }
+        });
+        if (Object.keys(dataObject).length > 0) dataArray.push(dataObject);
+    }
+    return dataArray;
+};
+
+export async function importDataFromFile(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines'): Promise<{ count: number, source: string }> {
+    const companySettings = await getCompanySettings();
+    if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
+    
+    // Prevent attempting to import types that are only available via SQL
+    if (['erp_order_headers', 'erp_order_lines'].includes(type)) {
+        return { count: 0, source: 'file (skipped)' };
+    }
+
+    let filePath = '';
+    switch(type) {
+        case 'customers': filePath = companySettings.customerFilePath || ''; break;
+        case 'products': filePath = companySettings.productFilePath || ''; break;
+        case 'exemptions': filePath = companySettings.exemptionFilePath || ''; break;
+        case 'stock': filePath = companySettings.stockFilePath || ''; break;
+        case 'locations': filePath = companySettings.locationFilePath || ''; break;
+        case 'cabys': filePath = companySettings.cabysFilePath || ''; break;
+        case 'suppliers': filePath = companySettings.supplierFilePath || ''; break;
+    }
+    if (!filePath) throw new Error(`La ruta de importación para ${type} no está configurada.`);
+    if (!fs.existsSync(filePath)) throw new Error(`El archivo no fue encontrado: ${filePath}`);
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const isCsv = filePath.toLowerCase().endsWith('.csv');
+    if (type === 'cabys' && isCsv) {
+        const { count } = await updateCabysCatalogFromContent(fileContent);
+        return { count, source: filePath };
+    }
+    const lines = fileContent.split(/\r?\n/).filter(line => line.trim() !== '');
+    const dataArray = parseData(lines, type);
+    if (type === 'customers') await saveAllCustomers(dataArray as Customer[]);
+    else if (type === 'products') await saveAllProducts(dataArray as Product[]);
+    else if (type === 'exemptions') await saveAllExemptions(dataArray as Exemption[]);
+    else if (type === 'stock') {
+        await saveAllStock(dataArray as { itemId: string, warehouseId: string, stock: number }[]);
+        return { count: new Set(dataArray.map(item => item.itemId)).size, source: filePath };
+    } else if (type === 'locations') await saveAllLocations(dataArray as ItemLocation[]);
+    else if (type === 'suppliers') await saveAllSuppliers(dataArray as Supplier[]);
+    return { count: dataArray.length, source: filePath };
+}
+
+async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines'): Promise<{ count: number, source: string }> {
+    const db = await connectDb();
+    const queryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get(type) as { query: string } | undefined;
+    if (!queryRow || !queryRow.query) {
+        throw new Error(`No hay una consulta SQL configurada para ${type}.`);
+    }
+    
+    await logInfo(`Importando ${type} desde SQL...`, { query: queryRow.query });
+    
+    const dataArray = await executeQuery(queryRow.query);
+    const headerMapping = createHeaderMapping(type);
+    const mappedData = dataArray.map(row => {
+        const newRow: { [key: string]: any } = {};
+        for (const key in row) {
+            const newKey = headerMapping[key.toUpperCase() as keyof typeof headerMapping] || key;
+            newRow[newKey] = row[key];
+        }
+        return newRow;
+    });
+    if (type === 'customers') await saveAllCustomers(mappedData as Customer[]);
+    else if (type === 'products') await saveAllProducts(mappedData as Product[]);
+    else if (type === 'exemptions') await saveAllExemptions(mappedData as Exemption[]);
+    else if (type === 'stock') {
+        await saveAllStock(mappedData as { itemId: string, warehouseId: string, stock: number }[]);
+        return { count: new Set(mappedData.map(item => item.itemId)).size, source: 'SQL Server' };
+    } else if (type === 'locations') await saveAllLocations(mappedData as ItemLocation[]);
+    else if (type === 'cabys') {
+        const { count } = await updateCabysCatalog(mappedData);
+        return { count, source: 'SQL Server' };
+    } else if (type === 'suppliers') {
+        await saveAllSuppliers(mappedData as Supplier[]);
+    } else if (type === 'erp_order_headers') {
+        await saveAllErpOrderHeaders(mappedData as ErpOrderHeader[]);
+    } else if (type === 'erp_order_lines') {
+        await saveAllErpOrderLines(mappedData as ErpOrderLine[]);
+    }
+    return { count: mappedData.length, source: 'SQL Server' };
+}
+
+async function updateCabysCatalog(data: any[]): Promise<{ count: number }> {
+    const db = await connectDb();
+    const transaction = db.transaction((rows) => {
+        db.prepare('DELETE FROM cabys_catalog').run();
+        const insertStmt = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
+        for (const row of rows) {
+            const taxRate = row.taxRate ?? (row.Impuesto !== undefined ? parseFloat(String(row.Impuesto).replace('%', '')) / 100 : undefined);
+            if (row.code && row.description && taxRate !== undefined && !isNaN(taxRate)) {
+                insertStmt.run(row.code, row.description, taxRate);
+            }
+        }
+    });
+    transaction(data);
+    return { count: data.length };
+}
+
+
+export async function importData(type: ImportQuery['type']): Promise<{ count: number, source: string }> {
+    const companySettings = await getCompanySettings();
+    if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
+    if (companySettings.importMode === 'sql') return importDataFromSql(type);
+    else return importDataFromFile(type);
+}
+
+export async function getAllStock(): Promise<StockInfo[]> {
+    const db = await connectDb();
+    try {
+        const stockRows = db.prepare('SELECT * FROM stock').all() as { itemId: string, stockByWarehouse: string, totalStock: number }[];
+        return stockRows.map(row => ({ itemId: String(row.itemId), stockByWarehouse: JSON.parse(row.stockByWarehouse), totalStock: Number(row.totalStock) }));
+    } catch (error) {
+        console.error("Failed to get stock from database", error);
+        return [];
+    }
+};
+
+export async function saveAllStock(stockData: { itemId: string, warehouseId: string, stock: number }[]): Promise<void> {
+    const db = await connectDb();
+    const stockMap = new Map<string, { [key: string]: number }>();
+    for (const item of stockData) {
+        if (!stockMap.has(item.itemId)) stockMap.set(item.itemId, {});
+        stockMap.get(item.itemId)![item.warehouseId] = item.stock;
+    }
+    const transaction = db.transaction(() => {
+        db.prepare('DELETE FROM stock').run();
+        const insertStmt = db.prepare('INSERT INTO stock (itemId, stockByWarehouse, totalStock) VALUES (?, ?, ?)');
+        for (const [itemId, stockByWarehouse] of stockMap.entries()) {
+            const totalStock = Object.values(stockByWarehouse).reduce((acc, val) => acc + val, 0);
+            insertStmt.run(itemId, JSON.stringify(stockByWarehouse), totalStock);
+        }
+    });
+    try {
+        transaction();
+    } catch (error) {
+        console.error("Failed to save all stock:", error);
+        throw error;
+    }
+}
+
+export async function saveAllLocations(locationData: ItemLocation[]): Promise<void> {
+    const db = await connectDb('warehouse.db');
+    const insertLocation = db.prepare('INSERT OR IGNORE INTO locations (name, code, type) VALUES (@name, @code, @type)');
+    const assignItem = db.prepare('INSERT OR IGNORE INTO item_locations (itemId, locationId, clientId) VALUES (?, ?, ?)');
+    const transaction = db.transaction((data: ItemLocation[]) => {
+        db.prepare('DELETE FROM item_locations').run();
+        const locationMap = new Map<string, number>();
+        let existingLocations = db.prepare('SELECT id, code FROM locations').all() as {id: number, code: string}[];
+        existingLocations.forEach(loc => locationMap.set(loc.code, loc.id));
+        for (const item of data) {
+            const rackCode = `RACK-${(item as any).rack}`;
+            if (!locationMap.has(rackCode)) {
+                insertLocation.run({ name: rackCode, code: rackCode, type: 'rack' });
+                const newLocId = db.prepare('SELECT id FROM locations WHERE code = ?').get(rackCode) as {id: number};
+                locationMap.set(rackCode, newLocId.id);
+            }
+            const locationId = locationMap.get(rackCode)!;
+            assignItem.run(item.itemId, locationId, item.clientId || null);
+        }
+    });
+    try {
+        transaction(locationData);
+    } catch (error) {
+        console.error("Failed to save all locations:", error);
+        throw error;
+    }
+}
+
+export async function getStockSettings(): Promise<StockSettings> {
+    const mainDb = await connectDb('intratool.db');
+    try {
+        const result = mainDb.prepare("SELECT value FROM stock_settings WHERE key = 'warehouses'").get() as { value: string } | undefined;
+        if (result) return { warehouses: JSON.parse(result.value) };
+        return { warehouses: [] };
+    } catch (error) {
+        console.error("Failed to get stock settings from main DB:", error);
+        return { warehouses: [] };
+    }
+}
+
+export async function saveStockSettings(settings: StockSettings): Promise<void> {
+    const db = await connectDb(DB_FILE);
+    try {
+        db.prepare("INSERT OR REPLACE INTO stock_settings (key, value) VALUES ('warehouses', ?)")
+          .run(JSON.stringify(settings.warehouses));
+    } catch (error) {
+        console.error("Failed to save stock settings:", error);
+        throw error;
+    }
+}
+
+const normalizeHeader = (header: string): string => {
+    if (!header) return '';
+    return header.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\(\)]/g, "");
+};
+
+interface CabysRow {
+  [key: string]: string;
+}
+
+async function updateCabysCatalogFromContent(fileContent: string): Promise<{ count: number }> {
+    const parsed = Papa.parse<CabysRow>(fileContent, { header: true, skipEmptyLines: true, delimiter: ';', transformHeader: (header) => header.trim() });
+    if (parsed.errors.length > 0) {
+        const firstError = parsed.errors[0];
+        if (firstError.code !== 'TooManyFields' && firstError.code !== 'TooFewFields') throw new Error(`Error al procesar CSV: ${firstError.message} en línea ${firstError.row}.`);
+    }
+    return updateCabysCatalog(parsed.data);
+}
+
+export async function importAllDataFromFiles(): Promise<{ type: string; count: number; }[]> {
+    const db = await connectDb();
+    const companySettings = await getCompanySettings();
+    if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
+    
+    const importTasks: { type: ImportQuery['type'] }[] = [
+        { type: 'customers' }, { type: 'products' }, { type: 'exemptions' },
+        { type: 'stock' }, { type: 'locations' }, { type: 'cabys' }, { type: 'suppliers' },
+        { type: 'erp_order_headers' }, { type: 'erp_order_lines' }
+    ];
+    
+    const results: { type: string; count: number; }[] = [];
+    
+    for (const task of importTasks) {
+        try {
+            if (companySettings.importMode === 'file') {
+                const filePathKey = `${task.type}FilePath` as keyof Company;
+                const filePath = companySettings[filePathKey] as string | undefined;
+
+                if (!filePath && !['erp_order_headers', 'erp_order_lines'].includes(task.type)) {
+                    console.log(`Skipping file import for ${task.type}: no file path configured.`);
+                    continue;
+                }
+            }
+            const result = await importData(task.type);
+            results.push({ type: task.type, count: result.count });
+        } catch (error: any) {
+             const queryRow = companySettings.importMode === 'sql' 
+                ? db.prepare('SELECT query FROM import_queries WHERE type = ?').get(task.type) as { query: string } | undefined
+                : undefined;
+                
+            await logError(`Error al importar datos para '${task.type}'`, {
+                errorMessage: error.message,
+                importMode: companySettings.importMode,
+                query: queryRow?.query
+            });
+        }
+    }
+
+    db.prepare('UPDATE company_settings SET lastSyncTimestamp = ? WHERE id = 1')
+      .run(new Date().toISOString());
+    
+    return results;
+}
+
+export async function saveSqlConfig(config: SqlConfig): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO sql_config (key, value) VALUES (@key, @value)');
+    const transaction = db.transaction((cfg) => {
+        for(const key in cfg) if (cfg[key as keyof SqlConfig] !== undefined) insert.run({ key, value: cfg[key as keyof SqlConfig] });
+    });
+    try {
+        transaction(config);
+    } catch (error) {
+        console.error("Failed to save SQL config:", error);
+    }
+}
+
+export async function getImportQueries(): Promise<ImportQuery[]> {
+    const db = await connectDb();
+    try {
+        return db.prepare('SELECT * FROM import_queries').all() as ImportQuery[];
+    } catch (error) {
+        console.error("Failed to get import queries:", error);
+        return [];
+    }
+}
+
+export async function saveImportQueries(queries: ImportQuery[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO import_queries (type, query) VALUES (@type, @query)');
+    const transaction = db.transaction((qs) => { for (const q of qs) insert.run(q); });
+    try {
+        transaction(queries);
+    } catch (error) {
+        console.error("Failed to save import queries:", error);
+    }
+}
+
+export async function testSqlConnection(): Promise<void> {
+    await executeQuery("SELECT 1"); 
+}
+
+export async function getCabysCatalog(): Promise<{ code: string; description: string; taxRate: number; }[]> {
+    const db = await connectDb();
+    return db.prepare('SELECT * FROM cabys_catalog').all() as { code: string; description: string; taxRate: number; }[];
+}
+
+export async function getSuggestions(): Promise<Suggestion[]> {
+  const db = await connectDb();
+  return db.prepare('SELECT * FROM suggestions ORDER BY timestamp DESC').all() as Suggestion[];
+}
+
+export async function getUnreadSuggestionsCount(): Promise<number> {
+  const db = await connectDb();
+  const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
+  return result.count;
+}
+
+export async function markSuggestionAsRead(id: number): Promise<void> {
+  const db = await connectDb();
+  db.prepare('UPDATE suggestions SET isRead = 1 WHERE id = ?').run(id);
+}
+
+export async function deleteSuggestion(id: number): Promise<void> {
+  const db = await connectDb();
+  db.prepare('DELETE FROM suggestions WHERE id = ?').run(id);
+}
+
+// --- Maintenance Functions ---
+
+const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
+
+export async function backupAllForUpdate(): Promise<void> {
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    const timestamp = new Date().toISOString();
+    for (const dbModule of DB_MODULES) {
+        const dbPath = path.join(dbDirectory, dbModule.dbFile);
+        if (fs.existsSync(dbPath)) {
+            const backupPath = path.join(backupDir, `${timestamp}_${dbModule.dbFile}`);
+            fs.copyFileSync(dbPath, backupPath);
+        }
+    }
+}
+
+export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
+    if (!fs.existsSync(backupDir)) return [];
+    const files = fs.readdirSync(backupDir);
+    return files.map(file => {
+        const [date, ...rest] = file.split('_');
+        const dbFile = rest.join('_');
+        const dbModule = DB_MODULES.find(m => m.dbFile === dbFile);
+        return {
+            moduleId: dbModule?.id || 'unknown',
+            moduleName: dbModule?.name || 'Base de Datos Desconocida',
+            fileName: file,
+            date: date
+        };
+    }).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function restoreDatabase(moduleId: string, backupFile: File): Promise<void> {
+    if (!moduleId || !backupFile) {
+        throw new Error("Module ID and backup file are required.");
+    }
+    
+    const dbModule = DB_MODULES.find(m => m.id === moduleId);
+    if (!dbModule) throw new Error("Module not found");
+
+    if (dbConnections.has(dbModule.dbFile)) {
+        const connection = dbConnections.get(dbModule.dbFile);
+        if (connection && connection.open) {
+            connection.close();
+        }
+        dbConnections.delete(dbModule.dbFile);
+    }
+
+    const dbPath = path.join(dbDirectory, dbModule.dbFile);
+    const buffer = Buffer.from(await backupFile.arrayBuffer());
+    fs.writeFileSync(dbPath, buffer);
+    await connectDb(dbModule.dbFile); // Reconnect to validate
+}
+
+export async function restoreAllFromUpdateBackup(timestamp: string): Promise<void> {
+    const backups = await listAllUpdateBackups();
+    const backupsToRestore = backups.filter(b => b.date === timestamp);
+
+    if (backupsToRestore.length === 0) {
+        throw new Error("No se encontraron archivos de backup para la fecha y hora seleccionada.");
+    }
+    
+    await logWarn(`System restore initiated from backup point: ${timestamp}`);
+
+    for (const backup of backupsToRestore) {
+        const dbModule = DB_MODULES.find(m => m.id === backup.moduleId);
+        if (dbModule) {
+            const backupPath = path.join(backupDir, backup.fileName);
+            const targetDbPath = path.join(dbDirectory, dbModule.dbFile);
+            
+            if (dbConnections.has(dbModule.dbFile)) {
+                 const connection = dbConnections.get(dbModule.dbFile);
+                if (connection && connection.open) {
+                    connection.close();
+                }
+                dbConnections.delete(dbModule.dbFile);
+            }
+
+            fs.copyFileSync(backupPath, targetDbPath);
+            console.log(`Restored ${dbModule.dbFile} from ${backup.fileName}`);
+        }
+    }
+}
+
+
+export async function deleteOldUpdateBackups(): Promise<number> {
+    const backups = await listAllUpdateBackups();
+    const uniqueTimestamps = [...new Set(backups.map(b => b.date))].sort((a,b) => b.localeCompare(a));
+    if (uniqueTimestamps.length <= 1) return 0;
+    
+    const timestampsToDelete = uniqueTimestamps.slice(1);
+    let deletedCount = 0;
+    for (const timestamp of timestampsToDelete) {
+        const filesToDelete = fs.readdirSync(backupDir).filter(file => file.startsWith(timestamp));
+        for (const file of filesToDelete) {
+            fs.unlinkSync(path.join(backupDir, file));
+            deletedCount++;
+        }
+    }
+    return deletedCount;
+}
+
+export async function factoryReset(moduleId: string): Promise<void> {
+    await addLog({ type: 'WARN', message: `FACTORY RESET triggered for module: ${moduleId}` });
+
+    const modulesToReset = moduleId === '__all__' ? DB_MODULES : DB_MODULES.filter(m => m.id === moduleId);
+
+    if (modulesToReset.length === 0) throw new Error("Módulo no encontrado para resetear.");
+
+    for (const dbModule of modulesToReset) {
+        const dbPath = path.join(dbDirectory, dbModule.dbFile);
+        if (dbConnections.has(dbModule.dbFile)) {
+            const connection = dbConnections.get(dbModule.dbFile);
+            if (connection && connection.open) {
+                connection.close();
+            }
+            dbConnections.delete(dbModule.dbFile);
+        }
+        if (fs.existsSync(dbPath)) {
+            try {
+                fs.unlinkSync(dbPath);
+                 console.log(`Successfully deleted ${dbPath}`);
+            } catch(e) {
+                console.error(`Error deleting database file ${dbPath}`, e);
+                throw e;
+            }
+        }
+    }
+}
+
+// --- ERP Order Import ---
+export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA, TOTAL_UNIDADES, MONEDA_PEDIDO, USUARIO) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA, @TOTAL_UNIDADES, @MONEDA_PEDIDO, @USUARIO)');
+    
+    const transaction = db.transaction((headersToSave: ErpOrderHeader[]) => {
+        db.prepare('DELETE FROM erp_order_headers').run();
+        for(const header of headersToSave) {
+            // Sanitize data to ensure it's in a format SQLite can handle.
+            const sanitizedHeader = {
+                PEDIDO: String(header.PEDIDO),
+                ESTADO: String(header.ESTADO),
+                CLIENTE: String(header.CLIENTE),
+                FECHA_PEDIDO: header.FECHA_PEDIDO instanceof Date ? header.FECHA_PEDIDO.toISOString() : String(header.FECHA_PEDIDO),
+                FECHA_PROMETIDA: header.FECHA_PROMETIDA instanceof Date ? header.FECHA_PROMETIDA.toISOString() : String(header.FECHA_PROMETIDA),
+                ORDEN_COMPRA: header.ORDEN_COMPRA || null,
+                TOTAL_UNIDADES: header.TOTAL_UNIDADES || null,
+                MONEDA_PEDIDO: header.MONEDA_PEDIDO || null,
+                USUARIO: header.USUARIO || null
+            };
+            insert.run(sanitizedHeader);
+        }
+    });
+
+    try {
+        transaction(headers);
+    } catch (error) {
+        console.error("Failed to save ERP order headers:", error);
+        throw error;
+    }
+}
+
+export async function saveAllErpOrderLines(lines: ErpOrderLine[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_lines (PEDIDO, PEDIDO_LINEA, ARTICULO, CANTIDAD_PEDIDA, PRECIO_UNITARIO) VALUES (@PEDIDO, @PEDIDO_LINEA, @ARTICULO, @CANTIDAD_PEDIDA, @PRECIO_UNITARIO)');
+    const transaction = db.transaction((linesToSave) => {
+        db.prepare('DELETE FROM erp_order_lines').run();
+        for(const line of linesToSave) {
+            insert.run(line);
+        }
+    });
+    try {
+        transaction(lines);
+    } catch (error) {
+        console.error("Failed to save ERP order lines:", error);
+        throw error;
+    }
+}
