@@ -461,7 +461,7 @@ export async function saveAllProducts(products: Product[]): Promise<void> {
             // Ensure date objects are converted to strings before binding
             const productToSave = {
                 ...product,
-                lastEntry: product.lastEntry instanceof Date ? product.lastEntry.toISOString() : product.lastEntry,
+                lastEntry: typeof product.lastEntry === 'object' && product.lastEntry !== null ? (product.lastEntry as Date).toISOString() : product.lastEntry,
             };
             insert.run(productToSave);
         }
@@ -521,8 +521,8 @@ export async function saveAllExemptions(exemptions: Exemption[]): Promise<void> 
         for(let exemption of exemptionsToSave) {
              const exemptionToSave = {
                 ...exemption,
-                startDate: exemption.startDate instanceof Date ? exemption.startDate.toISOString() : exemption.startDate,
-                endDate: exemption.endDate instanceof Date ? exemption.endDate.toISOString() : exemption.endDate,
+                startDate: typeof exemption.startDate === 'object' && exemption.startDate !== null ? (exemption.startDate as Date).toISOString() : exemption.startDate,
+                endDate: typeof exemption.endDate === 'object' && exemption.endDate !== null ? (exemption.endDate as Date).toISOString() : exemption.endDate,
              };
             insert.run(exemptionToSave);
         }
@@ -1109,24 +1109,26 @@ export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise
     const db = await connectDb();
     const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA, TOTAL_UNIDADES, MONEDA_PEDIDO, USUARIO) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA, @TOTAL_UNIDADES, @MONEDA_PEDIDO, @USUARIO)');
     
+    const transaction = db.transaction((headersToSave: ErpOrderHeader[]) => {
+        db.prepare('DELETE FROM erp_order_headers').run();
+        for(const header of headersToSave) {
+            // Sanitize data to ensure it's in a format SQLite can handle.
+            const sanitizedHeader = {
+                PEDIDO: String(header.PEDIDO),
+                ESTADO: String(header.ESTADO),
+                CLIENTE: String(header.CLIENTE),
+                FECHA_PEDIDO: typeof header.FECHA_PEDIDO === 'object' && header.FECHA_PEDIDO !== null ? header.FECHA_PEDIDO.toISOString() : String(header.FECHA_PEDIDO),
+                FECHA_PROMETIDA: typeof header.FECHA_PROMETIDA === 'object' && header.FECHA_PROMETIDA !== null ? header.FECHA_PROMETIDA.toISOString() : String(header.FECHA_PROMETIDA),
+                ORDEN_COMPRA: header.ORDEN_COMPRA || null,
+                TOTAL_UNIDADES: header.TOTAL_UNIDADES || null,
+                MONEDA_PEDIDO: header.MONEDA_PEDIDO || null,
+                USUARIO: header.USUARIO || null
+            };
+            insert.run(sanitizedHeader);
+        }
+    });
+
     try {
-        const transaction = db.transaction((headersToSave: ErpOrderHeader[]) => {
-            db.prepare('DELETE FROM erp_order_headers').run();
-            for(const header of headersToSave) {
-                const sanitizedHeader = {
-                    PEDIDO: String(header.PEDIDO),
-                    ESTADO: String(header.ESTADO),
-                    CLIENTE: String(header.CLIENTE),
-                    FECHA_PEDIDO: header.FECHA_PEDIDO instanceof Date ? header.FECHA_PEDIDO.toISOString() : String(header.FECHA_PEDIDO),
-                    FECHA_PROMETIDA: header.FECHA_PROMETIDA instanceof Date ? header.FECHA_PROMETIDA.toISOString() : String(header.FECHA_PROMETIDA),
-                    ORDEN_COMPRA: header.ORDEN_COMPRA || null,
-                    TOTAL_UNIDADES: header.TOTAL_UNIDADES || null,
-                    MONEDA_PEDIDO: header.MONEDA_PEDIDO || null,
-                    USUARIO: header.USUARIO || null
-                };
-                insert.run(sanitizedHeader);
-            }
-        });
         transaction(headers);
     } catch (error) {
         console.error("Failed to save ERP order headers:", error);

@@ -195,7 +195,7 @@ export default function HelpPage() {
                     <h4 className="font-semibold text-lg pt-2 border-t">Funcionalidades Comunes</h4>
                     <ul className="list-disc space-y-3 pl-6">
                     <li>
-                        <strong>Visibilidad por Defecto:</strong> Por seguridad y claridad, la vista de solicitudes siempre mostrará por defecto solo los documentos que tú has creado. Si tienes el permiso `requests:read:all`, podrás desmarcar la casilla "Mostrar solo mis solicitudes" para ver las de todos los usuarios.
+                        <strong>Visibilidad por Defecto:</strong> Por seguridad y claridad, la vista de solicitudes siempre mostrará por defecto solo los documentos que tú has creado. Si tienes el permiso `requests:read:all`, podrás desmarcar la casilla &quot;Mostrar solo mis solicitudes&quot; para ver las de todos los usuarios.
                     </li>
                     <li>
                         <strong>Aviso de &quot;Modificado&quot; (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una solicitud es editada (cambiando cantidad, fecha, etc.) *después* de haber sido Aprobada u Ordenada, aparecerá una alerta visual &quot;Modificado&quot;. Esto sirve como una advertencia para que todos los involucrados estén al tanto del cambio.
@@ -391,7 +391,7 @@ export default function HelpPage() {
                             </div>
                             <div className="flex items-start gap-4">
                                 <ShieldCheck className="mt-1 h-6 w-6 text-green-500 shrink-0" />
-                                <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos específicos para cada módulo.</p></div>
+                                <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
                                 <Briefcase className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
@@ -433,7 +433,7 @@ export default function HelpPage() {
                                 <div><h4 className="font-semibold">Mantenimiento</h4>
                                     <p>Herramientas críticas, ahora separadas en secciones para mayor claridad y seguridad:</p>
                                     <ul className="list-disc pl-5 text-sm space-y-1 mt-2">
-                                        <li><strong>Backups y Puntos de Restauración:</strong> Gestiona backups de **todo el sistema**. Crea un "Punto de Restauración" antes de una actualización y restáuralo si algo sale mal.</li>
+                                        <li><strong>Backups y Puntos de Restauración:</strong> Gestiona backups de **todo el sistema**. Crea un &quot;Punto de Restauración&quot; antes de una actualización y restáuralo si algo sale mal.</li>
                                         <li><strong>Zona de Peligro:</strong> Acciones que afectan módulos **individuales**. Aquí puedes restaurar la base de datos de un solo módulo (ej: `planner.db`) desde un archivo que subas, o resetear un módulo a su estado de fábrica. Estas acciones requieren confirmación estricta para evitar accidentes.</li>
                                     </ul>
                                 </div>
@@ -463,7 +463,7 @@ export default function HelpPage() {
                         <h4 className="font-semibold">Proceso de Actualización Seguro:</h4>
                         <ol className="list-decimal space-y-3 pl-6">
                             <li>
-                                <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve a **Administración &gt; Mantenimiento** y haz clic en **"Crear Punto de Restauración"**. Esto generará una copia segura de todas las bases de datos del sistema.
+                                <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve a <strong>Administración &gt; Mantenimiento</strong> y haz clic en <strong>&quot;Crear Punto de Restauración&quot;</strong>. Esto generará una copia segura de todas las bases de datos del sistema.
                             </li>
                             <li>
                                 <strong>Paso 2: Reemplazar Archivos.</strong> Detén la aplicación (por ejemplo, usando `pm2 stop clic-tools`). Luego, borra todos los archivos y carpetas de la versión anterior **excepto** la carpeta `dbs/` y, si existe, el archivo `.env.local`. Después, copia todos los archivos de la nueva versión en su lugar.
@@ -508,7 +508,7 @@ export default function HelpPage() {
                                 <strong>Nueva Funcionalidad de Seguridad:</strong> Se implementó un sistema de permisos granulares (`planner:read:all` y `requests:read:all`) para que, por defecto, los usuarios solo vean sus propias órdenes y solicitudes. Solo los usuarios con estos permisos (como los administradores) pueden desmarcar el filtro para ver todo.
                             </li>
                             <li>
-                                <strong>Mejora Mayor en Mantenimiento:</strong> Se rediseñó la página de Mantenimiento para separar claramente los "Puntos de Restauración" de todo el sistema y las acciones de riesgo en módulos individuales (como restaurar o resetear una sola base de datos), haciendo el proceso más seguro e intuitivo.
+                                <strong>Mejora Mayor en Mantenimiento:</strong> Se rediseñó la página de Mantenimiento para separar claramente los &quot;Puntos de Restauración&quot; de todo el sistema y las acciones de riesgo en módulos individuales (como restaurar o resetear una sola base de datos), haciendo el proceso más seguro e intuitivo.
                             </li>
                             <li>
                                 <strong>Mejora de Rendimiento y UX:</strong> Se eliminaron los parpadeos y recargas de página completas al iniciar sesión y al refrescar datos globales, logrando una experiencia de usuario más fluida y rápida.
