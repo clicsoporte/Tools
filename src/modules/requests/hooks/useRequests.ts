@@ -183,6 +183,8 @@ export const useRequests = () => {
         showOnlyShortageItems: true,
     });
     
+    const abortControllerRef = useRef<AbortController | null>(null);
+
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, state.companyData?.searchDebounceTime ?? 500);
     const [debouncedClientSearch] = useDebounce(state.clientSearchTerm, state.companyData?.searchDebounceTime ?? 500);
     const [debouncedItemSearch] = useDebounce(state.itemSearchTerm, state.companyData?.searchDebounceTime ?? 500);
@@ -257,11 +259,11 @@ export const useRequests = () => {
             const defaultLinesQuery = `SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA] WHERE [PEDIDO] = ?`;
 
             let needsUpdate = false;
-            if (!settings.erpHeaderQuery || !settings.erpHeaderQuery.includes('[PEDIDO] = ?')) {
+            if (!settings.erpHeaderQuery) {
                 settings.erpHeaderQuery = defaultHeaderQuery;
                 needsUpdate = true;
             }
-            if (!settings.erpLinesQuery || !settings.erpLinesQuery.includes('[PEDIDO] = ?')) {
+            if (!settings.erpLinesQuery) {
                 settings.erpLinesQuery = defaultLinesQuery;
                 needsUpdate = true;
             }
@@ -482,35 +484,48 @@ export const useRequests = () => {
 
     const handleFetchErpOrder = async () => {
         if (!state.erpOrderNumber) return;
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
         updateState({ isErpLoading: true });
+        
         try {
-            const { headers, lines } = await getErpOrderData(state.erpOrderNumber);
+            const { headers, lines, inventory } = await getErpOrderData(state.erpOrderNumber, abortControllerRef.current.signal);
+            
+            const enrichedHeaders = headers.map((h: any) => {
+                const client = authCustomers.find(c => c.id === h.CLIENTE);
+                return { ...h, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
+            }).sort((a: any, b: any) => {
+                if (a.PEDIDO === state.erpOrderNumber) return -1;
+                if (b.PEDIDO === state.erpOrderNumber) return 1;
+                return a.PEDIDO.localeCompare(b.PEDIDO);
+            });
 
-            if (headers.length === 1) {
-                await processSingleErpOrder(headers[0], lines);
-            } else if (headers.length > 1) {
-                const enrichedHeaders = headers.map((h: any) => {
-                    const client = authCustomers.find(c => c.id === h.CLIENTE);
-                    return { ...h, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
-                }).sort((a: any, b: any) => {
-                    if (a.PEDIDO === state.erpOrderNumber) return -1;
-                    if (b.PEDIDO === state.erpOrderNumber) return 1;
-                    return a.PEDIDO.localeCompare(b.PEDIDO);
-                });
+            if (enrichedHeaders.length === 1) {
+                await processSingleErpOrder(enrichedHeaders[0], lines, inventory);
+            } else if (enrichedHeaders.length > 1) {
                 updateState({ erpOrderHeaders: enrichedHeaders });
             } else {
                  toast({ title: "Pedido no encontrado", description: `No se encontró ningún pedido con el número: ${state.erpOrderNumber}`, variant: "destructive" });
             }
             
         } catch (error: any) {
-            logError('Failed to fetch ERP order data', { error: error.message, orderNumber: state.erpOrderNumber });
-            toast({ title: "Error al Cargar Pedido", description: error.message, variant: "destructive" });
+            if (error.name !== 'AbortError') {
+                logError('Failed to fetch ERP order data', { error: error.message, orderNumber: state.erpOrderNumber });
+                toast({ title: "Error al Cargar Pedido", description: error.message, variant: "destructive" });
+            }
         } finally {
-            updateState({ isErpLoading: false });
+            if (!abortControllerRef.current?.signal.aborted) {
+                updateState({ isErpLoading: false });
+            }
         }
     };
 
     const handleCancelErpFetch = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
         updateState({
             isErpLoading: false,
             isErpOrderModalOpen: false,
@@ -519,13 +534,13 @@ export const useRequests = () => {
         });
     };
     
-    const processSingleErpOrder = async (header: any, lines: any[]) => {
+    const processSingleErpOrder = async (header: any, lines: any[], inventory: StockInfo[]) => {
         const client = authCustomers.find(c => c.id === header.CLIENTE);
         const enrichedHeader = { ...header, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
         
         const enrichedLines = lines.map(line => {
             const product = authProducts.find(p => p.id === line.ARTICULO) || {id: line.ARTICULO, description: `Artículo ${line.ARTICULO} no encontrado`, active: 'N', cabys: '', classification: '', isBasicGood: 'N', lastEntry: '', notes: '', unit: ''};
-            const stock = authStockLevels.find(s => s.itemId === line.ARTICULO) || null;
+            const stock = inventory.find(s => s.itemId === line.ARTICULO) || null;
             const needsBuying = stock ? line.CANTIDAD_PEDIDA > stock.totalStock : true;
             return {
                 ...line,
@@ -547,14 +562,23 @@ export const useRequests = () => {
 
     const handleSelectErpOrderHeader = async (header: any) => {
         updateState({ isErpLoading: true, isErpOrderModalOpen: false });
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
         try {
-            const { lines } = await getErpOrderData(header.PEDIDO);
-            await processSingleErpOrder(header, lines);
+            const { lines, inventory } = await getErpOrderData(header.PEDIDO, abortControllerRef.current.signal);
+            await processSingleErpOrder(header, lines, inventory);
         } catch (error: any) {
-             logError('Failed to fetch lines for selected ERP order', { error: error.message, orderNumber: header.PEDIDO });
-            toast({ title: "Error al Cargar Líneas", description: error.message, variant: "destructive" });
+             if (error.name !== 'AbortError') {
+                logError('Failed to fetch lines for selected ERP order', { error: error.message, orderNumber: header.PEDIDO });
+                toast({ title: "Error al Cargar Líneas", description: error.message, variant: "destructive" });
+            }
         } finally {
-             updateState({ isErpLoading: false });
+            if (!abortControllerRef.current?.signal.aborted) {
+                updateState({ isErpLoading: false });
+            }
         }
     };
 
@@ -590,10 +614,10 @@ export const useRequests = () => {
                     itemId: line.ARTICULO,
                     itemDescription: line.product.description,
                     quantity: parseFloat(line.displayQuantity) || 0,
-                    notes: `Generado desde Pedido ERP: ${state.erpOrderNumber}`,
+                    notes: `Generado desde Pedido ERP: ${state.selectedErpOrderHeader.PEDIDO}`,
                     unitSalePrice: parseFloat(line.displayPrice) || 0,
                     purchaseOrder: state.selectedErpOrderHeader.ORDEN_COMPRA || '',
-                    erpOrderNumber: state.erpOrderNumber,
+                    erpOrderNumber: state.selectedErpOrderHeader.PEDIDO,
                     erpOrderLine: line.PEDIDO_LINEA,
                     priority: 'medium' as PurchaseRequestPriority,
                     purchaseType: 'single' as const,
@@ -817,14 +841,17 @@ export const useRequests = () => {
         isAuthorized
     };
 };
-```</file>
+```
+  </change>
+  <change>
+    <file>/src/modules/requests/lib/actions.ts</file>
     <content><![CDATA[/**
  * @fileoverview Client-side functions for interacting with the request module's server-side DB functions.
  * This abstraction layer ensures components only call client-safe functions.
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload } from '../../core/types';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload, StockInfo } from '../../core/types';
 import { logInfo } from '@/modules/core/lib/logger';
 import { 
     getRequests, 
@@ -945,8 +972,10 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 /**
  * Fetches the header and line items for a given ERP order number.
  * @param orderNumber The ERP order number to fetch.
- * @returns An object containing the order headers and an array of lines.
+ * @param signal The AbortSignal to cancel the request.
+ * @returns An object containing the order headers, an array of lines, and the real-time inventory for those lines.
  */
-export async function getErpOrderData(orderNumber: string): Promise<{headers: any[], lines: any[]}> {
-    return getErpOrderDataServer(orderNumber);
+export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[], inventory: StockInfo[]}> {
+    return getErpOrderDataServer(orderNumber, signal);
 }
+```

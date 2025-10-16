@@ -1090,5 +1090,3 @@ export async function factoryReset(moduleId: string): Promise<void> {
         }
     }
 }
-
-    

@@ -3,8 +3,8 @@
  */
 "use server";
 
-import { connectDb } from '../../core/lib/db';
-import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload } from '../../core/types';
+import { connectDb, getImportQueries, getAllStock as getAllStockFromMainDb } from '../../core/lib/db';
+import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
 import { logError } from '@/modules/core/lib/logger';
@@ -526,7 +526,52 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest;
 }
 
-export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[]}> {
+export async function getRealTimeInventory(itemIds: string[]): Promise<StockInfo[]> {
+    if (itemIds.length === 0) {
+        return [];
+    }
+
+    const queries = await getImportQueries();
+    const stockQueryTemplate = queries.find(q => q.type === 'stock')?.query;
+
+    if (!stockQueryTemplate) {
+        // Fallback to local DB if no real-time query is configured
+        console.warn("Real-time stock query not configured. Falling back to local stock data.");
+        return getAllStockFromMainDb();
+    }
+    
+    const placeholders = itemIds.map(() => '?').join(',');
+    // This is a safe way to modify the query. We're not injecting user input, but rather a list of placeholders.
+    // We remove any ORDER BY clause to append our WHERE clause safely.
+    const baseQuery = stockQueryTemplate.replace(/order by .*/i, '');
+    const stockQuery = `${baseQuery} WHERE ARTICULO IN (${placeholders})`;
+
+    try {
+        const stockData = await executeQuery(stockQuery, undefined, ...itemIds);
+        
+        const stockMap = new Map<string, { [key: string]: number }>();
+        for (const item of stockData) {
+            const itemId = item.ARTICULO;
+            if (!stockMap.has(itemId)) {
+                stockMap.set(itemId, {});
+            }
+            stockMap.get(itemId)![item.BODEGA] = item.CANT_DISPONIBLE;
+        }
+
+        const results: StockInfo[] = [];
+        for (const [itemId, stockByWarehouse] of stockMap.entries()) {
+            const totalStock = Object.values(stockByWarehouse).reduce((acc, val) => acc + val, 0);
+            results.push({ itemId, stockByWarehouse, totalStock });
+        }
+        return results;
+
+    } catch (error: any) {
+        logError('Error al obtener inventario en tiempo real desde ERP', { error: error.message, itemIds });
+        throw new Error("No se pudo obtener el inventario en tiempo real desde el ERP.");
+    }
+}
+
+export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[], inventory: StockInfo[]}> {
     const settings = await getSettings();
 
     if (!settings.erpHeaderQuery || !settings.erpLinesQuery) {
@@ -535,21 +580,9 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
 
     const sanitizedValue = orderNumber.replace(/'/g, "''");
     
-    let headerQuery = settings.erpHeaderQuery;
-    
-    const whereIndex = headerQuery.toLowerCase().indexOf('where');
-    if (whereIndex > -1) {
-        headerQuery += ` AND [PEDIDO] LIKE '${sanitizedValue}%'`;
-    } else {
-        const orderByIndex = headerQuery.toLowerCase().indexOf('order by');
-        if (orderByIndex > -1) {
-            const beforeOrderBy = headerQuery.substring(0, orderByIndex);
-            const afterOrderBy = headerQuery.substring(orderByIndex);
-            headerQuery = `${beforeOrderBy} WHERE [PEDIDO] LIKE '${sanitizedValue}%' ${afterOrderBy}`;
-        } else {
-            headerQuery += ` WHERE [PEDIDO] LIKE '${sanitizedValue}%'`;
-        }
-    }
+    // Use the stored query but inject the WHERE clause for the specific order number.
+    const headerBaseQuery = settings.erpHeaderQuery.replace(/order by .*/i, '');
+    const headerQuery = `${headerBaseQuery} AND [PEDIDO] LIKE '${sanitizedValue}%'`;
     
     let headers: any[] = [];
     try {
@@ -561,28 +594,16 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
 
     if (signal?.aborted) throw new Error('Aborted');
     if (headers.length === 0) {
-        return { headers: [], lines: [] };
+        return { headers: [], lines: [], inventory: [] };
     }
 
+    // Use only the first result if multiple headers match a partial search
     const selectedHeader = headers[0];
     const finalOrderNumber = selectedHeader.PEDIDO;
 
-    let linesQuery = settings.erpLinesQuery;
-    const linesWhereIndex = linesQuery.toLowerCase().indexOf('where');
-    
-    if (linesWhereIndex > -1) {
-        linesQuery += ` AND [PEDIDO] = '${finalOrderNumber}'`;
-    } else {
-        const orderByIndex = linesQuery.toLowerCase().indexOf('order by');
-        if (orderByIndex > -1) {
-            const beforeOrderBy = linesQuery.substring(0, orderByIndex);
-            const afterOrderBy = linesQuery.substring(orderByIndex);
-            linesQuery = `${beforeOrderBy} WHERE [PEDIDO] = '${finalOrderNumber}' ${afterOrderBy}`;
-        } else {
-            linesQuery += ` WHERE [PEDIDO] = '${finalOrderNumber}'`;
-        }
-    }
-
+    // Inject the WHERE clause into the lines query
+    const linesBaseQuery = settings.erpLinesQuery.replace(/order by .*/i, '');
+    const linesQuery = `${linesBaseQuery} AND [PEDIDO] = '${finalOrderNumber}'`;
 
     let lines: any[] = [];
     try {
@@ -592,6 +613,13 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
         throw e;
     }
 
-    // Sanitize data before returning from server action
-    return JSON.parse(JSON.stringify({ headers, lines }));
+    if (signal?.aborted) throw new Error('Aborted');
+    if (lines.length === 0) {
+        return JSON.parse(JSON.stringify({ headers, lines: [], inventory: [] }));
+    }
+
+    const itemIds = lines.map(line => line.ARTICULO);
+    const inventory = await getRealTimeInventory(itemIds);
+
+    return JSON.parse(JSON.stringify({ headers, lines, inventory }));
 }
