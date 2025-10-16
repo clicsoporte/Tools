@@ -4,7 +4,7 @@
 "use server";
 
 import { connectDb, getImportQueries, getAllStock as getAllStockFromMainDb } from '../../core/lib/db';
-import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo } from '../../core/types';
+import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
 import { logError } from '@/modules/core/lib/logger';
@@ -140,11 +140,11 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
         }
         if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'erpHeaderQuery'`).get()) {
              db.prepare(`INSERT INTO request_settings (key, value) VALUES ('erpHeaderQuery', ?)`)
-               .run("SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA] FROM [SOFTLAND].[GAREND].[PEDIDO] WHERE [ESTADO] <> 'F'");
+               .run("SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA] FROM [GAREND].[PEDIDO] WHERE [FECHA_PEDIDO] >= DATEADD(day, -60, GETDATE())");
         }
          if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'erpLinesQuery'`).get()) {
             db.prepare(`INSERT INTO request_settings (key, value) VALUES ('erpLinesQuery', ?)`)
-              .run("SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA]");
+              .run("SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [CANTIDAD_PEDIDA] FROM [GAREND].[PEDIDO_LINEA]");
         }
     }
 }
@@ -540,11 +540,13 @@ export async function getRealTimeInventory(itemIds: string[], signal?: AbortSign
     }
     
     const sanitizedItemIds = itemIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
-    const stockQuery = `${stockQueryTemplate} WHERE ARTICULO IN (${sanitizedItemIds})`;
+    const stockQuery = stockQueryTemplate.includes('WHERE') 
+        ? `${stockQueryTemplate} AND ARTICULO IN (${sanitizedItemIds})`
+        : `${stockQueryTemplate} WHERE ARTICULO IN (${sanitizedItemIds})`;
 
     try {
         const stockDataRaw = await executeQuery(stockQuery, signal);
-        const stockData = JSON.parse(JSON.stringify(stockDataRaw));
+        const stockData: { ARTICULO: string, BODEGA: string, CANT_DISPONIBLE: number }[] = JSON.parse(JSON.stringify(stockDataRaw));
         
         const stockMap = new Map<string, { [key: string]: number }>();
         for (const item of stockData) {
@@ -560,7 +562,7 @@ export async function getRealTimeInventory(itemIds: string[], signal?: AbortSign
             const totalStock = Object.values(stockByWarehouse).reduce((acc, val) => acc + val, 0);
             results.push({ itemId, stockByWarehouse, totalStock });
         }
-        return results;
+        return JSON.parse(JSON.stringify(results));
 
     } catch (error: any) {
         logError('Error al obtener inventario en tiempo real desde ERP', { error: error.message, itemIds });
@@ -569,61 +571,28 @@ export async function getRealTimeInventory(itemIds: string[], signal?: AbortSign
 }
 
 export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[], inventory: StockInfo[]}> {
-    const settings = await getSettings();
-
-    if (!settings.erpHeaderQuery || !settings.erpLinesQuery) {
-        throw new Error(`Las consultas para 'erp_order_headers' o 'erp_order_lines' no están configuradas en los ajustes del módulo de Compras.`);
-    }
-
-    const sanitizedValue = orderNumber.replace(/'/g, "''");
+    const db = await connectDb();
     
-    const headerBaseQuery = settings.erpHeaderQuery.includes('WHERE')
-        ? settings.erpHeaderQuery
-        : `${settings.erpHeaderQuery} WHERE 1=1`;
+    const headers: ErpOrderHeader[] = db.prepare("SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?").all(`%${orderNumber}%`) as ErpOrderHeader[];
+    const headersClean = JSON.parse(JSON.stringify(headers));
     
-    const headerQuery = `${headerBaseQuery} AND [PEDIDO] LIKE '%${sanitizedValue}%'`;
-    
-    let headersRaw: any[] = [];
-    try {
-        headersRaw = await executeQuery(headerQuery, signal);
-    } catch(e: any) {
-        await logError('Error ejecutando consulta de cabecera de Pedido ERP', { error: e.message, query: headerQuery });
-        throw e;
-    }
-    
-    const headers = JSON.parse(JSON.stringify(headersRaw));
-
-    if (signal?.aborted) throw new Error('Aborted');
-    if (headers.length === 0) {
+    if (headersClean.length === 0) {
         return { headers: [], lines: [], inventory: [] };
     }
     
-    const orderNumbers: string[] = headers.map((h: any) => h.PEDIDO);
-    const sanitizedOrderNumbers = orderNumbers.map(n => `'${n.replace(/'/g, "''")}'`).join(',');
+    const orderNumbers = headersClean.map((h: ErpOrderHeader) => h.PEDIDO);
+    const placeholders = orderNumbers.map(() => '?').join(',');
+
+    const lines: ErpOrderLine[] = db.prepare(`SELECT * FROM erp_order_lines WHERE PEDIDO IN (${placeholders})`).all(...orderNumbers) as ErpOrderLine[];
+    const linesClean = JSON.parse(JSON.stringify(lines));
     
-    const linesBaseQuery = settings.erpLinesQuery.includes('WHERE')
-        ? settings.erpLinesQuery
-        : `${settings.erpLinesQuery} WHERE 1=1`;
-    
-    const linesQuery = `${linesBaseQuery} AND [PEDIDO] IN (${sanitizedOrderNumbers})`;
-    
-    let linesRaw: any[] = [];
-    try {
-        linesRaw = await executeQuery(linesQuery, signal);
-    } catch (e: any) {
-        await logError('Error ejecutando consulta de líneas de Pedido ERP', { error: e.message, query: linesQuery });
-        throw e;
-    }
-    
-    const lines = JSON.parse(JSON.stringify(linesRaw));
-    
-    if (signal?.aborted) throw new Error('Aborted');
-    if (lines.length === 0) {
-        return { headers, lines: [], inventory: [] };
+    if (linesClean.length === 0) {
+        return { headers: headersClean, lines: [], inventory: [] };
     }
 
-    const itemIds = [...new Set(lines.map((line: any) => line.ARTICULO))] as string[];
-    const inventory = await getRealTimeInventory(itemIds, signal);
+    const itemIds = [...new Set(linesClean.map((line: ErpOrderLine) => line.ARTICULO))];
+    const inventory = await getAllStockFromMainDb();
+    const filteredInventory = inventory.filter(s => itemIds.includes(s.itemId));
 
-    return JSON.parse(JSON.stringify({ headers, lines, inventory }));
+    return JSON.parse(JSON.stringify({ headers: headersClean, lines: linesClean, inventory: filteredInventory }));
 }

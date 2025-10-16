@@ -9,7 +9,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { initialUsers, initialCompany, initialRoles } from './data';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -155,6 +155,18 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
             db.exec(`CREATE TABLE suppliers (id TEXT PRIMARY KEY, name TEXT, alias TEXT, email TEXT, phone TEXT);`);
         }
 
+        const erpHeadersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_order_headers'`).get();
+        if (!erpHeadersTable) {
+            console.log("MIGRATION: Creating erp_order_headers table.");
+            db.exec(`CREATE TABLE erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT);`);
+        }
+
+        const erpLinesTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_order_lines'`).get();
+        if (!erpLinesTable) {
+            console.log("MIGRATION: Creating erp_order_lines table.");
+            db.exec(`CREATE TABLE erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));`);
+        }
+
     } catch (error) {
         console.error("Failed to apply migrations:", error);
     }
@@ -189,6 +201,8 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE import_queries (type TEXT PRIMARY KEY, query TEXT);
         CREATE TABLE cabys_catalog (code TEXT PRIMARY KEY, description TEXT NOT NULL, taxRate REAL);
         CREATE TABLE suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, userId INTEGER NOT NULL, userName TEXT NOT NULL, isRead INTEGER DEFAULT 0, timestamp TEXT NOT NULL);
+        CREATE TABLE erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT);
+        CREATE TABLE erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));
     `;
 
     db.exec(mainSchema);
@@ -601,7 +615,7 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'm
     return DB_MODULES.map(({ initFn, migrationFn, ...rest }) => rest);
 }
 
-const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers') => {
+const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines') => {
     switch (type) {
         case 'customers': return {'CLIENTE': 'id', 'NOMBRE': 'name', 'DIRECCION': 'address', 'TELEFONO1': 'phone', 'CONTRIBUYENTE': 'taxId', 'MONEDA': 'currency', 'LIMITE_CREDITO': 'creditLimit', 'CONDICION_PAGO': 'paymentCondition', 'VENDEDOR': 'salesperson', 'ACTIVO': 'active', 'E_MAIL': 'email', 'EMAIL_DOC_ELECTRONICO': 'electronicDocEmail'};
         case 'products': return {'ARTICULO': 'id', 'DESCRIPCION': 'description', 'CLASIFICACION_2': 'classification', 'ULTIMO_INGRESO': 'lastEntry', 'ACTIVO': 'active', 'NOTAS': 'notes', 'UNIDAD_VENTA': 'unit', 'CANASTA_BASICA': 'isBasicGood', 'CODIGO_HACIENDA': 'cabys'};
@@ -610,11 +624,13 @@ const createHeaderMapping = (type: 'customers' | 'products' | 'exemptions' | 'st
         case 'locations': return {'CODIGO': 'itemId', 'P. HORIZONTAL': 'hPos', 'P. VERTICAL': 'vPos', 'RACK': 'rack', 'CLIENTE': 'client', 'DESCRIPCION': 'description'};
         case 'cabys': return {'Codigo': 'code', 'Descripcion': 'description', 'Impuesto': 'taxRate'};
         case 'suppliers': return {'PROVEEDOR': 'id', 'NOMBRE': 'name', 'ALIAS': 'alias', 'E_MAIL': 'email', 'TELEFONO1': 'phone'};
+        case 'erp_order_headers': return {'PEDIDO': 'PEDIDO', 'ESTADO': 'ESTADO', 'CLIENTE': 'CLIENTE', 'FECHA_PEDIDO': 'FECHA_PEDIDO', 'FECHA_PROMETIDA': 'FECHA_PROMETIDA', 'ORDEN_COMPRA': 'ORDEN_COMPRA'};
+        case 'erp_order_lines': return {'PEDIDO': 'PEDIDO', 'PEDIDO_LINEA': 'PEDIDO_LINEA', 'ARTICULO': 'ARTICULO', 'CANTIDAD_PEDIDA': 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO': 'PRECIO_UNITARIO'};
         default: return {};
     }
 }
 
-const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers') => {
+const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines') => {
     if (lines.length < 2) throw new Error("El archivo está vacío o no contiene datos.");
     const headerMapping = createHeaderMapping(type);
     const header = lines[0].split('\t').map(h => h.trim().toUpperCase());
@@ -626,7 +642,7 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
             const key = headerMapping[h as keyof typeof headerMapping];
             if (key) {
                 const value = data[index]?.replace(/[\n\r]/g, '').trim() || '';
-                if (['creditLimit', 'percentage', 'stock', 'rack', 'hPos', 'taxRate'].includes(key)) {
+                if (['creditLimit', 'percentage', 'stock', 'rack', 'hPos', 'taxRate', 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO'].includes(key)) {
                     dataObject[key] = parseFloat(value.replace('%','')) || 0;
                     if(key === 'taxRate') dataObject[key] /= 100;
                 } else dataObject[key] = value;
@@ -637,7 +653,7 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
     return dataArray;
 };
 
-export async function importDataFromFile(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers'): Promise<{ count: number, source: string }> {
+export async function importDataFromFile(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines'): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
     let filePath = '';
@@ -649,6 +665,8 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
         case 'locations': filePath = companySettings.locationFilePath || ''; break;
         case 'cabys': filePath = companySettings.cabysFilePath || ''; break;
         case 'suppliers': filePath = companySettings.supplierFilePath || ''; break;
+        case 'erp_order_headers': return { count: 0, source: 'file' }; // Not supported from file
+        case 'erp_order_lines': return { count: 0, source: 'file' }; // Not supported from file
     }
     if (!filePath) throw new Error(`La ruta de importación para ${type} no está configurada.`);
     if (!fs.existsSync(filePath)) throw new Error(`El archivo no fue encontrado: ${filePath}`);
@@ -671,7 +689,7 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
     return { count: dataArray.length, source: filePath };
 }
 
-async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers'): Promise<{ count: number, source: string }> {
+async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines'): Promise<{ count: number, source: string }> {
     const db = await connectDb();
     const queryRow = db.prepare('SELECT query FROM import_queries WHERE type = ?').get(type) as { query: string } | undefined;
     if (!queryRow || !queryRow.query) {
@@ -702,6 +720,10 @@ async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' |
         return { count, source: 'SQL Server' };
     } else if (type === 'suppliers') {
         await saveAllSuppliers(mappedData as Supplier[]);
+    } else if (type === 'erp_order_headers') {
+        await saveAllErpOrderHeaders(mappedData as ErpOrderHeader[]);
+    } else if (type === 'erp_order_lines') {
+        await saveAllErpOrderLines(mappedData as ErpOrderLine[]);
     }
     return { count: mappedData.length, source: 'SQL Server' };
 }
@@ -726,8 +748,8 @@ async function updateCabysCatalog(data: any[]): Promise<{ count: number }> {
 export async function importData(type: ImportQuery['type']): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
-    if (companySettings.importMode === 'sql') return importDataFromSql(type as any); // Cast to avoid type error with new types
-    else return importDataFromFile(type as any);
+    if (companySettings.importMode === 'sql') return importDataFromSql(type);
+    else return importDataFromFile(type);
 }
 
 export async function getAllStock(): Promise<StockInfo[]> {
@@ -840,7 +862,8 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
     
     const importTasks: { type: ImportQuery['type'] }[] = [
         { type: 'customers' }, { type: 'products' }, { type: 'exemptions' },
-        { type: 'stock' }, { type: 'locations' }, { type: 'cabys' }, { type: 'suppliers' }
+        { type: 'stock' }, { type: 'locations' }, { type: 'cabys' }, { type: 'suppliers' },
+        { type: 'erp_order_headers' }, { type: 'erp_order_lines' }
     ];
     
     const results: { type: string; count: number; }[] = [];
@@ -848,8 +871,10 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
     for (const task of importTasks) {
         try {
             if (companySettings.importMode === 'file') {
-                const filePath = companySettings[`${task.type}FilePath` as keyof Company] as string | undefined;
-                if (!filePath) {
+                const filePathKey = `${task.type}FilePath` as keyof Company;
+                const filePath = companySettings[filePathKey] as string | undefined;
+
+                if (!filePath && !['erp_order_headers', 'erp_order_lines'].includes(task.type)) {
                     console.log(`Skipping file import for ${task.type}: no file path configured.`);
                     continue;
                 }
@@ -1088,5 +1113,32 @@ export async function factoryReset(moduleId: string): Promise<void> {
                 throw e;
             }
         }
+    }
+}
+
+// --- ERP Order Import ---
+export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA)');
+    const transaction = db.transaction((headersToSave) => {
+        for(const header of headersToSave) insert.run(header);
+    });
+    try {
+        transaction(headers);
+    } catch (error) {
+        console.error("Failed to save ERP order headers:", error);
+    }
+}
+
+export async function saveAllErpOrderLines(lines: ErpOrderLine[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_lines (PEDIDO, PEDIDO_LINEA, ARTICULO, CANTIDAD_PEDIDA, PRECIO_UNITARIO) VALUES (@PEDIDO, @PEDIDO_LINEA, @ARTICULO, @CANTIDAD_PEDIDA, @PRECIO_UNITARIO)');
+    const transaction = db.transaction((linesToSave) => {
+        for(const line of linesToSave) insert.run(line);
+    });
+    try {
+        transaction(lines);
+    } catch (error) {
+        console.error("Failed to save ERP order lines:", error);
     }
 }

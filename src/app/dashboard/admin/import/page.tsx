@@ -22,8 +22,8 @@ import { Switch } from '../../../../components/ui/switch';
 import { Textarea } from '../../../../components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'erp_order_headers' | 'erp_order_lines' | 'suppliers';
-const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys', 'erp_order_headers', 'erp_order_lines', 'suppliers'];
+type ImportType = ImportQuery['type'];
+const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys', 'suppliers', 'erp_order_headers', 'erp_order_lines'];
 
 const importTypeTranslations: { [key in ImportType]: string } = {
     customers: 'Clientes',
@@ -76,13 +76,13 @@ export default function ImportDataPage() {
             
             const updatedQueries = [...queries];
             if (!queries.some(q => q.type === 'erp_order_headers')) {
-                updatedQueries.push({ type: 'erp_order_headers', query: "SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA], [TOTAL_UNIDADES], [MONEDA_PEDIDO], [USUARIO] FROM [SOFTLAND].[GAREND].[PEDIDO] WHERE [PEDIDO] = ?" });
+                updatedQueries.push({ type: 'erp_order_headers', query: "SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA] FROM [GAREND].[PEDIDO] WHERE [FECHA_PEDIDO] >= DATEADD(day, -60, GETDATE())" });
             }
             if (!queries.some(q => q.type === 'erp_order_lines')) {
-                updatedQueries.push({ type: 'erp_order_lines', query: "SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [PRECIO_UNITARIO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA] WHERE [PEDIDO] = ?" });
+                updatedQueries.push({ type: 'erp_order_lines', query: "SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [CANTIDAD_PEDIDA], [PRECIO_UNITARIO] FROM [GAREND].[PEDIDO_LINEA]" });
             }
             if (!queries.some(q => q.type === 'suppliers')) {
-                updatedQueries.push({ type: 'suppliers', query: "SELECT [PROVEEDOR], [NOMBRE], [ALIAS], [E_MAIL], [TELEFONO1] FROM [SOFTLAND].[GAREND].[PROVEEDOR]" });
+                updatedQueries.push({ type: 'suppliers', query: "SELECT [PROVEEDOR], [NOMBRE], [ALIAS], [E_MAIL], [TELEFONO1] FROM [GAREND].[PROVEEDOR]" });
             }
             setImportQueries(updatedQueries);
         };
@@ -203,7 +203,7 @@ export default function ImportDataPage() {
      * @returns {JSX.Element} A card component for file import.
      */
     const renderFileImportCard = (type: ImportType) => {
-        const fieldName = importTypeFieldMapping[type];
+        const fieldName = importTypeFieldMapping[type as keyof typeof importTypeFieldMapping];
         if (!fieldName) return null;
 
         return (

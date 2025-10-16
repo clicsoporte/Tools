@@ -572,7 +572,7 @@ export type SqlConfig = {
 }
 
 export type ImportQuery = {
-    type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'erp_order_headers' | 'erp_order_lines' | 'suppliers';
+    type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines';
     query: string;
 }
 
@@ -611,3 +611,20 @@ export type Supplier = {
     phone: string;   // TELEFONO1
 };
 
+// --- ERP Order Import Types ---
+export type ErpOrderHeader = {
+    PEDIDO: string;
+    ESTADO: string;
+    CLIENTE: string;
+    FECHA_PEDIDO: string;
+    FECHA_PROMETIDA: string;
+    ORDEN_COMPRA?: string;
+};
+
+export type ErpOrderLine = {
+    PEDIDO: string;
+    PEDIDO_LINEA: number;
+    ARTICULO: string;
+    CANTIDAD_PEDIDA: number;
+    PRECIO_UNITARIO: number;
+};
