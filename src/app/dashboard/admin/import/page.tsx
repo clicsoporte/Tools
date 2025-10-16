@@ -76,7 +76,7 @@ export default function ImportDataPage() {
             
             const updatedQueries = [...queries];
             if (!queries.some(q => q.type === 'erp_order_headers')) {
-                updatedQueries.push({ type: 'erp_order_headers', query: "SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA], [TOTAL_UNIDADES], [MONEDA_PEDIDO], [USUARIO] FROM [GAREND].[PEDIDO] WHERE [FECHA_PEDIDO] >= DATEADD(day, -60, GETDATE()) AND [ESTADO] NOT IN ('F', 'C')" });
+                updatedQueries.push({ type: 'erp_order_headers', query: "SELECT T0.[PEDIDO], T0.[ESTADO], T0.[CLIENTE], T0.[FECHA_PEDIDO], T0.[FECHA_PROMETIDA], T0.[ORDEN_COMPRA], T0.[TOTAL_UNIDADES], T0.[MONEDA_PEDIDO], T0.[USUARIO] FROM [GAREND].[PEDIDO] AS T0 WHERE T0.[FECHA_PEDIDO] >= DATEADD(day, -60, GETDATE()) AND T0.[ESTADO] NOT IN ('F', 'C') ORDER BY T0.[FECHA_PEDIDO] DESC" });
             }
             if (!queries.some(q => q.type === 'erp_order_lines')) {
                 updatedQueries.push({ type: 'erp_order_lines', query: "SELECT T1.[PEDIDO], T1.[PEDIDO_LINEA], T1.[ARTICULO], T1.[CANTIDAD_PEDIDA], T1.[PRECIO_UNITARIO] FROM [GAREND].[PEDIDO_LINEA] AS T1 INNER JOIN [GAREND].[PEDIDO] AS T0 ON T1.PEDIDO = T0.PEDIDO WHERE T0.FECHA_PEDIDO >= DATEADD(day, -60, GETDATE()) AND T1.[ESTADO] NOT IN ('F', 'C')" });
