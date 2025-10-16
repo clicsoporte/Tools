@@ -393,14 +393,25 @@ export default function PlannerPage() {
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
+                        <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); actions.setShowOnlyMyOrders(true); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                     </div>
-                     {state.viewingArchived && (
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor="page-size">Registros por página:</Label>
-                            <Select value={String(state.pageSize)} onValueChange={(value) => actions.setPageSize(Number(value))}><SelectTrigger id="page-size" className="w-[100px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem><SelectItem value="200">200</SelectItem></SelectContent></Select>
+                     <div className="flex flex-wrap items-center gap-4">
+                        {state.viewingArchived && (
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="page-size">Registros por página:</Label>
+                                <Select value={String(state.pageSize)} onValueChange={(value) => actions.setPageSize(Number(value))}><SelectTrigger id="page-size" className="w-[100px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem><SelectItem value="200">200</SelectItem></SelectContent></Select>
+                            </div>
+                        )}
+                         <div className="flex items-center space-x-2">
+                            <Checkbox 
+                                id="show-only-my-orders" 
+                                checked={state.showOnlyMyOrders} 
+                                onCheckedChange={(checked) => actions.setShowOnlyMyOrders(checked as boolean)}
+                                disabled={!state.showOnlyMyOrders && !selectors.hasPermission('planner:read:all')}
+                            />
+                            <Label htmlFor="show-only-my-orders" className="font-normal">Mostrar solo mis órdenes</Label>
                         </div>
-                    )}
+                    </div>
                 </CardContent>
             </Card>
             

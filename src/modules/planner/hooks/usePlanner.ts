@@ -87,6 +87,7 @@ export const usePlanner = () => {
         searchTerm: "",
         statusFilter: "all",
         classificationFilter: "all",
+        showOnlyMyOrders: true,
         dateFilter: undefined as DateRange | undefined,
         customerSearchTerm: "",
         isCustomerSearchOpen: false,
@@ -204,6 +205,13 @@ export const usePlanner = () => {
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
         setStatusFilter: (status: string) => updateState({ statusFilter: status }),
         setClassificationFilter: (filter: string) => updateState({ classificationFilter: filter }),
+        setShowOnlyMyOrders: (show: boolean) => {
+            if (!show && !hasPermission('planner:read:all')) {
+                toast({ title: "Permiso Requerido", description: "No tienes permiso para ver todas las órdenes.", variant: "destructive"});
+                return;
+            }
+            updateState({ showOnlyMyOrders: show });
+        },
         setDateFilter: (range: DateRange | undefined) => updateState({ dateFilter: range }),
         setCustomerSearchTerm: (term: string) => updateState({ customerSearchTerm: term }),
         setCustomerSearchOpen: (isOpen: boolean) => updateState({ isCustomerSearchOpen: isOpen }),
@@ -599,7 +607,7 @@ export const usePlanner = () => {
                 { title: 'Última actualización:', content: `${order.lastStatusUpdateBy || 'N/A'} - ${order.lastStatusUpdateNotes || ''}` }
             ];
 
-            const doc = generateDocument({
+            generateDocument({
                 docTitle: 'Orden de Producción',
                 docId: order.consecutive,
                 companyData: authCompanyData,
@@ -619,9 +627,7 @@ export const usePlanner = () => {
                     columnStyles: {},
                 },
                 totals: []
-            });
-    
-            doc.save(`op_${order.consecutive}.pdf`);
+            }).save(`op_${order.consecutive}.pdf`);
         }
     };
 
@@ -691,10 +697,11 @@ export const usePlanner = () => {
                 const statusMatch = state.statusFilter === 'all' || order.status === state.statusFilter;
                 const classificationMatch = state.classificationFilter === 'all' || (product && product.classification === state.classificationFilter);
                 const dateMatch = !state.dateFilter || !state.dateFilter.from || (new Date(order.deliveryDate) >= state.dateFilter.from && new Date(order.deliveryDate) <= (state.dateFilter.to || state.dateFilter.from));
-                
-                return searchMatch && statusMatch && classificationMatch && dateMatch;
+                const myOrdersMatch = !state.showOnlyMyOrders || (currentUser && order.requestedBy === currentUser.name);
+
+                return searchMatch && statusMatch && classificationMatch && dateMatch && myOrdersMatch;
             });
-        }, [state.viewingArchived, state.activeOrders, state.archivedOrders, debouncedSearchTerm, state.statusFilter, state.classificationFilter, products, state.dateFilter]),
+        }, [state.viewingArchived, state.activeOrders, state.archivedOrders, debouncedSearchTerm, state.statusFilter, state.classificationFilter, products, state.dateFilter, state.showOnlyMyOrders, currentUser?.name]),
         stockLevels: stockLevels,
     };
 
