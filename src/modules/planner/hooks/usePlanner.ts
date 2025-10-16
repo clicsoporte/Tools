@@ -481,7 +481,7 @@ export const usePlanner = () => {
             if (!state.notePayload || !state.notePayload.notes.trim() || !currentUser) return;
             updateState({ isSubmitting: true });
             try {
-                const updatedOrder = await addNoteToOrder({ ...state.notePayload, updatedBy: currentUser.name });
+                const updatedOrder = await addNoteServer({ ...state.notePayload, updatedBy: currentUser.name });
                 toast({ title: "Nota Añadida" });
                 setState(prevState => ({
                     ...prevState,
@@ -702,7 +702,7 @@ export const usePlanner = () => {
 
                 return searchMatch && statusMatch && classificationMatch && dateMatch && myOrdersMatch;
             });
-        }, [state.viewingArchived, state.activeOrders, state.archivedOrders, debouncedSearchTerm, state.statusFilter, state.classificationFilter, products, state.dateFilter, state.showOnlyMyOrders, currentUser?.name]),
+        }, [state.viewingArchived, state.activeOrders, state.archivedOrders, debouncedSearchTerm, state.statusFilter, state.classificationFilter, products, state.dateFilter, state.showOnlyMyOrders, currentUser]),
         stockLevels: stockLevels,
     };
 
