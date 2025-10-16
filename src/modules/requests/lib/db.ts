@@ -1,9 +1,11 @@
+
 /**
  * @fileoverview Server-side functions for the purchase requests database.
  */
 "use server";
 
-import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries as getImportQueriesFromMain, logInfo, logError, logWarn } from '../../core/lib/db';
+import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries as getImportQueriesFromMain } from '../../core/lib/db';
+import { logInfo, logError, logWarn } from '../../core/lib/logger';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
@@ -515,10 +517,10 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 
 export async function getErpOrderData(orderNumber: string): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}> {
     const mainDb = await connectDb();
-
+    
     await logInfo("Buscando pedido ERP en DB local", { searchTerm: orderNumber, query: `LIKE %${orderNumber}` });
     
-    const headersRaw = mainDb.prepare('SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?').all(`%${orderNumber}`);
+    const headersRaw: any[] = mainDb.prepare('SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?').all(`%${orderNumber}`);
     const headers: ErpOrderHeader[] = JSON.parse(JSON.stringify(headersRaw));
 
     if (headers.length === 0) {
@@ -533,16 +535,55 @@ export async function getErpOrderData(orderNumber: string): Promise<{headers: Er
         return { headers, lines: [], inventory: [] };
     }
 
-    const linesRaw = mainDb.prepare(`SELECT * FROM erp_order_lines WHERE PEDIDO IN (${sanitizedOrderNumbers})`).all();
+    const linesRaw: any[] = mainDb.prepare(`SELECT * FROM erp_order_lines WHERE PEDIDO IN (${sanitizedOrderNumbers})`).all();
     const lines: ErpOrderLine[] = JSON.parse(JSON.stringify(linesRaw));
     
     if (lines.length === 0) {
          return { headers, lines: [], inventory: [] };
     }
 
-    const itemIds = [...new Set(lines.map((line: ErpOrderLine) => line.ARTICULO))] as string[];
+    const itemIds = [...new Set(lines.map(line => line.ARTICULO))] as string[];
     const inventory = await getAllStockFromMainDb();
     const relevantInventory = inventory.filter(inv => itemIds.includes(inv.itemId));
 
     return JSON.parse(JSON.stringify({ headers, lines, inventory: relevantInventory }));
+}
+
+async function getRealTimeInventory(itemIds: string[], signal?: AbortSignal): Promise<StockInfo[]> {
+    if (itemIds.length === 0) {
+        return [];
+    }
+    const settings = await getImportQueriesFromMain();
+    const stockQueryTemplate = settings.find(q => q.type === 'stock')?.query;
+
+    if (!stockQueryTemplate) {
+        throw new Error("La consulta SQL para 'stock' no está configurada.");
+    }
+    
+    const sanitizedItemIds = itemIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
+    const stockQuery = `${stockQueryTemplate} AND ARTICULO IN (${sanitizedItemIds})`;
+
+    try {
+        const stockData = await executeQuery(stockQuery, signal);
+        
+        const stockMap = new Map<string, { [key: string]: number }>();
+        for (const item of stockData) {
+            if (!stockMap.has(item.ARTICULO)) {
+                stockMap.set(item.ARTICULO, {});
+            }
+            stockMap.get(item.ARTICULO)![item.BODEGA] = item.CANT_DISPONIBLE;
+        }
+
+        const result: StockInfo[] = [];
+        for (const [itemId, stockByWarehouse] of stockMap.entries()) {
+            const totalStock = Object.values(stockByWarehouse).reduce((acc, val) => acc + val, 0);
+            result.push({ itemId, stockByWarehouse, totalStock });
+        }
+        
+        return JSON.parse(JSON.stringify(result));
+
+    } catch (error: any) {
+        logError("Error fetching real-time inventory", { error: error.message, query: stockQuery });
+        throw error;
+    }
 }
