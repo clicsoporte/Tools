@@ -546,7 +546,7 @@ export async function getRealTimeInventory(itemIds: string[], signal?: AbortSign
 
     try {
         const stockDataRaw = await executeQuery(stockQuery, signal);
-        const stockData: { ARTICULO: string, BODEGA: string, CANT_DISPONIBLE: number }[] = JSON.parse(JSON.stringify(stockDataRaw));
+        const stockData = JSON.parse(JSON.stringify(stockDataRaw));
         
         const stockMap = new Map<string, { [key: string]: number }>();
         for (const item of stockData) {
@@ -562,7 +562,7 @@ export async function getRealTimeInventory(itemIds: string[], signal?: AbortSign
             const totalStock = Object.values(stockByWarehouse).reduce((acc, val) => acc + val, 0);
             results.push({ itemId, stockByWarehouse, totalStock });
         }
-        return JSON.parse(JSON.stringify(results));
+        return results;
 
     } catch (error: any) {
         logError('Error al obtener inventario en tiempo real desde ERP', { error: error.message, itemIds });
@@ -572,27 +572,37 @@ export async function getRealTimeInventory(itemIds: string[], signal?: AbortSign
 
 export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: any[], lines: any[], inventory: StockInfo[]}> {
     const db = await connectDb();
-    
-    const headers: ErpOrderHeader[] = db.prepare("SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?").all(`%${orderNumber}%`) as ErpOrderHeader[];
-    const headersClean = JSON.parse(JSON.stringify(headers));
-    
-    if (headersClean.length === 0) {
+    const settings = await getSettings();
+
+    // Query for headers based on the search term
+    const headerQuery = settings.erpHeaderQuery?.replace('?', `'%${orderNumber.replace(/'/g, "''")}%'`) || '';
+    const headersRaw = await executeQuery(headerQuery, signal);
+    const headers: { PEDIDO: string }[] = JSON.parse(JSON.stringify(headersRaw));
+
+    if (headers.length === 0) {
         return { headers: [], lines: [], inventory: [] };
     }
-    
-    const orderNumbers = headersClean.map((h: ErpOrderHeader) => h.PEDIDO);
-    const placeholders = orderNumbers.map(() => '?').join(',');
 
-    const lines: ErpOrderLine[] = db.prepare(`SELECT * FROM erp_order_lines WHERE PEDIDO IN (${placeholders})`).all(...orderNumbers) as ErpOrderLine[];
-    const linesClean = JSON.parse(JSON.stringify(lines));
+    const orderNumbers = headers.map(h => h.PEDIDO);
+    const sanitizedOrderNumbers = orderNumbers.map(n => `'${n.replace(/'/g, "''")}'`).join(',');
+
+    // Query for lines based on the found headers
+    let linesQuery = settings.erpLinesQuery || '';
+    if (linesQuery.toLowerCase().includes('where')) {
+        linesQuery += ` AND [PEDIDO] IN (${sanitizedOrderNumbers})`;
+    } else {
+        linesQuery += ` WHERE [PEDIDO] IN (${sanitizedOrderNumbers})`;
+    }
+    const linesRaw = await executeQuery(linesQuery, signal);
+    const lines: { ARTICULO: string }[] = JSON.parse(JSON.stringify(linesRaw));
     
-    if (linesClean.length === 0) {
-        return { headers: headersClean, lines: [], inventory: [] };
+    if (lines.length === 0) {
+        return { headers, lines: [], inventory: [] };
     }
 
-    const itemIds = [...new Set(linesClean.map((line: ErpOrderLine) => line.ARTICULO))];
-    const inventory = await getAllStockFromMainDb();
-    const filteredInventory = inventory.filter(s => itemIds.includes(s.itemId));
+    // Get real-time inventory for the items in the found lines
+    const itemIds = [...new Set(lines.map(line => line.ARTICULO))] as string[];
+    const inventory = await getRealTimeInventory(itemIds, signal);
 
-    return JSON.parse(JSON.stringify({ headers: headersClean, lines: linesClean, inventory: filteredInventory }));
+    return JSON.parse(JSON.stringify({ headers, lines, inventory }));
 }
