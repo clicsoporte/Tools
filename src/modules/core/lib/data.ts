@@ -161,6 +161,7 @@ export const initialRoles: Role[] = [
         "quotes:drafts:read",
         "quotes:drafts:delete",
         "requests:read",
+        "requests:read:all",
         "requests:create",
         "requests:edit:pending",
         "requests:edit:approved",

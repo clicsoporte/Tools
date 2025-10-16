@@ -715,7 +715,13 @@ export const useRequests = () => {
         setStatusFilter: (filter: string) => updateState({ statusFilter: filter }),
         setClassificationFilter: (filter: string) => updateState({ classificationFilter: filter }),
         setDateFilter: (range: DateRange | undefined) => updateState({ dateFilter: range }),
-        setShowOnlyMyRequests: (show: boolean) => updateState({ showOnlyMyRequests: show }),
+        setShowOnlyMyRequests: (show: boolean) => {
+            if (!show && !hasPermission('requests:read:all')) {
+                toast({ title: "Permiso Requerido", description: "No tienes permiso para ver todas las solicitudes.", variant: "destructive"});
+                return;
+            }
+            updateState({ showOnlyMyRequests: show });
+        },
         setClientSearchTerm: (term: string) => updateState({ clientSearchTerm: term }),
         setClientSearchOpen: (isOpen: boolean) => updateState({ isClientSearchOpen: isOpen }),
         setItemSearchTerm: (term: string) => updateState({ itemSearchTerm: term }),

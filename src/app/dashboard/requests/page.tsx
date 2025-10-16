@@ -281,12 +281,17 @@ export default function PurchaseRequestPage() {
                                 <DropdownMenuItem onSelect={() => actions.handleExportPDF('landscape')}>Exportar Horizontal</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); actions.setShowOnlyMyRequests(false); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
+                        <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); actions.setShowOnlyMyRequests(true); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                     </div>
                      <div className="flex flex-wrap items-center gap-4">
                         {viewingArchived && (<div className="flex items-center gap-2"><Label htmlFor="page-size">Registros por página:</Label><Select value={String(pageSize)} onValueChange={(value) => actions.setPageSize(Number(value))}><SelectTrigger id="page-size" className="w-[100px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem><SelectItem value="200">200</SelectItem></SelectContent></Select></div>)}
                          <div className="flex items-center space-x-2">
-                            <Checkbox id="show-only-my-requests" checked={showOnlyMyRequests} onCheckedChange={(checked) => actions.setShowOnlyMyRequests(checked as boolean)} />
+                            <Checkbox 
+                                id="show-only-my-requests" 
+                                checked={showOnlyMyRequests} 
+                                onCheckedChange={(checked) => actions.setShowOnlyMyRequests(checked as boolean)}
+                                disabled={!showOnlyMyRequests && !selectors.hasPermission('requests:read:all')}
+                            />
                             <Label htmlFor="show-only-my-requests" className="font-normal">Mostrar solo mis solicitudes</Label>
                         </div>
                     </div>
