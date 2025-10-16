@@ -549,6 +549,8 @@ export const useRequests = () => {
 
     const handleCreateRequestsFromErp = async () => {
         if (!state.selectedErpOrderHeader || !currentUser) return;
+        const erpHeader = state.selectedErpOrderHeader;
+
         const selectedLines = state.erpOrderLines.filter(line => line.selected);
         if (selectedLines.length === 0) {
             toast({ title: "No hay artículos seleccionados", description: "Marque al menos un artículo para crear solicitudes.", variant: "destructive" });
@@ -559,17 +561,17 @@ export const useRequests = () => {
         try {
             for (const line of selectedLines) {
                 const requestPayload = {
-                    requiredDate: new Date(state.selectedErpOrderHeader.FECHA_PROMETIDA).toISOString().split('T')[0],
-                    clientId: state.selectedErpOrderHeader.CLIENTE,
-                    clientName: state.selectedErpOrderHeader.CLIENTE_NOMBRE || '',
-                    clientTaxId: authCustomers.find(c => c.id === state.selectedErpOrderHeader.CLIENTE)?.taxId || '',
+                    requiredDate: new Date(erpHeader.FECHA_PROMETIDA).toISOString().split('T')[0],
+                    clientId: erpHeader.CLIENTE,
+                    clientName: erpHeader.CLIENTE_NOMBRE || '',
+                    clientTaxId: authCustomers.find(c => c.id === erpHeader.CLIENTE)?.taxId || '',
                     itemId: line.ARTICULO,
                     itemDescription: line.product.description,
                     quantity: parseFloat(line.displayQuantity) || 0,
-                    notes: `Generado desde Pedido ERP: ${state.selectedErpOrderHeader.PEDIDO}`,
+                    notes: `Generado desde Pedido ERP: ${erpHeader.PEDIDO}`,
                     unitSalePrice: parseFloat(line.displayPrice) || 0,
-                    purchaseOrder: state.selectedErpOrderHeader.ORDEN_COMPRA || '',
-                    erpOrderNumber: state.selectedErpOrderHeader.PEDIDO,
+                    purchaseOrder: erpHeader.ORDEN_COMPRA || '',
+                    erpOrderNumber: erpHeader.PEDIDO,
                     erpOrderLine: line.PEDIDO_LINEA,
                     priority: 'medium' as PurchaseRequestPriority,
                     purchaseType: 'single' as const,
