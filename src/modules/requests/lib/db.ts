@@ -536,8 +536,6 @@ export async function getRealTimeInventory(itemIds: string[], signal?: AbortSign
 
     if (!stockQueryTemplate) {
         console.warn("Real-time stock query not configured. Falling back to local stock data.");
-        // This fallback might be desired in some cases, but for real-time check it's better to fail.
-        // For now, we will throw an error to make it explicit.
         throw new Error("La consulta de inventario en tiempo real no está configurada.");
     }
     
@@ -546,8 +544,7 @@ export async function getRealTimeInventory(itemIds: string[], signal?: AbortSign
 
     try {
         const stockDataRaw = await executeQuery(stockQuery, signal);
-        // Sanitize the raw data from the DB to prevent serialization issues
-        const stockData = JSON.parse(JSON.stringify(stockDataRaw));
+        const stockData: { ARTICULO: string, BODEGA: string, CANT_DISPONIBLE: number }[] = JSON.parse(JSON.stringify(stockDataRaw));
         
         const stockMap = new Map<string, { [key: string]: number }>();
         for (const item of stockData) {
@@ -580,8 +577,8 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
 
     const sanitizedValue = orderNumber.replace(/'/g, "''");
     
-    const headerBaseQuery = settings.erpHeaderQuery.replace(/where\s/i, 'WHERE 1=1 AND ');
-    const headerQuery = `${headerBaseQuery} AND [PEDIDO] LIKE '%${sanitizedValue}%'`;
+    // Use the stored query, which already contains filtering logic
+    const headerQuery = `${settings.erpHeaderQuery} AND [PEDIDO] LIKE '%${sanitizedValue}%'`;
     
     let headersRaw: any[] = [];
     try {
@@ -596,13 +593,12 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
         return { headers: [], lines: [], inventory: [] };
     }
     
-    const headers = JSON.parse(JSON.stringify(headersRaw));
+    const headers: { PEDIDO: string }[] = JSON.parse(JSON.stringify(headersRaw));
     
     const orderNumbers = headers.map(h => h.PEDIDO);
     const sanitizedOrderNumbers = orderNumbers.map(n => `'${n.replace(/'/g, "''")}'`).join(',');
 
-    const linesBaseQuery = settings.erpLinesQuery.replace(/where\s/i, 'WHERE 1=1 AND ');
-    const linesQuery = `${linesBaseQuery} AND [PEDIDO] IN (${sanitizedOrderNumbers})`;
+    const linesQuery = `${settings.erpLinesQuery} AND [PEDIDO] IN (${sanitizedOrderNumbers})`;
     
     let linesRaw: any[] = [];
     try {
@@ -612,15 +608,15 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
         throw e;
     }
     
-    const lines = JSON.parse(JSON.stringify(linesRaw));
+    const lines: { ARTICULO: string }[] = JSON.parse(JSON.stringify(linesRaw));
 
     if (signal?.aborted) throw new Error('Aborted');
     if (lines.length === 0) {
         return { headers, lines: [], inventory: [] };
     }
 
-    const itemIds = [...new Set(lines.map(line => line.ARTICULO))];
+    const itemIds: string[] = [...new Set(lines.map(line => line.ARTICULO))] as string[];
     const inventory = await getRealTimeInventory(itemIds, signal);
 
-    return { headers, lines, inventory };
+    return JSON.parse(JSON.stringify({ headers, lines, inventory }));
 }
