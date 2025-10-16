@@ -535,28 +535,19 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
 
     const sanitizedValue = orderNumber.replace(/'/g, "''");
     
-    let headerQuery: string;
-    if (settings.erpHeaderQuery.includes('?')) {
-        headerQuery = settings.erpHeaderQuery.replace('?', `'${sanitizedValue}'`);
+    let headerQuery = settings.erpHeaderQuery;
+    
+    const whereIndex = headerQuery.toLowerCase().indexOf('where');
+    if (whereIndex > -1) {
+        headerQuery += ` AND [PEDIDO] LIKE '${sanitizedValue}%'`;
     } else {
-        const whereIndex = settings.erpHeaderQuery.toLowerCase().lastIndexOf('where');
-        const orderByIndex = settings.erpHeaderQuery.toLowerCase().lastIndexOf('order by');
-        const condition = ` [PEDIDO] LIKE '${sanitizedValue}%' `;
-
-        if (whereIndex > -1) {
-            let baseQuery = settings.erpHeaderQuery;
-            if (orderByIndex > whereIndex) {
-                 baseQuery = baseQuery.slice(0, orderByIndex);
-                headerQuery = `${baseQuery} AND ${condition} ${settings.erpHeaderQuery.slice(orderByIndex)}`;
-            } else {
-                headerQuery = `${baseQuery} AND ${condition}`;
-            }
+        const orderByIndex = headerQuery.toLowerCase().indexOf('order by');
+        if (orderByIndex > -1) {
+            const beforeOrderBy = headerQuery.substring(0, orderByIndex);
+            const afterOrderBy = headerQuery.substring(orderByIndex);
+            headerQuery = `${beforeOrderBy} WHERE [PEDIDO] LIKE '${sanitizedValue}%' ${afterOrderBy}`;
         } else {
-            if (orderByIndex > -1) {
-                headerQuery = `${settings.erpHeaderQuery.slice(0, orderByIndex)} WHERE ${condition} ${settings.erpHeaderQuery.slice(orderByIndex)}`;
-            } else {
-                headerQuery = `${settings.erpHeaderQuery} WHERE ${condition}`;
-            }
+            headerQuery += ` WHERE [PEDIDO] LIKE '${sanitizedValue}%'`;
         }
     }
     
@@ -577,26 +568,21 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
     const finalOrderNumber = selectedHeader.PEDIDO;
 
     let linesQuery = settings.erpLinesQuery;
-    if (linesQuery.includes('?')) {
-        linesQuery = linesQuery.replace('?', `'${finalOrderNumber}'`);
+    const linesWhereIndex = linesQuery.toLowerCase().indexOf('where');
+    
+    if (linesWhereIndex > -1) {
+        linesQuery += ` AND [PEDIDO] = '${finalOrderNumber}'`;
     } else {
-        const whereIndex = linesQuery.toLowerCase().lastIndexOf('where');
-        const orderByIndex = linesQuery.toLowerCase().lastIndexOf('order by');
-        const condition = ` [PEDIDO] = '${finalOrderNumber}' `;
-        if (whereIndex > -1) {
-             if (orderByIndex > whereIndex) {
-                 linesQuery = `${linesQuery.slice(0, orderByIndex)} AND ${condition} ${linesQuery.slice(orderByIndex)}`;
-            } else {
-                linesQuery += ` AND ${condition}`;
-            }
+        const orderByIndex = linesQuery.toLowerCase().indexOf('order by');
+        if (orderByIndex > -1) {
+            const beforeOrderBy = linesQuery.substring(0, orderByIndex);
+            const afterOrderBy = linesQuery.substring(orderByIndex);
+            linesQuery = `${beforeOrderBy} WHERE [PEDIDO] = '${finalOrderNumber}' ${afterOrderBy}`;
         } else {
-            if (orderByIndex > -1) {
-                linesQuery = `${linesQuery.slice(0, orderByIndex)} WHERE ${condition} ${linesQuery.slice(orderByIndex)}`;
-            } else {
-                linesQuery += ` WHERE ${condition}`;
-            }
+            linesQuery += ` WHERE [PEDIDO] = '${finalOrderNumber}'`;
         }
     }
+
 
     let lines: any[] = [];
     try {
@@ -606,5 +592,6 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
         throw e;
     }
 
-    return { headers, lines };
+    // Sanitize data before returning from server action
+    return JSON.parse(JSON.stringify({ headers, lines }));
 }
