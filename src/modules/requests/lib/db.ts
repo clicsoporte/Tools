@@ -3,7 +3,7 @@
  */
 "use server";
 
-import { connectDb, getAllStock as getAllStockFromMainDb } from '../../core/lib/db';
+import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries as getImportQueriesFromMain } from '../../core/lib/db';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
@@ -533,7 +533,7 @@ export async function getErpOrderData(orderNumber: string): Promise<{headers: Er
     const headers: ErpOrderHeader[] = JSON.parse(JSON.stringify(headersRaw));
 
     if (headers.length === 0) {
-        return JSON.parse(JSON.stringify({ headers: [], lines: [], inventory: [] }));
+        return { headers: [], lines: [], inventory: [] };
     }
 
     const orderNumbers = headers.map((h: ErpOrderHeader) => h.PEDIDO);
@@ -543,10 +543,10 @@ export async function getErpOrderData(orderNumber: string): Promise<{headers: Er
     const lines: ErpOrderLine[] = JSON.parse(JSON.stringify(linesRaw));
     
     if (lines.length === 0) {
-         return JSON.parse(JSON.stringify({ headers, lines: [], inventory: [] }));
+         return { headers, lines: [], inventory: [] };
     }
 
-    const itemIds = [...new Set(lines.map((line: ErpOrderLine) => line.ARTICULO))] as string[];
+    const itemIds = [...new Set(lines.map((line: ErpOrderLine) => line.ARTICULO))];
     const inventory = await getAllStockFromMainDb();
     const relevantInventory = inventory.filter(inv => itemIds.includes(inv.itemId));
 
