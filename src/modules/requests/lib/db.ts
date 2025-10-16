@@ -140,11 +140,11 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
         }
         if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'erpHeaderQuery'`).get()) {
              db.prepare(`INSERT INTO request_settings (key, value) VALUES ('erpHeaderQuery', ?)`)
-               .run("SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA] FROM [SOFTLAND].[GAREND].[PEDIDO] WHERE [ESTADO] <> 'F' AND [PEDIDO] = ?");
+               .run("SELECT [PEDIDO], [ESTADO], [CLIENTE], [FECHA_PEDIDO], [FECHA_PROMETIDA], [ORDEN_COMPRA] FROM [SOFTLAND].[GAREND].[PEDIDO] WHERE [ESTADO] <> 'F'");
         }
          if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'erpLinesQuery'`).get()) {
             db.prepare(`INSERT INTO request_settings (key, value) VALUES ('erpLinesQuery', ?)`)
-              .run("SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA] WHERE [PEDIDO] = ?");
+              .run("SELECT [PEDIDO], [PEDIDO_LINEA], [ARTICULO], [CANTIDAD_PEDIDA] FROM [SOFTLAND].[GAREND].[PEDIDO_LINEA]");
         }
     }
 }
@@ -535,19 +535,17 @@ export async function getRealTimeInventory(itemIds: string[]): Promise<StockInfo
     const stockQueryTemplate = queries.find(q => q.type === 'stock')?.query;
 
     if (!stockQueryTemplate) {
-        // Fallback to local DB if no real-time query is configured
         console.warn("Real-time stock query not configured. Falling back to local stock data.");
         return getAllStockFromMainDb();
     }
     
-    const placeholders = itemIds.map(() => '?').join(',');
-    // This is a safe way to modify the query. We're not injecting user input, but rather a list of placeholders.
-    // We remove any ORDER BY clause to append our WHERE clause safely.
+    // Sanitize item IDs to prevent SQL injection, although they should be safe as they come from our DB.
+    const sanitizedItemIds = itemIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
     const baseQuery = stockQueryTemplate.replace(/order by .*/i, '');
-    const stockQuery = `${baseQuery} WHERE ARTICULO IN (${placeholders})`;
+    const stockQuery = `${baseQuery} WHERE ARTICULO IN (${sanitizedItemIds})`;
 
     try {
-        const stockData = await executeQuery(stockQuery, undefined, ...itemIds);
+        const stockData = await executeQuery(stockQuery, undefined);
         
         const stockMap = new Map<string, { [key: string]: number }>();
         for (const item of stockData) {
