@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
@@ -1117,8 +1118,8 @@ export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise
                 PEDIDO: String(header.PEDIDO),
                 ESTADO: String(header.ESTADO),
                 CLIENTE: String(header.CLIENTE),
-                FECHA_PEDIDO: typeof header.FECHA_PEDIDO === 'object' && header.FECHA_PEDIDO !== null ? header.FECHA_PEDIDO.toISOString() : String(header.FECHA_PEDIDO),
-                FECHA_PROMETIDA: typeof header.FECHA_PROMETIDA === 'object' && header.FECHA_PROMETIDA !== null ? header.FECHA_PROMETIDA.toISOString() : String(header.FECHA_PROMETIDA),
+                FECHA_PEDIDO: header.FECHA_PEDIDO instanceof Date ? header.FECHA_PEDIDO.toISOString() : String(header.FECHA_PEDIDO),
+                FECHA_PROMETIDA: header.FECHA_PROMETIDA instanceof Date ? header.FECHA_PROMETIDA.toISOString() : String(header.FECHA_PROMETIDA),
                 ORDEN_COMPRA: header.ORDEN_COMPRA || null,
                 TOTAL_UNIDADES: header.TOTAL_UNIDADES || null,
                 MONEDA_PEDIDO: header.MONEDA_PEDIDO || null,
