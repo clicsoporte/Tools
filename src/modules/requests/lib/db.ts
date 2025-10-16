@@ -3,7 +3,7 @@
  */
 "use server";
 
-import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries } from '../../core/lib/db';
+import { connectDb, getAllStock as getAllStockFromMainDb } from '../../core/lib/db';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
@@ -526,74 +526,29 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest;
 }
 
-
-async function getRealTimeInventory(itemIds: string[], signal?: AbortSignal): Promise<StockInfo[]> {
-    if (itemIds.length === 0) return [];
-    
-    const mainDb = await connectDb(); // Connect to main intratool.db to get the query
-    const queries = await getImportQueries();
-    const stockQueryTemplate = queries.find(q => q.type === 'stock')?.query;
-
-    if (!stockQueryTemplate) {
-        logError("Real-time stock query not configured.");
-        return [];
-    }
-    
-    const sanitizedItemIds = itemIds.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
-    const stockQuery = stockQueryTemplate.includes('WHERE') 
-        ? `${stockQueryTemplate} AND ARTICULO IN (${sanitizedItemIds})`
-        : `${stockQueryTemplate} WHERE ARTICULO IN (${sanitizedItemIds})`;
-
-    try {
-        const stockDataRaw = await executeQuery(stockQuery);
-        const stockData = JSON.parse(JSON.stringify(stockDataRaw));
-        
-        const stockMap = new Map<string, { [key: string]: number }>();
-        for (const item of stockData) {
-            const itemId = item.ARTICULO;
-            if (!stockMap.has(itemId)) {
-                stockMap.set(itemId, {});
-            }
-            stockMap.get(itemId)![item.BODEGA] = item.CANT_DISPONIBLE;
-        }
-
-        const results: StockInfo[] = [];
-        for (const [itemId, stockByWarehouse] of stockMap.entries()) {
-            const totalStock = Object.values(stockByWarehouse).reduce((acc, val) => acc + val, 0);
-            results.push({ itemId, stockByWarehouse, totalStock });
-        }
-        return results;
-
-    } catch (error: any) {
-        logError('Error al obtener inventario en tiempo real desde ERP', { error: error.message, itemIds });
-        // Return empty array on error to not block the user flow.
-        return [];
-    }
-}
-
-
-export async function getErpOrderData(orderNumber: string, signal?: AbortSignal): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}> {
+export async function getErpOrderData(orderNumber: string): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}> {
     const mainDb = await connectDb();
     
     const headersRaw = mainDb.prepare('SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?').all(`%${orderNumber}%`);
     const headers: ErpOrderHeader[] = JSON.parse(JSON.stringify(headersRaw));
 
     if (headers.length === 0) {
-        return { headers: [], lines: [], inventory: [] };
+        return JSON.parse(JSON.stringify({ headers: [], lines: [], inventory: [] }));
     }
 
-    const orderNumbers = headers.map((h: any) => h.PEDIDO);
-    const sanitizedOrderNumbers = orderNumbers.map((n: any) => `'${n.replace(/'/g, "''")}'`).join(',');
+    const orderNumbers = headers.map((h: ErpOrderHeader) => h.PEDIDO);
+    const sanitizedOrderNumbers = orderNumbers.map((n: string) => `'${n.replace(/'/g, "''")}'`).join(',');
 
     const linesRaw = mainDb.prepare(`SELECT * FROM erp_order_lines WHERE PEDIDO IN (${sanitizedOrderNumbers})`).all();
     const lines: ErpOrderLine[] = JSON.parse(JSON.stringify(linesRaw));
     
     if (lines.length === 0) {
-        return { headers, lines: [], inventory: [] };
+         return JSON.parse(JSON.stringify({ headers, lines: [], inventory: [] }));
     }
 
-    const itemIds = [...new Set(lines.map((line: any) => line.ARTICULO))] as string[];
-    const inventory = await getRealTimeInventory(itemIds, signal);
+    const itemIds = [...new Set(lines.map((line: ErpOrderLine) => line.ARTICULO))] as string[];
+    const inventory = await getAllStockFromMainDb();
+    const relevantInventory = inventory.filter(inv => itemIds.includes(inv.itemId));
 
-    return JSON.parse(JSON.stringify({ headers, lines, inventory }));
+    return JSON.parse(JSON.stringify({ headers, lines, inventory: relevantInventory }));
 }

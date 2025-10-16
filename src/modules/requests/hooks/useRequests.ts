@@ -459,10 +459,10 @@ export const useRequests = () => {
         try {
             const { headers } = await getErpOrderData(state.erpOrderNumber);
             
-            const enrichedHeaders = headers.map((h: any) => {
+            const enrichedHeaders = headers.map((h: ErpOrderHeader) => {
                 const client = authCustomers.find(c => c.id === h.CLIENTE);
                 return { ...h, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
-            }).sort((a: any, b: any) => {
+            }).sort((a: ErpOrderHeader, b: ErpOrderHeader) => {
                 if (a.PEDIDO === state.erpOrderNumber) return -1;
                 if (b.PEDIDO === state.erpOrderNumber) return 1;
                 return a.PEDIDO.localeCompare(b.PEDIDO);
@@ -561,7 +561,7 @@ export const useRequests = () => {
                 const requestPayload = {
                     requiredDate: new Date(state.selectedErpOrderHeader.FECHA_PROMETIDA).toISOString().split('T')[0],
                     clientId: state.selectedErpOrderHeader.CLIENTE,
-                    clientName: state.selectedErpOrderHeader.CLIENTE_NOMBRE,
+                    clientName: state.selectedErpOrderHeader.CLIENTE_NOMBRE || '',
                     clientTaxId: authCustomers.find(c => c.id === state.selectedErpOrderHeader.CLIENTE)?.taxId || '',
                     itemId: line.ARTICULO,
                     itemDescription: line.product.description,
