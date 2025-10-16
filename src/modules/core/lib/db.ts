@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
@@ -235,11 +233,14 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
 
     db.exec(mainSchema);
 
-    const userInsert = db.prepare('INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)');
-    initialUsers.forEach(user => {
-        const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
-        userInsert.run({ ...user, password: hashedPassword });
-    });
+    // Initial users are no longer created here. They are created via the setup wizard.
+    if (initialUsers.length > 0) {
+        const userInsert = db.prepare('INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)');
+        initialUsers.forEach(user => {
+            const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
+            userInsert.run({ ...user, password: hashedPassword });
+        });
+    }
 
     db.prepare(`INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, importMode, quoterShowTaxId, syncWarningHours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
@@ -255,9 +256,21 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     const roleInsert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
 
-    console.log(`Database ${DB_FILE} initialized with default users, company settings, and roles.`);
+    console.log(`Database ${DB_FILE} initialized with default company settings and roles.`);
     await checkAndApplyMigrations(db);
 }
+
+export async function getUserCount(): Promise<number> {
+    const db = await connectDb();
+    try {
+        const row = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+        return row.count;
+    } catch(e) {
+        // This might happen if the table doesn't exist yet on the very first run.
+        return 0;
+    }
+}
+
 
 export async function getCompanySettings(): Promise<Company | null> {
     const db = await connectDb();
@@ -483,7 +496,7 @@ export async function saveAllProducts(products: Product[]): Promise<void> {
             // Ensure date objects are converted to strings before binding
             const productToSave = {
                 ...product,
-                lastEntry: typeof product.lastEntry === 'object' && product.lastEntry !== null ? (product.lastEntry as Date).toISOString() : product.lastEntry,
+                lastEntry: product.lastEntry instanceof Date ? product.lastEntry.toISOString() : product.lastEntry,
             };
             insert.run(productToSave);
         }
@@ -543,8 +556,8 @@ export async function saveAllExemptions(exemptions: Exemption[]): Promise<void> 
         for(let exemption of exemptionsToSave) {
              const exemptionToSave = {
                 ...exemption,
-                startDate: typeof exemption.startDate === 'object' && exemption.startDate !== null ? (exemption.startDate as Date).toISOString() : exemption.startDate,
-                endDate: typeof exemption.endDate === 'object' && exemption.endDate !== null ? (exemption.endDate as Date).toISOString() : exemption.endDate,
+                startDate: exemption.startDate instanceof Date ? exemption.startDate.toISOString() : exemption.startDate,
+                endDate: exemption.endDate instanceof Date ? exemption.endDate.toISOString() : exemption.endDate,
              };
             insert.run(exemptionToSave);
         }

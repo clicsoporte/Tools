@@ -127,8 +127,9 @@ Esta es una de las funcionalidades más críticas y flexibles, gestionada desde 
     ```
     La aplicación se iniciará en `http://localhost:9003`.
 4.  **Primer Inicio de Sesión**:
-    -   **Usuario**: `jonathan@clicsoporte.com`
-    -   **Contraseña**: `LGnexus4*`
+    -   Al acceder por primera vez, la aplicación te presentará un **Asistente de Configuración**.
+    -   Deberás crear el **primer usuario administrador** introduciendo tu nombre, correo y una contraseña segura.
+    -   Ya no existen credenciales por defecto.
 5.  **Construir y Ejecutar en Producción**:
     ```bash
     npm run build

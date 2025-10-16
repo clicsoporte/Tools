@@ -1,27 +1,29 @@
 /**
- * @fileoverview The main login page for the application.
- * This is a Server Component that fetches request headers (IP, hostname)
- * and passes them to the client-side AuthForm component for secure logging.
+ * @fileoverview The main entry point of the application.
+ * This Server Component acts as a router, determining whether to show
+ * the login form or the initial setup wizard based on whether any users
+ * exist in the database.
  */
 
 import { headers } from "next/headers";
 import { AuthForm } from "@/components/auth/auth-form";
-import { getCompanySettings } from "@/modules/core/lib/db";
+import { SetupWizard } from "@/components/auth/setup-wizard";
+import { getCompanySettings, getUserCount } from "@/modules/core/lib/db";
 import { Suspense } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Network } from "lucide-react";
+import { Network, UserPlus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-async function CompanyInfo() {
+async function CompanyInfo({ hasUsers }: { hasUsers: boolean }) {
   const companyData = await getCompanySettings();
   return (
     <CardHeader className="text-center">
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
-        <Network className="h-8 w-8" />
+        {hasUsers ? <Network className="h-8 w-8" /> : <UserPlus className="h-8 w-8" />}
       </div>
-      <CardTitle className="text-3xl font-bold">{companyData?.systemName || "Clic-Tools"}</CardTitle>
+      <CardTitle className="text-3xl font-bold">{hasUsers ? companyData?.systemName || "Clic-Tools" : "Bienvenido a Clic-Tools"}</CardTitle>
       <CardDescription>
-        Inicia sesión para acceder a tus herramientas
+        {hasUsers ? "Inicia sesión para acceder a tus herramientas" : "Completa la configuración para crear tu cuenta de administrador"}
       </CardDescription>
     </CardHeader>
   );
@@ -38,11 +40,14 @@ function CompanyInfoSkeleton() {
 }
 
 /**
- * Renders the login page.
- * It fetches server-side data (company info, request headers) and passes it
- * to the client component responsible for handling user interaction.
+ * Renders either the login page or the setup wizard.
+ * It fetches server-side data (user count, request headers) and passes it
+ * to the appropriate client component.
  */
-export default async function LoginPage() {
+export default async function InitialPage() {
+  const userCount = await getUserCount();
+  const hasUsers = userCount > 0;
+
   const requestHeaders = headers();
   const clientIp = requestHeaders.get('x-forwarded-for') ?? 'Unknown IP';
   const clientHost = requestHeaders.get('host') ?? 'Unknown Host';
@@ -52,10 +57,14 @@ export default async function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm shadow-2xl">
         <Suspense fallback={<CompanyInfoSkeleton />}>
-            <CompanyInfo />
+            <CompanyInfo hasUsers={hasUsers} />
         </Suspense>
         <CardContent>
-             <AuthForm clientInfo={clientInfo} />
+            {hasUsers ? (
+                <AuthForm clientInfo={clientInfo} />
+            ) : (
+                <SetupWizard clientInfo={clientInfo} />
+            )}
         </CardContent>
       </Card>
     </div>

@@ -34,22 +34,9 @@ import {
 /**
  * The default user to be created in the database.
  * This ensures there is always at least one administrator.
+ * @deprecated This is no longer used. The first user is created via the setup wizard.
  */
-export const initialUsers: User[] = [
-  {
-    id: 1,
-    name: "Jonathan Ugalde G",
-    email: "jonathan@clicsoporte.com",
-    password: "LGnexus4*",
-    phone: "+(506) 1111-2222",
-    whatsapp: "+(506) 1111-2222",
-    avatar: "", // Intentionally blank, will use fallback
-    role: "admin",
-    recentActivity: "Usuario administrador principal.",
-    securityQuestion: "¿Cuál es el nombre de mi primera mascota?",
-    securityAnswer: "fido",
-  },
-];
+export const initialUsers: User[] = [];
 
 /**
  * Initial company data for the general settings.
