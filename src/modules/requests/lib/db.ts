@@ -271,7 +271,7 @@ export async function getRequests(options: {
     return { requests: allRequests, totalArchivedCount };
 }
 
-export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
+export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'>, requestedBy: string): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const settings = await getSettings();
@@ -544,7 +544,7 @@ export async function getRealTimeInventory(itemIds: string[], signal?: AbortSign
 
     try {
         const stockDataRaw = await executeQuery(stockQuery, signal);
-        const stockData: { ARTICULO: string, BODEGA: string, CANT_DISPONIBLE: number }[] = JSON.parse(JSON.stringify(stockDataRaw));
+        const stockData = JSON.parse(JSON.stringify(stockDataRaw));
         
         const stockMap = new Map<string, { [key: string]: number }>();
         for (const item of stockData) {
@@ -577,8 +577,11 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
 
     const sanitizedValue = orderNumber.replace(/'/g, "''");
     
-    // Use the stored query, which already contains filtering logic
-    const headerQuery = `${settings.erpHeaderQuery} AND [PEDIDO] LIKE '%${sanitizedValue}%'`;
+    const headerBaseQuery = settings.erpHeaderQuery.includes('WHERE')
+        ? settings.erpHeaderQuery
+        : `${settings.erpHeaderQuery} WHERE 1=1`;
+    
+    const headerQuery = `${headerBaseQuery} AND [PEDIDO] LIKE '%${sanitizedValue}%'`;
     
     let headersRaw: any[] = [];
     try {
@@ -587,18 +590,22 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
         await logError('Error ejecutando consulta de cabecera de Pedido ERP', { error: e.message, query: headerQuery });
         throw e;
     }
+    
+    const headers = JSON.parse(JSON.stringify(headersRaw));
 
     if (signal?.aborted) throw new Error('Aborted');
-    if (headersRaw.length === 0) {
+    if (headers.length === 0) {
         return { headers: [], lines: [], inventory: [] };
     }
     
-    const headers: { PEDIDO: string }[] = JSON.parse(JSON.stringify(headersRaw));
-    
-    const orderNumbers = headers.map(h => h.PEDIDO);
+    const orderNumbers: string[] = headers.map((h: any) => h.PEDIDO);
     const sanitizedOrderNumbers = orderNumbers.map(n => `'${n.replace(/'/g, "''")}'`).join(',');
-
-    const linesQuery = `${settings.erpLinesQuery} AND [PEDIDO] IN (${sanitizedOrderNumbers})`;
+    
+    const linesBaseQuery = settings.erpLinesQuery.includes('WHERE')
+        ? settings.erpLinesQuery
+        : `${settings.erpLinesQuery} WHERE 1=1`;
+    
+    const linesQuery = `${linesBaseQuery} AND [PEDIDO] IN (${sanitizedOrderNumbers})`;
     
     let linesRaw: any[] = [];
     try {
@@ -608,14 +615,14 @@ export async function getErpOrderData(orderNumber: string, signal?: AbortSignal)
         throw e;
     }
     
-    const lines: { ARTICULO: string }[] = JSON.parse(JSON.stringify(linesRaw));
-
+    const lines = JSON.parse(JSON.stringify(linesRaw));
+    
     if (signal?.aborted) throw new Error('Aborted');
     if (lines.length === 0) {
         return { headers, lines: [], inventory: [] };
     }
 
-    const itemIds: string[] = [...new Set(lines.map(line => line.ARTICULO))] as string[];
+    const itemIds = [...new Set(lines.map((line: any) => line.ARTICULO))] as string[];
     const inventory = await getRealTimeInventory(itemIds, signal);
 
     return JSON.parse(JSON.stringify({ headers, lines, inventory }));
