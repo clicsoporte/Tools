@@ -78,9 +78,11 @@ export function useRequestSuggestions() {
             toast({ title: "Error al Analizar", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isLoading: false });
-            setIsInitialLoading(false);
+            if (isInitialLoading) {
+                setIsInitialLoading(false);
+            }
         }
-    }, [state.dateRange, toast, updateState]);
+    }, [state.dateRange, toast, updateState, isInitialLoading]);
     
     useEffect(() => {
         setTitle("Sugerencias de Compra");
@@ -189,9 +191,8 @@ export function useRequestSuggestions() {
         filteredSuggestions,
         selectedSuggestions,
         areAllSelected: useMemo(() => {
-            const filteredIds = new Set(filteredSuggestions.map(s => s.itemId));
-            if (filteredIds.size === 0) return false;
-            return [...filteredIds].every(id => state.selectedItems.has(id));
+            if (filteredSuggestions.length === 0) return false;
+            return filteredSuggestions.every(s => state.selectedItems.has(s.itemId));
         }, [filteredSuggestions, state.selectedItems]),
         
         classifications: useMemo<string[]>(() => 

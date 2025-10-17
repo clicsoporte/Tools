@@ -83,12 +83,12 @@ export default function PurchaseSuggestionsPage() {
                             <CardDescription>Selecciona los filtros para analizar los pedidos del ERP.</CardDescription>
                         </div>
                         <Button onClick={actions.handleAnalyze} disabled={isLoading}>
-                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                             Analizar Pedidos
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent className="flex flex-wrap gap-4">
+                <CardContent className="flex flex-wrap gap-4 items-center">
                      <Popover>
                         <PopoverTrigger asChild>
                             <Button
@@ -150,7 +150,10 @@ export default function PurchaseSuggestionsPage() {
                                 Esta es una lista consolidada de todos los artículos necesarios para cumplir con los pedidos seleccionados, que no tienen suficiente stock.
                             </CardDescription>
                         </div>
-                        <Button onClick={actions.handleExportExcel} variant="outline"><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar a Excel</Button>
+                        <Button onClick={actions.handleExportExcel} variant="outline" disabled={isLoading || selectors.filteredSuggestions.length === 0}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Exportar a Excel
+                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -161,8 +164,8 @@ export default function PurchaseSuggestionsPage() {
                                     <TableHead className="w-12">
                                          <Checkbox
                                             checked={selectors.areAllSelected}
-                                            onCheckedChange={actions.toggleSelectAll}
-                                            disabled={selectors.filteredSuggestions.length === 0}
+                                            onCheckedChange={(checked) => actions.toggleSelectAll(checked as boolean)}
+                                            disabled={isLoading || selectors.filteredSuggestions.length === 0}
                                         />
                                     </TableHead>
                                     <TableHead>Artículo</TableHead>
