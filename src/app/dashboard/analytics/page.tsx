@@ -9,15 +9,27 @@ import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { analyticsTools } from "@/modules/core/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 export default function AnalyticsDashboardPage() {
     const { setTitle } = usePageTitle();
-    const { isAuthorized } = useAuthorization(['analytics:read']);
+    const { isAuthorized, hasPermission } = useAuthorization(['analytics:read']);
 
     useEffect(() => {
         setTitle("Analíticas y Reportes");
     }, [setTitle]);
+
+    const visibleTools = useMemo(() => {
+        if (!isAuthorized) return [];
+        // Filter tools based on specific sub-permissions for analytics
+        return analyticsTools.filter(tool => {
+            if (tool.id === 'purchase-suggestions') {
+                return hasPermission('analytics:purchase-suggestions:read');
+            }
+            // Add other tool checks here as they are created
+            return true;
+        });
+    }, [isAuthorized, hasPermission]);
 
     if (isAuthorized === null) {
         return (
@@ -46,7 +58,7 @@ export default function AnalyticsDashboardPage() {
               Herramientas de Análisis
             </h2>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {analyticsTools.map((tool) => (
+              {visibleTools.map((tool) => (
                 <ToolCard key={tool.id} tool={tool} />
               ))}
             </div>

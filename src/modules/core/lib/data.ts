@@ -29,6 +29,8 @@ import {
   PackagePlus,
   BookMarked,
   MessageSquare,
+  BarChartBig,
+  Lightbulb,
 } from "lucide-react";
 
 /**
@@ -175,6 +177,7 @@ export const initialRoles: Role[] = [
         "planner:machine:assign",
         "planner:schedule",
         "analytics:read",
+        "analytics:purchase-suggestions:read",
         "users:create",
         "users:read",
         "users:update",
@@ -362,8 +365,20 @@ export const adminTools: Tool[] = [
       }
 ];
 
+export const analyticsTools: Tool[] = [
+    {
+        id: "purchase-suggestions",
+        name: "Sugerencias de Compra",
+        description: "Analizar pedidos y stock para sugerir compras proactivas.",
+        href: "/dashboard/analytics/purchase-suggestions",
+        icon: Lightbulb,
+        bgColor: "bg-blue-600",
+        textColor: "text-white",
+    }
+];
+
 
 /**
  * A combined list of all tools for easy access.
  */
-export const allTools: Tool[] = [...mainTools, ...adminTools];
+export const allTools: Tool[] = [...mainTools, ...adminTools, ...analyticsTools];
