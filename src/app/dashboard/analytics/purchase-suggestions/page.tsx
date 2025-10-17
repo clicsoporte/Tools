@@ -6,7 +6,7 @@
 'use client';
 
 import React from 'react';
-import { useRequestSuggestions } from '@/modules/requests/hooks/useRequestSuggestions';
+import { useRequestSuggestions } from '@/modules/requests/hooks/useRequestSuggestions.tsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -166,7 +166,7 @@ export default function PurchaseSuggestionsPage() {
                                             <DropdownMenuCheckboxItem
                                                 key={column.id}
                                                 checked={visibleColumns.includes(column.id)}
-                                                onCheckedChange={(checked) => actions.handleColumnVisibilityChange(column.id, checked)}
+                                                onCheckedChange={(checked) => actions.handleColumnVisibilityChange(column.id, checked as boolean)}
                                             >
                                                 {column.label}
                                             </DropdownMenuCheckboxItem>
