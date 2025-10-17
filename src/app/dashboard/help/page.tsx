@@ -17,7 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Layers, UploadCloud } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Layers, UploadCloud, BarChartBig, Lightbulb, FileSpreadsheet } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -204,6 +204,9 @@ export default function HelpPage() {
                         <strong>Solicitar Cancelación:</strong> Si una solicitud ya está Aprobada u Ordenada, no se puede cancelar directamente. En su lugar, un usuario con permisos puede &quot;Solicitar Cancelación&quot;. Esto pone la solicitud en un estado de espera y notifica a un administrador, quien debe aprobar o rechazar la cancelación, dejando un registro del motivo.
                     </li>
                     <li>
+                        <strong>Exportación:</strong> En el menú desplegable &quot;Exportar&quot;, puedes generar un archivo **PDF** del reporte actual o un archivo **Excel (.xlsx)** para análisis externo.
+                    </li>
+                    <li>
                         <strong>Navegar en el Historial:</strong> Para mantener la velocidad, la vista de &quot;Archivadas&quot; carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
                     </li>
                     </ul>
@@ -255,10 +258,42 @@ export default function HelpPage() {
                             </ul>
                         </li>
                         <li>
+                            <strong>Exportación:</strong> En el menú desplegable &quot;Exportar&quot;, puedes generar un archivo **PDF** del reporte actual o un archivo **Excel (.xlsx)** para análisis externo.
+                        </li>
+                        <li>
                             <strong>Historial (<History className="inline h-4 w-4"/>):</strong> Haz clic en el icono de historial en cualquier orden para ver un registro detallado de cada cambio de estado, quién lo hizo y cuándo.
                         </li>
                     </ul>
                 </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-analytics">
+                    <AccordionTrigger className="text-lg font-semibold">
+                        <BarChartBig className="mr-4 h-6 w-6 text-indigo-500" />
+                        Tutorial: Módulo de Analíticas
+                    </AccordionTrigger>
+                    <AccordionContent className="prose max-w-none text-base space-y-4">
+                        <p>
+                        Este es el centro de inteligencia de la aplicación. Agrupa herramientas que analizan los datos del ERP y del sistema para ayudarte a tomar decisiones más inteligentes.
+                        </p>
+                        <h4 className="font-semibold text-lg pt-2 border-t">Sugerencias de Compra Proactivas (<Lightbulb className="inline h-5 w-5 text-yellow-400"/>)</h4>
+                        <ol className="list-decimal space-y-3 pl-6">
+                            <li>
+                                <strong>¿Qué hace?:</strong> Esta herramienta revisa todos los pedidos de venta del ERP dentro de un rango de fechas, los compara con el inventario actual y te dice exactamente qué artículos te hacen falta para cumplir con esos pedidos.
+                            </li>
+                            <li>
+                                <strong>¿Cómo se usa?:</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Selecciona un rango de fechas de los pedidos del ERP que quieres analizar y haz clic en &quot;Analizar Pedidos&quot;.</li>
+                                    <li>El sistema te mostrará una tabla con los artículos faltantes. Para cada artículo, verás la cantidad total que necesitas, cuánto tienes en inventario, y el faltante exacto.</li>
+                                    <li>También verás información clave como los **clientes involucrados** y la **próxima fecha de entrega** que debes cumplir.</li>
+                                    <li>Usa los filtros de búsqueda y de clasificación para refinar la lista. Puedes seleccionar varias clasificaciones a la vez gracias a los nuevos checkboxes.</li>
+                                    <li>Marca los artículos que quieres comprar, y haz clic en **&quot;Crear Solicitudes&quot;** para generar todas las solicitudes de compra de forma automática.</li>
+                                    <li>Puedes exportar esta vista a **Excel** para un análisis más profundo.</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-warehouse">
@@ -391,7 +426,7 @@ export default function HelpPage() {
                             </div>
                             <div className="flex items-start gap-4">
                                 <ShieldCheck className="mt-1 h-6 w-6 text-green-500 shrink-0" />
-                                <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo.</p></div>
+                                <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo. La función "Restablecer Roles" ahora sobreescribe los roles por defecto para garantizar que siempre tengan los permisos de las últimas funcionalidades.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
                                 <Briefcase className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
@@ -491,7 +526,36 @@ export default function HelpPage() {
                         Control de Cambios (Changelog)
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <h4 className="font-semibold text-lg">Versión 1.5.3 <Badge variant="secondary">Actual</Badge></h4>
+                        <h4 className="font-semibold text-lg">Versión 1.5.4 <Badge variant="secondary">Actual</Badge></h4>
+                        <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
+                        <ul className="list-disc space-y-3 pl-6">
+                            <li>
+                                <strong>Nuevo Módulo: Analíticas y Reportes.</strong> Se ha añadido un nuevo módulo central para herramientas de inteligencia de negocio.
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Se movió la herramienta de **Sugerencias de Compra Proactivas** a este nuevo módulo.</li>
+                                    <li>Se implementaron permisos granulares (`analytics:read` y `analytics:purchase-suggestions:read`) para un control de acceso detallado.</li>
+                                    <li>Se añadió una nueva tarjeta y una entrada en el menú lateral para acceder fácilmente.</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Mejora Mayor en Filtros: Selección Múltiple.</strong> Se reemplazaron los filtros de selección simple por un nuevo componente de checkboxes que permite seleccionar múltiples opciones a la vez, mejorando drásticamente la capacidad de filtrado en los módulos de **Planificador**, **Solicitudes de Compra** y **Sugerencias de Compra**.
+                            </li>
+                            <li>
+                                <strong>Nueva Funcionalidad: Exportación a Excel (.xlsx).</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Se añadió la opción de "Exportar a Excel" en los módulos de **Planificador**, **Solicitudes de Compra** y **Sugerencias de Compra**.</li>
+                                    <li>La exportación respeta los filtros aplicados en la vista actual.</li>
+                                    <li>El archivo `.xlsx` generado incluye formato básico como encabezados en negrita y anchos de columna automáticos para una mejor legibilidad.</li>
+                                </ul>
+                            </li>
+                             <li>
+                                <strong>Mejora de UX en Sugerencias de Compra:</strong> Se añadieron nuevas columnas (Clientes Involucrados, Próxima Entrega) y se fijó la cabecera de la tabla para facilitar la visualización de listas largas.
+                            </li>
+                             <li>
+                                <strong>Corrección de Errores Críticos:</strong> Se solucionaron múltiples errores de compilación y de ejecución relacionados con importaciones incorrectas, dependencias circulares en los hooks y lógica de autorización, restaurando la estabilidad de los módulos de solicitudes y analíticas.
+                            </li>
+                        </ul>
+                         <h4 className="font-semibold text-lg pt-4 border-t">Versión 1.5.3</h4>
                         <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                         <ul className="list-disc space-y-3 pl-6">
                            <li>

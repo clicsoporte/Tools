@@ -1,6 +1,6 @@
 # Clic-Tools: Documentación Técnica y Manual de Usuario
 
-**Clic-Tools v1.5.3** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
+**Clic-Tools v1.5.4** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
 
 ---
 
@@ -54,6 +54,7 @@
 - **Trazabilidad:** Cada cambio de estado, nota o modificación queda registrada en un historial detallado por orden.
 - **Alertas Visuales:** Las órdenes modificadas después de ser aprobadas se marcan visualmente para alertar a los supervisores.
 - **Paginación de Archivados**: Para manejar un gran volumen de datos, las órdenes archivadas se cargan por páginas. La búsqueda y el filtrado se aplican de forma eficiente sobre todo el conjunto de datos archivados del lado del servidor.
+- **Exportación Flexible:** Permite exportar la vista actual (con filtros) a un archivo **PDF** o **Excel (.xlsx)**.
 
 ### 3.3. Solicitud de Compra (`/dashboard/requests`)
 - **Visibilidad Controlada:** Igual que el planificador, los usuarios ven por defecto solo sus propias solicitudes. El permiso `requests:read:all` otorga visibilidad total.
@@ -62,16 +63,25 @@
 - **Claridad del Cliente y Trazabilidad del ERP:** Muestra el nombre y la cédula del cliente asociado a la solicitud, así como el número de pedido del ERP del que se originó, creando una trazabilidad completa.
 - **Alertas y Trazabilidad:** Al igual que el planificador, las solicitudes modificadas post-aprobación se marcan visualmente, y cada cambio queda en un historial.
 - **Paginación de Archivados**: Las solicitudes archivadas se cargan por páginas, y la búsqueda es eficiente sobre todo el historial.
+- **Exportación Flexible:** Permite exportar la vista actual (con filtros) a un archivo **PDF** o **Excel (.xlsx)**.
 
-### 3.4. Almacenes (`/dashboard/warehouse`)
+### 3.4. Analíticas y Reportes (`/dashboard/analytics`)
+Este módulo agrupa herramientas de inteligencia de negocio para ayudar en la toma de decisiones.
+- **Sugerencias de Compra Proactivas (`/purchase-suggestions`):**
+    - Analiza los pedidos de venta del ERP en un rango de fechas y los cruza con el inventario actual.
+    - Genera una lista consolidada de todos los artículos que tienen un faltante de stock para cumplir con la demanda.
+    - Permite filtrar por clasificación de producto y muestra detalles como los clientes involucrados y la fecha de entrega más próxima.
+    - Con un solo clic, el usuario puede seleccionar los artículos sugeridos y crear automáticamente las solicitudes de compra necesarias.
+
+### 3.5. Almacenes (`/dashboard/warehouse`)
 - **Consulta de Inventario:** Permite buscar artículos o clientes y ver sus ubicaciones y existencias en tiempo real, combinando datos del ERP y las ubicaciones físicas asignadas.
 - **Asignación de Ubicaciones:** Herramienta para mover inventario o asignar artículos a ubicaciones físicas en el almacén.
 - **Configuración Flexible:** Soporta un modo "informativo" (solo asignación) y un modo "avanzado" (conteo de existencias físicas por ubicación).
 
-### 3.5. Consultas Hacienda (`/dashboard/hacienda`)
+### 3.6. Consultas Hacienda (`/dashboard/hacienda`)
 - **Búsqueda Unificada:** Centraliza la consulta de situación tributaria y exoneraciones de un cliente, cruzando datos del ERP con las APIs de Hacienda.
 
-### 3.6. Buzón de Sugerencias (`/dashboard/admin/suggestions`)
+### 3.7. Buzón de Sugerencias (`/dashboard/admin/suggestions`)
 - **Feedback Directo:** Permite a los usuarios enviar sugerencias o reportar problemas directamente desde la interfaz.
 - **Panel de Administración:** Los administradores pueden ver, gestionar y marcar como leídas las sugerencias para un seguimiento efectivo.
 
