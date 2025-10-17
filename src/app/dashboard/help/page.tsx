@@ -381,7 +381,7 @@ export default function HelpPage() {
                                 </ul>
                             </li>
                              <li>
-                                <strong>Búsquedas Individuales:</strong> También puedes usar las pestañas &quot;Situación Tributaria&quot; y &quot;Exoneraciones&quot; para hacer consultas directas a Hacienda ingresando una cédula o un número de autorización, respectively.
+                                <strong>Búsquedas Individuales:</strong> También puedes usar las pestañas &quot;Situación Tributaria&quot; y &quot;Exoneraciones&quot; para hacer consultas directas a Hacienda ingresando una cédula o un número de autorización, respectivamente.
                             </li>
                         </ul>
                     </AccordionContent>
@@ -426,7 +426,7 @@ export default function HelpPage() {
                             </div>
                             <div className="flex items-start gap-4">
                                 <ShieldCheck className="mt-1 h-6 w-6 text-green-500 shrink-0" />
-                                <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo. La función "Restablecer Roles" ahora sobreescribe los roles por defecto para garantizar que siempre tengan los permisos de las últimas funcionalidades.</p></div>
+                                <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo. La función &quot;Restablecer Roles&quot; ahora sobreescribe los roles por defecto para garantizar que siempre tengan los permisos de las últimas funcionalidades.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
                                 <Briefcase className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
@@ -543,7 +543,7 @@ export default function HelpPage() {
                             <li>
                                 <strong>Nueva Funcionalidad: Exportación a Excel (.xlsx).</strong>
                                 <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                    <li>Se añadió la opción de "Exportar a Excel" en los módulos de **Planificador**, **Solicitudes de Compra** y **Sugerencias de Compra**.</li>
+                                    <li>Se añadió la opción de &quot;Exportar a Excel&quot; en los módulos de **Planificador**, **Solicitudes de Compra** y **Sugerencias de Compra**.</li>
                                     <li>La exportación respeta los filtros aplicados en la vista actual.</li>
                                     <li>El archivo `.xlsx` generado incluye formato básico como encabezados en negrita y anchos de columna automáticos para una mejor legibilidad.</li>
                                 </ul>
