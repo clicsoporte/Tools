@@ -4,7 +4,7 @@
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, Customer } from '../../core/types';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User } from '../../core/types';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { createNotification } from '@/modules/core/lib/notifications-actions';
 import { 
@@ -144,11 +144,11 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
     const allProducts = await getAllProducts();
     const allCustomers = await getAllCustomers();
 
-    const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string>; clientIds: Set<string>; latestDueDate: Date | null; }>();
+    const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string>; clientIds: Set<string>; earliestDueDate: Date | null; }>();
 
     for (const line of lines) {
         if (!requiredItems.has(line.ARTICULO)) {
-            requiredItems.set(line.ARTICULO, { totalRequired: 0, sourceOrders: new Set(), clientIds: new Set(), latestDueDate: null });
+            requiredItems.set(line.ARTICULO, { totalRequired: 0, sourceOrders: new Set(), clientIds: new Set(), earliestDueDate: null });
         }
         const item = requiredItems.get(line.ARTICULO)!;
         item.totalRequired += line.CANTIDAD_PEDIDA;
@@ -158,8 +158,8 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
             item.sourceOrders.add(header.PEDIDO);
             item.clientIds.add(header.CLIENTE);
             const dueDate = new Date(header.FECHA_PROMETIDA);
-            if (!item.latestDueDate || dueDate > item.latestDueDate) {
-                item.latestDueDate = dueDate;
+            if (!item.earliestDueDate || dueDate < item.earliestDueDate) {
+                item.earliestDueDate = dueDate;
             }
         }
     }
@@ -187,7 +187,7 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
                 shortage,
                 sourceOrders: Array.from(data.sourceOrders),
                 involvedClients,
-                latestDueDate: data.latestDueDate ? data.latestDueDate.toISOString() : null,
+                earliestDueDate: data.earliestDueDate ? data.earliestDueDate.toISOString() : null,
             });
         }
     }

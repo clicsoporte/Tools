@@ -156,7 +156,7 @@ export default function RequestSuggestionsPage() {
                                     </TableHead>
                                     <TableHead>Artículo</TableHead>
                                     <TableHead>Clientes Involucrados</TableHead>
-                                    <TableHead>Última Fecha Entrega</TableHead>
+                                    <TableHead>Próxima Entrega</TableHead>
                                     <TableHead className="text-right">Cant. Requerida</TableHead>
                                     <TableHead className="text-right">Inv. Actual (ERP)</TableHead>
                                     <TableHead className="text-right">Faltante Total</TableHead>
@@ -188,7 +188,7 @@ export default function RequestSuggestionsPage() {
                                                 </p>
                                             </TableCell>
                                             <TableCell>
-                                                {item.latestDueDate ? format(new Date(item.latestDueDate), 'dd/MM/yyyy') : 'N/A'}
+                                                {item.earliestDueDate ? format(new Date(item.earliestDueDate), 'dd/MM/yyyy') : 'N/A'}
                                             </TableCell>
                                             <TableCell className="text-right">{item.totalRequired.toLocaleString()}</TableCell>
                                             <TableCell className="text-right">{item.currentStock.toLocaleString()}</TableCell>

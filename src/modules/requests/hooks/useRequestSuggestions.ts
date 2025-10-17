@@ -23,7 +23,7 @@ export interface PurchaseSuggestion {
     shortage: number;
     sourceOrders: string[];
     involvedClients: { id: string; name: string }[];
-    latestDueDate: string | null;
+    earliestDueDate: string | null;
 }
 
 interface State {
@@ -118,7 +118,7 @@ export function useRequestSuggestions() {
             let createdCount = 0;
             for (const item of selectors.selectedSuggestions) {
                  const requestPayload = {
-                    requiredDate: item.latestDueDate || new Date().toISOString().split('T')[0],
+                    requiredDate: item.earliestDueDate || new Date().toISOString().split('T')[0],
                     clientId: 'VAR-CLI', // Generic client
                     clientName: 'VARIOS CLIENTES',
                     clientTaxId: '',
