@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
-import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart, FilterX, Search } from 'lucide-react';
+import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart, FilterX, Search, FileSpreadsheet } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -21,18 +21,19 @@ import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 
-export default function RequestSuggestionsPage() {
+export default function PurchaseSuggestionsPage() {
     const {
         state,
         actions,
         selectors,
+        isAuthorized
     } = useRequestSuggestions();
 
-    const { isLoading, dateRange, suggestions, selectedItems, isSubmitting, searchTerm, classificationFilter } = state;
+    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter } = state;
 
-    if (isLoading && suggestions.length === 0) {
+    if (isAuthorized === null || (isLoading && selectors.suggestions.length === 0)) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card>
@@ -48,6 +49,10 @@ export default function RequestSuggestionsPage() {
             </main>
         );
     }
+    
+    if (isAuthorized === false) {
+        return null;
+    }
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -62,9 +67,9 @@ export default function RequestSuggestionsPage() {
                     </div>
                 </div>
                  <Button asChild variant="outline">
-                    <Link href="/dashboard/requests">
+                    <Link href="/dashboard/analytics">
                         <ShoppingCart className="mr-2 h-4 w-4" />
-                        Volver a Solicitudes
+                        Volver a Analíticas
                     </Link>
                 </Button>
             </div>
@@ -124,23 +129,27 @@ export default function RequestSuggestionsPage() {
                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input placeholder="Buscar por código o descripción..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="pl-8 w-full md:w-[300px]" />
                     </div>
-                    <Select value={classificationFilter} onValueChange={actions.setClassificationFilter}>
-                        <SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Filtrar por clasificación..." /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todas las Clasificaciones</SelectItem>
-                            {selectors.classifications.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                     <Button variant="ghost" onClick={actions.handleClearFilters}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
+                     <MultiSelectFilter
+                        title="Clasificación"
+                        options={selectors.classifications.map(c => ({ value: c, label: c }))}
+                        selectedValues={classificationFilter}
+                        onSelectedChange={actions.setClassificationFilter}
+                    />
+                    <Button variant="ghost" onClick={actions.handleClearFilters}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                 </CardContent>
             </Card>
 
             <Card className="mt-6">
                 <CardHeader>
-                    <CardTitle>Artículos con Faltantes ({selectors.filteredSuggestions.length})</CardTitle>
-                    <CardDescription>
-                        Esta es una lista consolidada de todos los artículos necesarios para cumplir con los pedidos seleccionados, que no tienen suficiente stock.
-                    </CardDescription>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>Artículos con Faltantes ({selectors.filteredSuggestions.length})</CardTitle>
+                            <CardDescription>
+                                Esta es una lista consolidada de todos los artículos necesarios para cumplir con los pedidos seleccionados, que no tienen suficiente stock.
+                            </CardDescription>
+                        </div>
+                        <Button onClick={actions.handleExportExcel} variant="outline"><FileSpreadsheet className="mr-2 h-4 w-4" />Exportar a Excel</Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-[50vh] border rounded-md">
