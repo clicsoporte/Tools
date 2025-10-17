@@ -7,11 +7,12 @@
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw } from "../types";
+import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification } from "../types";
 import { getCurrentUser as getCurrentUserClient, getInitialAuthData } from '../lib/auth-client';
 import { getUnreadSuggestionsCount } from "../lib/suggestions-actions";
 import { getCompanySettings, saveCompanySettings } from "../lib/db";
 import { getExchangeRate } from "../lib/api-actions";
+import { getNotificationsForUser } from "../lib/notifications-actions";
 
 /**
  * Defines the shape of the authentication context's value.
@@ -31,6 +32,9 @@ interface AuthContextType {
       date: string | null;
   };
   unreadSuggestionsCount: number;
+  notifications: Notification[];
+  unreadNotificationsCount: number;
+  fetchUnreadNotifications: () => Promise<void>;
   refreshAuth: () => Promise<void>;
   refreshAuthAndRedirect: (path: string) => Promise<void>;
   refreshExchangeRate: () => Promise<void>;
@@ -58,6 +62,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
   const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null; date: string | null }>({ rate: null, date: null });
   const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchExchangeRate = useCallback(async () => {
@@ -82,6 +88,17 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         console.error("Failed to update unread suggestions count:", error);
     }
   }, []);
+
+  const fetchUnreadNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const userNotifications = await getNotificationsForUser(user.id);
+      setNotifications(userNotifications);
+      setUnreadNotificationsCount(userNotifications.filter(n => !n.isRead).length);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  }, [user]);
 
   const loadAuthData = useCallback(async () => {
     setIsLoading(true);
@@ -152,6 +169,14 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }
   }, [loadAuthData]);
 
+  useEffect(() => {
+    if (user) {
+      fetchUnreadNotifications(); // Fetch on initial load/user change
+      const interval = setInterval(fetchUnreadNotifications, 30000); // Poll every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchUnreadNotifications]);
+
   const contextValue: AuthContextType = {
     user,
     userRole,
@@ -164,6 +189,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     isLoading,
     exchangeRateData,
     unreadSuggestionsCount,
+    notifications,
+    unreadNotificationsCount,
+    fetchUnreadNotifications,
     refreshAuth: loadAuthData,
     refreshAuthAndRedirect,
     refreshExchangeRate: fetchExchangeRate,

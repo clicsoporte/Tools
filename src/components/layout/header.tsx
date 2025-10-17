@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { SidebarTrigger } from "../ui/sidebar";
 import { UserNav } from "./user-nav";
+import { NotificationBell } from "./notification-bell";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
@@ -143,6 +144,7 @@ function HeaderActions() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <NotificationBell />
             <UserNav />
              {(isSyncing || isRateRefreshing) && (
                 <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
