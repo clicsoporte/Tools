@@ -10,7 +10,6 @@ import {
   Sheet,
   Network,
   ShieldCheck,
-  Building,
   FileTerminal,
   FileUp,
   LifeBuoy,
