@@ -40,15 +40,20 @@ export function useAuthorization(requiredPermissions: string[] = []): UseAuthori
 
     useEffect(() => {
         // Only act if authorization status is definitively decided (not null) and it's negative
-        if (isAuthorized === false && pathname !== '/dashboard') {
-            toast({
-                title: 'Acceso Denegado',
-                description: 'No tienes los permisos necesarios para ver esta página.',
-                variant: 'destructive'
-            });
-            // Redirect to the main dashboard page if unauthorized, not the login page,
-            // because the user is logged in, just not permitted for this specific route.
-            router.replace('/dashboard');
+        if (isAuthorized === false) {
+             // Instead of a toast and redirect which can cause a flash of content,
+             // components should use the `isAuthorized` flag to conditionally render.
+             // This keeps the control within the component and provides a smoother experience.
+             // If a component absolutely needs a redirect, it can implement it itself.
+             // We'll show a toast only if the user somehow lands on a protected page.
+            if (pathname !== '/dashboard' && pathname !== '/') {
+                 toast({
+                    title: 'Acceso Denegado',
+                    description: 'No tienes los permisos necesarios para ver esta página.',
+                    variant: 'destructive'
+                });
+                router.replace('/dashboard');
+            }
         }
     }, [isAuthorized, router, toast, pathname]);
 
