@@ -3,11 +3,17 @@
  */
 'use server';
 
-import { getCompletedOrdersByDateRange } from '@/modules/planner/lib/db';
-import { getSettings as getPlannerSettingsDb } from '@/modules/planner/lib/db';
+import { getCompletedOrdersByDateRange, getPlannerSettings as getPlannerSettingsDb } from '@/modules/planner/lib/db';
+import { getAllProducts } from '@/modules/core/lib/db';
 import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry } from '@/modules/core/types';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
+
+interface ReportFilters {
+    productId?: string | null;
+    classifications?: string[];
+    machineIds?: string[];
+}
 
 interface FullProductionReportData {
     reportData: ProductionReportData;
@@ -17,31 +23,37 @@ interface FullProductionReportData {
 /**
  * Fetches and processes data for the production report.
  * @param dateRange - The date range to filter production orders.
+ * @param filters - Additional filters for product, classification, or machine.
  * @returns A promise that resolves to the structured production report data, including planner settings.
  */
-export async function getProductionReportData(dateRange: DateRange): Promise<FullProductionReportData> {
+export async function getProductionReportData({ dateRange, filters = {} }: { dateRange: DateRange, filters?: ReportFilters }): Promise<FullProductionReportData> {
     if (!dateRange.from) {
         throw new Error("Date 'from' is required for the production report.");
     }
 
-    const [orders, plannerSettings] = await Promise.all([
+    const [allOrders, plannerSettings, allProducts] = await Promise.all([
         getCompletedOrdersByDateRange(dateRange),
         getPlannerSettingsDb(),
+        getAllProducts(),
     ]);
 
-    const totals = orders.reduce(
-        (acc, order) => {
-            acc.totalRequested += order.quantity;
-            acc.totalDelivered += order.deliveredQuantity ?? 0;
-            acc.totalDefective += order.defectiveQuantity ?? 0;
-            return acc;
-        },
-        { totalRequested: 0, totalDelivered: 0, totalDefective: 0, totalNet: 0 }
-    );
+    const filteredOrders = allOrders.filter(order => {
+        if (filters.productId && order.productId !== filters.productId) {
+            return false;
+        }
+        if (filters.machineIds && filters.machineIds.length > 0 && (!order.machineId || !filters.machineIds.includes(order.machineId))) {
+            return false;
+        }
+        if (filters.classifications && filters.classifications.length > 0) {
+            const product = allProducts.find(p => p.id === order.productId);
+            if (!product || !filters.classifications.includes(product.classification)) {
+                return false;
+            }
+        }
+        return true;
+    });
 
-    totals.totalNet = totals.totalDelivered - totals.totalDefective;
-
-    const details: ProductionReportDetail[] = orders.map(order => {
+    const details: ProductionReportDetail[] = filteredOrders.map(order => {
         const history = order.history || [];
         
         const completionEntry = history.find(h => h.status === 'completed' || h.status === 'received-in-warehouse');
@@ -69,7 +81,6 @@ export async function getProductionReportData(dateRange: DateRange): Promise<Ful
 
     return {
         reportData: {
-            totals,
             details: JSON.parse(JSON.stringify(details)), // Ensure plain objects for serialization
         },
         plannerSettings: JSON.parse(JSON.stringify(plannerSettings)),

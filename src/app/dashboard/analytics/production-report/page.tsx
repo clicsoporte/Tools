@@ -10,7 +10,7 @@ import { useProductionReport } from '@/modules/analytics/hooks/useProductionRepo
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet, Package, PackageCheck, AlertCircle, Trash2, Columns3 } from 'lucide-react';
+import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet, Package, PackageCheck, AlertCircle, Trash2, Columns3, FilterX } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
+import { SearchInput } from '@/components/ui/search-input';
 
 export default function ProductionReportPage() {
     const {
@@ -29,8 +31,8 @@ export default function ProductionReportPage() {
         isInitialLoading,
     } = useProductionReport();
 
-    const { isLoading, dateRange, reportData, plannerSettings, visibleColumns } = state;
-    const { totals, details } = reportData;
+    const { isLoading, dateRange, visibleColumns, productSearchTerm, isProductSearchOpen } = state;
+    const { details } = state.reportData;
 
     if (isInitialLoading) {
         return (
@@ -68,7 +70,7 @@ export default function ProductionReportPage() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex flex-wrap gap-4 items-center">
                      <Popover>
                         <PopoverTrigger asChild>
                             <Button
@@ -106,39 +108,34 @@ export default function ProductionReportPage() {
                             />
                         </PopoverContent>
                     </Popover>
+                    <SearchInput
+                        options={selectors.productOptions}
+                        onSelect={actions.setProductFilter}
+                        value={productSearchTerm}
+                        onValueChange={actions.setProductSearchTerm}
+                        placeholder="Filtrar por producto..."
+                        open={isProductSearchOpen}
+                        onOpenChange={actions.setProductSearchOpen}
+                        className="w-full md:w-64"
+                    />
+                    <MultiSelectFilter
+                        title="Clasificación"
+                        options={selectors.classifications.map(c => ({ value: c, label: c }))}
+                        selectedValues={state.classificationFilter}
+                        onSelectedChange={actions.setClassificationFilter}
+                    />
+                    <MultiSelectFilter
+                        title="Máquina"
+                        options={selectors.machines.map(m => ({ value: m.id, label: m.name }))}
+                        selectedValues={state.machineFilter}
+                        onSelectedChange={actions.setMachineFilter}
+                    />
+                     <Button variant="ghost" onClick={actions.handleClearFilters}>
+                        <FilterX className="mr-2 h-4 w-4" />
+                        Limpiar Filtros
+                    </Button>
                 </CardContent>
             </Card>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Producido (Bruto)</CardTitle>
-                        <Package className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent><div className="text-2xl font-bold">{totals.totalDelivered.toLocaleString('es-CR')}</div></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Defectuoso</CardTitle>
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent><div className="text-2xl font-bold text-red-600">{totals.totalDefective.toLocaleString('es-CR')}</div></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Neto Producido</CardTitle>
-                        <PackageCheck className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent><div className="text-2xl font-bold text-green-600">{totals.totalNet.toLocaleString('es-CR')}</div></CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Solicitado</CardTitle>
-                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent><div className="text-2xl font-bold">{totals.totalRequested.toLocaleString('es-CR')}</div></CardContent>
-                </Card>
-            </div>
             
             <Card>
                 <CardHeader>
@@ -169,7 +166,7 @@ export default function ProductionReportPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <ScrollArea className="h-[50vh] border rounded-md">
+                    <ScrollArea className="h-[60vh] border rounded-md">
                         <Table>
                             <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
@@ -201,7 +198,7 @@ export default function ProductionReportPage() {
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={visibleColumns.length} className="h-32 text-center">
-                                            No se encontraron datos de producción para el rango de fechas seleccionado.
+                                            No se encontraron datos de producción para los filtros seleccionados.
                                         </TableCell>
                                     </TableRow>
                                 )}

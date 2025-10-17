@@ -9,13 +9,14 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getProductionReportData } from '@/modules/analytics/lib/actions';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderPriority } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderPriority, Product, PlannerMachine } from '@/modules/core/types';
 import { subDays, startOfDay, format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { cn } from '@/lib/utils';
 import React from 'react';
+import { useDebounce } from 'use-debounce';
 
 export interface ProductionReportDetail extends ProductionOrder {
     completionDate: string | null;
@@ -24,12 +25,6 @@ export interface ProductionReportDetail extends ProductionOrder {
 }
 
 export interface ProductionReportData {
-    totals: {
-        totalRequested: number;
-        totalDelivered: number;
-        totalDefective: number;
-        totalNet: number;
-    };
     details: ProductionReportDetail[];
 }
 
@@ -61,6 +56,12 @@ interface State {
     reportData: ProductionReportData;
     plannerSettings: PlannerSettings | null;
     visibleColumns: string[];
+    // Filters
+    productSearchTerm: string;
+    productFilter: string | null;
+    isProductSearchOpen: boolean;
+    classificationFilter: string[];
+    machineFilter: string[];
 }
 
 const priorityConfig: { [key in ProductionOrderPriority]: { label: string, className: string } } = { 
@@ -74,7 +75,7 @@ export function useProductionReport() {
     const { isAuthorized } = useAuthorization(['analytics:read', 'analytics:production-report:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { companyData: authCompanyData } = useAuth();
+    const { companyData: authCompanyData, products: authProducts } = useAuth();
     
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
@@ -84,13 +85,17 @@ export function useProductionReport() {
             from: startOfDay(subDays(new Date(), 30)),
             to: startOfDay(new Date()),
         },
-        reportData: {
-            totals: { totalRequested: 0, totalDelivered: 0, totalDefective: 0, totalNet: 0 },
-            details: []
-        },
+        reportData: { details: [] },
         plannerSettings: null,
         visibleColumns: ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveredQuantity', 'defectiveQuantity', 'netDifference', 'completionDate'],
+        productSearchTerm: '',
+        productFilter: null,
+        isProductSearchOpen: false,
+        classificationFilter: [],
+        machineFilter: [],
     });
+
+    const [debouncedProductSearch] = useDebounce(state.productSearchTerm, 500);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
@@ -104,7 +109,14 @@ export function useProductionReport() {
                 toast({ title: "Fecha de inicio requerida", variant: "destructive" });
                 return;
             }
-            const data = await getProductionReportData(state.dateRange);
+            const data = await getProductionReportData({
+                dateRange: state.dateRange,
+                filters: {
+                    productId: state.productFilter,
+                    classifications: state.classificationFilter,
+                    machineIds: state.machineFilter,
+                }
+            });
             updateState({ reportData: data.reportData, plannerSettings: data.plannerSettings });
         } catch (error: any) {
             logError("Failed to get production report", { error: error.message });
@@ -113,7 +125,7 @@ export function useProductionReport() {
             updateState({ isLoading: false });
             if (isInitialLoading) setIsInitialLoading(false);
         }
-    }, [isAuthorized, state.dateRange, toast, updateState, isInitialLoading]);
+    }, [isAuthorized, state.dateRange, state.productFilter, state.classificationFilter, state.machineFilter, toast, updateState, isInitialLoading]);
     
     useEffect(() => {
         setTitle("Reporte de Producción");
@@ -225,26 +237,60 @@ export function useProductionReport() {
             ],
             blocks: [],
             table: { columns: tableHeaders, rows: tableRows },
-            totals: [
-                { label: 'Total Producido:', value: state.reportData.totals.totalDelivered.toLocaleString('es-CR') },
-                { label: 'Total Defectuoso:', value: state.reportData.totals.totalDefective.toLocaleString('es-CR') },
-                { label: 'Total Neto:', value: state.reportData.totals.totalNet.toLocaleString('es-CR') },
-            ],
+            totals: [],
             orientation,
         });
 
         doc.save(`reporte_produccion_${new Date().getTime()}.pdf`);
     };
 
+    const setProductFilter = (productId: string | null) => {
+        if (productId) {
+            const product = authProducts.find(p => p.id === productId);
+            if (product) {
+                updateState({ productFilter: productId, productSearchTerm: `[${product.id}] ${product.description}` });
+            }
+        } else {
+            updateState({ productFilter: null, productSearchTerm: '' });
+        }
+    };
+    
     return {
         state,
         actions: {
             setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined } }),
             handleAnalyze, handleExportExcel, handleExportPDF, handleColumnVisibilityChange,
+            setProductFilter,
+            setProductSearchTerm: (term: string) => updateState({ productSearchTerm: term }),
+            setProductSearchOpen: (isOpen: boolean) => updateState({ isProductSearchOpen: isOpen }),
+            setClassificationFilter: (filter: string[]) => updateState({ classificationFilter: filter }),
+            setMachineFilter: (filter: string[]) => updateState({ machineFilter: filter }),
+            handleClearFilters: () => updateState({
+                productFilter: null,
+                productSearchTerm: '',
+                classificationFilter: [],
+                machineFilter: [],
+            }),
         },
         selectors: {
-            availableColumns, getNetDifference, priorityConfig, getColumnContent, visibleColumnsData,
+            availableColumns,
+            productOptions: useMemo(() => {
+                if (debouncedProductSearch.length < 2) return [];
+                return authProducts
+                    .filter(p => 
+                        p.id.toLowerCase().includes(debouncedProductSearch.toLowerCase()) || 
+                        p.description.toLowerCase().includes(debouncedProductSearch.toLowerCase())
+                    )
+                    .map(p => ({ value: p.id, label: `[${p.id}] ${p.description}` }));
+            }, [debouncedProductSearch, authProducts]),
+            classifications: useMemo<string[]>(() => 
+                Array.from(new Set(authProducts.map(p => p.classification).filter(Boolean)))
+            , [authProducts]),
+            machines: useMemo<PlannerMachine[]>(() => state.plannerSettings?.machines || [], [state.plannerSettings]),
+            getColumnContent,
+            visibleColumnsData,
         },
-        isAuthorized, isInitialLoading,
+        isAuthorized,
+        isInitialLoading,
     };
 }
