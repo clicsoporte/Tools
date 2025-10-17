@@ -4,7 +4,14 @@
  */
 "use server";
 
-import { connectDb, getSuggestions as dbGetSuggestions, markSuggestionAsRead as dbMarkSuggestionAsRead, deleteSuggestion as dbDeleteSuggestion, getUnreadSuggestions as dbGetUnreadSuggestions } from './db';
+import { 
+    connectDb, 
+    getSuggestions as dbGetSuggestions, 
+    markSuggestionAsRead as dbMarkSuggestionAsRead, 
+    deleteSuggestion as dbDeleteSuggestion, 
+    getUnreadSuggestions as dbGetUnreadSuggestions,
+    getUnreadSuggestionsCount as dbGetUnreadSuggestionsCount,
+} from './db';
 import type { Suggestion } from '../types';
 import { revalidatePath } from 'next/cache';
 import { logInfo } from './logger';
@@ -55,4 +62,12 @@ export async function deleteSuggestion(id: number): Promise<void> {
  */
 export async function getUnreadSuggestions(): Promise<Suggestion[]> {
     return dbGetUnreadSuggestions();
+}
+
+/**
+ * Retrieves the count of all unread suggestions.
+ * @returns {Promise<number>} A promise that resolves to the number of unread suggestions.
+ */
+export async function getUnreadSuggestionsCount(): Promise<number> {
+    return dbGetUnreadSuggestionsCount();
 }

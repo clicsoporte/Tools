@@ -9,7 +9,7 @@ import React, { createContext, useState, useContext, ReactNode, FC, useEffect, u
 import { useRouter } from "next/navigation";
 import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification, Suggestion } from "../types";
 import { getCurrentUser as getCurrentUserClient, getInitialAuthData, logout as clientLogout } from '../lib/auth-client';
-import { getUnreadSuggestions } from "../lib/suggestions-actions";
+import { getUnreadSuggestionsCount as getUnreadSuggestionsCountAction } from "../lib/suggestions-actions";
 import { getExchangeRate } from "../lib/api-actions";
 import { getNotificationsForUser } from "../lib/notifications-actions";
 
@@ -31,6 +31,7 @@ interface AuthContextType {
       date: string | null;
   };
   unreadSuggestions: Suggestion[];
+  unreadSuggestionsCount: number;
   notifications: Notification[];
   unreadNotificationsCount: number;
   fetchUnreadNotifications: () => Promise<void>;
@@ -62,6 +63,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
   const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null; date: string | null }>({ rate: null, date: null });
   const [unreadSuggestions, setUnreadSuggestions] = useState<Suggestion[]>([]);
+  const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,8 +84,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const updateUnreadSuggestionsCount = useCallback(async () => {
     try {
-        const suggs = await getUnreadSuggestions();
-        setUnreadSuggestions(suggs);
+        const count = await getUnreadSuggestionsCountAction();
+        setUnreadSuggestionsCount(count);
     } catch (error) {
         console.error("Failed to update unread suggestions count:", error);
     }
@@ -123,6 +125,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setExemptionLaws(data.exemptionLaws);
       setExchangeRateData(data.exchangeRate);
       setUnreadSuggestions(data.unreadSuggestions);
+      setUnreadSuggestionsCount(data.unreadSuggestions.length);
 
       if (currentUser && data.roles.length > 0) {
         const role = data.roles.find(r => r.id === currentUser.role);
@@ -181,6 +184,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     isLoading,
     exchangeRateData,
     unreadSuggestions,
+    unreadSuggestionsCount,
     notifications,
     unreadNotificationsCount,
     fetchUnreadNotifications,

@@ -43,7 +43,7 @@ export async function markNotificationAsRead(notificationId: number, userId: num
  */
 export async function markAllNotificationsAsRead(userId: number): Promise<void> {
     const notifications = await dbGetNotifications(userId);
-    const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
+    const unreadIds = notifications.filter(n => !n.isRead && typeof n.id === 'number').map(n => n.id as number);
     if (unreadIds.length > 0) {
         await dbMarkAsRead(unreadIds, userId);
         revalidatePath('/dashboard');
