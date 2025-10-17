@@ -38,8 +38,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading } = useAuth();
-  const router = useRouter();
+  const { user, isLoading, logout } = useAuth();
   
   // This state helps prevent rendering children until we are sure the user is authenticated.
   // It avoids the "flicker" of content before a redirect.
@@ -52,11 +51,12 @@ export default function DashboardLayout({
         // ...and we have a user, mark as verified to render the dashboard.
         setIsVerified(true);
       } else {
-        // ...and there's no user, redirect to the login page immediately.
-        router.replace('/');
+        // ...and there's no user, trigger the logout flow which handles the redirect.
+        // This prevents a race condition between the layout and the auth hook.
+        logout();
       }
     }
-  }, [isLoading, user, router]);
+  }, [isLoading, user, logout]);
 
   // While loading or before verification, show a full-page loader.
   // This is the correct way to handle the initial auth check without content flash.
