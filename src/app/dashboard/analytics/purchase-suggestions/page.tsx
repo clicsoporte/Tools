@@ -6,13 +6,13 @@
 'use client';
 
 import React from 'react';
-import { useRequestSuggestions } from '@/modules/requests/hooks/useRequestSuggestions';
+import { useRequestSuggestions, type PurchaseSuggestion } from '@/modules/requests/hooks/useRequestSuggestions.tsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
 import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart, FilterX, Search, FileSpreadsheet, Columns3 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -135,7 +135,7 @@ export default function PurchaseSuggestionsPage() {
                     </div>
                      <MultiSelectFilter
                         title="Clasificación"
-                        options={selectors.classifications.map(c => ({ value: c, label: c }))}
+                        options={selectors.classifications.map((c: string) => ({ value: c, label: c }))}
                         selectedValues={classificationFilter}
                         onSelectedChange={actions.setClassificationFilter}
                         className="w-full sm:w-auto"
@@ -207,7 +207,7 @@ export default function PurchaseSuggestionsPage() {
                                             </TableRow>
                                         ))
                                     ) : selectors.filteredSuggestions.length > 0 ? (
-                                        selectors.filteredSuggestions.map(item => (
+                                        selectors.filteredSuggestions.map((item: PurchaseSuggestion) => (
                                             <TableRow key={item.itemId}>
                                                 <TableCell>
                                                     <Checkbox
@@ -215,7 +215,7 @@ export default function PurchaseSuggestionsPage() {
                                                         onCheckedChange={() => actions.toggleItemSelection(item.itemId)}
                                                     />
                                                 </TableCell>
-                                                {visibleColumns.map(colId => {
+                                                {visibleColumns.map((colId: string) => {
                                                     const colData = selectors.getColumnContent(item, colId);
                                                     return (
                                                         <TableCell key={colId} className={cn(colData.className)}>

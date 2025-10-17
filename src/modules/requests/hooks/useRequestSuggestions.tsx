@@ -14,7 +14,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { subDays, startOfDay, format, parseISO } from 'date-fns';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import React from 'react';
 import { cn } from '@/lib/utils';
 
