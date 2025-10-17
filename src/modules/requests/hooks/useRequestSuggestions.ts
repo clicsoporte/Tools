@@ -42,9 +42,11 @@ export function useRequestSuggestions() {
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user: currentUser, products } = useAuth();
+    
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: false,
+        isLoading: true,
         isSubmitting: false,
         dateRange: {
             from: startOfDay(subDays(new Date(), 15)),
@@ -76,6 +78,7 @@ export function useRequestSuggestions() {
             toast({ title: "Error al Analizar", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isLoading: false });
+            setIsInitialLoading(false);
         }
     }, [state.dateRange, toast, updateState]);
     
@@ -214,5 +217,6 @@ export function useRequestSuggestions() {
         actions,
         selectors,
         isAuthorized,
+        isInitialLoading,
     };
 }

@@ -29,11 +29,12 @@ export default function PurchaseSuggestionsPage() {
         actions,
         selectors,
         isAuthorized,
+        isInitialLoading,
     } = useRequestSuggestions();
 
     const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter } = state;
 
-    if (isAuthorized === null || (isLoading && selectors.filteredSuggestions.length === 0)) {
+    if (isInitialLoading) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card>
@@ -134,7 +135,7 @@ export default function PurchaseSuggestionsPage() {
                         options={selectors.classifications.map(c => ({ value: c, label: c }))}
                         selectedValues={classificationFilter}
                         onSelectedChange={actions.setClassificationFilter}
-                        className="w-full sm:w-auto"
+                        className="w-full sm:w-auto flex-shrink-0"
                     />
                     <Button variant="ghost" onClick={actions.handleClearFilters} className="flex-shrink-0"><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                 </CardContent>
