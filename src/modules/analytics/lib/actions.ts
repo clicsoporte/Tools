@@ -3,8 +3,7 @@
  */
 'use server';
 
-import { getCompletedOrdersByDateRange } from '@/modules/planner/lib/db';
-import { getPlannerSettings as getPlannerSettingsDb } from '@/modules/planner/lib/actions';
+import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
 import { getAllProducts } from '@/modules/core/lib/db';
 import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product } from '@/modules/core/types';
 import { differenceInDays, parseISO } from 'date-fns';
@@ -34,7 +33,7 @@ export async function getProductionReportData({ dateRange, filters = {} }: { dat
 
     const [allOrders, plannerSettings, allProducts] = await Promise.all([
         getCompletedOrdersByDateRange(dateRange),
-        getPlannerSettingsDb(),
+        getPlannerSettings(),
         getAllProducts(),
     ]);
 

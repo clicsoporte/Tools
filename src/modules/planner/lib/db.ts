@@ -201,7 +201,7 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
 }
 
 
-export async function getSettings(): Promise<PlannerSettings> {
+export async function getPlannerSettings(): Promise<PlannerSettings> {
     const db = await connectDb(PLANNER_DB_FILE);
     const settingsRows = db.prepare('SELECT * FROM planner_settings').all() as { key: string; value: string }[];
     
@@ -266,7 +266,7 @@ export async function getOrders(options: {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const { page = 0, pageSize = 50 } = options;
-    const settings = await getSettings();
+    const settings = await getPlannerSettings();
     const finalStatus = settings.useWarehouseReception ? 'received-in-warehouse' : 'completed';
     const archivedStatuses = `'${finalStatus}', 'canceled'`;
 
@@ -298,7 +298,7 @@ export async function getOrders(options: {
 export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'shiftId'>, requestedBy: string): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     
-    const settings = await getSettings();
+    const settings = await getPlannerSettings();
     const nextNumber = settings.nextOrderNumber || 1;
     const prefix = settings.orderPrefix || 'OP-';
 
@@ -361,7 +361,7 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
     if (!currentOrder) {
         throw new Error("Order not found.");
     }
-    const settings = await getSettings();
+    const settings = await getPlannerSettings();
     const fieldsToTrack = settings.fieldsToTrackChanges || [];
 
     let hasBeenModified = currentOrder.hasBeenModified;
@@ -491,7 +491,7 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
         historyItems.push(`Prioridad: de ${currentOrder.priority} a ${priority}`);
     }
     if (machineId !== undefined && currentOrder.machineId !== machineId) {
-        const settings = await getSettings();
+        const settings = await getPlannerSettings();
         const oldMachineName = currentOrder.machineId ? settings.machines.find(m => m.id === currentOrder.machineId)?.name : 'N/A';
         const newMachineName = machineId ? settings.machines.find(m => m.id === machineId)?.name : 'N/A';
         updates.push('machineId = @machineId');
@@ -499,7 +499,7 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
         historyItems.push(`${settings.assignmentLabel || 'Máquina'}: de ${oldMachineName} a ${newMachineName}`);
     }
     if (shiftId !== undefined && currentOrder.shiftId !== shiftId) {
-        const settings = await getSettings();
+        const settings = await getPlannerSettings();
         const oldShiftName = currentOrder.shiftId ? settings.shifts.find(s => s.id === currentOrder.shiftId)?.name : 'N/A';
         const newShiftName = shiftId ? settings.shifts.find(s => s.id === shiftId)?.name : 'N/A';
         updates.push('shiftId = @shiftId');
@@ -606,10 +606,10 @@ export async function getCompletedOrdersByDateRange(dateRange: DateRange): Promi
     const db = await connectDb(PLANNER_DB_FILE);
     if (!dateRange.from) throw new Error("Start date is required.");
     
-    const toDate = dateRange.to ? new Date(dateRange.to) : new Date();
+    const toDate = dateRange.to || new Date();
     toDate.setHours(23, 59, 59, 999); // Include the whole end day
 
-    const settings = await getSettings();
+    const settings = await getPlannerSettings();
     const completedStatuses = settings.useWarehouseReception 
         ? ['completed', 'received-in-warehouse'] 
         : ['completed'];

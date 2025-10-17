@@ -14,8 +14,8 @@ import {
     updateStatus, 
     updateDetails,
     getOrderHistory as getOrderHistoryServer,
-    getSettings,
-    saveSettings,
+    getPlannerSettings as getSettingsServer,
+    saveSettings as saveSettingsServer,
     addNote as addNoteServer,
     updatePendingAction as updatePendingActionServer,
     getUserByName,
@@ -102,7 +102,7 @@ export async function updateProductionOrderDetails(payload: UpdateOrderDetailsPa
  * @returns The current planner settings.
  */
 export async function getPlannerSettings(): Promise<PlannerSettings> {
-    return getSettings();
+    return getSettingsServer();
 }
 
 /**
@@ -111,7 +111,7 @@ export async function getPlannerSettings(): Promise<PlannerSettings> {
  */
 export async function savePlannerSettings(settings: PlannerSettings): Promise<void> {
     await logInfo('Planner settings updated.');
-    return saveSettings(settings);
+    return saveSettingsServer(settings);
 }
 
 /**
