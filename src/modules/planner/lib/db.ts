@@ -5,7 +5,7 @@
 
 import { connectDb } from '../../core/lib/db';
 import { getAllUsers } from '../../core/lib/auth';
-import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload, AdministrativeActionPayload, User } from '../../core/types';
+import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload, AdministrativeActionPayload, User, PlannerShift } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
@@ -49,6 +49,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
             erpTicketNumber TEXT,
             reopened BOOLEAN DEFAULT FALSE,
             machineId TEXT,
+            shiftId TEXT,
             previousStatus TEXT
         );
          CREATE TABLE IF NOT EXISTS production_order_history (
@@ -69,6 +70,11 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
         { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
         { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
     ];
+    
+    const defaultShifts: PlannerShift[] = [
+        { id: 'turno-a', name: 'Turno A' },
+        { id: 'turno-b', name: 'Turno B' },
+    ]
 
     const defaultPdfColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
 
@@ -77,7 +83,9 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('useWarehouseReception', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('machines', '[]')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('shifts', ?)`).run(JSON.stringify(defaultShifts));
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('requireMachineForStart', 'false')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('requireShiftForCompletion', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('assignmentLabel', 'Máquina Asignada')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
@@ -107,6 +115,7 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
     if (!plannerColumns.has('pendingAction')) db.exec(`ALTER TABLE production_orders ADD COLUMN pendingAction TEXT DEFAULT 'none'`);
     if (!plannerColumns.has('inventoryErp')) db.exec(`ALTER TABLE production_orders ADD COLUMN inventoryErp REAL`);
     if (!plannerColumns.has('customerTaxId')) db.exec(`ALTER TABLE production_orders ADD COLUMN customerTaxId TEXT`);
+    if (!plannerColumns.has('shiftId')) db.exec(`ALTER TABLE production_orders ADD COLUMN shiftId TEXT`);
     
 
     const historyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='production_order_history'`).get();
@@ -176,6 +185,18 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
             console.log("MIGRATION (planner.db): Adding showCustomerTaxId to settings.");
             db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
         }
+        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'shifts'`).get()) {
+             console.log("MIGRATION (planner.db): Adding shifts to settings.");
+            const defaultShifts: PlannerShift[] = [
+                { id: 'turno-a', name: 'Turno A' },
+                { id: 'turno-b', name: 'Turno B' },
+            ]
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('shifts', ?)`).run(JSON.stringify(defaultShifts));
+        }
+        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'requireShiftForCompletion'`).get()) {
+             console.log("MIGRATION (planner.db): Adding requireShiftForCompletion to settings.");
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('requireShiftForCompletion', 'false')`).run();
+        }
     }
 }
 
@@ -190,7 +211,9 @@ export async function getSettings(): Promise<PlannerSettings> {
         useWarehouseReception: false,
         showCustomerTaxId: true,
         machines: [],
+        shifts: [],
         requireMachineForStart: false,
+        requireShiftForCompletion: false,
         assignmentLabel: 'Máquina Asignada',
         customStatuses: [],
         pdfPaperSize: 'letter',
@@ -206,7 +229,9 @@ export async function getSettings(): Promise<PlannerSettings> {
         else if (row.key === 'useWarehouseReception') settings.useWarehouseReception = row.value === 'true';
         else if (row.key === 'showCustomerTaxId') settings.showCustomerTaxId = row.value === 'true';
         else if (row.key === 'machines') settings.machines = JSON.parse(row.value);
+        else if (row.key === 'shifts') settings.shifts = JSON.parse(row.value);
         else if (row.key === 'requireMachineForStart') settings.requireMachineForStart = row.value === 'true';
+        else if (row.key === 'requireShiftForCompletion') settings.requireShiftForCompletion = row.value === 'true';
         else if (row.key === 'assignmentLabel') settings.assignmentLabel = row.value;
         else if (row.key === 'customStatuses') settings.customStatuses = JSON.parse(row.value);
         else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
@@ -222,7 +247,7 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'useWarehouseReception', 'showCustomerTaxId', 'machines', 'requireMachineForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
+        const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'useWarehouseReception', 'showCustomerTaxId', 'machines', 'shifts', 'requireMachineForStart', 'requireShiftForCompletion', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
         for (const key of keys) {
             if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -289,6 +314,7 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         pendingAction: 'none',
         reopened: false,
         machineId: null,
+        shiftId: null,
         previousStatus: null,
         scheduledStartDate: null,
         scheduledEndDate: null,
@@ -299,11 +325,11 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         INSERT INTO production_orders (
             consecutive, purchaseOrder, requestDate, deliveryDate, scheduledStartDate, scheduledEndDate,
             customerId, customerName, customerTaxId, productId, productDescription, quantity, inventory, inventoryErp, priority,
-            status, pendingAction, notes, requestedBy, reopened, machineId, previousStatus, hasBeenModified
+            status, pendingAction, notes, requestedBy, reopened, machineId, shiftId, previousStatus, hasBeenModified
         ) VALUES (
             @consecutive, @purchaseOrder, @requestDate, @deliveryDate, @scheduledStartDate, @scheduledEndDate,
             @customerId, @customerName, @customerTaxId, @productId, @productDescription, @quantity, @inventory, @inventoryErp, @priority,
-            @status, @pendingAction, @notes, @requestedBy, @reopened, @machineId, @previousStatus, @hasBeenModified
+            @status, @pendingAction, @notes, @requestedBy, @reopened, @machineId, @shiftId, @previousStatus, @hasBeenModified
         )
     `);
 
@@ -315,6 +341,7 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         notes: newOrder.notes || null,
         reopened: newOrder.reopened ? 1 : 0,
         hasBeenModified: newOrder.hasBeenModified ? 1 : 0,
+        shiftId: newOrder.shiftId || null,
     };
 
     const info = stmt.run(preparedOrder);
@@ -451,7 +478,7 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
 
 export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
-    const { orderId, priority, machineId, scheduledDateRange, updatedBy } = payload;
+    const { orderId, priority, machineId, shiftId, scheduledDateRange, updatedBy } = payload;
     
     const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
     if (!currentOrder) throw new Error("Order not found.");
@@ -473,6 +500,14 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
         updates.push('machineId = @machineId');
         params.machineId = machineId;
         historyItems.push(`${settings.assignmentLabel || 'Máquina'}: de ${oldMachineName} a ${newMachineName}`);
+    }
+    if (shiftId !== undefined && currentOrder.shiftId !== shiftId) {
+        const settings = await getSettings();
+        const oldShiftName = currentOrder.shiftId ? settings.shifts.find(s => s.id === currentOrder.shiftId)?.name : 'N/A';
+        const newShiftName = shiftId ? settings.shifts.find(s => s.id === shiftId)?.name : 'N/A';
+        updates.push('shiftId = @shiftId');
+        params.shiftId = shiftId;
+        historyItems.push(`Turno: de ${oldShiftName} a ${newShiftName}`);
     }
      if (scheduledDateRange) {
         const newStartDate = scheduledDateRange.from ? scheduledDateRange.from.toISOString().split('T')[0] : null;

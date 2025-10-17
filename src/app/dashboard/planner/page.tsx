@@ -148,9 +148,9 @@ export default function PlannerPage() {
                             </Select>
                         </div>
                         <div className="space-y-1">
-                             <p className="font-semibold text-muted-foreground">{state.plannerSettings?.assignmentLabel || 'Máquina'}</p>
+                             <p className={cn("font-semibold text-muted-foreground", !order.machineId && "text-destructive")}>{state.plannerSettings?.assignmentLabel || 'Máquina'}</p>
                             <Select value={order.machineId || 'none'} onValueChange={(value) => actions.handleDetailUpdate(order.id, { machineId: value })}>
-                                <SelectTrigger className="h-8 w-40 border-0 focus:ring-0">
+                                <SelectTrigger className={cn("h-8 w-40 border-0 focus:ring-0", !order.machineId && "border-destructive focus:ring-destructive/50")}>
                                     <SelectValue placeholder="Sin Asignar" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -161,12 +161,26 @@ export default function PlannerPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div className="space-y-1">
+                            <p className={cn("font-semibold text-muted-foreground", !order.shiftId && "text-destructive")}>Turno</p>
+                            <Select value={order.shiftId || 'none'} onValueChange={(value) => actions.handleDetailUpdate(order.id, { shiftId: value })}>
+                                <SelectTrigger className={cn("h-8 w-40 border-0 focus:ring-0", !order.shiftId && "border-destructive focus:ring-destructive/50")}>
+                                    <SelectValue placeholder="Sin Asignar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Sin Asignar</SelectItem>
+                                    {state.plannerSettings?.shifts.map(shift => (
+                                        <SelectItem key={shift.id} value={shift.id}>{shift.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                          <div className="space-y-1">
-                            <p className="font-semibold text-muted-foreground">Fecha Prog.</p>
+                            <p className={cn("font-semibold text-muted-foreground", !order.scheduledStartDate && "text-destructive")}>Fecha Prog.</p>
                             <div className="flex flex-col sm:flex-row sm:items-center gap-1">
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button size="sm" variant="outline" className="h-8 w-48 justify-start text-left font-normal" disabled={!selectors.hasPermission('planner:schedule')}><CalendarIcon className="mr-2 h-4 w-4" />{order.scheduledStartDate ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}` : 'No programada'}</Button>
+                                        <Button size="sm" variant="outline" className={cn("h-8 w-48 justify-start text-left font-normal", !order.scheduledStartDate && "border-destructive focus:ring-destructive/50")} disabled={!selectors.hasPermission('planner:schedule')}><CalendarIcon className="mr-2 h-4 w-4" />{order.scheduledStartDate ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}` : 'No programada'}</Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={{ from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined, to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined }} onSelect={(range) => actions.handleDetailUpdate(order.id, { scheduledDateRange: range })} /></PopoverContent>
                                 </Popover>

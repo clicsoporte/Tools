@@ -45,6 +45,7 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     inventoryErp: 0,
     purchaseOrder: '',
     pendingAction: 'none',
+    shiftId: null,
 };
 
 const priorityConfig = { 
@@ -87,8 +88,8 @@ export const usePlanner = () => {
         newOrder: emptyOrder,
         orderToEdit: null as ProductionOrder | null,
         searchTerm: "",
-        statusFilter: "all",
-        classificationFilter: "all",
+        statusFilter: [] as string[],
+        classificationFilter: [] as string[],
         showOnlyMyOrders: true,
         dateFilter: undefined as DateRange | undefined,
         customerSearchTerm: "",
@@ -232,8 +233,8 @@ export const usePlanner = () => {
         },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
-        setStatusFilter: (status: string) => updateState({ statusFilter: status }),
-        setClassificationFilter: (filter: string) => updateState({ classificationFilter: filter }),
+        setStatusFilter: (status: string[]) => updateState({ statusFilter: status }),
+        setClassificationFilter: (filter: string[]) => updateState({ classificationFilter: filter }),
         setShowOnlyMyOrders: (show: boolean) => {
             if (!show && !hasPermission('planner:read:all')) {
                 toast({ title: "Permiso Requerido", description: "No tienes permiso para ver todas las órdenes.", variant: "destructive"});
@@ -314,6 +315,10 @@ export const usePlanner = () => {
         openStatusDialog: (order: ProductionOrder, status: ProductionOrderStatus) => {
             if (state.plannerSettings?.requireMachineForStart && status === 'in-progress' && !order.machineId) {
                 toast({ title: "Asignación no realizada", description: "Debe asignar una máquina/proceso.", variant: "destructive" });
+                return;
+            }
+             if (state.plannerSettings?.requireShiftForCompletion && status === 'completed' && !order.shiftId) {
+                toast({ title: "Turno no asignado", description: "Debe seleccionar un turno para completar la orden.", variant: "destructive" });
                 return;
             }
             updateState({
@@ -419,11 +424,12 @@ export const usePlanner = () => {
             }
         },
 
-        handleDetailUpdate: async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; scheduledDateRange?: DateRange }) => {
+        handleDetailUpdate: async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; shiftId?: string | null; scheduledDateRange?: DateRange }) => {
             if (!currentUser) return;
             const finalDetails = {
                 ...details,
-                machineId: details.machineId === 'none' ? null : details.machineId
+                machineId: details.machineId === 'none' ? null : details.machineId,
+                shiftId: details.shiftId === 'none' ? null : details.shiftId,
             };
             const updated = await updateProductionOrderDetails({ orderId, ...finalDetails, updatedBy: currentUser.name });
             updateState({ 
@@ -752,8 +758,8 @@ export const usePlanner = () => {
                 const targetText = `${order.consecutive} ${order.customerName} ${order.productDescription} ${order.purchaseOrder || ''}`.toLowerCase();
                 const searchMatch = debouncedSearchTerm ? searchTerms.every(term => targetText.includes(term)) : true;
                 
-                const statusMatch = state.statusFilter === 'all' || order.status === state.statusFilter;
-                const classificationMatch = state.classificationFilter === 'all' || (product && product.classification === state.classificationFilter);
+                const statusMatch = state.statusFilter.length === 0 || state.statusFilter.includes(order.status);
+                const classificationMatch = state.classificationFilter.length === 0 || (product && state.classificationFilter.includes(product.classification));
                 const dateMatch = !state.dateFilter || !state.dateFilter.from || (new Date(order.deliveryDate) >= state.dateFilter.from && new Date(order.deliveryDate) <= (state.dateFilter.to || state.dateFilter.from));
                 const myOrdersMatch = !state.showOnlyMyOrders || (currentUser && order.requestedBy === currentUser.name);
 
