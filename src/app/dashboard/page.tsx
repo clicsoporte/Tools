@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import type { Tool } from "../../modules/core/types";
 import { Skeleton } from "../../components/ui/skeleton";
 import { usePageTitle } from "../../modules/core/hooks/usePageTitle";
-import { Wrench } from "lucide-react";
+import { BarChartBig, Wrench } from "lucide-react";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 
 /**
@@ -27,7 +27,21 @@ export default function DashboardPage() {
     
     if (userRole) {
       let tools = [...mainTools];
-      const hasAdminAccess = userRole.id === 'admin' || userRole.permissions?.some(p => p.startsWith('admin:'));
+      
+      const hasAdminAccess = userRole.id === 'admin';
+      const hasAnalyticsAccess = hasAdminAccess || userRole.permissions.includes('analytics:read');
+
+      if (hasAnalyticsAccess) {
+        tools.push({
+          id: "analytics",
+          name: "Analíticas",
+          description: "Análisis de datos y reportes inteligentes.",
+          href: "/dashboard/analytics",
+          icon: BarChartBig,
+          bgColor: "bg-indigo-500",
+          textColor: "text-white",
+        });
+      }
 
       if (hasAdminAccess) {
         tools.push({

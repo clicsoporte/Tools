@@ -30,6 +30,7 @@ import {
   Warehouse,
   Search,
   PackagePlus,
+  BarChartBig,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -66,7 +67,8 @@ export function AppSidebar() {
     return pathname.startsWith(href);
   };
   
-  const hasAdminAccess = userRole?.id === 'admin' || userRole?.permissions.some(p => p.startsWith('admin:'));
+  const hasAdminAccess = userRole?.id === 'admin';
+  const hasAnalyticsAccess = hasAdminAccess || userRole?.permissions.includes('analytics:read');
 
 
   if (isLoading) {
@@ -209,6 +211,21 @@ export function AppSidebar() {
                 </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
+
+             {hasAnalyticsAccess && (
+                <SidebarMenuItem>
+                    <SidebarMenuButton
+                        asChild
+                        isActive={isActive("/dashboard/analytics")}
+                        tooltip="Analíticas"
+                    >
+                        <Link href="/dashboard/analytics" onClick={handleLinkClick}>
+                            <BarChartBig />
+                            <span>Analíticas</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            )}
             
             {hasAdminAccess && (
                  <SidebarMenuItem>
