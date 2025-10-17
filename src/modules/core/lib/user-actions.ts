@@ -19,7 +19,7 @@ const SALT_ROUNDS = 10;
  * @throws {Error} If a user already exists in the database.
  */
 export async function createFirstUser(
-  userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer' | 'role'> & { password: string },
+  userData: Omit<User, 'id' | 'role' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string },
   clientInfo: { ip: string, host: string }
 ): Promise<void> {
   const db = await connectDb();
@@ -40,8 +40,8 @@ export async function createFirstUser(
     role: "admin", // Assign admin role
     avatar: "",
     recentActivity: "Primer usuario administrador creado.",
-    phone: "",
-    whatsapp: "",
+    phone: userData.phone,
+    whatsapp: userData.whatsapp,
   };
   
   const stmt = db.prepare(

@@ -303,7 +303,7 @@ export const useQuoter = () => {
     setLines((prev) => [...prev, newLine]);
   };
 
-  const handleSelectProduct = (productId: string) => {
+  const handleSelectProduct = useCallback((productId: string) => {
     setProductSearchOpen(false);
     if (!productId) {
       setProductSearchTerm("");
@@ -314,15 +314,15 @@ export const useQuoter = () => {
       addLine(product);
       setProductSearchTerm("");
     }
-  };
+  }, [products]);
 
-  const handleProductInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleProductInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && productOptions.length > 0) { e.preventDefault(); handleSelectProduct(productOptions[0].value); }
-  };
+  }, [productOptions, handleSelectProduct]);
 
-  const handleCustomerInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleCustomerInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && customerOptions.length > 0) { e.preventDefault(); handleSelectCustomer(customerOptions[0].value); }
-  };
+  }, [customerOptions, handleSelectCustomer]);
 
   const removeLine = (id: string) => {
     setLines((prev) => prev.filter((line) => line.id !== id));
@@ -339,7 +339,7 @@ export const useQuoter = () => {
     ));
   };
 
-  const handleCurrencyToggle = async () => {
+  const handleCurrencyToggle = useCallback(async () => {
     if (!exchangeRate) {
       toast({ title: "Tipo de cambio no disponible", description: "No se puede cambiar de moneda.", variant: "destructive" });
       await logWarn("Attempted currency toggle without exchange rate");
@@ -353,17 +353,17 @@ export const useQuoter = () => {
     setLines(convertedLines);
     setCurrency(newCurrency);
     await logInfo(`Currency changed to ${newCurrency}`);
-  };
+  }, [currency, exchangeRate, lines, toast]);
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     const prefix = currency === "CRC" ? "CRC " : "$ ";
     return `${prefix}${amount.toLocaleString("es-CR", {
       minimumFractionDigits: decimalPlaces,
       maximumFractionDigits: decimalPlaces,
     })}`;
-  };
+  }, [currency, decimalPlaces]);
 
-  const handleSelectCustomer = (customerId: string) => {
+  const handleSelectCustomer = useCallback((customerId: string) => {
     setCustomerSearchOpen(false);
     setExemptionInfo(null); // CRITICAL FIX: Reset exemption info when changing customer
     if (!customerId) {
@@ -413,7 +413,7 @@ export const useQuoter = () => {
           }
       }
     }
-  };
+  }, [customers, allExemptions, exemptionLaws, checkExemptionStatus]);
 
   const handleCustomerDetailsChange = (value: string) => {
     setCustomerDetails(value);
@@ -599,7 +599,7 @@ export const useQuoter = () => {
     }
   };
 
-  const loadDrafts = async () => {
+  const loadDrafts = useCallback(async () => {
     if (isAuthLoading || !currentUser) return;
     const draftsFromDb = await getAllQuoteDrafts(currentUser.id);
     const enrichedDrafts = draftsFromDb.map(draft => ({
@@ -607,7 +607,7 @@ export const useQuoter = () => {
         customer: customers.find(c => c.id === draft.customerId) || null
     }));
     setSavedDrafts(enrichedDrafts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-  };
+  }, [isAuthLoading, currentUser, customers]);
 
   const handleLoadDraft = (draft: QuoteDraft) => {
     setQuoteNumber(draft.id);

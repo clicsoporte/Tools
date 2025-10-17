@@ -44,7 +44,7 @@ export function SetupWizard({ clientInfo }: SetupWizardProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.password) {
-        toast({ title: "Campos Incompletos", description: "Todos los campos son requeridos.", variant: "destructive" });
+        toast({ title: "Campos Incompletos", description: "Nombre, correo y contraseña son requeridos.", variant: "destructive" });
         return;
     }
     if (formData.password !== formData.confirmPassword) {
