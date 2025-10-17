@@ -157,8 +157,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }
 
   useEffect(() => {
+    // This effect runs only once on mount to load initial data.
     loadAuthData();
-  }, [loadAuthData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (user) {

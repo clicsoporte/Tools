@@ -1,13 +1,11 @@
-
-
 /**
  * @fileoverview Server-side functions for the purchase requests database.
  */
 "use server";
 
 import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries as getImportQueriesFromMain } from '../../core/lib/db';
-import { logInfo, logError, logWarn } from '../../core/lib/logger';
 import { getAllUsers } from '../../core/lib/auth';
+import { logInfo, logError, logWarn } from '../../core/lib/logger';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
@@ -561,5 +559,5 @@ async function getRealTimeInventory(itemIds: string[], signal?: AbortSignal): Pr
 
 export async function getUserByName(name: string): Promise<User | null> {
     const users = await getAllUsers();
-    return users.find((u: User) => u.name === name) || null;
+    return users.find((u) => u.name === name) || null;
 }

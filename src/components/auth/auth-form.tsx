@@ -195,6 +195,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
                                         value={recoveryEmail}
                                         onChange={e => setRecoveryEmail(e.target.value)}
                                         placeholder="tu@correo.com"
+                                        suppressHydrationWarning={true}
                                     />
                                 </div>
                             )}
@@ -207,6 +208,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
                                         value={securityAnswer}
                                         onChange={e => setSecurityAnswer(e.target.value)}
                                         placeholder="Ingresa tu respuesta secreta"
+                                        suppressHydrationWarning={true}
                                     />
                                 </div>
                             )}
@@ -220,6 +222,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
                                             value={newPassword}
                                             onChange={e => setNewPassword(e.target.value)}
                                             placeholder="Introduce la nueva contraseña"
+                                            suppressHydrationWarning={true}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -230,6 +233,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
                                             value={confirmNewPassword}
                                             onChange={e => setConfirmNewPassword(e.target.value)}
                                             placeholder="Confirma la nueva contraseña"
+                                            suppressHydrationWarning={true}
                                         />
                                     </div>
                                 </div>

@@ -11,10 +11,10 @@ import { differenceInCalendarDays, parseISO } from 'date-fns';
  * This function is used across different modules (Planner, Requests) to provide a consistent
  * visual indicator of urgency.
  *
- * @param {string} dateStr - The target date in ISO string format.
+ * @param {string | null | undefined} dateStr - The target date in ISO string format. Can be null or undefined.
  * @returns {{ label: string; color: string; }} An object containing the display label and a Tailwind CSS color class.
  */
-export function getDaysRemaining(dateStr: string) {
+export function getDaysRemaining(dateStr: string | null | undefined) {
     if (!dateStr) {
         return { label: 'Sin fecha', color: 'text-gray-500' };
     }

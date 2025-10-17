@@ -1,11 +1,9 @@
-
-
 /**
  * @fileoverview Server-side functions for the planner database.
  */
 "use server";
 
-import { connectDb, getAllProducts } from '../../core/lib/db';
+import { connectDb } from '../../core/lib/db';
 import { getAllUsers } from '../../core/lib/auth';
 import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload, AdministrativeActionPayload, User } from '../../core/types';
 import { format, parseISO } from 'date-fns';
@@ -565,5 +563,5 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 
 export async function getUserByName(name: string): Promise<User | null> {
     const users = await getAllUsers();
-    return users.find((u: User) => u.name === name) || null;
+    return users.find((u) => u.name === name) || null;
 }
