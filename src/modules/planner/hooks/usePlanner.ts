@@ -29,6 +29,7 @@ import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/t
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import type { RowInput } from 'jspdf-autotable';
 import { addNoteToOrder as addNoteServer } from '@/modules/planner/lib/actions';
+import { exportToExcel } from '@/modules/core/lib/excel-export';
 
 const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'> = {
     deliveryDate: '',
@@ -495,6 +496,31 @@ export const usePlanner = () => {
             } finally {
                 updateState({ isSubmitting: false });
             }
+        },
+
+        handleExportExcel: () => {
+            if (!state.plannerSettings) return;
+            
+            const dataToExport = selectors.filteredOrders.map(order => [
+                order.consecutive,
+                order.customerName,
+                `[${order.productId}] ${order.productDescription}`,
+                order.quantity,
+                format(parseISO(order.deliveryDate), 'dd/MM/yyyy'),
+                order.scheduledStartDate ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}` : 'N/A',
+                selectors.statusConfig[order.status]?.label || order.status,
+                state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A',
+                selectors.priorityConfig[order.priority]?.label || order.priority,
+                order.requestedBy
+            ]);
+
+            exportToExcel({
+                fileName: 'ordenes_produccion',
+                sheetName: 'Órdenes',
+                headers: ['OP', 'Cliente', 'Producto', 'Cantidad', 'Fecha Entrega', 'Fecha Prog.', 'Estado', state.plannerSettings.assignmentLabel || 'Asignación', 'Prioridad', 'Solicitante'],
+                data: dataToExport,
+                columnWidths: [10, 25, 40, 10, 15, 20, 15, 20, 10, 15],
+            });
         },
 
         handleExportPDF: async (orientation: 'portrait' | 'landscape' = 'portrait') => {

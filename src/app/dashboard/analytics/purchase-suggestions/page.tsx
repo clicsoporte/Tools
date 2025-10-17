@@ -28,12 +28,12 @@ export default function PurchaseSuggestionsPage() {
         state,
         actions,
         selectors,
-        isAuthorized
+        isAuthorized,
     } = useRequestSuggestions();
 
     const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter } = state;
 
-    if (isAuthorized === null || (isLoading && selectors.suggestions.length === 0)) {
+    if (isAuthorized === null || (isLoading && selectors.filteredSuggestions.length === 0)) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card>

@@ -257,7 +257,7 @@ export default function PurchaseRequestPage() {
                         </DialogContent>
                     </Dialog>
                     <Button asChild variant="secondary" className="bg-blue-600 text-white hover:bg-blue-700">
-                        <Link href="/dashboard/requests/suggestions">
+                        <Link href="/dashboard/analytics/purchase-suggestions">
                             <Lightbulb className="mr-2" />
                             Sugerencias de Compra
                         </Link>

@@ -34,11 +34,11 @@ interface State {
     suggestions: PurchaseSuggestion[];
     selectedItems: Set<string>;
     searchTerm: string;
-    classificationFilter: string;
+    classificationFilter: string[];
 }
 
 export function useRequestSuggestions() {
-    useAuthorization(['requests:create']);
+    const { isAuthorized } = useAuthorization(['requests:create', 'analytics:purchase-suggestions:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user: currentUser, products } = useAuth();
@@ -53,7 +53,7 @@ export function useRequestSuggestions() {
         suggestions: [],
         selectedItems: new Set(),
         searchTerm: '',
-        classificationFilter: 'all',
+        classificationFilter: [],
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, 500);
@@ -81,9 +81,11 @@ export function useRequestSuggestions() {
     
     useEffect(() => {
         setTitle("Sugerencias de Compra");
-        handleAnalyze();
+        if(isAuthorized) {
+            handleAnalyze();
+        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle]);
+    }, [setTitle, isAuthorized]);
 
     const filteredSuggestions = useMemo(() => {
         return state.suggestions.filter(item => {
@@ -91,7 +93,7 @@ export function useRequestSuggestions() {
                 ? item.itemId.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
                   item.itemDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
                 : true;
-            const classificationMatch = state.classificationFilter === 'all' || item.itemClassification === state.classificationFilter;
+            const classificationMatch = state.classificationFilter.length === 0 || state.classificationFilter.includes(item.itemClassification);
             return searchMatch && classificationMatch;
         });
     }, [state.suggestions, debouncedSearchTerm, state.classificationFilter]);
@@ -202,8 +204,8 @@ export function useRequestSuggestions() {
         toggleSelectAll,
         handleCreateRequests,
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
-        setClassificationFilter: (filter: string) => updateState({ classificationFilter: filter }),
-        handleClearFilters: () => updateState({ searchTerm: '', classificationFilter: 'all' }),
+        setClassificationFilter: (filter: string[]) => updateState({ classificationFilter: filter }),
+        handleClearFilters: () => updateState({ searchTerm: '', classificationFilter: [] }),
         handleExportExcel,
     };
 
@@ -211,5 +213,6 @@ export function useRequestSuggestions() {
         state,
         actions,
         selectors,
+        isAuthorized,
     };
 }
