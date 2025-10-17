@@ -7,12 +7,13 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError } from '@/modules/core/lib/logger';
+import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getRequestSuggestions, savePurchaseRequest } from '@/modules/requests/lib/actions';
-import type { Customer, DateRange } from '@/modules/core/types';
+import type { Customer, DateRange, PurchaseRequest } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { subDays, startOfDay } from 'date-fns';
 import { useDebounce } from 'use-debounce';
+import { exportToExcel } from '@/modules/core/lib/excel-export';
 
 export interface PurchaseSuggestion {
     itemId: string;
@@ -84,6 +85,17 @@ export function useRequestSuggestions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setTitle]);
 
+    const filteredSuggestions = useMemo(() => {
+        return state.suggestions.filter(item => {
+            const searchMatch = debouncedSearchTerm
+                ? item.itemId.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                  item.itemDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                : true;
+            const classificationMatch = state.classificationFilter === 'all' || item.itemClassification === state.classificationFilter;
+            return searchMatch && classificationMatch;
+        });
+    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter]);
+
     const toggleItemSelection = (itemId: string) => {
         updateState({
             selectedItems: new Set(
@@ -95,7 +107,7 @@ export function useRequestSuggestions() {
     };
 
     const toggleSelectAll = (checked: boolean) => {
-        const itemsToSelect = selectors.filteredSuggestions.map(s => s.itemId);
+        const itemsToSelect = filteredSuggestions.map(s => s.itemId);
         updateState({
             selectedItems: new Set(
                 checked ? itemsToSelect : []
@@ -103,12 +115,17 @@ export function useRequestSuggestions() {
         });
     };
     
+    const selectedSuggestions = useMemo(
+        () => state.suggestions.filter(s => state.selectedItems.has(s.itemId)),
+        [state.suggestions, state.selectedItems]
+    );
+
     const handleCreateRequests = async () => {
         if (!currentUser) {
             toast({ title: "Error de autenticación", variant: "destructive" });
             return;
         }
-        if (selectors.selectedSuggestions.length === 0) {
+        if (selectedSuggestions.length === 0) {
             toast({ title: "No hay artículos seleccionados", variant: "destructive" });
             return;
         }
@@ -116,7 +133,7 @@ export function useRequestSuggestions() {
         updateState({ isSubmitting: true });
         try {
             let createdCount = 0;
-            for (const item of selectors.selectedSuggestions) {
+            for (const item of selectedSuggestions) {
                  const requestPayload = {
                     requiredDate: item.earliestDueDate || new Date().toISOString().split('T')[0],
                     clientId: 'VAR-CLI', // Generic client
@@ -142,29 +159,35 @@ export function useRequestSuggestions() {
             updateState({ isSubmitting: false });
         }
     };
+    
+    const handleExportExcel = () => {
+        const dataToExport = filteredSuggestions.map(item => [
+            item.itemId,
+            item.itemDescription,
+            item.involvedClients.map(c => c.name).join(', '),
+            item.earliestDueDate ? new Date(item.earliestDueDate).toLocaleDateString('es-CR') : 'N/A',
+            item.totalRequired,
+            item.currentStock,
+            item.shortage,
+        ]);
 
+        exportToExcel({
+            fileName: 'sugerencias_compra',
+            sheetName: 'Sugerencias',
+            headers: ['Código Artículo', 'Descripción', 'Clientes Involucrados', 'Próxima Entrega', 'Cant. Requerida', 'Inv. Actual', 'Faltante Total'],
+            data: dataToExport,
+            columnWidths: [20, 40, 30, 15, 15, 15, 15],
+        });
+    };
+    
     const selectors = {
-        filteredSuggestions: useMemo(() => {
-            return state.suggestions.filter(item => {
-                const searchMatch = debouncedSearchTerm
-                    ? item.itemId.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                      item.itemDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                    : true;
-                const classificationMatch = state.classificationFilter === 'all' || item.itemClassification === state.classificationFilter;
-                return searchMatch && classificationMatch;
-            });
-        }, [state.suggestions, debouncedSearchTerm, state.classificationFilter]),
-        
-        selectedSuggestions: useMemo(
-            () => state.suggestions.filter(s => state.selectedItems.has(s.itemId)),
-            [state.suggestions, state.selectedItems]
-        ),
-
+        filteredSuggestions,
+        selectedSuggestions,
         areAllSelected: useMemo(() => {
-            const filteredIds = new Set(selectors.filteredSuggestions.map(s => s.itemId));
+            const filteredIds = new Set(filteredSuggestions.map(s => s.itemId));
             if (filteredIds.size === 0) return false;
             return [...filteredIds].every(id => state.selectedItems.has(id));
-        }, [selectors.filteredSuggestions, state.selectedItems]),
+        }, [filteredSuggestions, state.selectedItems]),
         
         classifications: useMemo<string[]>(() => 
             Array.from(new Set(products.map(p => p.classification).filter(Boolean)))
@@ -181,6 +204,7 @@ export function useRequestSuggestions() {
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
         setClassificationFilter: (filter: string) => updateState({ classificationFilter: filter }),
         handleClearFilters: () => updateState({ searchTerm: '', classificationFilter: 'all' }),
+        handleExportExcel,
     };
 
     return {
