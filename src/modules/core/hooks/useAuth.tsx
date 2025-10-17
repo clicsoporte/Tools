@@ -7,9 +7,9 @@
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification } from "../types";
+import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification, Suggestion } from "../types";
 import { getCurrentUser as getCurrentUserClient, getInitialAuthData } from '../lib/auth-client';
-import { getUnreadSuggestionsCount } from "../lib/suggestions-actions";
+import { getUnreadSuggestions, getUnreadSuggestionsCount } from "../lib/suggestions-actions";
 import { getCompanySettings, saveCompanySettings } from "../lib/db";
 import { getExchangeRate } from "../lib/api-actions";
 import { getNotificationsForUser } from "../lib/notifications-actions";
@@ -31,7 +31,7 @@ interface AuthContextType {
       rate: number | null;
       date: string | null;
   };
-  unreadSuggestionsCount: number;
+  unreadSuggestions: Suggestion[];
   notifications: Notification[];
   unreadNotificationsCount: number;
   fetchUnreadNotifications: () => Promise<void>;
@@ -61,7 +61,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
   const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null; date: string | null }>({ rate: null, date: null });
-  const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
+  const [unreadSuggestions, setUnreadSuggestions] = useState<Suggestion[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,8 +82,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const updateUnreadSuggestionsCount = useCallback(async () => {
     try {
-        const count = await getUnreadSuggestionsCount();
-        setUnreadSuggestionsCount(count);
+        const suggs = await getUnreadSuggestions();
+        setUnreadSuggestions(suggs);
     } catch (error) {
         console.error("Failed to update unread suggestions count:", error);
     }
@@ -121,7 +121,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setAllExemptions(data.exemptions);
       setExemptionLaws(data.exemptionLaws);
       setExchangeRateData(data.exchangeRate);
-      setUnreadSuggestionsCount(data.unreadSuggestions);
+      setUnreadSuggestions(data.unreadSuggestions);
 
       if (currentUser && data.roles.length > 0) {
         const role = data.roles.find(r => r.id === currentUser.role);
@@ -153,7 +153,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         setAllExemptions(data.exemptions);
         setExemptionLaws(data.exemptionLaws);
         setExchangeRateData(data.exchangeRate);
-        setUnreadSuggestionsCount(data.unreadSuggestions);
+        setUnreadSuggestions(data.unreadSuggestions);
         const role = data.roles.find(r => r.id === currentUser.role);
         setUserRole(role || null);
     }
@@ -171,11 +171,15 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   useEffect(() => {
     if (user) {
-      fetchUnreadNotifications(); // Fetch on initial load/user change
-      const interval = setInterval(fetchUnreadNotifications, 30000); // Poll every 30 seconds
+      fetchUnreadNotifications();
+      updateUnreadSuggestionsCount();
+      const interval = setInterval(() => {
+        fetchUnreadNotifications();
+        updateUnreadSuggestionsCount();
+      }, 30000);
       return () => clearInterval(interval);
     }
-  }, [user, fetchUnreadNotifications]);
+  }, [user, fetchUnreadNotifications, updateUnreadSuggestionsCount]);
 
   const contextValue: AuthContextType = {
     user,
@@ -188,7 +192,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     exemptionLaws,
     isLoading,
     exchangeRateData,
-    unreadSuggestionsCount,
+    unreadSuggestions,
     notifications,
     unreadNotificationsCount,
     fetchUnreadNotifications,

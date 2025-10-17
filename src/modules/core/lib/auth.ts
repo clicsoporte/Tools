@@ -12,7 +12,7 @@ import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { headers } from 'next/headers';
 import { getExchangeRate } from './api-actions';
-import { getUnreadSuggestionsCount } from './suggestions-actions';
+import { getUnreadSuggestions } from './suggestions-actions';
 
 
 const SALT_ROUNDS = 10;
@@ -241,7 +241,7 @@ export async function getInitialAuthData() {
         getAllExemptions(),
         getExemptionLaws(),
         getExchangeRate(),
-        getUnreadSuggestionsCount()
+        getUnreadSuggestions()
     ]);
     
     let rateData: { rate: number | null; date: string | null } = { rate: null, date: null };

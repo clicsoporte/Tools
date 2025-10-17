@@ -604,12 +604,14 @@ export type Suggestion = {
 
 // --- Notification Types ---
 export type Notification = {
-    id: number;
+    id: number | string; // Can be number for DB notifications, string for synthetic ones like suggestions
     userId: number;
     message: string;
     href: string;
     isRead: 0 | 1;
     timestamp: string;
+    isSuggestion?: boolean; // Flag to identify suggestion notifications
+    suggestionId?: number; // Original suggestion ID
 };
 
 
