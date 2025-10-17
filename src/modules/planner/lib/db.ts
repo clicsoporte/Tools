@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the planner database.
  */
@@ -44,6 +45,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
             lastModifiedAt TEXT,
             hasBeenModified BOOLEAN DEFAULT FALSE,
             deliveredQuantity REAL,
+            defectiveQuantity REAL,
             erpPackageNumber TEXT,
             erpTicketNumber TEXT,
             reopened BOOLEAN DEFAULT FALSE,
@@ -95,6 +97,7 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
     const plannerColumns = new Set(plannerTableInfo.map(c => c.name));
     
     if (!plannerColumns.has('deliveredQuantity')) db.exec(`ALTER TABLE production_orders ADD COLUMN deliveredQuantity REAL`);
+    if (!plannerColumns.has('defectiveQuantity')) db.exec(`ALTER TABLE production_orders ADD COLUMN defectiveQuantity REAL`);
     if (!plannerColumns.has('purchaseOrder')) db.exec(`ALTER TABLE production_orders ADD COLUMN purchaseOrder TEXT`);
     if (!plannerColumns.has('scheduledStartDate')) db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledStartDate TEXT`);
     if (!plannerColumns.has('scheduledEndDate')) db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledEndDate TEXT`);
@@ -396,7 +399,7 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
 
 export async function updateStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
-    const { orderId, status, notes, updatedBy, deliveredQuantity, erpPackageNumber, erpTicketNumber, reopen } = payload;
+    const { orderId, status, notes, updatedBy, deliveredQuantity, defectiveQuantity, erpPackageNumber, erpTicketNumber, reopen } = payload;
 
     const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
     if (!currentOrder) {
@@ -416,6 +419,7 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
                 lastStatusUpdateBy = @updatedBy,
                 approvedBy = @approvedBy,
                 deliveredQuantity = @deliveredQuantity,
+                defectiveQuantity = @defectiveQuantity,
                 erpPackageNumber = @erpPackageNumber,
                 erpTicketNumber = @erpTicketNumber,
                 reopened = @reopened,
@@ -431,6 +435,7 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
             approvedBy,
             orderId,
             deliveredQuantity: deliveredQuantity !== undefined ? deliveredQuantity : currentOrder.deliveredQuantity,
+            defectiveQuantity: defectiveQuantity !== undefined ? defectiveQuantity : currentOrder.defectiveQuantity,
             erpPackageNumber: erpPackageNumber !== undefined ? erpPackageNumber : currentOrder.erpPackageNumber,
             erpTicketNumber: erpTicketNumber !== undefined ? erpTicketNumber : currentOrder.erpTicketNumber,
             reopened: reopen ? 1 : (currentOrder.reopened ? 1 : 0),

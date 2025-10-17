@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React from 'react';
@@ -26,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 
 
 /**
@@ -76,6 +76,7 @@ export default function PlannerPage() {
 
         const daysRemaining = selectors.getDaysRemaining(order.deliveryDate);
         const scheduledDaysRemaining = selectors.getScheduledDaysRemaining(order);
+        const netDifference = (order.deliveredQuantity ?? 0) - (order.defectiveQuantity ?? 0) - order.quantity;
         
         return (
             <Card key={order.id} className="w-full flex flex-col">
@@ -182,12 +183,13 @@ export default function PlannerPage() {
                         <div className="space-y-1"><p className="font-semibold text-muted-foreground">Cant. Solicitada</p><p className="font-bold text-lg">{order.quantity.toLocaleString()}</p></div>
                         
                         {(order.deliveredQuantity !== null && order.deliveredQuantity !== undefined) && (
-                            <>
+                             <>
                                 <div className="space-y-1"><p className="font-semibold text-muted-foreground">Cant. Entregada</p><p className="font-bold text-lg text-green-600">{order.deliveredQuantity.toLocaleString()}</p></div>
+                                <div className="space-y-1"><p className="font-semibold text-muted-foreground">Cant. Defectuosa</p><p className="font-bold text-lg text-red-600">{(order.defectiveQuantity ?? 0).toLocaleString()}</p></div>
                                 <div className="space-y-1">
-                                    <p className="font-semibold text-muted-foreground">Diferencia</p>
-                                    <p className={cn("font-bold text-lg", (order.deliveredQuantity - order.quantity) > 0 && "text-blue-600", (order.deliveredQuantity - order.quantity) < 0 && "text-destructive")}>
-                                        {(order.deliveredQuantity - order.quantity).toLocaleString()}
+                                    <p className="font-semibold text-muted-foreground">Diferencia Neta</p>
+                                    <p className={cn("font-bold text-lg", netDifference > 0 && "text-blue-600", netDifference < 0 && "text-destructive")}>
+                                        {netDifference.toLocaleString()}
                                     </p>
                                 </div>
                             </>
@@ -347,22 +349,18 @@ export default function PlannerPage() {
                 <CardContent className="p-4 space-y-4">
                     <div className="flex flex-col md:flex-row gap-4">
                         <Input placeholder="Buscar por Nº orden, cliente o producto..." value={state.searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm" />
-                        <Select value={state.statusFilter} onValueChange={actions.setStatusFilter}>
-                            <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por estado..." /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los Estados</SelectItem>
-                                {Object.entries(selectors.statusConfig).map(([key, { label }]) => {
-                                    return <SelectItem key={key} value={key}>{label}</SelectItem>
-                                })}
-                            </SelectContent>
-                        </Select>
-                         <Select value={state.classificationFilter} onValueChange={actions.setClassificationFilter}>
-                            <SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Filtrar por clasificación..." /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas las Clasificaciones</SelectItem>
-                                {selectors.classifications.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                         <MultiSelectFilter
+                            title="Estado"
+                            options={Object.entries(selectors.statusConfig).map(([key, { label }]) => ({ value: key, label }))}
+                            selectedValues={state.statusFilter}
+                            onSelectedChange={actions.setStatusFilter}
+                        />
+                         <MultiSelectFilter
+                            title="Clasificación"
+                            options={selectors.classifications.map(c => ({ value: c, label: c }))}
+                            selectedValues={state.classificationFilter}
+                            onSelectedChange={actions.setClassificationFilter}
+                        />
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button variant={"outline"} className={cn("w-full md:w-[240px] justify-start text-left font-normal", !state.dateFilter && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{state.dateFilter?.from ? (state.dateFilter.to ? (`${format(state.dateFilter.from, "LLL dd, y")} - ${format(state.dateFilter.to, "LLL dd, y")}`) : (format(state.dateFilter.from, "LLL dd, y"))) : (<span>Filtrar por fecha</span>)}</Button>
@@ -382,7 +380,7 @@ export default function PlannerPage() {
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); actions.setShowOnlyMyOrders(true); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
+                        <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter([]); actions.setClassificationFilter([]); actions.setDateFilter(undefined); actions.setShowOnlyMyOrders(true); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                     </div>
                      <div className="flex flex-wrap items-center gap-4">
                         {state.viewingArchived && (
@@ -479,9 +477,15 @@ export default function PlannerPage() {
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         {state.newStatus === 'completed' && (
-                            <div className="space-y-2">
-                                <Label htmlFor="status-delivered-quantity">Cantidad Entregada</Label>
-                                <Input id="status-delivered-quantity" type="number" value={state.deliveredQuantity} onChange={(e) => actions.setDeliveredQuantity(e.target.value)} placeholder={`Cantidad solicitada: ${state.orderToUpdate?.quantity.toLocaleString()}`} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="status-delivered-quantity">Cantidad Entregada</Label>
+                                    <Input id="status-delivered-quantity" type="number" value={state.deliveredQuantity} onChange={(e) => actions.setDeliveredQuantity(e.target.value)} placeholder={`Solicitada: ${state.orderToUpdate?.quantity.toLocaleString()}`} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="status-defective-quantity">Cantidad Defectuosa</Label>
+                                    <Input id="status-defective-quantity" type="number" value={state.defectiveQuantity} onChange={(e) => actions.setDefectiveQuantity(e.target.value)} placeholder="0" />
+                                </div>
                             </div>
                         )}
                         {state.newStatus === 'received-in-warehouse' && (
