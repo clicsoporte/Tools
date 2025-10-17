@@ -3,7 +3,8 @@
  */
 'use server';
 
-import { getCompletedOrdersByDateRange, getPlannerSettings as getPlannerSettingsDb } from '@/modules/planner/lib/db';
+import { getCompletedOrdersByDateRange } from '@/modules/planner/lib/db';
+import { getPlannerSettings as getPlannerSettingsDb } from '@/modules/planner/lib/actions';
 import { getAllProducts } from '@/modules/core/lib/db';
 import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry } from '@/modules/core/types';
 import { differenceInDays, parseISO } from 'date-fns';
@@ -37,7 +38,7 @@ export async function getProductionReportData({ dateRange, filters = {} }: { dat
         getAllProducts(),
     ]);
 
-    const filteredOrders = allOrders.filter(order => {
+    const filteredOrders = allOrders.filter((order: ProductionOrder) => {
         if (filters.productId && order.productId !== filters.productId) {
             return false;
         }
@@ -46,18 +47,18 @@ export async function getProductionReportData({ dateRange, filters = {} }: { dat
         }
         if (filters.classifications && filters.classifications.length > 0) {
             const product = allProducts.find(p => p.id === order.productId);
-            if (!product || !filters.classifications.includes(product.classification)) {
+            if (!product || !product.classification || !filters.classifications.includes(product.classification)) {
                 return false;
             }
         }
         return true;
     });
 
-    const details: ProductionReportDetail[] = filteredOrders.map(order => {
+    const details: ProductionReportDetail[] = filteredOrders.map((order: (ProductionOrder & { history: ProductionOrderHistoryEntry[] })) => {
         const history = order.history || [];
         
-        const completionEntry = history.find(h => h.status === 'completed' || h.status === 'received-in-warehouse');
-        const startEntry = history.find(h => h.status === 'in-progress');
+        const completionEntry = history.find((h: ProductionOrderHistoryEntry) => h.status === 'completed' || h.status === 'received-in-warehouse');
+        const startEntry = history.find((h: ProductionOrderHistoryEntry) => h.status === 'in-progress');
         
         const completionDate = completionEntry?.timestamp || null;
         
