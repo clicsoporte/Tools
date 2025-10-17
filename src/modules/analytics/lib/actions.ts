@@ -6,7 +6,7 @@
 import { getCompletedOrdersByDateRange } from '@/modules/planner/lib/db';
 import { getPlannerSettings as getPlannerSettingsDb } from '@/modules/planner/lib/actions';
 import { getAllProducts } from '@/modules/core/lib/db';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product } from '@/modules/core/types';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 

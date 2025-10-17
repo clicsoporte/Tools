@@ -18,7 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
+import { cn } from "../../../../lib/utils";
 import { useDebounce } from "use-debounce";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/modules/core/hooks/useAuth";
