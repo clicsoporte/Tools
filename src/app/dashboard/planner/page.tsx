@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, MessageSquarePlus, FileDown, Play, Pause, Wrench, Hourglass } from 'lucide-react';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, MessageSquarePlus, FileDown, Play, Pause, Wrench, Hourglass, FileSpreadsheet } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -382,14 +382,16 @@ export default function PlannerPage() {
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={state.dateFilter} onSelect={actions.setDateFilter} /></PopoverContent>
                         </Popover>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="outline"><FileDown className="mr-2 h-4 w-4"/>Exportar PDF</Button></DropdownMenuTrigger>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline"><FileDown className="mr-2 h-4 w-4"/>Exportar</Button>
+                            </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onSelect={() => actions.handleExportPDF('portrait')}>
-                                    Exportar Vertical
+                                    <FileDown className="mr-2 h-4 w-4" /> Exportar a PDF
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => actions.handleExportPDF('landscape')}>
-                                    Exportar Horizontal
+                                <DropdownMenuItem onSelect={actions.handleExportExcel}>
+                                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar a Excel
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
