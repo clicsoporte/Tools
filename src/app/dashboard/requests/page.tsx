@@ -51,7 +51,7 @@ const HighlightedText = ({ text, highlight }: { text: string; highlight: string 
 
 
 export default function PurchaseRequestPage() {
-    const { state, actions, selectors } = useRequests();
+    const { state, actions, selectors, isAuthorized } = useRequests();
 
     const {
         isLoading, isSubmitting, isNewRequestDialogOpen, isEditRequestDialogOpen, viewingArchived,
@@ -66,7 +66,7 @@ export default function PurchaseRequestPage() {
     } = state;
 
 
-    if (isLoading) {
+    if (isAuthorized === null || (isAuthorized && isLoading)) {
         return (
             <main className="flex-1 p-4 md:p-6">
                 <div className="flex justify-between items-center mb-6">
@@ -79,6 +79,10 @@ export default function PurchaseRequestPage() {
                 </div>
             </main>
         )
+    }
+
+    if(isAuthorized === false) {
+        return null;
     }
 
     const renderRequestCard = (request: PurchaseRequest) => {
@@ -361,3 +365,4 @@ export default function PurchaseRequestPage() {
         </main>
     );
 }
+
