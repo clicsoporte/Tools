@@ -259,6 +259,7 @@ export type ProductionOrder = {
   erpTicketNumber?: string;
   reopened?: boolean;
   machineId?: string | null;
+  shiftId?: string | null;
   previousStatus?: ProductionOrderStatus | null;
 };
 
@@ -281,6 +282,11 @@ export type PlannerMachine = {
   name: string;
 };
 
+export type PlannerShift = {
+  id: string;
+  name: string;
+};
+
 export type CustomStatus = {
     id: 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
     label: string;
@@ -294,7 +300,9 @@ export type PlannerSettings = {
     useWarehouseReception: boolean;
     showCustomerTaxId: boolean;
     machines: PlannerMachine[];
+    shifts: PlannerShift[];
     requireMachineForStart: boolean;
+    requireShiftForCompletion: boolean;
     assignmentLabel: string;
     customStatuses: CustomStatus[];
     pdfPaperSize: 'letter' | 'legal';
@@ -320,6 +328,7 @@ export type UpdateOrderDetailsPayload = {
   orderId: number;
   priority?: ProductionOrderPriority;
   machineId?: string | null;
+  shiftId?: string | null;
   scheduledDateRange?: DateRange;
   updatedBy: string;
 };
