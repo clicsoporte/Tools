@@ -4,8 +4,8 @@
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine } from '../../core/types';
-import { logInfo } from '@/modules/core/lib/logger';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, Customer } from '../../core/types';
+import { logInfo, logError } from '@/modules/core/lib/logger';
 import { createNotification } from '@/modules/core/lib/notifications-actions';
 import { 
     getRequests, 
@@ -20,7 +20,7 @@ import {
     getUserByName,
 } from './db';
 import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions';
-import { getAllProducts, getAllStock } from '@/modules/core/lib/db';
+import { getAllProducts, getAllStock, getAllCustomers } from '@/modules/core/lib/db';
 
 /**
  * Fetches purchase requests from the server.
@@ -142,16 +142,26 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
     const { headers, lines } = await getErpOrderDataServer(dateRange);
     const allStock = await getAllStock();
     const allProducts = await getAllProducts();
+    const allCustomers = await getAllCustomers();
 
-    const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string> }>();
+    const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string>; clientIds: Set<string>; latestDueDate: Date | null; }>();
 
     for (const line of lines) {
         if (!requiredItems.has(line.ARTICULO)) {
-            requiredItems.set(line.ARTICULO, { totalRequired: 0, sourceOrders: new Set() });
+            requiredItems.set(line.ARTICULO, { totalRequired: 0, sourceOrders: new Set(), clientIds: new Set(), latestDueDate: null });
         }
         const item = requiredItems.get(line.ARTICULO)!;
         item.totalRequired += line.CANTIDAD_PEDIDA;
-        item.sourceOrders.add(line.PEDIDO);
+
+        const header = headers.find(h => h.PEDIDO === line.PEDIDO);
+        if (header) {
+            item.sourceOrders.add(header.PEDIDO);
+            item.clientIds.add(header.CLIENTE);
+            const dueDate = new Date(header.FECHA_PROMETIDA);
+            if (!item.latestDueDate || dueDate > item.latestDueDate) {
+                item.latestDueDate = dueDate;
+            }
+        }
     }
 
     const suggestions: PurchaseSuggestion[] = [];
@@ -163,13 +173,21 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
 
         if (shortage > 0) {
             const productInfo = allProducts.find(p => p.id === itemId);
+            const involvedClients = Array.from(data.clientIds).map(id => {
+                const customer = allCustomers.find(c => c.id === id);
+                return { id, name: customer?.name || 'Desconocido' };
+            });
+            
             suggestions.push({
                 itemId,
                 itemDescription: productInfo?.description || 'Artículo no encontrado',
+                itemClassification: productInfo?.classification || 'N/A',
                 totalRequired: data.totalRequired,
                 currentStock,
                 shortage,
                 sourceOrders: Array.from(data.sourceOrders),
+                involvedClients,
+                latestDueDate: data.latestDueDate ? data.latestDueDate.toISOString() : null,
             });
         }
     }

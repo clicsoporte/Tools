@@ -9,17 +9,21 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getRequestSuggestions, savePurchaseRequest } from '@/modules/requests/lib/actions';
-import type { DateRange } from '@/modules/core/types';
+import type { Customer, DateRange } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { subDays, startOfDay } from 'date-fns';
+import { useDebounce } from 'use-debounce';
 
 export interface PurchaseSuggestion {
     itemId: string;
     itemDescription: string;
+    itemClassification: string;
     totalRequired: number;
     currentStock: number;
     shortage: number;
     sourceOrders: string[];
+    involvedClients: { id: string; name: string }[];
+    latestDueDate: string | null;
 }
 
 interface State {
@@ -28,13 +32,15 @@ interface State {
     dateRange: DateRange;
     suggestions: PurchaseSuggestion[];
     selectedItems: Set<string>;
+    searchTerm: string;
+    classificationFilter: string;
 }
 
 export function useRequestSuggestions() {
     useAuthorization(['requests:create']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, products } = useAuth();
 
     const [state, setState] = useState<State>({
         isLoading: false,
@@ -45,7 +51,11 @@ export function useRequestSuggestions() {
         },
         suggestions: [],
         selectedItems: new Set(),
+        searchTerm: '',
+        classificationFilter: 'all',
     });
+
+    const [debouncedSearchTerm] = useDebounce(state.searchTerm, 500);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
@@ -85,29 +95,20 @@ export function useRequestSuggestions() {
     };
 
     const toggleSelectAll = (checked: boolean) => {
+        const itemsToSelect = selectors.filteredSuggestions.map(s => s.itemId);
         updateState({
             selectedItems: new Set(
-                checked ? state.suggestions.map(s => s.itemId) : []
+                checked ? itemsToSelect : []
             ),
         });
     };
     
-    const selectedSuggestions = useMemo(
-        () => state.suggestions.filter(s => state.selectedItems.has(s.itemId)),
-        [state.suggestions, state.selectedItems]
-    );
-
-    const areAllSelected = useMemo(
-        () => state.suggestions.length > 0 && selectedSuggestions.length === state.suggestions.length,
-        [state.suggestions, selectedSuggestions]
-    );
-
     const handleCreateRequests = async () => {
         if (!currentUser) {
             toast({ title: "Error de autenticación", variant: "destructive" });
             return;
         }
-        if (selectedSuggestions.length === 0) {
+        if (selectors.selectedSuggestions.length === 0) {
             toast({ title: "No hay artículos seleccionados", variant: "destructive" });
             return;
         }
@@ -115,9 +116,9 @@ export function useRequestSuggestions() {
         updateState({ isSubmitting: true });
         try {
             let createdCount = 0;
-            for (const item of selectedSuggestions) {
+            for (const item of selectors.selectedSuggestions) {
                  const requestPayload = {
-                    requiredDate: new Date().toISOString().split('T')[0], // Default to today, can be improved
+                    requiredDate: item.latestDueDate || new Date().toISOString().split('T')[0],
                     clientId: 'VAR-CLI', // Generic client
                     clientName: 'VARIOS CLIENTES',
                     clientTaxId: '',
@@ -133,7 +134,6 @@ export function useRequestSuggestions() {
                 createdCount++;
             }
             toast({ title: "Solicitudes Creadas", description: `Se crearon ${createdCount} solicitudes de compra.` });
-            // Re-analyze to clear created items
             await handleAnalyze();
         } catch (error: any) {
             logError("Failed to create requests from suggestions", { error: error.message });
@@ -143,6 +143,34 @@ export function useRequestSuggestions() {
         }
     };
 
+    const selectors = {
+        filteredSuggestions: useMemo(() => {
+            return state.suggestions.filter(item => {
+                const searchMatch = debouncedSearchTerm
+                    ? item.itemId.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                      item.itemDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                    : true;
+                const classificationMatch = state.classificationFilter === 'all' || item.itemClassification === state.classificationFilter;
+                return searchMatch && classificationMatch;
+            });
+        }, [state.suggestions, debouncedSearchTerm, state.classificationFilter]),
+        
+        selectedSuggestions: useMemo(
+            () => state.suggestions.filter(s => state.selectedItems.has(s.itemId)),
+            [state.suggestions, state.selectedItems]
+        ),
+
+        areAllSelected: useMemo(() => {
+            const filteredIds = new Set(selectors.filteredSuggestions.map(s => s.itemId));
+            if (filteredIds.size === 0) return false;
+            return [...filteredIds].every(id => state.selectedItems.has(id));
+        }, [selectors.filteredSuggestions, state.selectedItems]),
+        
+        classifications: useMemo<string[]>(() => 
+            Array.from(new Set(products.map(p => p.classification).filter(Boolean)))
+        , [products]),
+    };
+
 
     const actions = {
         setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined } }),
@@ -150,11 +178,9 @@ export function useRequestSuggestions() {
         toggleItemSelection,
         toggleSelectAll,
         handleCreateRequests,
-    };
-    
-    const selectors = {
-        areAllSelected,
-        selectedSuggestions
+        setSearchTerm: (term: string) => updateState({ searchTerm: term }),
+        setClassificationFilter: (filter: string) => updateState({ classificationFilter: filter }),
+        handleClearFilters: () => updateState({ searchTerm: '', classificationFilter: 'all' }),
     };
 
     return {

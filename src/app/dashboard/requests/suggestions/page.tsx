@@ -11,8 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart } from 'lucide-react';
+import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart, FilterX, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -22,6 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function RequestSuggestionsPage() {
     const {
@@ -30,7 +30,7 @@ export default function RequestSuggestionsPage() {
         selectors,
     } = useRequestSuggestions();
 
-    const { isLoading, dateRange, suggestions, selectedItems, isSubmitting } = state;
+    const { isLoading, dateRange, suggestions, selectedItems, isSubmitting, searchTerm, classificationFilter } = state;
 
     if (isLoading && suggestions.length === 0) {
         return (
@@ -74,7 +74,7 @@ export default function RequestSuggestionsPage() {
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                             <CardTitle>Filtros de Análisis</CardTitle>
-                            <CardDescription>Selecciona el rango de fechas de los pedidos del ERP a analizar.</CardDescription>
+                            <CardDescription>Selecciona los filtros para analizar los pedidos del ERP.</CardDescription>
                         </div>
                         <Button onClick={actions.handleAnalyze} disabled={isLoading}>
                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -82,7 +82,7 @@ export default function RequestSuggestionsPage() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex flex-col md:flex-row gap-4">
                      <Popover>
                         <PopoverTrigger asChild>
                             <Button
@@ -120,43 +120,57 @@ export default function RequestSuggestionsPage() {
                             />
                         </PopoverContent>
                     </Popover>
+                    <div className="relative flex-1 md:grow-0">
+                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Buscar por código o descripción..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="pl-8 w-full md:w-[300px]" />
+                    </div>
+                    <Select value={classificationFilter} onValueChange={actions.setClassificationFilter}>
+                        <SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Filtrar por clasificación..." /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas las Clasificaciones</SelectItem>
+                            {selectors.classifications.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                     <Button variant="ghost" onClick={actions.handleClearFilters}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                 </CardContent>
             </Card>
 
             <Card className="mt-6">
                 <CardHeader>
-                    <CardTitle>Artículos con Faltantes</CardTitle>
+                    <CardTitle>Artículos con Faltantes ({selectors.filteredSuggestions.length})</CardTitle>
                     <CardDescription>
                         Esta es una lista consolidada de todos los artículos necesarios para cumplir con los pedidos seleccionados, que no tienen suficiente stock.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ScrollArea className="h-[50vh]">
+                    <ScrollArea className="h-[50vh] border rounded-md">
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead className="w-12">
                                          <Checkbox
                                             checked={selectors.areAllSelected}
                                             onCheckedChange={actions.toggleSelectAll}
+                                            disabled={selectors.filteredSuggestions.length === 0}
                                         />
                                     </TableHead>
                                     <TableHead>Artículo</TableHead>
+                                    <TableHead>Clientes Involucrados</TableHead>
+                                    <TableHead>Última Fecha Entrega</TableHead>
                                     <TableHead className="text-right">Cant. Requerida</TableHead>
                                     <TableHead className="text-right">Inv. Actual (ERP)</TableHead>
                                     <TableHead className="text-right">Faltante Total</TableHead>
-                                    <TableHead>Pedidos Origen</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     Array.from({ length: 5 }).map((_, i) => (
                                         <TableRow key={i}>
-                                            <TableCell colSpan={6}><Skeleton className="h-8 w-full" /></TableCell>
+                                            <TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell>
                                         </TableRow>
                                     ))
-                                ) : suggestions.length > 0 ? (
-                                    suggestions.map(item => (
+                                ) : selectors.filteredSuggestions.length > 0 ? (
+                                    selectors.filteredSuggestions.map(item => (
                                         <TableRow key={item.itemId}>
                                             <TableCell>
                                                 <Checkbox
@@ -168,18 +182,25 @@ export default function RequestSuggestionsPage() {
                                                 <p className="font-medium">{item.itemDescription}</p>
                                                 <p className="text-sm text-muted-foreground">{item.itemId}</p>
                                             </TableCell>
+                                            <TableCell>
+                                                <p className="text-xs text-muted-foreground truncate max-w-xs" title={item.involvedClients.map(c => `${c.name} (${c.id})`).join(', ')}>
+                                                    {item.involvedClients.map(c => c.name).join(', ')}
+                                                </p>
+                                            </TableCell>
+                                            <TableCell>
+                                                {item.latestDueDate ? format(new Date(item.latestDueDate), 'dd/MM/yyyy') : 'N/A'}
+                                            </TableCell>
                                             <TableCell className="text-right">{item.totalRequired.toLocaleString()}</TableCell>
                                             <TableCell className="text-right">{item.currentStock.toLocaleString()}</TableCell>
                                             <TableCell className="text-right font-bold text-red-600">{item.shortage.toLocaleString()}</TableCell>
-                                            <TableCell className="text-xs text-muted-foreground">{item.sourceOrders.join(', ')}</TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-32 text-center">
+                                        <TableCell colSpan={7} className="h-32 text-center">
                                             <div className="flex flex-col items-center justify-center gap-2">
                                                 <AlertCircle className="h-8 w-8 text-muted-foreground" />
-                                                <p className="text-muted-foreground">No se encontraron faltantes o no se ha analizado un rango de fechas.</p>
+                                                <p className="text-muted-foreground">No se encontraron faltantes para los filtros seleccionados.</p>
                                             </div>
                                         </TableCell>
                                     </TableRow>
