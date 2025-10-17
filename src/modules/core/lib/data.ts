@@ -247,6 +247,29 @@ export const initialRoles: Role[] = [
 ];
 
 /**
+ * List of all permissions that grant access to the admin section.
+ */
+export const adminPermissions = [
+    "users:create", "users:read", "users:update", "users:delete",
+    "roles:create", "roles:read", "roles:update", "roles:delete",
+    "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock",
+    "admin:suggestions:read",
+    "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
+    "admin:logs:read", "admin:logs:clear",
+    "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset",
+];
+
+/**
+ * List of all permissions that grant access to the analytics section.
+ */
+export const analyticsPermissions = [
+    "analytics:read",
+    "analytics:purchase-suggestions:read",
+    "analytics:production-report:read",
+];
+
+
+/**
  * List of tools available in the admin section.
  * The 'icon' property is now the imported icon component.
  */

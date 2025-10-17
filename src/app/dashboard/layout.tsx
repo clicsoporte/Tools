@@ -11,7 +11,6 @@ import { Header } from "../../components/layout/header";
 import { SidebarInset, SidebarProvider } from "../../components/ui/sidebar";
 import { usePageTitle, PageTitleProvider } from "../../modules/core/hooks/usePageTitle";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -40,26 +39,19 @@ export default function DashboardLayout({
 }) {
   const { user, isLoading, logout } = useAuth();
   
-  // This state helps prevent rendering children until we are sure the user is authenticated.
-  // It avoids the "flicker" of content before a redirect.
   const [isVerified, setIsVerified] = useState(false);
 
   useEffect(() => {
-    // If loading is finished...
     if (!isLoading) {
       if (user) {
-        // ...and we have a user, mark as verified to render the dashboard.
         setIsVerified(true);
       } else {
-        // ...and there's no user, trigger the logout flow which handles the redirect.
-        // This prevents a race condition between the layout and the auth hook.
+        // The logout function now handles the full-page redirection.
         logout();
       }
     }
   }, [isLoading, user, logout]);
 
-  // While loading or before verification, show a full-page loader.
-  // This is the correct way to handle the initial auth check without content flash.
   if (!isVerified) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -68,7 +60,6 @@ export default function DashboardLayout({
     );
   }
 
-  // If verification is complete and we have a user, render the full dashboard layout.
   return (
       <PageTitleProvider initialTitle="Panel">
         <SidebarProvider>

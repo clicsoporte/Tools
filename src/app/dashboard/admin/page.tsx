@@ -3,7 +3,7 @@
  * It dynamically displays a grid of available administration tools.
  */
 'use client';
-import { adminTools } from "../../../modules/core/lib/data";
+import { adminTools, adminPermissions } from "../../../modules/core/lib/data";
 import { ToolCard } from "../../../components/dashboard/tool-card";
 import { useEffect } from "react";
 import { usePageTitle } from "../../../modules/core/hooks/usePageTitle";
@@ -13,7 +13,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 
 export default function AdminDashboardPage() {
     const { setTitle } = usePageTitle();
-    const { isAuthorized } = useAuthorization(['admin:settings:general']);
+    const { isAuthorized } = useAuthorization(adminPermissions);
     const { unreadSuggestionsCount } = useAuth();
 
     useEffect(() => {

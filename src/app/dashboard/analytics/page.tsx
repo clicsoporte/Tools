@@ -7,13 +7,13 @@
 import { ToolCard } from "@/components/dashboard/tool-card";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
-import { analyticsTools } from "@/modules/core/lib/data";
+import { analyticsTools, analyticsPermissions } from "@/modules/core/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useMemo } from "react";
 
 export default function AnalyticsDashboardPage() {
     const { setTitle } = usePageTitle();
-    const { isAuthorized, hasPermission } = useAuthorization(['analytics:read']);
+    const { isAuthorized, hasPermission } = useAuthorization(analyticsPermissions);
 
     useEffect(() => {
         setTitle("Analíticas y Reportes");
