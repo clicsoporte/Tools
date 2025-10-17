@@ -16,8 +16,8 @@ import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 export function NotificationBell() {
-    const { user, unreadNotificationsCount, notifications, fetchUnreadNotifications } = useAuth();
-    const totalUnread = unreadNotificationsCount;
+    const { user, unreadNotificationsCount, notifications, fetchUnreadNotifications, unreadSuggestionsCount } = useAuth();
+    const totalUnread = unreadNotificationsCount + unreadSuggestionsCount;
 
     const handleMarkAsRead = async (id: number) => {
         if (!user) return;
@@ -37,9 +37,9 @@ export function NotificationBell() {
                 <Button variant="ghost" size="icon" className="relative">
                     <Bell className={cn("h-5 w-5", totalUnread > 0 && "animate-pulse fill-yellow-400 text-yellow-600")} />
                     {totalUnread > 0 && (
-                        <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">
+                        <div className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
                             {totalUnread}
-                        </span>
+                        </div>
                     )}
                 </Button>
             </PopoverTrigger>

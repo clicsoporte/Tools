@@ -44,7 +44,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
  */
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user: currentUser, companyData, userRole, isLoading, unreadSuggestionsCount } = useAuth();
+  const { user: currentUser, companyData, userRole, isLoading } = useAuth();
   const { isMobile, setOpenMobile } = useSidebar();
 
   const handleLinkClick = () => {
@@ -215,7 +215,7 @@ export function AppSidebar() {
                     <SidebarMenuButton
                         asChild
                         isActive={isActive("/dashboard/admin")}
-                        tooltip={{ children: "Configuración", badgeCount: unreadSuggestionsCount }}
+                        tooltip="Configuración"
                     >
                         <Link href="/dashboard/admin" onClick={handleLinkClick} className="relative">
                            <Wrench />

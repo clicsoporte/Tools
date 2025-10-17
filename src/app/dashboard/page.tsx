@@ -18,7 +18,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
  * based on user permissions.
  */
 export default function DashboardPage() {
-  const { userRole, isLoading: isAuthLoading, unreadSuggestionsCount } = useAuth();
+  const { userRole, isLoading: isAuthLoading } = useAuth();
   const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const { setTitle } = usePageTitle();
 
@@ -69,9 +69,7 @@ export default function DashboardPage() {
             </div>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {visibleTools.map((tool) => {
-                const isAdminTool = tool.id === 'admin';
-                const badgeCount = isAdminTool ? unreadSuggestionsCount : 0;
-                return <ToolCard key={tool.id} tool={tool} badgeCount={badgeCount} />
+                return <ToolCard key={tool.id} tool={tool} />
               })}
             </div>
           </div>
