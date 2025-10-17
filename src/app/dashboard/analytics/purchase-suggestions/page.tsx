@@ -87,14 +87,14 @@ export default function PurchaseSuggestionsPage() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent className="flex flex-col md:flex-row gap-4">
+                <CardContent className="flex flex-wrap gap-4">
                      <Popover>
                         <PopoverTrigger asChild>
                             <Button
                                 id="date"
                                 variant={"outline"}
                                 className={cn(
-                                "w-full md:w-[300px] justify-start text-left font-normal",
+                                "w-full sm:w-auto sm:min-w-[260px] justify-start text-left font-normal",
                                 !dateRange && "text-muted-foreground"
                                 )}
                             >
@@ -125,17 +125,18 @@ export default function PurchaseSuggestionsPage() {
                             />
                         </PopoverContent>
                     </Popover>
-                    <div className="relative flex-1 md:grow-0">
+                    <div className="relative flex-1 min-w-[240px]">
                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Buscar por código o descripción..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="pl-8 w-full md:w-[300px]" />
+                        <Input placeholder="Buscar por código o descripción..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="pl-8 w-full" />
                     </div>
                      <MultiSelectFilter
                         title="Clasificación"
                         options={selectors.classifications.map(c => ({ value: c, label: c }))}
                         selectedValues={classificationFilter}
                         onSelectedChange={actions.setClassificationFilter}
+                        className="w-full sm:w-auto"
                     />
-                    <Button variant="ghost" onClick={actions.handleClearFilters}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
+                    <Button variant="ghost" onClick={actions.handleClearFilters} className="flex-shrink-0"><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                 </CardContent>
             </Card>
 
