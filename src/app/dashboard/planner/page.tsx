@@ -68,25 +68,12 @@ export default function PlannerPage() {
     }
 
     const renderOrderCard = (order: ProductionOrder) => {
-        const canEdit = (selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold'].includes(order.status)) || (selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress', 'in-queue'].includes(order.status));
-        
-        const canApprove = selectors.hasPermission('planner:status:approve') && order.status === 'pending';
-        
-        const canQueue = selectors.hasPermission('planner:status:in-queue') && order.status === 'approved';
-        const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'in-queue';
-        const canHold = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
-        const canMaintain = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
-        const canResumeFromHold = selectors.hasPermission('planner:status:in-progress') && (order.status === 'on-hold' || order.status === 'in-maintenance');
-        const canComplete = selectors.hasPermission('planner:status:completed') && order.status === 'in-progress';
-        
-        const canRequestUnapproval = selectors.hasPermission('planner:status:unapprove-request') && ['approved', 'in-queue'].includes(order.status) && order.pendingAction === 'none';
-        const canCancelPending = selectors.hasPermission('planner:status:cancel') && order.status === 'pending';
-        const canRequestCancel = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold', 'in-queue', 'in-maintenance'].includes(order.status) && order.pendingAction === 'none';
+        const {
+            canEdit, canApprove, canQueue, canStart, canHold, canMaintain,
+            canResumeFromHold, canComplete, canRequestUnapproval,
+            canCancelPending, canRequestCancel, canReceive, canReopen
+        } = selectors.getOrderPermissions(order);
 
-        const canReceive = selectors.hasPermission('planner:receive') && order.status === 'completed';
-        const finalState = state.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
-        const canReopen = selectors.hasPermission('planner:reopen') && (order.status === finalState || order.status === 'canceled');
-        
         const daysRemaining = selectors.getDaysRemaining(order.deliveryDate);
         const scheduledDaysRemaining = selectors.getScheduledDaysRemaining(order);
         
@@ -96,7 +83,7 @@ export default function PlannerPage() {
                     <div className="flex justify-between items-start gap-2">
                         <div>
                             <CardTitle className="text-lg">{order.consecutive} - [{order.productId}] {order.productDescription}</CardTitle>
-                            <CardDescription>Cliente: {order.customerName} ({state.plannerSettings?.showCustomerTaxId ? order.customerTaxId : ''})</CardDescription>
+                            <CardDescription>Cliente: {order.customerName} {state.plannerSettings?.showCustomerTaxId ? `(${order.customerTaxId})` : ''}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {!!order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}

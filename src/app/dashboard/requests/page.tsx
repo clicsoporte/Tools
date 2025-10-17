@@ -82,18 +82,12 @@ export default function PurchaseRequestPage() {
     }
 
     const renderRequestCard = (request: PurchaseRequest) => {
-        const finalState = requestSettings?.useWarehouseReception ? 'received-in-warehouse' : 'received';
-        const canBeReopened = selectors.hasPermission('requests:reopen') && (request.status === finalState || request.status === 'canceled');
-        const canApprove = selectors.hasPermission('requests:status:approve') && request.status === 'pending';
-        const canOrder = selectors.hasPermission('requests:status:ordered') && request.status === 'approved';
-        const canRevertToApproved = selectors.hasPermission('requests:status:approve') && request.status === 'ordered';
-        const canReceive = selectors.hasPermission('requests:status:received') && request.status === 'ordered';
-        const canReceiveInWarehouse = selectors.hasPermission('requests:status:received') && request.status === 'received' && requestSettings?.useWarehouseReception;
-        const canRequestCancel = selectors.hasPermission('requests:status:cancel') && ['pending', 'approved', 'ordered'].includes(request.status) && request.pendingAction === 'none';
-        
-        const canEditPending = selectors.hasPermission('requests:edit:pending') && request.status === 'pending';
-        const canEditApproved = selectors.hasPermission('requests:edit:approved') && ['approved', 'ordered'].includes(request.status);
-        const canEdit = canEditPending || canEditApproved;
+        const {
+            canEdit, canReopen, canApprove, canOrder,
+            canRevertToApproved, canReceive, canReceiveInWarehouse,
+            canRequestCancel
+        } = selectors.getRequestPermissions(request);
+
         const daysRemaining = selectors.getDaysRemaining(request.requiredDate);
         
         return (
@@ -102,7 +96,7 @@ export default function PurchaseRequestPage() {
                     <div className="flex justify-between items-start gap-2">
                         <div>
                             <CardTitle className="text-lg">{request.consecutive} - [{request.itemId}] {request.itemDescription}</CardTitle>
-                            <CardDescription>Cliente: {request.clientName}</CardDescription>
+                            <CardDescription>Cliente: {request.clientName} {requestSettings?.showCustomerTaxId ? `(${request.clientTaxId})` : ''}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {!!request.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
@@ -119,7 +113,7 @@ export default function PurchaseRequestPage() {
                                     <DropdownMenuSeparator />
                                     <DropdownMenuLabel>Cambio de Estado</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    {canBeReopened && <DropdownMenuItem onSelect={() => { actions.setRequestToUpdate(request); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
+                                    {canReopen && <DropdownMenuItem onSelect={() => { actions.setRequestToUpdate(request); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
                                     {canApprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'approved')} className="text-green-600"><Check className="mr-2"/> Aprobar</DropdownMenuItem>}
                                     {canRevertToApproved && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'approved')} className="text-orange-600"><Undo2 className="mr-2"/> Revertir a Aprobada</DropdownMenuItem>}
                                     {canOrder && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'ordered')} className="text-blue-600"><Truck className="mr-2"/> Marcar como Ordenada</DropdownMenuItem>}
