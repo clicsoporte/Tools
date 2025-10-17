@@ -127,6 +127,7 @@ export function useRequestSuggestions() {
                     notes: `Sugerencia generada para pedidos: ${item.sourceOrders.join(', ')}`,
                     priority: 'medium' as const,
                     purchaseType: 'multiple' as const,
+                    pendingAction: 'none' as const,
                 };
                 await savePurchaseRequest(requestPayload, currentUser.name);
                 createdCount++;
