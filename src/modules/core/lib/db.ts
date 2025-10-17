@@ -878,9 +878,9 @@ export async function saveAllLocations(locationData: ItemLocation[]): Promise<vo
 }
 
 export async function getStockSettings(): Promise<StockSettings> {
-    const mainDb = await connectDb('intratool.db');
+    const mainDb = await connectDb(DB_FILE);
     try {
-        const result = db.prepare("SELECT value FROM stock_settings WHERE key = 'warehouses'").get() as { value: string } | undefined;
+        const result = mainDb.prepare("SELECT value FROM stock_settings WHERE key = 'warehouses'").get() as { value: string } | undefined;
         if (result) return { warehouses: JSON.parse(result.value) };
         return { warehouses: [] };
     } catch (error) {
