@@ -22,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function PurchaseSuggestionsPage() {
     const {
@@ -88,7 +89,7 @@ export default function PurchaseSuggestionsPage() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent className="flex flex-wrap gap-4 items-center">
+                <CardContent className="flex flex-wrap items-center gap-4">
                      <Popover>
                         <PopoverTrigger asChild>
                             <Button
@@ -135,102 +136,116 @@ export default function PurchaseSuggestionsPage() {
                         options={selectors.classifications.map(c => ({ value: c, label: c }))}
                         selectedValues={classificationFilter}
                         onSelectedChange={actions.setClassificationFilter}
-                        className="w-full sm:w-auto flex-shrink-0"
+                        className="w-full sm:w-auto"
                     />
                     <Button variant="ghost" onClick={actions.handleClearFilters} className="flex-shrink-0"><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                 </CardContent>
             </Card>
-
-            <Card className="mt-6">
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <CardTitle>Artículos con Faltantes ({selectors.filteredSuggestions.length})</CardTitle>
-                            <CardDescription>
-                                Esta es una lista consolidada de todos los artículos necesarios para cumplir con los pedidos seleccionados, que no tienen suficiente stock.
-                            </CardDescription>
+            
+            <TooltipProvider>
+                <Card className="mt-6">
+                    <CardHeader>
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <CardTitle>Artículos con Faltantes ({selectors.filteredSuggestions.length})</CardTitle>
+                                <CardDescription>
+                                    Esta es una lista consolidada de todos los artículos necesarios para cumplir con los pedidos seleccionados, que no tienen suficiente stock.
+                                </CardDescription>
+                            </div>
+                            <Button onClick={actions.handleExportExcel} variant="outline" disabled={isLoading || selectors.filteredSuggestions.length === 0}>
+                                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                Exportar a Excel
+                            </Button>
                         </div>
-                        <Button onClick={actions.handleExportExcel} variant="outline" disabled={isLoading || selectors.filteredSuggestions.length === 0}>
-                            <FileSpreadsheet className="mr-2 h-4 w-4" />
-                            Exportar a Excel
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <ScrollArea className="h-[50vh] border rounded-md">
-                        <Table>
-                            <TableHeader className="sticky top-0 bg-background z-10">
-                                <TableRow>
-                                    <TableHead className="w-12">
-                                         <Checkbox
-                                            checked={selectors.areAllSelected}
-                                            onCheckedChange={(checked) => actions.toggleSelectAll(checked as boolean)}
-                                            disabled={isLoading || selectors.filteredSuggestions.length === 0}
-                                        />
-                                    </TableHead>
-                                    <TableHead>Artículo</TableHead>
-                                    <TableHead>Clientes Involucrados</TableHead>
-                                    <TableHead>Próxima Entrega</TableHead>
-                                    <TableHead className="text-right">Cant. Requerida</TableHead>
-                                    <TableHead className="text-right">Inv. Actual (ERP)</TableHead>
-                                    <TableHead className="text-right">Faltante Total</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    Array.from({ length: 5 }).map((_, i) => (
-                                        <TableRow key={i}>
-                                            <TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : selectors.filteredSuggestions.length > 0 ? (
-                                    selectors.filteredSuggestions.map(item => (
-                                        <TableRow key={item.itemId}>
-                                            <TableCell>
-                                                <Checkbox
-                                                    checked={selectedItems.has(item.itemId)}
-                                                    onCheckedChange={() => actions.toggleItemSelection(item.itemId)}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <p className="font-medium">{item.itemDescription}</p>
-                                                <p className="text-sm text-muted-foreground">{item.itemId}</p>
-                                            </TableCell>
-                                            <TableCell>
-                                                <p className="text-xs text-muted-foreground truncate max-w-xs" title={item.involvedClients.map(c => `${c.name} (${c.id})`).join(', ')}>
-                                                    {item.involvedClients.map(c => c.name).join(', ')}
-                                                </p>
-                                            </TableCell>
-                                            <TableCell>
-                                                {item.earliestDueDate ? format(new Date(item.earliestDueDate), 'dd/MM/yyyy') : 'N/A'}
-                                            </TableCell>
-                                            <TableCell className="text-right">{item.totalRequired.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right">{item.currentStock.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right font-bold text-red-600">{item.shortage.toLocaleString()}</TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
+                    </CardHeader>
+                    <CardContent>
+                        <ScrollArea className="h-[50vh] border rounded-md">
+                            <Table>
+                                <TableHeader className="sticky top-0 bg-background z-10">
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-32 text-center">
-                                            <div className="flex flex-col items-center justify-center gap-2">
-                                                <AlertCircle className="h-8 w-8 text-muted-foreground" />
-                                                <p className="text-muted-foreground">No se encontraron faltantes para los filtros seleccionados.</p>
-                                            </div>
-                                        </TableCell>
+                                        <TableHead className="w-12">
+                                            <Checkbox
+                                                checked={selectors.areAllSelected}
+                                                onCheckedChange={(checked) => actions.toggleSelectAll(checked as boolean)}
+                                                disabled={isLoading || selectors.filteredSuggestions.length === 0}
+                                            />
+                                        </TableHead>
+                                        <TableHead>
+                                            <Tooltip><TooltipTrigger>Artículo</TooltipTrigger><TooltipContent>Código y descripción del artículo con faltante de inventario.</TooltipContent></Tooltip>
+                                        </TableHead>
+                                        <TableHead>
+                                            <Tooltip><TooltipTrigger>Clientes Involucrados</TooltipTrigger><TooltipContent>Lista de todos los clientes de los pedidos analizados que están esperando este artículo.</TooltipContent></Tooltip>
+                                        </TableHead>
+                                        <TableHead>
+                                            <Tooltip><TooltipTrigger>Próxima Entrega</TooltipTrigger><TooltipContent>La fecha de entrega más cercana para este artículo entre todos los pedidos analizados.</TooltipContent></Tooltip>
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            <Tooltip><TooltipTrigger>Cant. Requerida</TooltipTrigger><TooltipContent>La suma total de este artículo requerida para cumplir con todos los pedidos en el rango de fechas.</TooltipContent></Tooltip>
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            <Tooltip><TooltipTrigger>Inv. Actual (ERP)</TooltipTrigger><TooltipContent>La cantidad total de este artículo disponible en todas las bodegas según la última sincronización del ERP.</TooltipContent></Tooltip>
+                                        </TableHead>
+                                        <TableHead className="text-right">
+                                            <Tooltip><TooltipTrigger>Faltante Total</TooltipTrigger><TooltipContent>La cantidad que necesitas comprar para cubrir la demanda (Cant. Requerida - Inv. Actual).</TooltipContent></Tooltip>
+                                        </TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
-                </CardContent>
-                <CardFooter>
-                    <Button onClick={actions.handleCreateRequests} disabled={isSubmitting || selectors.selectedSuggestions.length === 0}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        <FilePlus className="mr-2 h-4 w-4" />
-                        Crear {selectors.selectedSuggestions.length > 0 ? `${selectors.selectedSuggestions.length} Solicitud(es)` : 'Solicitudes'}
-                    </Button>
-                </CardFooter>
-            </Card>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                        Array.from({ length: 5 }).map((_, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : selectors.filteredSuggestions.length > 0 ? (
+                                        selectors.filteredSuggestions.map(item => (
+                                            <TableRow key={item.itemId}>
+                                                <TableCell>
+                                                    <Checkbox
+                                                        checked={selectedItems.has(item.itemId)}
+                                                        onCheckedChange={() => actions.toggleItemSelection(item.itemId)}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <p className="font-medium">{item.itemDescription}</p>
+                                                    <p className="text-sm text-muted-foreground">{item.itemId}</p>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <p className="text-xs text-muted-foreground truncate max-w-xs" title={item.involvedClients.map(c => `${c.name} (${c.id})`).join(', ')}>
+                                                        {item.involvedClients.map(c => c.name).join(', ')}
+                                                    </p>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {item.earliestDueDate ? format(new Date(item.earliestDueDate), 'dd/MM/yyyy') : 'N/A'}
+                                                </TableCell>
+                                                <TableCell className="text-right">{item.totalRequired.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right">{item.currentStock.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right font-bold text-red-600">{item.shortage.toLocaleString()}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="h-32 text-center">
+                                                <div className="flex flex-col items-center justify-center gap-2">
+                                                    <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                                                    <p className="text-muted-foreground">No se encontraron faltantes para los filtros seleccionados.</p>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={actions.handleCreateRequests} disabled={isSubmitting || selectors.selectedSuggestions.length === 0}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            <FilePlus className="mr-2 h-4 w-4" />
+                            Crear {selectors.selectedSuggestions.length > 0 ? `${selectors.selectedSuggestions.length} Solicitud(es)` : 'Solicitudes'}
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </TooltipProvider>
         </main>
     );
 }
