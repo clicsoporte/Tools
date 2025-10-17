@@ -51,10 +51,10 @@ const HighlightedText = ({ text, highlight }: { text: string; highlight: string 
 
 
 export default function PurchaseRequestPage() {
-    const { state, actions, selectors, isLoading, isAuthorized } = useRequests();
+    const { state, actions, selectors } = useRequests();
 
     const {
-        isSubmitting, isNewRequestDialogOpen, isEditRequestDialogOpen, viewingArchived,
+        isLoading, isSubmitting, isNewRequestDialogOpen, isEditRequestDialogOpen, viewingArchived,
         archivedPage, pageSize, totalArchived, requestSettings, newRequest, requestToEdit,
         searchTerm, statusFilter, classificationFilter, dateFilter, showOnlyMyRequests,
         clientSearchTerm, isClientSearchOpen, itemSearchTerm, isItemSearchOpen,
@@ -66,7 +66,7 @@ export default function PurchaseRequestPage() {
     } = state;
 
 
-    if (isAuthorized === null || (isAuthorized && isLoading)) {
+    if (isLoading) {
         return (
             <main className="flex-1 p-4 md:p-6">
                 <div className="flex justify-between items-center mb-6">
@@ -250,12 +250,14 @@ export default function PurchaseRequestPage() {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
-                    <Button asChild variant="secondary" className="bg-blue-600 text-white hover:bg-blue-700">
-                        <Link href="/dashboard/analytics/purchase-suggestions">
-                            <Lightbulb className="mr-2" />
-                            Sugerencias de Compra
-                        </Link>
-                    </Button>
+                    {selectors.hasPermission('analytics:purchase-suggestions:read') && (
+                        <Button asChild variant="secondary" className="bg-blue-600 text-white hover:bg-blue-700">
+                            <Link href="/dashboard/analytics/purchase-suggestions">
+                                <Lightbulb className="mr-2" />
+                                Sugerencias de Compra
+                            </Link>
+                        </Button>
+                    )}
                      {selectors.hasPermission('requests:create') && (
                         <Dialog open={isNewRequestDialogOpen} onOpenChange={actions.setNewRequestDialogOpen}>
                             <DialogTrigger asChild><Button><FilePlus className="mr-2"/> Nueva Solicitud</Button></DialogTrigger>
