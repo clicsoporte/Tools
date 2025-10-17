@@ -28,7 +28,7 @@ export default function ProductionReportPage() {
         isInitialLoading,
     } = useProductionReport();
 
-    const { isLoading, dateRange, reportData } = state;
+    const { isLoading, dateRange, reportData, plannerSettings } = state;
     const { totals, details } = reportData;
 
     if (isInitialLoading) {
@@ -144,7 +144,7 @@ export default function ProductionReportPage() {
                     <div className="flex justify-between items-center">
                         <CardTitle>Detalle de Órdenes</CardTitle>
                          <div className="flex items-center gap-2">
-                            <Button variant="outline" onClick={actions.handleExportPDF} disabled={isLoading || details.length === 0}><FileDown className="mr-2"/>Exportar PDF</Button>
+                            <Button variant="outline" onClick={() => actions.handleExportPDF('landscape')} disabled={isLoading || details.length === 0}><FileDown className="mr-2"/>Exportar PDF</Button>
                             <Button variant="outline" onClick={actions.handleExportExcel} disabled={isLoading || details.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
                         </div>
                     </div>
@@ -157,6 +157,8 @@ export default function ProductionReportPage() {
                                     <TableHead>OP</TableHead>
                                     <TableHead>Cliente</TableHead>
                                     <TableHead>Producto</TableHead>
+                                    <TableHead>Prioridad</TableHead>
+                                    <TableHead>{plannerSettings?.assignmentLabel || 'Asignación'}</TableHead>
                                     <TableHead className="text-right">Solicitado</TableHead>
                                     <TableHead className="text-right">Producido</TableHead>
                                     <TableHead className="text-right">Defectuoso</TableHead>
@@ -168,7 +170,7 @@ export default function ProductionReportPage() {
                                 {isLoading ? (
                                     Array.from({ length: 5 }).map((_, i) => (
                                         <TableRow key={i}>
-                                            <TableCell colSpan={8}><Skeleton className="h-8 w-full" /></TableCell>
+                                            <TableCell colSpan={10}><Skeleton className="h-8 w-full" /></TableCell>
                                         </TableRow>
                                     ))
                                 ) : details.length > 0 ? (
@@ -180,6 +182,8 @@ export default function ProductionReportPage() {
                                                 <p className="font-medium">{item.productDescription}</p>
                                                 <p className="text-xs text-muted-foreground">{item.productId}</p>
                                             </TableCell>
+                                            <TableCell className={cn("font-medium", selectors.priorityConfig[item.priority]?.className)}>{selectors.priorityConfig[item.priority]?.label}</TableCell>
+                                            <TableCell>{plannerSettings?.machines.find(m => m.id === item.machineId)?.name || 'N/A'}</TableCell>
                                             <TableCell className="text-right">{item.quantity.toLocaleString('es-CR')}</TableCell>
                                             <TableCell className="text-right">{(item.deliveredQuantity ?? 0).toLocaleString('es-CR')}</TableCell>
                                             <TableCell className="text-right text-red-600">{(item.defectiveQuantity ?? 0).toLocaleString('es-CR')}</TableCell>
@@ -191,7 +195,7 @@ export default function ProductionReportPage() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="h-32 text-center">
+                                        <TableCell colSpan={10} className="h-32 text-center">
                                             No se encontraron datos de producción para el rango de fechas seleccionado.
                                         </TableCell>
                                     </TableRow>

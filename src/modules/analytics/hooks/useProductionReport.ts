@@ -9,7 +9,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getProductionReportData } from '@/modules/analytics/lib/actions';
-import type { DateRange, ProductionOrder, Company } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, Company, PlannerSettings, ProductionOrderPriority } from '@/modules/core/types';
 import { subDays, startOfDay, format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
@@ -29,7 +29,15 @@ interface State {
     isLoading: boolean;
     dateRange: DateRange;
     reportData: ProductionReportData;
+    plannerSettings: PlannerSettings | null;
 }
+
+const priorityConfig: { [key in ProductionOrderPriority]: { label: string, className: string } } = { 
+    low: { label: "Baja", className: "text-gray-500" }, 
+    medium: { label: "Media", className: "text-blue-500" }, 
+    high: { label: "Alta", className: "text-yellow-600" }, 
+    urgent: { label: "Urgente", className: "text-red-600" }
+};
 
 export function useProductionReport() {
     const { isAuthorized, hasPermission } = useAuthorization(['analytics:read', 'analytics:production-report:read']);
@@ -49,6 +57,7 @@ export function useProductionReport() {
             totals: { totalRequested: 0, totalDelivered: 0, totalDefective: 0, totalNet: 0 },
             details: []
         },
+        plannerSettings: null,
     });
 
     const updateState = useCallback((newState: Partial<State>) => {
@@ -64,7 +73,7 @@ export function useProductionReport() {
                 return;
             }
             const data = await getProductionReportData(state.dateRange);
-            updateState({ reportData: data });
+            updateState({ reportData: data.reportData, plannerSettings: data.plannerSettings });
         } catch (error: any) {
             logError("Failed to get production report", { error: error.message });
             toast({ title: "Error al Generar Reporte", description: error.message, variant: "destructive" });
@@ -90,25 +99,35 @@ export function useProductionReport() {
         const dataToExport = state.reportData.details.map(item => [
             item.consecutive,
             item.customerName,
+            item.purchaseOrder || 'N/A',
             `[${item.productId}] ${item.productDescription}`,
+            priorityConfig[item.priority]?.label || item.priority,
+            state.plannerSettings?.machines.find(m => m.id === item.machineId)?.name || 'N/A',
             item.quantity,
             item.deliveredQuantity ?? 0,
             item.defectiveQuantity ?? 0,
             getNetDifference(item),
             item.completionDate ? format(parseISO(item.completionDate), 'dd/MM/yyyy') : 'N/A',
+            item.requestDate ? format(parseISO(item.requestDate), 'dd/MM/yyyy') : 'N/A',
+            (item.scheduledStartDate && item.scheduledEndDate) ? `${format(parseISO(item.scheduledStartDate), 'dd/MM/yy')} - ${format(parseISO(item.scheduledEndDate), 'dd/MM/yy')}` : 'N/A',
+            item.requestedBy
         ]);
 
         exportToExcel({
             fileName: 'reporte_produccion',
             sheetName: 'Producción',
-            headers: ['OP', 'Cliente', 'Producto', 'Solicitado', 'Producido', 'Defectuoso', 'Diferencia Neta', 'Fecha Completada'],
+            headers: [
+                'OP', 'Cliente', 'OC Cliente', 'Producto', 'Prioridad', 'Asignación',
+                'Solicitado', 'Producido', 'Defectuoso', 'Dif. Neta', 
+                'Fecha Completada', 'Fecha Solicitud', 'Fecha Prog.', 'Solicitante'
+            ],
             data: dataToExport,
-            columnWidths: [10, 25, 40, 12, 12, 12, 15, 18],
+            columnWidths: [10, 25, 15, 40, 10, 20, 12, 12, 12, 12, 18, 18, 20, 15],
         });
     };
 
-    const handleExportPDF = async () => {
-        if (!authCompanyData) return;
+    const handleExportPDF = async (orientation: 'portrait' | 'landscape' = 'portrait') => {
+        if (!authCompanyData || !state.plannerSettings) return;
 
         let logoDataUrl: string | null = null;
         if (authCompanyData.logoUrl) {
@@ -131,6 +150,8 @@ export function useProductionReport() {
             (item.deliveredQuantity ?? 0).toLocaleString('es-CR'),
             (item.defectiveQuantity ?? 0).toLocaleString('es-CR'),
             getNetDifference(item).toLocaleString('es-CR'),
+            state.plannerSettings?.machines.find(m => m.id === item.machineId)?.name || 'N/A',
+            priorityConfig[item.priority]?.label || item.priority,
         ]);
 
         const doc = generateDocument({
@@ -144,7 +165,7 @@ export function useProductionReport() {
             ],
             blocks: [],
             table: {
-                columns: ['OP', 'Cliente', 'Producto', 'Solicitado', 'Producido', 'Defectuoso', 'Dif. Neta'],
+                columns: ['OP', 'Cliente', 'Producto', 'Solicitado', 'Producido', 'Defectuoso', 'Dif. Neta', 'Asignación', 'Prioridad'],
                 rows: tableRows,
             },
             totals: [
@@ -152,7 +173,7 @@ export function useProductionReport() {
                 { label: 'Total Defectuoso:', value: state.reportData.totals.totalDefective.toLocaleString('es-CR') },
                 { label: 'Total Neto:', value: state.reportData.totals.totalNet.toLocaleString('es-CR') },
             ],
-            orientation: 'landscape'
+            orientation,
         });
 
         doc.save(`reporte_produccion_${new Date().getTime()}.pdf`);
@@ -168,6 +189,7 @@ export function useProductionReport() {
         },
         selectors: {
             getNetDifference,
+            priorityConfig,
         },
         isAuthorized,
         isInitialLoading,

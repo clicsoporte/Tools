@@ -4,20 +4,36 @@
 'use server';
 
 import { getCompletedOrdersByDateRange } from '@/modules/planner/lib/db';
-import type { DateRange } from '@/modules/core/types';
-import type { ProductionReportData } from '@/modules/analytics/hooks/useProductionReport';
+import { getSettings as getPlannerSettingsDb } from '@/modules/planner/lib/db';
+import type { DateRange, ProductionOrder, PlannerSettings } from '@/modules/core/types';
+
+interface FullProductionReportData {
+    reportData: {
+        totals: {
+            totalRequested: number;
+            totalDelivered: number;
+            totalDefective: number;
+            totalNet: number;
+        };
+        details: (ProductionOrder & { completionDate: string | null })[];
+    };
+    plannerSettings: PlannerSettings;
+}
 
 /**
  * Fetches and processes data for the production report.
  * @param dateRange - The date range to filter production orders.
- * @returns A promise that resolves to the structured production report data.
+ * @returns A promise that resolves to the structured production report data, including planner settings.
  */
-export async function getProductionReportData(dateRange: DateRange): Promise<ProductionReportData> {
+export async function getProductionReportData(dateRange: DateRange): Promise<FullProductionReportData> {
     if (!dateRange.from) {
         throw new Error("Date 'from' is required for the production report.");
     }
 
-    const orders = await getCompletedOrdersByDateRange(dateRange);
+    const [orders, plannerSettings] = await Promise.all([
+        getCompletedOrdersByDateRange(dateRange),
+        getPlannerSettingsDb(),
+    ]);
 
     const totals = orders.reduce(
         (acc, order) => {
@@ -40,7 +56,10 @@ export async function getProductionReportData(dateRange: DateRange): Promise<Pro
     });
 
     return {
-        totals,
-        details: JSON.parse(JSON.stringify(details)), // Ensure plain objects for serialization
+        reportData: {
+            totals,
+            details: JSON.parse(JSON.stringify(details)), // Ensure plain objects for serialization
+        },
+        plannerSettings: JSON.parse(JSON.stringify(plannerSettings)),
     };
 }
