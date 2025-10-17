@@ -256,6 +256,7 @@ export type ProductionOrder = {
   lastModifiedAt?: string;
   hasBeenModified?: boolean;
   deliveredQuantity?: number;
+  defectiveQuantity?: number;
   erpPackageNumber?: string;
   erpTicketNumber?: string;
   reopened?: boolean;
@@ -311,6 +312,7 @@ export type UpdateStatusPayload = {
     notes: string;
     updatedBy: string;
     deliveredQuantity?: number;
+    defectiveQuantity?: number;
     erpPackageNumber?: string;
     erpTicketNumber?: string;
     reopen: boolean;
