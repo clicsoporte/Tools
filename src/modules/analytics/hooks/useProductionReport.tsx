@@ -165,7 +165,18 @@ export function useProductionReport() {
     const handleExportExcel = () => {
         const headers = visibleColumnsData.map(col => col.label);
         const dataToExport = state.reportData.details.map(item =>
-            state.visibleColumns.map(colId => getColumnContent(item, colId).content?.toString().replace(/<[^>]*>?/gm, '') || '')
+            state.visibleColumns.map(colId => {
+                const colContent = getColumnContent(item, colId).content;
+                // A simple way to strip JSX for Excel export, might need refinement
+                if (React.isValidElement(colContent)) {
+                    // For the product description case, concatenate the parts
+                    if (colId === 'productDescription') {
+                        return `${item.productDescription} (${item.productId})`
+                    }
+                    return React.Children.toArray(colContent).join(' ');
+                }
+                return colContent?.toString() || '';
+            })
         );
 
         exportToExcel({
@@ -194,7 +205,16 @@ export function useProductionReport() {
 
         const tableHeaders = visibleColumnsData.map(col => col.label);
         const tableRows = state.reportData.details.map(item =>
-            state.visibleColumns.map(colId => getColumnContent(item, colId).content?.toString().replace(/<[^>]*>?/gm, '') || '')
+            state.visibleColumns.map(colId => {
+                const colContent = getColumnContent(item, colId).content;
+                if (React.isValidElement(colContent)) {
+                     if (colId === 'productDescription') {
+                        return `${item.productDescription}\n${item.productId}`;
+                    }
+                    return React.Children.toArray(colContent).join(' ');
+                }
+                return colContent?.toString() || '';
+            })
         );
 
         const doc = generateDocument({
