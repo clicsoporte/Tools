@@ -67,10 +67,10 @@ Si vas a utilizar la conexión directa a SQL Server, este paso es obligatorio.
 5.  **Enlace**: Configura el puerto en el que se ejecutará la aplicación en tu red LAN (ej: puerto 80) y el nombre de host (ej: garend.com).
 6.  Haz clic en "Aceptar".
 
-**Paso 6: Asegurar el archivo `web.config`**
+**Paso 6: Copiar y Asegurar los archivos de configuración de IIS**
 
-1.  Verifica que el archivo `web.config` (incluido en la raíz del proyecto) esté presente en la carpeta del servidor.
-2.  Este archivo es crucial, ya que le dice a IIS cómo manejar las solicitudes y pasárselas a Node.js a través de `iisnode`. La nueva versión está optimizada para Next.js 14+ y mejora el rendimiento al permitir que IIS sirva archivos estáticos directamente.
+1.  Desde la carpeta `docs/deployment/IIS_Setup/` de tu proyecto, copia los archivos `web.config` y `iisnode-interceptor.js` a la raíz de tu sitio en el servidor (ej: a `C:\inetpub\wwwroot\clic-tools`).
+2.  Estos archivos son cruciales, ya que le dicen a IIS cómo manejar las solicitudes y pasárselas a Node.js a través de `iisnode`. La nueva versión está optimizada para Next.js 14+ y mejora el rendimiento al permitir que IIS sirva archivos estáticos directamente.
 
 --------------------
 Solución de Problemas
