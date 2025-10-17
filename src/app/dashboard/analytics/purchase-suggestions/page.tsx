@@ -6,7 +6,7 @@
 'use client';
 
 import React from 'react';
-import { useRequestSuggestions } from '@/modules/requests/hooks/useRequestSuggestions.tsx';
+import { useRequestSuggestions } from '@/modules/requests/hooks/useRequestSuggestions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

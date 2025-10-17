@@ -19,7 +19,7 @@ import {
     getErpOrderData as getErpOrderDataServer,
     getUserByName,
 } from './db';
-import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions';
+import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions.tsx';
 import { getAllProducts, getAllStock, getAllCustomers } from '@/modules/core/lib/db';
 
 /**

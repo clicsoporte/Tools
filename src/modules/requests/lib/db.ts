@@ -9,7 +9,7 @@ import { logInfo, logError, logWarn } from '../../core/lib/logger';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
-import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions';
+import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions.tsx';
 
 const REQUESTS_DB_FILE = 'requests.db';
 
