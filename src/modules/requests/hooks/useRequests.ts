@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
  * This hook encapsulates all state and actions for the module, keeping the UI component clean.
@@ -251,6 +252,28 @@ export const useRequests = () => {
         updateState({ companyData: authCompanyData });
     }, [authCompanyData, updateState]);
     
+    const getRequestPermissions = useCallback((request: PurchaseRequest) => {
+        const isPending = request.status === 'pending';
+        const isApproved = request.status === 'approved';
+        const isOrdered = request.status === 'ordered';
+        const isReceived = request.status === 'received';
+        const isArchived = request.status === (state.requestSettings?.useWarehouseReception ? 'received-in-warehouse' : 'received') || request.status === 'canceled';
+
+        const canEditPending = isPending && hasPermission('requests:edit:pending');
+        const canEditApproved = (isApproved || isOrdered) && hasPermission('requests:edit:approved');
+        
+        return {
+            canEdit: canEditPending || canEditApproved,
+            canApprove: isPending && hasPermission('requests:status:approve'),
+            canOrder: isApproved && hasPermission('requests:status:ordered'),
+            canRevertToApproved: isOrdered && hasPermission('requests:status:approve'),
+            canReceive: isOrdered && hasPermission('requests:status:received'),
+            canReceiveInWarehouse: isReceived && !!state.requestSettings?.useWarehouseReception && hasPermission('requests:status:received'),
+            canRequestCancel: (isApproved || isOrdered) && hasPermission('requests:status:cancel'),
+            canReopen: isArchived && hasPermission('requests:reopen'),
+        };
+    }, [hasPermission, state.requestSettings]);
+
     const handleCreateRequest = async () => {
         if (!state.newRequest.clientId || !state.newRequest.itemId || !state.newRequest.quantity || !state.newRequest.requiredDate || !currentUser) return;
         
@@ -692,6 +715,7 @@ export const useRequests = () => {
         hasPermission,
         priorityConfig,
         statusConfig,
+        getRequestPermissions,
         getDaysRemaining: (dateStr: string) => getSimpleDaysRemaining(dateStr),
         clientOptions: useMemo(() => {
             if (debouncedClientSearch.length < 2) return [];

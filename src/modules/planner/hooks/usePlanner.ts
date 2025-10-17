@@ -190,6 +190,32 @@ export const usePlanner = () => {
         return () => { isMounted = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthorized]);
+
+    const getOrderPermissions = useCallback((order: ProductionOrder) => {
+        const isPending = order.status === 'pending';
+        const isApproved = order.status === 'approved';
+        const isInQueue = order.status === 'in-queue';
+        const isInProgress = order.status === 'in-progress';
+        const isOnHold = order.status === 'on-hold' || order.status === 'in-maintenance';
+        const isCompleted = order.status === 'completed';
+        const isFinalArchived = order.status === (state.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed');
+    
+        return {
+            canEdit: (isPending && hasPermission('planner:edit:pending')) || (!isPending && hasPermission('planner:edit:approved')),
+            canApprove: isPending && hasPermission('planner:status:approve'),
+            canQueue: isApproved && hasPermission('planner:status:in-progress'),
+            canStart: (isApproved || isInQueue) && hasPermission('planner:status:in-progress'),
+            canHold: isInProgress && hasPermission('planner:status:on-hold'),
+            canMaintain: isInProgress && hasPermission('planner:status:on-hold'),
+            canResumeFromHold: isOnHold && hasPermission('planner:status:in-progress'),
+            canComplete: (isInProgress || isOnHold) && hasPermission('planner:status:completed'),
+            canRequestUnapproval: (isApproved || isInQueue || isOnHold || isInProgress) && hasPermission('planner:status:unapprove-request'),
+            canCancelPending: isPending && hasPermission('planner:status:cancel'),
+            canRequestCancel: (isApproved || isInQueue) && hasPermission('planner:status:cancel-approved'),
+            canReceive: isCompleted && !!state.plannerSettings?.useWarehouseReception && hasPermission('planner:receive'),
+            canReopen: isFinalArchived && hasPermission('planner:reopen'),
+        };
+    }, [hasPermission, state.plannerSettings]);
     
     const actions = {
         setNewOrderDialogOpen: (isOpen: boolean) => updateState({ isNewOrderDialogOpen: isOpen }),
@@ -662,6 +688,7 @@ export const usePlanner = () => {
         hasPermission,
         priorityConfig: priorityConfig,
         statusConfig: state.dynamicStatusConfig,
+        getOrderPermissions,
         getDaysRemaining: (dateStr: string) => getSimpleDaysRemaining(dateStr),
         getScheduledDaysRemaining: (order: ProductionOrder) => {
             if (!order.scheduledStartDate || !order.scheduledEndDate) {
