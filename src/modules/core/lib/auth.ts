@@ -103,17 +103,19 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
     recentActivity: "Usuario recién creado.",
     phone: userData.phone || "",
     whatsapp: userData.whatsapp || "",
+    erpAlias: userData.erpAlias || "",
   };
   
   const stmt = db.prepare(
-    `INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) 
-     VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)`
+    `INSERT INTO users (id, name, email, password, phone, whatsapp, erpAlias, avatar, role, recentActivity, securityQuestion, securityAnswer) 
+     VALUES (@id, @name, @email, @password, @phone, @whatsapp, @erpAlias, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)`
   );
   
   stmt.run({
     ...userToCreate,
     phone: userToCreate.phone || null,
     whatsapp: userToCreate.whatsapp || null,
+    erpAlias: userToCreate.erpAlias || null,
     securityQuestion: userToCreate.securityQuestion || null,
     securityAnswer: userToCreate.securityAnswer || null,
   });
@@ -133,14 +135,15 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
 export async function saveAllUsers(users: User[]): Promise<void> {
    const db = await connectDb();
    const upsert = db.prepare(`
-    INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) 
-    VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)
+    INSERT INTO users (id, name, email, password, phone, whatsapp, erpAlias, avatar, role, recentActivity, securityQuestion, securityAnswer) 
+    VALUES (@id, @name, @email, @password, @phone, @whatsapp, @erpAlias, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)
     ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         email = excluded.email,
         password = excluded.password,
         phone = excluded.phone,
         whatsapp = excluded.whatsapp,
+        erpAlias = excluded.erpAlias,
         avatar = excluded.avatar,
         role = excluded.role,
         recentActivity = excluded.recentActivity,
@@ -170,6 +173,7 @@ export async function saveAllUsers(users: User[]): Promise<void> {
             password: passwordToSave,
             phone: user.phone || null,
             whatsapp: user.whatsapp || null,
+            erpAlias: user.erpAlias || null,
             securityQuestion: user.securityQuestion || null,
             securityAnswer: user.securityAnswer || null,
           };

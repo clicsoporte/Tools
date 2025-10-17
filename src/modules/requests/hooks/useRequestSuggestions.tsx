@@ -115,6 +115,11 @@ export function useRequestSuggestions() {
     const filteredSuggestions = useMemo(() => {
         return state.suggestions.filter(item => {
             const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
+            
+            const clientMatch = state.classificationFilter.length > 0 ? state.classificationFilter.includes(item.itemClassification) : true;
+            
+            if (!clientMatch) return false;
+
             if (searchTerms.length === 0) return true;
 
             const targetText = `

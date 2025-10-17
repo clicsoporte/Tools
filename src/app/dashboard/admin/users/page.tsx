@@ -75,7 +75,8 @@ const emptyUser: NewUserForm = {
     password: "",
     role: "viewer", // Default role for new users
     phone: "",
-    whatsapp: ""
+    whatsapp: "",
+    erpAlias: "",
 }
 
 const getInitials = (name: string) => {
@@ -287,30 +288,34 @@ export default function UsersPage() {
                             Añadir Usuario
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle>Añadir Nuevo Usuario</DialogTitle>
                             <DialogDescription>
                                 Completa los detalles para crear un nuevo usuario.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="name" className="text-right">Nombre</Label>
-                                <Input id="name" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="col-span-3" />
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="name">Nombre</Label>
+                                <Input id="name" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="email" className="text-right">Correo</Label>
-                                <Input id="email" type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="col-span-3" />
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Correo</Label>
+                                <Input id="email" type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="password" className="text-right">Contraseña</Label>
-                                <Input id="password" type="password" value={newUser.password || ''} onChange={e => setNewUser({...newUser, password: e.target.value})} className="col-span-3" />
+                             <div className="space-y-2">
+                                <Label htmlFor="erpAlias">Alias de Usuario (ERP)</Label>
+                                <Input id="erpAlias" value={newUser.erpAlias || ''} onChange={e => setNewUser({...newUser, erpAlias: e.target.value})} />
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="role" className="text-right">Rol</Label>
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Contraseña</Label>
+                                <Input id="password" type="password" value={newUser.password || ''} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="role">Rol</Label>
                                 <Select value={newUser.role} onValueChange={(value) => setNewUser({...newUser, role: value as User["role"]})}>
-                                    <SelectTrigger className="col-span-3">
+                                    <SelectTrigger>
                                         <SelectValue placeholder="Selecciona un rol" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -412,6 +417,10 @@ export default function UsersPage() {
                         <div className="space-y-2">
                             <Label htmlFor="edit-email">Correo Electrónico</Label>
                             <Input id="edit-email" type="email" value={currentUserToEdit.email} onChange={e => setCurrentUserToEdit({...currentUserToEdit, email: e.target.value})} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="edit-erpAlias">Alias de Usuario (ERP)</Label>
+                            <Input id="edit-erpAlias" value={currentUserToEdit.erpAlias || ''} onChange={e => setCurrentUserToEdit({...currentUserToEdit, erpAlias: e.target.value})} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">

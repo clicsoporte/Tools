@@ -18,6 +18,7 @@ export type User = {
   whatsapp: string;
   avatar: string;
   role: string; // Corresponds to a Role ID
+  erpAlias?: string; // User's username in the external ERP system
   recentActivity: string;
   securityQuestion?: string;
   securityAnswer?: string;

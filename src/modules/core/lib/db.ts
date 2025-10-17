@@ -101,6 +101,14 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
              return;
         }
 
+        const usersTableInfo = db.prepare(`PRAGMA table_info(users)`).all() as { name: string }[];
+        const userColumns = new Set(usersTableInfo.map(c => c.name));
+
+        if (!userColumns.has('erpAlias')) {
+            console.log("MIGRATION: Adding erpAlias to users table.");
+            db.exec(`ALTER TABLE users ADD COLUMN erpAlias TEXT`);
+        }
+
         const companyTableInfo = db.prepare(`PRAGMA table_info(company_settings)`).all() as { name: string }[];
         const companyColumns = new Set(companyTableInfo.map(c => c.name));
         
@@ -218,7 +226,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     const mainSchema = `
         CREATE TABLE users (
             id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL,
-            phone TEXT, whatsapp TEXT, avatar TEXT, role TEXT NOT NULL, recentActivity TEXT,
+            phone TEXT, whatsapp TEXT, erpAlias TEXT, avatar TEXT, role TEXT NOT NULL, recentActivity TEXT,
             securityQuestion TEXT, securityAnswer TEXT
         );
         CREATE TABLE company_settings (
@@ -872,7 +880,7 @@ export async function saveAllLocations(locationData: ItemLocation[]): Promise<vo
 export async function getStockSettings(): Promise<StockSettings> {
     const mainDb = await connectDb('intratool.db');
     try {
-        const result = mainDb.prepare("SELECT value FROM stock_settings WHERE key = 'warehouses'").get() as { value: string } | undefined;
+        const result = db.prepare("SELECT value FROM stock_settings WHERE key = 'warehouses'").get() as { value: string } | undefined;
         if (result) return { warehouses: JSON.parse(result.value) };
         return { warehouses: [] };
     } catch (error) {

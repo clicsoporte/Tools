@@ -44,6 +44,7 @@ export default function SettingsPage() {
       email: "",
       phone: "",
       whatsapp: "",
+      erpAlias: "",
       securityQuestion: "",
       securityAnswer: "",
       avatar: ""
@@ -64,6 +65,7 @@ export default function SettingsPage() {
             email: user.email || "",
             phone: user.phone || "",
             whatsapp: user.whatsapp || "",
+            erpAlias: user.erpAlias || "",
             securityQuestion: user.securityQuestion || "",
             securityAnswer: user.securityAnswer || "",
             avatar: user.avatar || ""
@@ -245,6 +247,16 @@ export default function SettingsPage() {
                     value={formData.email}
                     onChange={handleProfileChange}
                   />
+                </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="erpAlias">Alias de Usuario (ERP)</Label>
+                  <Input
+                    id="erpAlias"
+                    value={formData.erpAlias || ''}
+                    onChange={handleProfileChange}
+                    placeholder="Tu nombre de usuario en el sistema ERP"
+                  />
+                   <p className="text-xs text-muted-foreground">Este alias se usará para filtrar órdenes y solicitudes por tu usuario del ERP.</p>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
