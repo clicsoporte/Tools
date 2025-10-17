@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
-import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart, FilterX, Search, FileSpreadsheet } from 'lucide-react';
+import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart, FilterX, Search, FileSpreadsheet, Columns3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 
 export default function PurchaseSuggestionsPage() {
     const {
@@ -33,7 +35,7 @@ export default function PurchaseSuggestionsPage() {
         isInitialLoading,
     } = useRequestSuggestions();
 
-    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter } = state;
+    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter, visibleColumns } = state;
 
     if (isInitialLoading) {
         return (
@@ -152,10 +154,30 @@ export default function PurchaseSuggestionsPage() {
                                     Esta es una lista consolidada de todos los artículos necesarios para cumplir con los pedidos seleccionados, que no tienen suficiente stock.
                                 </CardDescription>
                             </div>
-                            <Button onClick={actions.handleExportExcel} variant="outline" disabled={isLoading || selectors.filteredSuggestions.length === 0}>
-                                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                                Exportar a Excel
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline"><Columns3 className="mr-2 h-4 w-4"/> Columnas</Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Columnas Visibles</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {selectors.availableColumns.map(column => (
+                                            <DropdownMenuCheckboxItem
+                                                key={column.id}
+                                                checked={visibleColumns.includes(column.id)}
+                                                onCheckedChange={(checked) => actions.handleColumnVisibilityChange(column.id, checked)}
+                                            >
+                                                {column.label}
+                                            </DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <Button onClick={actions.handleExportExcel} variant="outline" disabled={isLoading || selectors.filteredSuggestions.length === 0}>
+                                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                                    Exportar a Excel
+                                </Button>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -170,34 +192,18 @@ export default function PurchaseSuggestionsPage() {
                                                 disabled={isLoading || selectors.filteredSuggestions.length === 0}
                                             />
                                         </TableHead>
-                                        <TableHead>
-                                            <Tooltip><TooltipTrigger>Artículo</TooltipTrigger><TooltipContent>Código y descripción del artículo con faltante de inventario.</TooltipContent></Tooltip>
-                                        </TableHead>
-                                        <TableHead>
-                                            <Tooltip><TooltipTrigger>Pedidos Origen</TooltipTrigger><TooltipContent>Números de pedido del ERP que requieren este artículo.</TooltipContent></Tooltip>
-                                        </TableHead>
-                                        <TableHead>
-                                            <Tooltip><TooltipTrigger>Clientes Involucrados</TooltipTrigger><TooltipContent>Lista de todos los clientes de los pedidos analizados que están esperando este artículo.</TooltipContent></Tooltip>
-                                        </TableHead>
-                                        <TableHead>
-                                            <Tooltip><TooltipTrigger>Próxima Entrega</TooltipTrigger><TooltipContent>La fecha de entrega más cercana para este artículo entre todos los pedidos analizados.</TooltipContent></Tooltip>
-                                        </TableHead>
-                                        <TableHead className="text-right">
-                                            <Tooltip><TooltipTrigger>Cant. Requerida</TooltipTrigger><TooltipContent>La suma total de este artículo requerida para cumplir con todos los pedidos en el rango de fechas.</TooltipContent></Tooltip>
-                                        </TableHead>
-                                        <TableHead className="text-right">
-                                            <Tooltip><TooltipTrigger>Inv. Actual (ERP)</TooltipTrigger><TooltipContent>La cantidad total de este artículo disponible en todas las bodegas según la última sincronización del ERP.</TooltipContent></Tooltip>
-                                        </TableHead>
-                                        <TableHead className="text-right">
-                                            <Tooltip><TooltipTrigger>Faltante Total</TooltipTrigger><TooltipContent>La cantidad que necesitas comprar para cubrir la demanda (Cant. Requerida - Inv. Actual).</TooltipContent></Tooltip>
-                                        </TableHead>
+                                        {selectors.visibleColumnsData.map(col => (
+                                             <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right')}>
+                                                <Tooltip><TooltipTrigger>{col.label}</TooltipTrigger><TooltipContent>{col.tooltip}</TooltipContent></Tooltip>
+                                            </TableHead>
+                                        ))}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {isLoading ? (
                                         Array.from({ length: 5 }).map((_, i) => (
                                             <TableRow key={i}>
-                                                <TableCell colSpan={8}><Skeleton className="h-8 w-full" /></TableCell>
+                                                <TableCell colSpan={selectors.visibleColumnsData.length + 1}><Skeleton className="h-8 w-full" /></TableCell>
                                             </TableRow>
                                         ))
                                     ) : selectors.filteredSuggestions.length > 0 ? (
@@ -209,41 +215,19 @@ export default function PurchaseSuggestionsPage() {
                                                         onCheckedChange={() => actions.toggleItemSelection(item.itemId)}
                                                     />
                                                 </TableCell>
-                                                <TableCell>
-                                                    <p className="font-medium">{item.itemDescription}</p>
-                                                    <p className="text-sm text-muted-foreground">{item.itemId}</p>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <p className="text-xs text-muted-foreground truncate max-w-xs">
-                                                                {item.sourceOrders.join(', ')}
-                                                            </p>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <div className="max-w-md">
-                                                                <p className="font-bold mb-1">Pedidos de Origen:</p>
-                                                                <p>{item.sourceOrders.join(', ')}</p>
-                                                            </div>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <p className="text-xs text-muted-foreground truncate max-w-xs" title={item.involvedClients.map(c => `${c.name} (${c.id})`).join(', ')}>
-                                                        {item.involvedClients.map(c => c.name).join(', ')}
-                                                    </p>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {item.earliestDueDate ? format(new Date(item.earliestDueDate), 'dd/MM/yyyy') : 'N/A'}
-                                                </TableCell>
-                                                <TableCell className="text-right">{item.totalRequired.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right">{item.currentStock.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right font-bold text-red-600">{item.shortage.toLocaleString()}</TableCell>
+                                                {visibleColumns.map(colId => {
+                                                    const colData = selectors.getColumnContent(item, colId);
+                                                    return (
+                                                        <TableCell key={colId} className={cn(colData.className)}>
+                                                            {colData.content}
+                                                        </TableCell>
+                                                    )
+                                                })}
                                             </TableRow>
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={8} className="h-32 text-center">
+                                            <TableCell colSpan={selectors.visibleColumnsData.length + 1} className="h-32 text-center">
                                                 <div className="flex flex-col items-center justify-center gap-2">
                                                     <AlertCircle className="h-8 w-8 text-muted-foreground" />
                                                     <p className="text-muted-foreground">No se encontraron faltantes para los filtros seleccionados.</p>

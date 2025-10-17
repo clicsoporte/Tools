@@ -144,23 +144,27 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
     const allProducts = await getAllProducts();
     const allCustomers = await getAllCustomers();
 
-    const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string>; clientIds: Set<string>; earliestDueDate: Date | null; }>();
+    const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string>; clientIds: Set<string>; erpUsers: Set<string>; earliestDueDate: Date | null; }>();
 
     for (const line of lines) {
+        const header = headers.find(h => h.PEDIDO === line.PEDIDO);
+        if (!header) continue;
+
         if (!requiredItems.has(line.ARTICULO)) {
-            requiredItems.set(line.ARTICULO, { totalRequired: 0, sourceOrders: new Set(), clientIds: new Set(), earliestDueDate: null });
+            requiredItems.set(line.ARTICULO, { totalRequired: 0, sourceOrders: new Set(), clientIds: new Set(), erpUsers: new Set(), earliestDueDate: null });
         }
+        
         const item = requiredItems.get(line.ARTICULO)!;
         item.totalRequired += line.CANTIDAD_PEDIDA;
-
-        const header = headers.find(h => h.PEDIDO === line.PEDIDO);
-        if (header) {
-            item.sourceOrders.add(header.PEDIDO);
-            item.clientIds.add(header.CLIENTE);
-            const dueDate = new Date(header.FECHA_PROMETIDA);
-            if (!item.earliestDueDate || dueDate < item.earliestDueDate) {
-                item.earliestDueDate = dueDate;
-            }
+        item.sourceOrders.add(header.PEDIDO);
+        item.clientIds.add(header.CLIENTE);
+        if (header.USUARIO) {
+            item.erpUsers.add(header.USUARIO);
+        }
+        
+        const dueDate = new Date(header.FECHA_PROMETIDA);
+        if (!item.earliestDueDate || dueDate < item.earliestDueDate) {
+            item.earliestDueDate = dueDate;
         }
     }
 
@@ -187,6 +191,7 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
                 shortage,
                 sourceOrders: Array.from(data.sourceOrders),
                 involvedClients,
+                erpUsers: Array.from(data.erpUsers),
                 earliestDueDate: data.earliestDueDate ? data.earliestDueDate.toISOString() : null,
             });
         }
