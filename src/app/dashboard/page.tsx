@@ -3,13 +3,12 @@
  */
 'use client';
 
-import { mainTools } from "../../modules/core/lib/data";
+import { mainTools, analyticsTools, adminTools } from "../../modules/core/lib/data";
 import { ToolCard } from "../../components/dashboard/tool-card";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import type { Tool } from "../../modules/core/types";
 import { Skeleton } from "../../components/ui/skeleton";
 import { usePageTitle } from "../../modules/core/hooks/usePageTitle";
-import { BarChartBig, Wrench } from "lucide-react";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 
 /**
@@ -19,44 +18,34 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
  */
 export default function DashboardPage() {
   const { userRole, isLoading: isAuthLoading } = useAuth();
-  const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const { setTitle } = usePageTitle();
 
   useEffect(() => {
     setTitle("Panel Principal");
+  }, [setTitle]);
+
+  const visibleTools = useMemo(() => {
+    if (!userRole) return [];
     
-    if (userRole) {
-      let tools = [...mainTools];
-      
-      const hasAdminAccess = userRole.id === 'admin';
-      const hasAnalyticsAccess = hasAdminAccess || userRole.permissions.includes('analytics:read');
+    let tools: Tool[] = [...mainTools];
+    const hasAdminAccess = userRole.id === 'admin';
+    const hasAnalyticsAccess = hasAdminAccess || userRole.permissions.includes('analytics:read');
 
-      if (hasAnalyticsAccess) {
-        tools.push({
-          id: "analytics",
-          name: "Analíticas",
-          description: "Análisis de datos y reportes inteligentes.",
-          href: "/dashboard/analytics",
-          icon: BarChartBig,
-          bgColor: "bg-indigo-500",
-          textColor: "text-white",
-        });
-      }
-
-      if (hasAdminAccess) {
-        tools.push({
-          id: "admin",
-          name: "Configuración",
-          description: "Gestionar usuarios, roles y sistema.",
-          href: "/dashboard/admin",
-          icon: Wrench,
-          bgColor: "bg-slate-600",
-          textColor: "text-white",
-        });
-      }
-      setVisibleTools(tools);
+    if (hasAnalyticsAccess) {
+      tools.push(...analyticsTools);
     }
-  }, [setTitle, userRole]);
+    
+    if (hasAdminAccess) {
+      tools.push(...adminTools);
+    }
+
+    // A more robust way to prevent duplicates if data definitions overlap
+    const uniqueTools = Array.from(new Map(tools.map(tool => [tool.id, tool])).values());
+    
+    // Custom sort order if needed, for now, it's main, then analytics, then admin
+    return uniqueTools;
+
+  }, [userRole]);
 
 
   if (isAuthLoading) {
