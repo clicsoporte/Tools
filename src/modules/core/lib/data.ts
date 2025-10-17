@@ -31,6 +31,7 @@ import {
   MessageSquare,
   BarChartBig,
   Lightbulb,
+  FileText,
 } from "lucide-react";
 
 /**
@@ -181,6 +182,7 @@ export const initialRoles: Role[] = [
         "planner:schedule",
         "analytics:read",
         "analytics:purchase-suggestions:read",
+        "analytics:production-report:read",
         "users:create",
         "users:read",
         "users:update",
@@ -376,6 +378,15 @@ export const analyticsTools: Tool[] = [
         href: "/dashboard/analytics/purchase-suggestions",
         icon: Lightbulb,
         bgColor: "bg-blue-600",
+        textColor: "text-white",
+    },
+    {
+        id: "production-report",
+        name: "Reporte de Producción",
+        description: "Analizar rendimiento y desperdicio de órdenes completadas.",
+        href: "/dashboard/analytics/production-report",
+        icon: FileText,
+        bgColor: "bg-purple-600",
         textColor: "text-white",
     }
 ];

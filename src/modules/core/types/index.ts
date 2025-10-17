@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
@@ -647,3 +645,15 @@ export type ErpOrderLine = {
     CANTIDAD_PEDIDA: number;
     PRECIO_UNITARIO: number;
 };
+
+
+// --- Analytics Types ---
+export type ProductionReportData = {
+    totals: {
+        totalRequested: number;
+        totalDelivered: number;
+        totalDefective: number;
+        totalNet: number;
+    };
+    details: (ProductionOrder & { completionDate: string | null })[];
+}

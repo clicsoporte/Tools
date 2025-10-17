@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the planner database.
  */
@@ -569,4 +568,45 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 export async function getUserByName(name: string): Promise<User | null> {
     const users = await getAllUsers();
     return users.find((u) => u.name === name) || null;
+}
+
+export async function getCompletedOrdersByDateRange(dateRange: DateRange): Promise<(ProductionOrder & { history: ProductionOrderHistoryEntry[] })[]> {
+    const db = await connectDb(PLANNER_DB_FILE);
+    if (!dateRange.from) throw new Error("Start date is required.");
+    
+    const toDate = dateRange.to || new Date();
+    
+    const settings = await getSettings();
+    const completedStatuses = settings.useWarehouseReception 
+        ? ['completed', 'received-in-warehouse'] 
+        : ['completed'];
+    
+    const statusPlaceholders = completedStatuses.map(() => '?').join(',');
+
+    const query = `
+        SELECT o.*
+        FROM production_orders o
+        JOIN production_order_history h ON o.id = h.orderId
+        WHERE h.status IN (${statusPlaceholders})
+          AND h.timestamp = (
+            SELECT MAX(h2.timestamp)
+            FROM production_order_history h2
+            WHERE h2.orderId = o.id AND h2.status IN (${statusPlaceholders})
+          )
+          AND h.timestamp BETWEEN ? AND ?
+    `;
+
+    const orders: ProductionOrder[] = db.prepare(query).all(
+        ...completedStatuses,
+        ...completedStatuses,
+        dateRange.from.toISOString(),
+        toDate.toISOString()
+    ) as ProductionOrder[];
+
+    const ordersWithHistory = orders.map(order => {
+        const history = db.prepare('SELECT * FROM production_order_history WHERE orderId = ? ORDER BY timestamp ASC').all(order.id) as ProductionOrderHistoryEntry[];
+        return { ...order, history };
+    });
+
+    return ordersWithHistory;
 }
