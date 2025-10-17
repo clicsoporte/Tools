@@ -6,7 +6,7 @@
 'use client';
 
 import React from 'react';
-import { useRequestSuggestions, type PurchaseSuggestion } from '@/modules/requests/hooks/useRequestSuggestions';
+import { useRequestSuggestions, type PurchaseSuggestion } from '@/modules/requests/hooks/useRequestSuggestions.tsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -162,7 +162,7 @@ export default function PurchaseSuggestionsPage() {
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Columnas Visibles</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        {selectors.availableColumns.map(column => (
+                                        {selectors.availableColumns.map((column: { id: string, label: string }) => (
                                             <DropdownMenuCheckboxItem
                                                 key={column.id}
                                                 checked={visibleColumns.includes(column.id)}
@@ -192,7 +192,7 @@ export default function PurchaseSuggestionsPage() {
                                                 disabled={isLoading || selectors.filteredSuggestions.length === 0}
                                             />
                                         </TableHead>
-                                        {selectors.visibleColumnsData.map(col => (
+                                        {selectors.visibleColumnsData.map((col: { id: string, label: string, tooltip: string, align?: string }) => (
                                              <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right')}>
                                                 <Tooltip><TooltipTrigger>{col.label}</TooltipTrigger><TooltipContent>{col.tooltip}</TooltipContent></Tooltip>
                                             </TableHead>
