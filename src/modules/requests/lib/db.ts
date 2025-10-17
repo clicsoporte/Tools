@@ -9,6 +9,7 @@ import { logInfo, logError, logWarn } from '../../core/lib/logger';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
+import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions';
 
 const REQUESTS_DB_FILE = 'requests.db';
 
@@ -484,34 +485,44 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest;
 }
 
-export async function getErpOrderData(orderNumber: string): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}> {
+export async function getErpOrderData(dateRange: DateRange): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}>;
+export async function getErpOrderData(orderNumber: string): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}>;
+export async function getErpOrderData(identifier: string | DateRange): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}> {
     const mainDb = await connectDb();
     
-    await logInfo("Buscando pedido ERP en DB local", { searchTerm: orderNumber, query: `LIKE %${orderNumber}` });
-    
-    const headersRaw: any[] = mainDb.prepare('SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?').all(`%${orderNumber}%`);
-    const headers: ErpOrderHeader[] = JSON.parse(JSON.stringify(headersRaw));
+    let headers: ErpOrderHeader[] = [];
+
+    if (typeof identifier === 'string') {
+        logInfo("Buscando pedido ERP en DB local por número", { searchTerm: identifier });
+        headers = mainDb.prepare('SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?').all(`%${identifier}%`) as ErpOrderHeader[];
+    } else {
+        const { from, to } = identifier;
+        if (!from) throw new Error('Date "from" is required for range search.');
+        
+        const toDate = to || new Date();
+        logInfo("Buscando pedidos ERP en DB local por rango de fecha", { from: from.toISOString(), to: toDate.toISOString() });
+        headers = mainDb.prepare('SELECT * FROM erp_order_headers WHERE FECHA_PEDIDO BETWEEN ? AND ?').all(from.toISOString(), toDate.toISOString()) as ErpOrderHeader[];
+    }
 
     if (headers.length === 0) {
-        await logWarn("Pedido ERP no encontrado en DB local", { searchTerm: orderNumber });
+        logWarn("No se encontraron pedidos ERP para el criterio", { identifier });
         return { headers: [], lines: [], inventory: [] };
     }
 
-    const orderNumbers: string[] = headers.map((h: ErpOrderHeader) => h.PEDIDO);
-    const sanitizedOrderNumbers = orderNumbers.map((n: string) => `'${n.replace(/'/g, "''")}'`).join(',');
+    const orderNumbers: string[] = headers.map(h => h.PEDIDO);
+    const sanitizedOrderNumbers = orderNumbers.map(n => `'${n.replace(/'/g, "''")}'`).join(',');
 
     if (!sanitizedOrderNumbers) {
         return { headers, lines: [], inventory: [] };
     }
 
-    const linesRaw: any[] = mainDb.prepare(`SELECT * FROM erp_order_lines WHERE PEDIDO IN (${sanitizedOrderNumbers})`).all();
-    const lines: ErpOrderLine[] = JSON.parse(JSON.stringify(linesRaw));
+    const lines: ErpOrderLine[] = mainDb.prepare(`SELECT * FROM erp_order_lines WHERE PEDIDO IN (${sanitizedOrderNumbers})`).all() as ErpOrderLine[];
     
     if (lines.length === 0) {
          return { headers, lines: [], inventory: [] };
     }
 
-    const itemIds = [...new Set(lines.map(line => line.ARTICULO))] as string[];
+    const itemIds = [...new Set(lines.map(line => line.ARTICULO))];
     const inventory = await getAllStockFromMainDb();
     const relevantInventory = inventory.filter(inv => itemIds.includes(inv.itemId));
 
@@ -559,5 +570,5 @@ async function getRealTimeInventory(itemIds: string[], signal?: AbortSignal): Pr
 
 export async function getUserByName(name: string): Promise<User | null> {
     const users = await getAllUsers();
-    return users.find((u) => u.name === name) || null;
+    return users.find(u => u.name === name) || null;
 }

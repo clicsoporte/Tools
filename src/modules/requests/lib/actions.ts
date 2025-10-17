@@ -19,6 +19,8 @@ import {
     getErpOrderData as getErpOrderDataServer,
     getUserByName,
 } from './db';
+import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions';
+import { getAllProducts, getAllStock } from '@/modules/core/lib/db';
 
 /**
  * Fetches purchase requests from the server.
@@ -129,4 +131,48 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
  */
 export async function getErpOrderData(orderNumber: string): Promise<{headers: ErpOrderHeader[], lines: ErpOrderLine[], inventory: StockInfo[]}> {
     return getErpOrderDataServer(orderNumber);
+}
+
+/**
+ * Analyzes ERP orders within a date range and suggests purchases for items with stock shortages.
+ * @param dateRange - The date range for ERP orders to analyze.
+ * @returns A promise that resolves to an array of purchase suggestions.
+ */
+export async function getRequestSuggestions(dateRange: DateRange): Promise<PurchaseSuggestion[]> {
+    const { headers, lines } = await getErpOrderDataServer(dateRange);
+    const allStock = await getAllStock();
+    const allProducts = await getAllProducts();
+
+    const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string> }>();
+
+    for (const line of lines) {
+        if (!requiredItems.has(line.ARTICULO)) {
+            requiredItems.set(line.ARTICULO, { totalRequired: 0, sourceOrders: new Set() });
+        }
+        const item = requiredItems.get(line.ARTICULO)!;
+        item.totalRequired += line.CANTIDAD_PEDIDA;
+        item.sourceOrders.add(line.PEDIDO);
+    }
+
+    const suggestions: PurchaseSuggestion[] = [];
+
+    for (const [itemId, data] of requiredItems.entries()) {
+        const stockInfo = allStock.find(s => s.itemId === itemId);
+        const currentStock = stockInfo?.totalStock ?? 0;
+        const shortage = data.totalRequired - currentStock;
+
+        if (shortage > 0) {
+            const productInfo = allProducts.find(p => p.id === itemId);
+            suggestions.push({
+                itemId,
+                itemDescription: productInfo?.description || 'Artículo no encontrado',
+                totalRequired: data.totalRequired,
+                currentStock,
+                shortage,
+                sourceOrders: Array.from(data.sourceOrders),
+            });
+        }
+    }
+
+    return suggestions.sort((a, b) => b.shortage - a.shortage);
 }
