@@ -8,9 +8,8 @@
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification, Suggestion } from "../types";
-import { getCurrentUser as getCurrentUserClient, getInitialAuthData } from '../lib/auth-client';
-import { getUnreadSuggestions, getUnreadSuggestionsCount } from "../lib/suggestions-actions";
-import { getCompanySettings, saveCompanySettings } from "../lib/db";
+import { getCurrentUser as getCurrentUserClient, getInitialAuthData, logout as clientLogout } from '../lib/auth-client';
+import { getUnreadSuggestions } from "../lib/suggestions-actions";
 import { getExchangeRate } from "../lib/api-actions";
 import { getNotificationsForUser } from "../lib/notifications-actions";
 
@@ -37,6 +36,7 @@ interface AuthContextType {
   fetchUnreadNotifications: () => Promise<void>;
   refreshAuth: () => Promise<void>;
   refreshAuthAndRedirect: (path: string) => Promise<void>;
+  logout: () => void;
   refreshExchangeRate: () => Promise<void>;
   setCompanyData: (data: Company) => void;
   updateUnreadSuggestionsCount: () => Promise<void>;
@@ -90,15 +90,16 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const fetchUnreadNotifications = useCallback(async () => {
-    if (!user) return;
+    const currentUser = await getCurrentUserClient();
+    if (!currentUser) return;
     try {
-      const userNotifications = await getNotificationsForUser(user.id);
+      const userNotifications = await getNotificationsForUser(currentUser.id);
       setNotifications(userNotifications);
       setUnreadNotificationsCount(userNotifications.filter(n => !n.isRead).length);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     }
-  }, [user]);
+  }, []);
 
   const loadAuthData = useCallback(async () => {
     setIsLoading(true);
@@ -140,33 +141,20 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const refreshAuthAndRedirect = async (path: string) => {
-    // Don't set loading to true here to avoid a flicker on login
-    const data = await getInitialAuthData();
-    const currentUser = await getCurrentUserClient();
-
-    if (currentUser) {
-        setUser(currentUser);
-        setCompanyData(data.companySettings);
-        setCustomers(data.customers);
-        setProducts(data.products);
-        setStockLevels(data.stock);
-        setAllExemptions(data.exemptions);
-        setExemptionLaws(data.exemptionLaws);
-        setExchangeRateData(data.exchangeRate);
-        setUnreadSuggestions(data.unreadSuggestions);
-        const role = data.roles.find(r => r.id === currentUser.role);
-        setUserRole(role || null);
-    }
+    await loadAuthData();
     router.push(path);
   };
   
+  const handleLogout = async () => {
+    await clientLogout();
+    setUser(null);
+    setUserRole(null);
+    // No need to clear other data, it will be inaccessible anyway
+    router.push('/');
+  }
+
   useEffect(() => {
     loadAuthData();
-    const handleStorageChange = () => loadAuthData();
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    }
   }, [loadAuthData]);
 
   useEffect(() => {
@@ -176,7 +164,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       const interval = setInterval(() => {
         fetchUnreadNotifications();
         updateUnreadSuggestionsCount();
-      }, 30000);
+      }, 30000); // Poll every 30 seconds
       return () => clearInterval(interval);
     }
   }, [user, fetchUnreadNotifications, updateUnreadSuggestionsCount]);
@@ -198,6 +186,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     fetchUnreadNotifications,
     refreshAuth: loadAuthData,
     refreshAuthAndRedirect,
+    logout: handleLogout,
     refreshExchangeRate: fetchExchangeRate,
     setCompanyData,
     updateUnreadSuggestionsCount,

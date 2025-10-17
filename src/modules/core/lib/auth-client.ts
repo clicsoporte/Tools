@@ -43,7 +43,7 @@ export async function logout() {
         await logoutServer(Number(userId));
     }
     sessionStorage.removeItem(CURRENT_USER_ID_KEY);
-    window.dispatchEvent(new Event("storage"));
+    // The useAuth hook will handle UI updates, no need to dispatch event manually.
 }
 
 /**

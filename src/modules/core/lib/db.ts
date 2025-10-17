@@ -95,12 +95,12 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
 export async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
     // Main DB Migrations
     try {
-        const companyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='company_settings'`).get();
-        if(!companyTable) {
+        const usersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='users'`).get();
+        if(!usersTable) {
              console.log("Migration check skipped: Main database not initialized yet.");
              return;
         }
-        
+
         const companyTableInfo = db.prepare(`PRAGMA table_info(company_settings)`).all() as { name: string }[];
         const companyColumns = new Set(companyTableInfo.map(c => c.name));
         
@@ -1001,6 +1001,11 @@ export async function getCabysCatalog(): Promise<{ code: string; description: st
 export async function getSuggestions(): Promise<Suggestion[]> {
   const db = await connectDb();
   return db.prepare('SELECT * FROM suggestions ORDER BY timestamp DESC').all() as Suggestion[];
+}
+
+export async function getUnreadSuggestions(): Promise<Suggestion[]> {
+  const db = await connectDb();
+  return db.prepare('SELECT * FROM suggestions WHERE isRead = 0 ORDER BY timestamp DESC').all() as Suggestion[];
 }
 
 export async function getUnreadSuggestionsCount(): Promise<number> {

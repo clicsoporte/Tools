@@ -6,14 +6,12 @@
  */
 "use server";
 
-import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getDbModules } from './db';
+import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getDbModules, getUnreadSuggestions } from './db';
 import type { User, ExchangeRateApiResponse } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { headers } from 'next/headers';
 import { getExchangeRate } from './api-actions';
-import { getUnreadSuggestions } from './suggestions-actions';
-
 
 const SALT_ROUNDS = 10;
 

@@ -21,33 +21,25 @@ import Link from "next/link";
 import { LogOut, User as UserIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Skeleton } from "../ui/skeleton";
-import { getCurrentUser, logout } from "../../modules/core/lib/auth-client";
-import { useRouter } from "next/navigation";
-
+import { useAuth } from "@/modules/core/hooks/useAuth";
 
 interface UserNavProps {
     user?: User | null;
 }
 
 export function UserNav({ user: propUser }: UserNavProps) {
-  const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<User | null>(propUser || null);
+  const { user: authUser, logout } = useAuth();
+  const [currentUser, setCurrentUser] = useState<User | null>(propUser || authUser || null);
 
   useEffect(() => {
-    const updateUserState = async () => {
-      if (propUser) {
-          setCurrentUser(propUser);
-      } else {
-          const user = await getCurrentUser();
-          setCurrentUser(user);
-      }
-    };
-    updateUserState();
-  }, [propUser]);
+    const userToSet = propUser || authUser;
+    if (userToSet) {
+        setCurrentUser(userToSet);
+    }
+  }, [propUser, authUser]);
 
   const handleLogout = () => {
     logout();
-    router.push('/');
   }
 
   const getInitials = (name: string) => {
