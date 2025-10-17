@@ -174,6 +174,9 @@ export default function PurchaseSuggestionsPage() {
                                             <Tooltip><TooltipTrigger>Artículo</TooltipTrigger><TooltipContent>Código y descripción del artículo con faltante de inventario.</TooltipContent></Tooltip>
                                         </TableHead>
                                         <TableHead>
+                                            <Tooltip><TooltipTrigger>Pedidos Origen</TooltipTrigger><TooltipContent>Números de pedido del ERP que requieren este artículo.</TooltipContent></Tooltip>
+                                        </TableHead>
+                                        <TableHead>
                                             <Tooltip><TooltipTrigger>Clientes Involucrados</TooltipTrigger><TooltipContent>Lista de todos los clientes de los pedidos analizados que están esperando este artículo.</TooltipContent></Tooltip>
                                         </TableHead>
                                         <TableHead>
@@ -194,7 +197,7 @@ export default function PurchaseSuggestionsPage() {
                                     {isLoading ? (
                                         Array.from({ length: 5 }).map((_, i) => (
                                             <TableRow key={i}>
-                                                <TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell>
+                                                <TableCell colSpan={8}><Skeleton className="h-8 w-full" /></TableCell>
                                             </TableRow>
                                         ))
                                     ) : selectors.filteredSuggestions.length > 0 ? (
@@ -211,6 +214,21 @@ export default function PurchaseSuggestionsPage() {
                                                     <p className="text-sm text-muted-foreground">{item.itemId}</p>
                                                 </TableCell>
                                                 <TableCell>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                                                {item.sourceOrders.join(', ')}
+                                                            </p>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <div className="max-w-md">
+                                                                <p className="font-bold mb-1">Pedidos de Origen:</p>
+                                                                <p>{item.sourceOrders.join(', ')}</p>
+                                                            </div>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TableCell>
+                                                <TableCell>
                                                     <p className="text-xs text-muted-foreground truncate max-w-xs" title={item.involvedClients.map(c => `${c.name} (${c.id})`).join(', ')}>
                                                         {item.involvedClients.map(c => c.name).join(', ')}
                                                     </p>
@@ -225,7 +243,7 @@ export default function PurchaseSuggestionsPage() {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="h-32 text-center">
+                                            <TableCell colSpan={8} className="h-32 text-center">
                                                 <div className="flex flex-col items-center justify-center gap-2">
                                                     <AlertCircle className="h-8 w-8 text-muted-foreground" />
                                                     <p className="text-muted-foreground">No se encontraron faltantes para los filtros seleccionados.</p>

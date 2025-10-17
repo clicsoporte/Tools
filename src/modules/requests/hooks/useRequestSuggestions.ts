@@ -171,6 +171,7 @@ export function useRequestSuggestions() {
         const dataToExport = filteredSuggestions.map(item => [
             item.itemId,
             item.itemDescription,
+            item.sourceOrders.join(', '),
             item.involvedClients.map(c => c.name).join(', '),
             item.earliestDueDate ? new Date(item.earliestDueDate).toLocaleDateString('es-CR') : 'N/A',
             item.totalRequired,
@@ -181,9 +182,9 @@ export function useRequestSuggestions() {
         exportToExcel({
             fileName: 'sugerencias_compra',
             sheetName: 'Sugerencias',
-            headers: ['Código Artículo', 'Descripción', 'Clientes Involucrados', 'Próxima Entrega', 'Cant. Requerida', 'Inv. Actual', 'Faltante Total'],
+            headers: ['Código Artículo', 'Descripción', 'Pedidos Origen', 'Clientes Involucrados', 'Próxima Entrega', 'Cant. Requerida', 'Inv. Actual', 'Faltante Total'],
             data: dataToExport,
-            columnWidths: [20, 40, 30, 15, 15, 15, 15],
+            columnWidths: [20, 40, 25, 30, 15, 15, 15, 15],
         });
     };
     
