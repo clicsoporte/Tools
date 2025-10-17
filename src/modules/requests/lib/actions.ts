@@ -19,7 +19,7 @@ import {
     getErpOrderData as getErpOrderDataServer,
     getUserByName,
 } from './db';
-import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions.tsx';
+import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions';
 import { getAllProducts, getAllStock, getAllCustomers } from '@/modules/core/lib/db';
 
 /**
@@ -144,14 +144,14 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
     const allProducts = await getAllProducts();
     const allCustomers = await getAllCustomers();
 
-    const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string>; clientIds: Set<string>; erpUsers: Set<string>; earliestDueDate: Date | null; }>();
+    const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string>; clientIds: Set<string>; erpUsers: Set<string>; earliestCreationDate: Date | null, earliestDueDate: Date | null; }>();
 
     for (const line of lines) {
         const header = headers.find(h => h.PEDIDO === line.PEDIDO);
         if (!header) continue;
 
         if (!requiredItems.has(line.ARTICULO)) {
-            requiredItems.set(line.ARTICULO, { totalRequired: 0, sourceOrders: new Set(), clientIds: new Set(), erpUsers: new Set(), earliestDueDate: null });
+            requiredItems.set(line.ARTICULO, { totalRequired: 0, sourceOrders: new Set(), clientIds: new Set(), erpUsers: new Set(), earliestCreationDate: null, earliestDueDate: null });
         }
         
         const item = requiredItems.get(line.ARTICULO)!;
@@ -162,6 +162,11 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
             item.erpUsers.add(header.USUARIO);
         }
         
+        const creationDate = new Date(header.FECHA_PEDIDO);
+        if (!item.earliestCreationDate || creationDate < item.earliestCreationDate) {
+            item.earliestCreationDate = creationDate;
+        }
+
         const dueDate = new Date(header.FECHA_PROMETIDA);
         if (!item.earliestDueDate || dueDate < item.earliestDueDate) {
             item.earliestDueDate = dueDate;
@@ -192,6 +197,7 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
                 sourceOrders: Array.from(data.sourceOrders),
                 involvedClients,
                 erpUsers: Array.from(data.erpUsers),
+                earliestCreationDate: data.earliestCreationDate ? data.earliestCreationDate.toISOString() : null,
                 earliestDueDate: data.earliestDueDate ? data.earliestDueDate.toISOString() : null,
             });
         }

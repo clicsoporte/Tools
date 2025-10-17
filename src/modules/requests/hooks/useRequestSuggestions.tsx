@@ -28,6 +28,7 @@ export interface PurchaseSuggestion {
     sourceOrders: string[];
     involvedClients: { id: string; name: string }[];
     erpUsers: string[];
+    earliestCreationDate: string | null;
     earliestDueDate: string | null;
 }
 
@@ -36,6 +37,7 @@ const availableColumns = [
     { id: 'sourceOrders', label: 'Pedidos Origen', tooltip: 'Números de pedido del ERP que requieren este artículo.' },
     { id: 'clients', label: 'Clientes Involucrados', tooltip: 'Lista de todos los clientes de los pedidos analizados que están esperando este artículo.' },
     { id: 'erpUsers', label: 'Usuario ERP', tooltip: 'Usuario que creó el pedido en el sistema ERP.' },
+    { id: 'creationDate', label: 'Fecha Pedido', tooltip: 'La fecha de creación más temprana para este artículo entre todos los pedidos analizados.' },
     { id: 'dueDate', label: 'Próxima Entrega', tooltip: 'La fecha de entrega más cercana para este artículo entre todos los pedidos analizados.' },
     { id: 'required', label: 'Cant. Requerida', tooltip: 'La suma total de este artículo requerida para cumplir con todos los pedidos en el rango de fechas.', align: 'right' },
     { id: 'stock', label: 'Inv. Actual (ERP)', tooltip: 'La cantidad total de este artículo disponible en todas las bodegas según la última sincronización del ERP.', align: 'right' },
@@ -112,12 +114,18 @@ export function useRequestSuggestions() {
 
     const filteredSuggestions = useMemo(() => {
         return state.suggestions.filter(item => {
-            const searchMatch = debouncedSearchTerm
-                ? item.itemId.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                  item.itemDescription.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                : true;
-            const classificationMatch = state.classificationFilter.length === 0 || state.classificationFilter.includes(item.itemClassification);
-            return searchMatch && classificationMatch;
+            const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
+            if (searchTerms.length === 0) return true;
+
+            const targetText = `
+                ${item.itemId.toLowerCase()} 
+                ${item.itemDescription.toLowerCase()} 
+                ${item.sourceOrders.join(' ').toLowerCase()}
+                ${item.involvedClients.map(c => c.name).join(' ').toLowerCase()}
+                ${item.erpUsers.join(' ').toLowerCase()}
+            `;
+            
+            return searchTerms.every(term => targetText.includes(term));
         });
     }, [state.suggestions, debouncedSearchTerm, state.classificationFilter]);
 
@@ -199,6 +207,7 @@ export function useRequestSuggestions() {
             case 'sourceOrders': return { content: <Tooltip><TooltipTrigger asChild><p className="text-xs text-muted-foreground truncate max-w-xs">{item.sourceOrders.join(', ')}</p></TooltipTrigger><TooltipContent><div className="max-w-md"><p className="font-bold mb-1">Pedidos de Origen:</p><p>{item.sourceOrders.join(', ')}</p></div></TooltipContent></Tooltip> };
             case 'clients': return { content: <p className="text-xs text-muted-foreground truncate max-w-xs" title={item.involvedClients.map(c => `${c.name} (${c.id})`).join(', ')}>{item.involvedClients.map(c => c.name).join(', ')}</p> };
             case 'erpUsers': return { content: <p className="text-xs text-muted-foreground">{item.erpUsers.join(', ')}</p> };
+            case 'creationDate': return { content: item.earliestCreationDate ? new Date(item.earliestCreationDate).toLocaleDateString('es-CR') : 'N/A' };
             case 'dueDate': return { content: item.earliestDueDate ? new Date(item.earliestDueDate).toLocaleDateString('es-CR') : 'N/A' };
             case 'required': return { content: item.totalRequired.toLocaleString(), className: 'text-right' };
             case 'stock': return { content: item.currentStock.toLocaleString(), className: 'text-right' };

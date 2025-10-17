@@ -131,7 +131,7 @@ export default function PurchaseSuggestionsPage() {
                     </Popover>
                     <div className="relative flex-1 min-w-[240px]">
                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Buscar por código o descripción..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="pl-8 w-full" />
+                        <Input placeholder="Buscar por artículo, cliente, pedido..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="pl-8 w-full" />
                     </div>
                      <MultiSelectFilter
                         title="Clasificación"
