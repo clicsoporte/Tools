@@ -10,7 +10,7 @@ import { useProductionReport } from '@/modules/analytics/hooks/useProductionRepo
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet, Package, PackageCheck, AlertCircle, Trash2 } from 'lucide-react';
+import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet, Package, PackageCheck, AlertCircle, Trash2, Columns3 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export default function ProductionReportPage() {
     const {
@@ -28,7 +29,7 @@ export default function ProductionReportPage() {
         isInitialLoading,
     } = useProductionReport();
 
-    const { isLoading, dateRange, reportData, plannerSettings } = state;
+    const { isLoading, dateRange, reportData, plannerSettings, visibleColumns } = state;
     const { totals, details } = reportData;
 
     if (isInitialLoading) {
@@ -144,6 +145,24 @@ export default function ProductionReportPage() {
                     <div className="flex justify-between items-center">
                         <CardTitle>Detalle de Órdenes</CardTitle>
                          <div className="flex items-center gap-2">
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline"><Columns3 className="mr-2 h-4 w-4"/> Columnas</Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Seleccionar Columnas Visibles</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {selectors.availableColumns.map(column => (
+                                        <DropdownMenuCheckboxItem
+                                            key={column.id}
+                                            checked={visibleColumns.includes(column.id)}
+                                            onCheckedChange={(checked) => actions.handleColumnVisibilityChange(column.id, checked)}
+                                        >
+                                            {column.label}
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                             <Button variant="outline" onClick={() => actions.handleExportPDF('landscape')} disabled={isLoading || details.length === 0}><FileDown className="mr-2"/>Exportar PDF</Button>
                             <Button variant="outline" onClick={actions.handleExportExcel} disabled={isLoading || details.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
                         </div>
@@ -152,50 +171,36 @@ export default function ProductionReportPage() {
                 <CardContent>
                     <ScrollArea className="h-[50vh] border rounded-md">
                         <Table>
-                            <TableHeader className="sticky top-0 bg-background">
+                            <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
-                                    <TableHead>OP</TableHead>
-                                    <TableHead>Cliente</TableHead>
-                                    <TableHead>Producto</TableHead>
-                                    <TableHead>Prioridad</TableHead>
-                                    <TableHead>{plannerSettings?.assignmentLabel || 'Asignación'}</TableHead>
-                                    <TableHead className="text-right">Solicitado</TableHead>
-                                    <TableHead className="text-right">Producido</TableHead>
-                                    <TableHead className="text-right">Defectuoso</TableHead>
-                                    <TableHead className="text-right">Diferencia Neta</TableHead>
-                                    <TableHead>Fecha Completada</TableHead>
+                                    {selectors.visibleColumnsData.map(col => (
+                                        <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right')}>{col.label}</TableHead>
+                                    ))}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     Array.from({ length: 5 }).map((_, i) => (
                                         <TableRow key={i}>
-                                            <TableCell colSpan={10}><Skeleton className="h-8 w-full" /></TableCell>
+                                            <TableCell colSpan={visibleColumns.length}><Skeleton className="h-8 w-full" /></TableCell>
                                         </TableRow>
                                     ))
                                 ) : details.length > 0 ? (
                                     details.map(item => (
                                         <TableRow key={item.id}>
-                                            <TableCell>{item.consecutive}</TableCell>
-                                            <TableCell>{item.customerName}</TableCell>
-                                            <TableCell>
-                                                <p className="font-medium">{item.productDescription}</p>
-                                                <p className="text-xs text-muted-foreground">{item.productId}</p>
-                                            </TableCell>
-                                            <TableCell className={cn("font-medium", selectors.priorityConfig[item.priority]?.className)}>{selectors.priorityConfig[item.priority]?.label}</TableCell>
-                                            <TableCell>{plannerSettings?.machines.find(m => m.id === item.machineId)?.name || 'N/A'}</TableCell>
-                                            <TableCell className="text-right">{item.quantity.toLocaleString('es-CR')}</TableCell>
-                                            <TableCell className="text-right">{(item.deliveredQuantity ?? 0).toLocaleString('es-CR')}</TableCell>
-                                            <TableCell className="text-right text-red-600">{(item.defectiveQuantity ?? 0).toLocaleString('es-CR')}</TableCell>
-                                            <TableCell className={cn("text-right font-bold", selectors.getNetDifference(item) < 0 ? 'text-destructive' : 'text-green-600')}>
-                                                {selectors.getNetDifference(item).toLocaleString('es-CR')}
-                                            </TableCell>
-                                            <TableCell>{item.completionDate ? format(parseISO(item.completionDate), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                                            {visibleColumns.map(colId => {
+                                                const colData = selectors.getColumnContent(item, colId);
+                                                return (
+                                                    <TableCell key={colId} className={cn(colData.className)}>
+                                                        {colData.content}
+                                                    </TableCell>
+                                                )
+                                            })}
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={10} className="h-32 text-center">
+                                        <TableCell colSpan={visibleColumns.length} className="h-32 text-center">
                                             No se encontraron datos de producción para el rango de fechas seleccionado.
                                         </TableCell>
                                     </TableRow>

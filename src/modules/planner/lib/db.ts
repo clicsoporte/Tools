@@ -574,8 +574,9 @@ export async function getCompletedOrdersByDateRange(dateRange: DateRange): Promi
     const db = await connectDb(PLANNER_DB_FILE);
     if (!dateRange.from) throw new Error("Start date is required.");
     
-    const toDate = dateRange.to || new Date();
-    
+    const toDate = dateRange.to ? new Date(dateRange.to) : new Date();
+    toDate.setHours(23, 59, 59, 999); // Include the whole end day
+
     const settings = await getSettings();
     const completedStatuses = settings.useWarehouseReception 
         ? ['completed', 'received-in-warehouse'] 
@@ -583,30 +584,24 @@ export async function getCompletedOrdersByDateRange(dateRange: DateRange): Promi
     
     const statusPlaceholders = completedStatuses.map(() => '?').join(',');
 
-    const query = `
+    const orders: ProductionOrder[] = db.prepare(`
         SELECT o.*
         FROM production_orders o
-        JOIN production_order_history h ON o.id = h.orderId
-        WHERE h.status IN (${statusPlaceholders})
-          AND h.timestamp = (
-            SELECT MAX(h2.timestamp)
-            FROM production_order_history h2
-            WHERE h2.orderId = o.id AND h2.status IN (${statusPlaceholders})
-          )
-          AND h.timestamp BETWEEN ? AND ?
-    `;
-
-    const orders: ProductionOrder[] = db.prepare(query).all(
-        ...completedStatuses,
-        ...completedStatuses,
-        dateRange.from.toISOString(),
-        toDate.toISOString()
-    ) as ProductionOrder[];
+        WHERE o.status IN (${statusPlaceholders})
+    `).all(...completedStatuses) as ProductionOrder[];
 
     const ordersWithHistory = orders.map(order => {
         const history = db.prepare('SELECT * FROM production_order_history WHERE orderId = ? ORDER BY timestamp ASC').all(order.id) as ProductionOrderHistoryEntry[];
         return { ...order, history };
     });
+    
+    const filteredOrders = ordersWithHistory.filter(order => {
+        const completionEntry = order.history.find(h => completedStatuses.includes(h.status));
+        if (!completionEntry) return false;
+        
+        const completionDate = parseISO(completionEntry.timestamp);
+        return completionDate >= dateRange.from! && completionDate <= toDate;
+    });
 
-    return ordersWithHistory;
+    return filteredOrders;
 }

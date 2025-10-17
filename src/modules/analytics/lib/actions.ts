@@ -5,18 +5,12 @@
 
 import { getCompletedOrdersByDateRange } from '@/modules/planner/lib/db';
 import { getSettings as getPlannerSettingsDb } from '@/modules/planner/lib/db';
-import type { DateRange, ProductionOrder, PlannerSettings } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry } from '@/modules/core/types';
+import { differenceInDays, parseISO } from 'date-fns';
+import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 
 interface FullProductionReportData {
-    reportData: {
-        totals: {
-            totalRequested: number;
-            totalDelivered: number;
-            totalDefective: number;
-            totalNet: number;
-        };
-        details: (ProductionOrder & { completionDate: string | null })[];
-    };
+    reportData: ProductionReportData;
     plannerSettings: PlannerSettings;
 }
 
@@ -47,11 +41,29 @@ export async function getProductionReportData(dateRange: DateRange): Promise<Ful
 
     totals.totalNet = totals.totalDelivered - totals.totalDefective;
 
-    const details = orders.map(order => {
-        const historyEntry = order.history?.find(h => h.status === 'completed' || h.status === 'received-in-warehouse');
+    const details: ProductionReportDetail[] = orders.map(order => {
+        const history = order.history || [];
+        
+        const completionEntry = history.find(h => h.status === 'completed' || h.status === 'received-in-warehouse');
+        const startEntry = history.find(h => h.status === 'in-progress');
+        
+        const completionDate = completionEntry?.timestamp || null;
+        
+        let productionDurationDays: number | null = null;
+        if (startEntry?.timestamp && completionDate) {
+            productionDurationDays = differenceInDays(parseISO(completionDate), parseISO(startEntry.timestamp));
+        }
+
+        let totalCycleDays: number | null = null;
+        if (order.requestDate && completionDate) {
+            totalCycleDays = differenceInDays(parseISO(completionDate), parseISO(order.requestDate));
+        }
+        
         return {
             ...order,
-            completionDate: historyEntry?.timestamp || null,
+            completionDate,
+            productionDurationDays,
+            totalCycleDays,
         };
     });
 
