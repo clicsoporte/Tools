@@ -46,7 +46,7 @@ export async function getProductionReportData({ dateRange, filters = {} }: { dat
             return false;
         }
         if (filters.classifications && filters.classifications.length > 0) {
-            const product = allProducts.find(p => p.id === order.productId);
+            const product = allProducts.find((p: Product) => p.id === order.productId);
             if (!product || !product.classification || !filters.classifications.includes(product.classification)) {
                 return false;
             }
