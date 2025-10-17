@@ -31,6 +31,8 @@ const config: Config = {
     'bg-teal-500',
     'bg-cyan-500',
     'bg-orange-400',
+    'bg-indigo-500',
+    'bg-purple-600',
   ],
   theme: {
     extend: {
