@@ -5,8 +5,8 @@
  */
 "use server";
 
-import { connectDb, getAllProducts } from '../../core/lib/db';
-import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
+import { connectDb, getAllProducts, getAllUsers } from '../../core/lib/db';
+import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload, AdministrativeActionPayload, User } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
@@ -514,42 +514,6 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
     return db.prepare('SELECT * FROM production_order_history WHERE orderId = ? ORDER BY timestamp DESC').all(orderId) as ProductionOrderHistoryEntry[];
 }
 
-
-export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<ProductionOrder> {
-    const db = await connectDb(PLANNER_DB_FILE);
-    const { entityId: orderId, notes, updatedBy } = payload;
-
-    const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
-    if (!currentOrder) {
-        throw new Error("La orden no fue encontrada.");
-    }
-    
-    if (currentOrder.pendingAction === 'none') {
-        throw new Error("La orden no tiene una solicitud de cancelación pendiente.");
-    }
-    
-    const transaction = db.transaction(() => {
-        db.prepare(`
-            UPDATE production_orders SET
-                pendingAction = 'none',
-                lastStatusUpdateNotes = @notes,
-                lastStatusUpdateBy = @updatedBy,
-                previousStatus = NULL
-            WHERE id = @orderId
-        `).run({
-            notes,
-            updatedBy,
-            orderId,
-        });
-
-        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Rechazada solicitud administrativa: ${notes}`);
-    });
-
-    transaction();
-    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-}
-
 export async function addNote(payload: NotePayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     const { orderId, notes, updatedBy } = payload;
@@ -596,4 +560,9 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     
     transaction();
     return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(entityId) as ProductionOrder;
+}
+
+export async function getUserByName(name: string): Promise<User | null> {
+    const users = await getAllUsers();
+    return users.find(u => u.name === name) || null;
 }

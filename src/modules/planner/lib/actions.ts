@@ -6,6 +6,7 @@
 
 import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, PlannerSettings, UpdateProductionOrderPayload, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
 import { logInfo } from '@/modules/core/lib/logger';
+import { createNotification } from '@/modules/core/lib/notifications-actions';
 import { 
     getOrders, 
     addOrder, 
@@ -17,6 +18,7 @@ import {
     saveSettings,
     addNote as addNoteServer,
     updatePendingAction as updatePendingActionServer,
+    getUserByName,
 } from './db';
 
 /**
@@ -68,6 +70,19 @@ export async function updateProductionOrder(payload: UpdateProductionOrderPayloa
 export async function updateProductionOrderStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
     const updatedOrder = await updateStatus(payload);
     await logInfo(`Status of order ${updatedOrder.consecutive} updated to '${payload.status}' by ${payload.updatedBy}`, { notes: payload.notes, orderId: payload.orderId });
+    
+    // --- Create Notification ---
+    if (updatedOrder.requestedBy !== payload.updatedBy) {
+        const targetUser = await getUserByName(updatedOrder.requestedBy);
+        if (targetUser) {
+            await createNotification(
+                targetUser.id,
+                `La orden ${updatedOrder.consecutive} ha sido actualizada a: ${updatedOrder.status}.`,
+                `/dashboard/planner?search=${updatedOrder.consecutive}`
+            );
+        }
+    }
+    
     return updatedOrder;
 }
 
@@ -109,21 +124,6 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 }
 
 /**
- * Rejects a cancellation request for an order.
- * @param payload - The rejection details.
- */
-export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<ProductionOrder> {
-    const updatedOrder = await updatePendingActionServer({
-        entityId: payload.entityId,
-        action: 'none',
-        notes: payload.notes,
-        updatedBy: payload.updatedBy
-    });
-    await logInfo(`Admin action request for order ${updatedOrder.consecutive} was rejected by ${payload.updatedBy}`, { notes: payload.notes });
-    return updatedOrder;
-}
-
-/**
  * Adds a note to a production order without changing its status.
  * @param payload - The note details.
  * @returns The updated production order.
@@ -142,5 +142,24 @@ export async function addNoteToOrder(payload: NotePayload): Promise<ProductionOr
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<ProductionOrder> {
     const updatedOrder = await updatePendingActionServer(payload);
     await logInfo(`Administrative action '${payload.action}' initiated for order ${updatedOrder.consecutive} by ${payload.updatedBy}.`);
+
+    // --- Create Notification for Admin Action ---
+    if (updatedOrder.requestedBy !== payload.updatedBy) {
+        const targetUser = await getUserByName(updatedOrder.requestedBy);
+        if (targetUser) {
+            let message = '';
+            if (payload.action.includes('request')) {
+                message = `El usuario ${payload.updatedBy} ha solicitado ${payload.action === 'unapproval-request' ? 'desaprobar' : 'cancelar'} la orden ${updatedOrder.consecutive}.`;
+            }
+            if (message) {
+                 await createNotification(
+                    targetUser.id,
+                    message,
+                    `/dashboard/planner?search=${updatedOrder.consecutive}`
+                );
+            }
+        }
+    }
+
     return updatedOrder;
 }

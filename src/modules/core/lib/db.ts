@@ -8,8 +8,8 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { initialUsers, initialCompany, initialRoles } from './data';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine } from '@/modules/core/types';
+import { initialCompany, initialRoles } from './data';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -193,6 +193,22 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
             db.exec(`CREATE TABLE erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));`);
         }
 
+        const notificationsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'`).get();
+        if (!notificationsTable) {
+            console.log("MIGRATION: Creating notifications table.");
+            db.exec(`
+                CREATE TABLE notifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    userId INTEGER NOT NULL,
+                    message TEXT NOT NULL,
+                    href TEXT,
+                    isRead INTEGER DEFAULT 0,
+                    timestamp TEXT NOT NULL,
+                    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+                );
+            `);
+        }
+
     } catch (error) {
         console.error("Failed to apply migrations:", error);
     }
@@ -227,6 +243,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE import_queries (type TEXT PRIMARY KEY, query TEXT);
         CREATE TABLE cabys_catalog (code TEXT PRIMARY KEY, description TEXT NOT NULL, taxRate REAL);
         CREATE TABLE suggestions (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL, userId INTEGER NOT NULL, userName TEXT NOT NULL, isRead INTEGER DEFAULT 0, timestamp TEXT NOT NULL);
+        CREATE TABLE notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, userId INTEGER NOT NULL, message TEXT NOT NULL, href TEXT, isRead INTEGER DEFAULT 0, timestamp TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
         CREATE TABLE erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT, TOTAL_UNIDADES REAL, MONEDA_PEDIDO TEXT, USUARIO TEXT);
         CREATE TABLE erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));
     `;
@@ -234,14 +251,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     db.exec(mainSchema);
 
     // Initial users are no longer created here. They are created via the setup wizard.
-    if (initialUsers.length > 0) {
-        const userInsert = db.prepare('INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)');
-        initialUsers.forEach(user => {
-            const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
-            userInsert.run({ ...user, password: hashedPassword });
-        });
-    }
-
+    
     db.prepare(`INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, searchDebounceTime, importMode, quoterShowTaxId, syncWarningHours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
         initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, initialCompany.searchDebounceTime, initialCompany.importMode, 1, 12
@@ -1186,4 +1196,23 @@ export async function saveAllErpOrderLines(lines: ErpOrderLine[]): Promise<void>
         console.error("Failed to save ERP order lines:", error);
         throw error;
     }
+}
+
+// --- Notification Functions ---
+export async function createNotification(notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>): Promise<void> {
+  const db = await connectDb();
+  db.prepare('INSERT INTO notifications (userId, message, href, isRead, timestamp) VALUES (?, ?, ?, 0, ?)')
+    .run(notification.userId, notification.message, notification.href, new Date().toISOString());
+}
+
+export async function getNotifications(userId: number): Promise<Notification[]> {
+  const db = await connectDb();
+  return db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY timestamp DESC').all(userId) as Notification[];
+}
+
+export async function markNotificationsAsRead(notificationIds: number[], userId: number): Promise<void> {
+  const db = await connectDb();
+  if (notificationIds.length === 0) return;
+  const ids = notificationIds.map(id => '?').join(',');
+  db.prepare(`UPDATE notifications SET isRead = 1 WHERE id IN (${ids}) AND userId = ?`).run(...notificationIds, userId);
 }

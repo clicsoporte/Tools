@@ -602,6 +602,17 @@ export type Suggestion = {
   timestamp: string;
 };
 
+// --- Notification Types ---
+export type Notification = {
+    id: number;
+    userId: number;
+    message: string;
+    href: string;
+    isRead: 0 | 1;
+    timestamp: string;
+};
+
+
 // --- Supplier Type ---
 export type Supplier = {
     id: string;      // PROVEEDOR

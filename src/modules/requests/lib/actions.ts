@@ -6,6 +6,7 @@
 
 import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine } from '../../core/types';
 import { logInfo } from '@/modules/core/lib/logger';
+import { createNotification } from '@/modules/core/lib/notifications-actions';
 import { 
     getRequests, 
     addRequest,
@@ -16,6 +17,7 @@ import {
     saveSettings,
     updatePendingAction as updatePendingActionServer,
     getErpOrderData as getErpOrderDataServer,
+    getUserByName,
 } from './db';
 
 /**
@@ -67,6 +69,19 @@ export async function updatePurchaseRequest(payload: UpdatePurchaseRequestPayloa
 export async function updatePurchaseRequestStatus(payload: UpdateRequestStatusPayload): Promise<PurchaseRequest> {
     const updatedRequest = await updateStatus(payload);
     await logInfo(`Status of request ${updatedRequest.consecutive} updated to '${payload.status}' by ${payload.updatedBy}`, { notes: payload.notes, requestId: payload.requestId });
+    
+    // --- Create Notification ---
+    if (updatedRequest.requestedBy !== payload.updatedBy) {
+        const targetUser = await getUserByName(updatedRequest.requestedBy);
+        if (targetUser) {
+            await createNotification(
+                targetUser.id,
+                `La solicitud ${updatedRequest.consecutive} ha sido actualizada a: ${updatedRequest.status}.`,
+                `/dashboard/requests?search=${updatedRequest.consecutive}`
+            );
+        }
+    }
+    
     return updatedRequest;
 }
 
@@ -94,21 +109,6 @@ export async function getRequestSettings(): Promise<RequestSettings> {
 export async function saveRequestSettings(settings: RequestSettings): Promise<void> {
     await logInfo('Purchase requests settings updated.');
     return saveSettings(settings);
-}
-
-/**
- * Rejects a cancellation request for a purchase request.
- * @param payload - The rejection details.
- */
-export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<PurchaseRequest> {
-    const updatedRequest = await updatePendingActionServer({
-        entityId: payload.entityId,
-        action: 'none',
-        notes: payload.notes,
-        updatedBy: payload.updatedBy
-    });
-    await logInfo(`Admin action request for request ${updatedRequest.consecutive} was rejected by ${payload.updatedBy}`, { notes: payload.notes });
-    return updatedRequest;
 }
 
 /**

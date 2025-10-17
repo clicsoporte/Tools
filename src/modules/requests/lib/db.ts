@@ -1,12 +1,13 @@
 
+
 /**
  * @fileoverview Server-side functions for the purchase requests database.
  */
 "use server";
 
-import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries as getImportQueriesFromMain } from '../../core/lib/db';
+import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries as getImportQueriesFromMain, getAllUsers } from '../../core/lib/db';
 import { logInfo, logError, logWarn } from '../../core/lib/logger';
-import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine } from '../../core/types';
+import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { executeQuery } from '@/modules/core/lib/sql-service';
 
@@ -458,37 +459,6 @@ export async function getRequestHistory(requestId: number): Promise<PurchaseRequ
     return db.prepare('SELECT * FROM purchase_request_history WHERE requestId = ? ORDER BY timestamp DESC').all(requestId) as PurchaseRequestHistoryEntry[];
 }
 
-export async function rejectCancellation(payload: RejectCancellationPayload): Promise<PurchaseRequest> {
-    const db = await connectDb(REQUESTS_DB_FILE);
-    const { entityId: requestId, notes, updatedBy } = payload;
-
-    const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest | undefined;
-    if (!currentRequest) {
-        throw new Error("La solicitud no fue encontrada.");
-    }
-    
-    const transaction = db.transaction(() => {
-        db.prepare(`
-            UPDATE purchase_requests SET
-                pendingAction = 'none',
-                lastStatusUpdateNotes = @notes,
-                lastStatusUpdateBy = @updatedBy,
-                previousStatus = NULL
-            WHERE id = @requestId
-        `).run({
-            notes,
-            updatedBy,
-            requestId,
-        });
-
-        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(requestId, new Date().toISOString(), currentRequest.status, updatedBy, `Rechazada solicitud de cancelación: ${notes}`);
-    });
-
-    transaction();
-    return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
-}
-
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
     const { entityId, action, notes, updatedBy } = payload;
@@ -520,7 +490,7 @@ export async function getErpOrderData(orderNumber: string): Promise<{headers: Er
     
     await logInfo("Buscando pedido ERP en DB local", { searchTerm: orderNumber, query: `LIKE %${orderNumber}` });
     
-    const headersRaw: any[] = mainDb.prepare('SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?').all(`%${orderNumber}`);
+    const headersRaw: any[] = mainDb.prepare('SELECT * FROM erp_order_headers WHERE PEDIDO LIKE ?').all(`%${orderNumber}%`);
     const headers: ErpOrderHeader[] = JSON.parse(JSON.stringify(headersRaw));
 
     if (headers.length === 0) {
@@ -586,4 +556,9 @@ async function getRealTimeInventory(itemIds: string[], signal?: AbortSignal): Pr
         logError("Error fetching real-time inventory", { error: error.message, query: stockQuery });
         throw error;
     }
+}
+
+export async function getUserByName(name: string): Promise<User | null> {
+    const users = await getAllUsers();
+    return users.find(u => u.name === name) || null;
 }

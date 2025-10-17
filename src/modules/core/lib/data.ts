@@ -170,8 +170,10 @@ export const initialRoles: Role[] = [
         "planner:status:completed",
         "planner:status:cancel",
         "planner:status:cancel-approved",
+        "planner:status:unapprove-request",
         "planner:priority:update",
         "planner:machine:assign",
+        "planner:schedule",
         "analytics:read",
         "users:create",
         "users:read",
@@ -187,6 +189,7 @@ export const initialRoles: Role[] = [
         "admin:settings:requests",
         "admin:settings:warehouse",
         "admin:settings:stock",
+        "admin:suggestions:read",
         "admin:import:run",
         "admin:import:files",
         "admin:import:sql",
@@ -200,7 +203,6 @@ export const initialRoles: Role[] = [
         "warehouse:inventory:assign",
         "warehouse:locations:manage",
         "hacienda:query",
-        "admin:suggestions:read"
     ],
   },
   {
@@ -222,6 +224,7 @@ export const initialRoles: Role[] = [
         "planner:status:cancel",
         "planner:priority:update",
         "planner:machine:assign",
+        "planner:schedule",
     ]
   },
    {
