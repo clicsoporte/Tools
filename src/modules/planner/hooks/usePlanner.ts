@@ -761,7 +761,7 @@ export const usePlanner = () => {
                 const statusMatch = state.statusFilter.length === 0 || state.statusFilter.includes(order.status);
                 const classificationMatch = state.classificationFilter.length === 0 || (product && state.classificationFilter.includes(product.classification));
                 const dateMatch = !state.dateFilter || !state.dateFilter.from || (new Date(order.deliveryDate) >= state.dateFilter.from && new Date(order.deliveryDate) <= (state.dateFilter.to || state.dateFilter.from));
-                const myOrdersMatch = !state.showOnlyMyOrders || (currentUser && order.requestedBy === currentUser.name);
+                const myOrdersMatch = !state.showOnlyMyOrders || (currentUser && (order.requestedBy.toLowerCase() === currentUser.name.toLowerCase() || (currentUser.erpAlias && order.erpOrderNumber?.toLowerCase().includes(currentUser.erpAlias.toLowerCase()))));
 
                 return searchMatch && statusMatch && classificationMatch && dateMatch && myOrdersMatch;
             });

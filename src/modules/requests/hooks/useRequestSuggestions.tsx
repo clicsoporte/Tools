@@ -121,7 +121,7 @@ export function useRequestSuggestions() {
             const classificationMatch = state.classificationFilter.length > 0 ? state.classificationFilter.includes(item.itemClassification) : true;
             if (!classificationMatch) return false;
 
-            const myOrdersMatch = !state.showOnlyMyOrders || (currentUser?.erpAlias && item.erpUsers.includes(currentUser.erpAlias));
+            const myOrdersMatch = !state.showOnlyMyOrders || (currentUser?.erpAlias && item.erpUsers.some(erpUser => erpUser.toLowerCase() === currentUser.erpAlias!.toLowerCase()));
             if (!myOrdersMatch) return false;
 
             if (searchTerms.length === 0) return true;
