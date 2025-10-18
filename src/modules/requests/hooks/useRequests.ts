@@ -265,6 +265,7 @@ export const useRequests = () => {
         return {
             canEdit: canEditPending || canEditApproved,
             canApprove: isPending && hasPermission('requests:status:approve'),
+            canCancelPending: isPending && hasPermission('requests:status:cancel'),
             canOrder: isApproved && hasPermission('requests:status:ordered'),
             canRevertToApproved: isOrdered && hasPermission('requests:status:approve'),
             canReceive: isOrdered && hasPermission('requests:status:received'),

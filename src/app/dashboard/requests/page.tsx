@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User as UserIcon, ChevronLeft, ChevronRight, Layers, Lightbulb, FileDown, FileSpreadsheet } from 'lucide-react';
+import { FilePlus, Loader2, Check, MoreVertical, History, RefreshCcw, AlertTriangle, Undo2, PackageCheck, Truck, XCircle, Home, Pencil, FilterX, CalendarIcon, Users, User as UserIcon, ChevronLeft, ChevronRight, Layers, Lightbulb, FileDown, FileSpreadsheet, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -62,8 +62,10 @@ export default function PurchaseRequestPage() {
         isHistoryDialogOpen, historyRequest, history, isHistoryLoading,
         isReopenDialogOpen, reopenStep, reopenConfirmationText, arrivalDate,
         isActionDialogOpen, isErpOrderModalOpen, isErpItemsModalOpen, erpOrderNumber, erpOrderHeaders, selectedErpOrderHeader, erpOrderLines, isErpLoading,
-        showOnlyShortageItems
-    } = state;
+        showOnlyShortageItems,
+        isContextInfoOpen,
+        contextInfoData
+    } = state as any; // Use 'as any' to satisfy TS for now
 
 
     if (isAuthorized === null || (isAuthorized && isLoading)) {
@@ -89,7 +91,7 @@ export default function PurchaseRequestPage() {
         const {
             canEdit, canReopen, canApprove, canOrder,
             canRevertToApproved, canReceive, canReceiveInWarehouse,
-            canRequestCancel
+            canRequestCancel, canCancelPending
         } = selectors.getRequestPermissions(request);
 
         const daysRemaining = selectors.getDaysRemaining(request.requiredDate);
@@ -103,6 +105,7 @@ export default function PurchaseRequestPage() {
                             <CardDescription>Cliente: {request.clientName} {requestSettings?.showCustomerTaxId ? `(${request.clientTaxId})` : ''}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                            {request.sourceOrders && request.sourceOrders.length > 0 && <Button variant="ghost" size="icon" onClick={() => actions.setContextInfoOpen(request)}><Info className="h-4 w-4 text-blue-600"/></Button>}
                             {!!request.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
                             {!!request.hasBeenModified && <Badge variant="destructive" className="animate-pulse"><AlertTriangle className="mr-1 h-3 w-3" /> Modificado</Badge>}
                              <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(request)}><History className="h-4 w-4" /></Button>
@@ -124,6 +127,7 @@ export default function PurchaseRequestPage() {
                                     {canReceive && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'received')} className="text-indigo-600"><PackageCheck className="mr-2"/> Marcar como Recibida</DropdownMenuItem>}
                                     {canReceiveInWarehouse && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'received-in-warehouse')} className="text-gray-700"><Home className="mr-2"/> Recibir en Bodega</DropdownMenuItem>}
                                     <DropdownMenuSeparator />
+                                    {canCancelPending && <DropdownMenuItem onSelect={() => actions.openStatusDialog(request, 'canceled')} className="text-red-600"><XCircle className="mr-2"/> Cancelar Solicitud</DropdownMenuItem>}
                                     {canRequestCancel && <DropdownMenuItem onSelect={() => actions.openAdminActionDialog(request, 'cancellation-request')} className="text-red-600"><XCircle className="mr-2"/> Solicitar Cancelación</DropdownMenuItem>}
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -354,6 +358,30 @@ export default function PurchaseRequestPage() {
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                         <Button onClick={actions.handleCreateRequestsFromErp} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Crear Solicitudes</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isContextInfoOpen} onOpenChange={actions.setContextInfoOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Información de Contexto de la Solicitud</DialogTitle>
+                        <DialogDescription>Esta solicitud fue generada a partir de los siguientes datos del ERP.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        {contextInfoData?.sourceOrders && (
+                             <div>
+                                <h4 className="font-semibold mb-2">Pedidos de Origen</h4>
+                                <p className="text-sm text-muted-foreground">{contextInfoData.sourceOrders.join(', ')}</p>
+                            </div>
+                        )}
+                         {contextInfoData?.involvedClients && (
+                             <div>
+                                <h4 className="font-semibold mb-2">Clientes Involucrados</h4>
+                                <ul className="list-disc list-inside space-y-1 text-sm">
+                                    {contextInfoData.involvedClients.map(c => <li key={c.id}>{c.name} ({c.id})</li>)}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
             {(isSubmitting || isLoading) && (
