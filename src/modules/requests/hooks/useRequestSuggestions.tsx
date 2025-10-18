@@ -176,7 +176,7 @@ export function useRequestSuggestions() {
         try {
             let createdCount = 0;
             for (const item of selectedSuggestions) {
-                 const requestPayload = {
+                 const requestPayload: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'> = {
                     requiredDate: item.earliestDueDate || new Date().toISOString().split('T')[0],
                     clientId: 'VAR-CLI', // Generic client
                     clientName: 'VARIOS CLIENTES',
@@ -184,10 +184,12 @@ export function useRequestSuggestions() {
                     itemId: item.itemId,
                     itemDescription: item.itemDescription,
                     quantity: item.shortage,
-                    notes: `Sugerencia generada para pedidos: ${item.sourceOrders.join(', ')}`,
+                    notes: `Sugerencia generada a partir de la demanda de los pedidos del ERP.`,
                     priority: 'medium' as const,
                     purchaseType: 'multiple' as const,
                     pendingAction: 'none' as const,
+                    sourceOrders: item.sourceOrders,
+                    involvedClients: item.involvedClients,
                 };
                 await savePurchaseRequest(requestPayload, currentUser.name);
                 createdCount++;
