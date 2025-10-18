@@ -203,7 +203,7 @@ export default function PurchaseRequestPage() {
                     )}
                      {request.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas de la Solicitud:</p><p className="text-muted-foreground">&quot;{request.notes}&quot;</p></div>)}
                      {request.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">&quot;{request.lastStatusUpdateNotes}&quot; - <span className="italic">{request.lastStatusUpdateBy}</span></p></div>)}
-                     {request.hasBeenModified && request.lastModifiedBy && (<div className="mt-2 text-xs text-red-700 bg-red-100 p-2 rounded-md"><p className="font-semibold">Última Modificación por:</p><p className="">{request.lastModifiedBy} el {format(parseISO(request.lastModifiedAt as string), "dd/MM/yy 'a las' HH:mm")}</p></div>)}
+                     {!!request.hasBeenModified && request.lastModifiedBy && (<div className="mt-2 text-xs text-red-700 bg-red-100 p-2 rounded-md"><p className="font-semibold">Última Modificación por:</p><p className="">{request.lastModifiedBy} el {format(parseISO(request.lastModifiedAt as string), "dd/MM/yy 'a las' HH:mm")}</p></div>)}
                 </CardContent>
                 <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
                     <span>Solicitado por: {request.requestedBy} el {format(parseISO(request.requestDate), 'dd/MM/yyyy')}</span>
@@ -394,3 +394,5 @@ export default function PurchaseRequestPage() {
     );
 }
 
+
+    

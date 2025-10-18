@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
  * This hook encapsulates all state and actions for the module, keeping the UI component clean.
@@ -129,6 +128,8 @@ type State = {
     erpOrderLines: UIErpOrderLine[];
     isErpLoading: boolean;
     showOnlyShortageItems: boolean;
+    isContextInfoOpen: boolean;
+    contextInfoData: PurchaseRequest | null;
 };
 
 
@@ -184,6 +185,8 @@ export const useRequests = () => {
         erpOrderLines: [],
         isErpLoading: false,
         showOnlyShortageItems: true,
+        isContextInfoOpen: false,
+        contextInfoData: null,
     });
     
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, state.companyData?.searchDebounceTime ?? 500);
@@ -710,6 +713,7 @@ export const useRequests = () => {
         setErpItemsModalOpen: (isOpen: boolean) => updateState({ isErpItemsModalOpen: isOpen }),
         setErpOrderNumber: (num: string) => updateState({ erpOrderNumber: num }),
         setShowOnlyShortageItems: (show: boolean) => updateState({ showOnlyShortageItems: show }),
+        setContextInfoOpen: (request: PurchaseRequest | null) => updateState({ isContextInfoOpen: !!request, contextInfoData: request }),
     };
 
     const selectors = {
@@ -772,3 +776,5 @@ export const useRequests = () => {
         isAuthorized
     };
 };
+
+    

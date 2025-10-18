@@ -39,7 +39,7 @@ import { Badge } from "../../../../components/ui/badge";
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logInfo, logWarn } from "../../../../modules/core/lib/logger";
 import type { Role } from "../../../../modules/core/types";
-import { PlusCircle, Trash2, RefreshCw } from "lucide-react";
+import { PlusCircle, Trash2, RefreshCw, Copy } from "lucide-react";
 import { getAllRoles, saveAllRoles, resetDefaultRoles } from "../../../../modules/core/lib/db";
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Skeleton } from "../../../../components/ui/skeleton";
@@ -152,10 +152,16 @@ export default function RolesPage() {
     const { toast } = useToast();
     const [roles, setRoles] = useState<Role[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // State for main dialogs
     const [isAddRoleDialogOpen, setAddRoleDialogOpen] = useState(false);
-    const [newRole, setNewRole] = useState<Role>(emptyRole);
-    const { setTitle } = usePageTitle();
     const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+
+    // State for form data (add, copy)
+    const [roleFormData, setRoleFormData] = useState<Role>(emptyRole);
+    const [isCopying, setIsCopying] = useState(false);
+
+    const { setTitle } = usePageTitle();
 
     const fetchRoles = useCallback(async () => {
         setIsLoading(true);
@@ -185,8 +191,8 @@ export default function RolesPage() {
         );
     }
     
-    const handleNewRolePermissionChange = (permission: string, checked: boolean) => {
-        setNewRole(currentRole => {
+    const handleFormPermissionChange = (permission: string, checked: boolean) => {
+        setRoleFormData(currentRole => {
             const newPermissions = checked
                 ? [...currentRole.permissions, permission]
                 : currentRole.permissions.filter(p => p !== permission);
@@ -194,7 +200,7 @@ export default function RolesPage() {
         })
     }
 
-    const handleSave = async () => {
+    const handleSaveAll = async () => {
         await saveAllRoles(roles);
         toast({
             title: "Roles Guardados",
@@ -203,24 +209,43 @@ export default function RolesPage() {
         await logInfo("Roles y permisos guardados.", { roles: roles.map(r => r.id) });
     }
 
-    const handleAddRole = async () => {
-        if (!newRole.id || !newRole.name) {
+    const handleFormSubmit = async () => {
+        if (!roleFormData.id || !roleFormData.name) {
             toast({ title: "Error", description: "ID y Nombre son requeridos.", variant: "destructive" });
             return;
         }
-        if (roles.some(role => role.id === newRole.id)) {
+        if (roles.some(role => role.id === roleFormData.id)) {
              toast({ title: "Error", description: "El ID del rol ya existe.", variant: "destructive" });
             return;
         }
 
-        const updatedRoles = [...roles, newRole];
+        const updatedRoles = [...roles, roleFormData];
         setRoles(updatedRoles);
         await saveAllRoles(updatedRoles);
-        toast({ title: "Rol Creado", description: `El rol "${newRole.name}" ha sido añadido.` });
-        await logInfo("Nuevo rol creado", { role: newRole.name });
-        setNewRole(emptyRole);
+        
+        const actionVerb = isCopying ? "Copiado" : "Creado";
+        toast({ title: `Rol ${actionVerb}`, description: `El rol "${roleFormData.name}" ha sido añadido.` });
+        await logInfo(`New role ${actionVerb.toLowerCase()}`, { role: roleFormData.name });
+        
+        setRoleFormData(emptyRole);
         setAddRoleDialogOpen(false);
+        setIsCopying(false);
     }
+
+    const openFormDialog = (roleToCopy?: Role) => {
+        if (roleToCopy) {
+            setIsCopying(true);
+            setRoleFormData({
+                id: `${roleToCopy.id}-copia`,
+                name: `${roleToCopy.name} (Copia)`,
+                permissions: [...roleToCopy.permissions]
+            });
+        } else {
+            setIsCopying(false);
+            setRoleFormData(emptyRole);
+        }
+        setAddRoleDialogOpen(true);
+    };
 
     const handleDeleteRole = async () => {
         if (!roleToDelete) return;
@@ -296,74 +321,10 @@ export default function RolesPage() {
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
-                    <Dialog open={isAddRoleDialogOpen} onOpenChange={setAddRoleDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Crear Rol
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-3xl">
-                            <DialogHeader>
-                                <DialogTitle>Crear Nuevo Rol Personalizado</DialogTitle>
-                                <DialogDescription>
-                                    Define un ID, un nombre y asigna los permisos para el nuevo rol.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="role-id">ID del Rol (sin espacios)</Label>
-                                        <Input 
-                                            id="role-id"
-                                            value={newRole.id}
-                                            onChange={e => setNewRole({...newRole, id: e.target.value.toLowerCase().replace(/\s/g, '-')})}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="role-name">Nombre para mostrar</Label>
-                                        <Input 
-                                            id="role-name"
-                                            value={newRole.name}
-                                            onChange={e => setNewRole({...newRole, name: e.target.value})}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <h4 className="font-medium">Permisos</h4>
-                                    <ScrollArea className="h-72 w-full rounded-md border p-4">
-                                        <Accordion type="multiple" className="w-full">
-                                            {Object.entries(permissionGroups).map(([groupName, permissions]) => (
-                                                <AccordionItem value={groupName} key={groupName}>
-                                                    <AccordionTrigger>{groupName}</AccordionTrigger>
-                                                    <AccordionContent>
-                                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pl-2">
-                                                            {permissions.map((permission) => (
-                                                            <div key={`new-${permission}`} className="flex items-center space-x-2">
-                                                                <Checkbox
-                                                                id={`new-${permission}`}
-                                                                checked={newRole.permissions.includes(permission)}
-                                                                onCheckedChange={(checked) => handleNewRolePermissionChange(permission, checked === true)}
-                                                                />
-                                                                <Label htmlFor={`new-${permission}`} className="font-normal text-sm">
-                                                                {permissionTranslations[permission] || permission}
-                                                                </Label>
-                                                            </div>
-                                                            ))}
-                                                        </div>
-                                                    </AccordionContent>
-                                                </AccordionItem>
-                                            ))}
-                                        </Accordion>
-                                    </ScrollArea>
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                                <Button onClick={handleAddRole}>Crear Rol</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                    <Button onClick={() => openFormDialog()}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Crear Rol
+                    </Button>
                 </div>
             </div>
           </CardHeader>
@@ -375,27 +336,33 @@ export default function RolesPage() {
                     <CardTitle className="text-xl">{role.name}</CardTitle>
                     <Badge variant="secondary" className="w-fit">{role.id}</Badge>
                   </div>
-                  {role.id !== 'admin' && role.id !== 'viewer' && role.id !== 'planner-user' && role.id !== 'requester-user' && (
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                             <Button variant="ghost" size="icon" onClick={() => setRoleToDelete(role)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar el rol &quot;{role.name}&quot;?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Esta acción no se puede deshacer. Los usuarios asignados a este rol perderán sus permisos.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => setRoleToDelete(null)}>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDeleteRole}>Sí, eliminar</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                  )}
+                  <div className="flex items-center gap-2">
+                     <Button variant="outline" size="sm" onClick={() => openFormDialog(role)}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copiar
+                    </Button>
+                    {role.id !== 'admin' && role.id !== 'viewer' && role.id !== 'planner-user' && role.id !== 'requester-user' && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => setRoleToDelete(role)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar el rol &quot;{role.name}&quot;?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Esta acción no se puede deshacer. Los usuarios asignados a este rol perderán sus permisos.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel onClick={() => setRoleToDelete(null)}>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDeleteRole}>Sí, eliminar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <Accordion type="multiple" className="w-full">
@@ -427,9 +394,73 @@ export default function RolesPage() {
             ))}
           </CardContent>
           <CardFooter className="border-t px-6 py-4">
-            <Button onClick={handleSave}>Guardar Cambios</Button>
+            <Button onClick={handleSaveAll}>Guardar Cambios</Button>
           </CardFooter>
         </Card>
+         <Dialog open={isAddRoleDialogOpen} onOpenChange={setAddRoleDialogOpen}>
+            <DialogContent className="sm:max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>{isCopying ? `Copiar Rol: ${roleFormData.name}` : "Crear Nuevo Rol"}</DialogTitle>
+                    <DialogDescription>
+                        {isCopying ? "Define un nuevo ID y nombre para la copia del rol." : "Define un ID, un nombre y asigna los permisos para el nuevo rol."}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="role-id">ID del Rol (sin espacios)</Label>
+                            <Input 
+                                id="role-id"
+                                value={roleFormData.id}
+                                onChange={e => setRoleFormData({...roleFormData, id: e.target.value.toLowerCase().replace(/\s/g, '-')})}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="role-name">Nombre para mostrar</Label>
+                            <Input 
+                                id="role-name"
+                                value={roleFormData.name}
+                                onChange={e => setRoleFormData({...roleFormData, name: e.target.value})}
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        <h4 className="font-medium">Permisos</h4>
+                        <ScrollArea className="h-72 w-full rounded-md border p-4">
+                            <Accordion type="multiple" className="w-full">
+                                {Object.entries(permissionGroups).map(([groupName, permissions]) => (
+                                    <AccordionItem value={groupName} key={groupName}>
+                                        <AccordionTrigger>{groupName}</AccordionTrigger>
+                                        <AccordionContent>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pl-2">
+                                                {permissions.map((permission) => (
+                                                <div key={`form-${permission}`} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                    id={`form-${permission}`}
+                                                    checked={roleFormData.permissions.includes(permission)}
+                                                    onCheckedChange={(checked) => handleFormPermissionChange(permission, checked === true)}
+                                                    />
+                                                    <Label htmlFor={`form-${permission}`} className="font-normal text-sm">
+                                                    {permissionTranslations[permission] || permission}
+                                                    </Label>
+                                                </div>
+                                                ))}
+                                            </div>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                        </ScrollArea>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                    <Button onClick={handleFormSubmit}>Guardar Rol</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       </main>
   );
 }
+
+    
