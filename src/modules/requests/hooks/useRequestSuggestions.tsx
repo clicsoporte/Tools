@@ -54,6 +54,7 @@ interface State {
     searchTerm: string;
     classificationFilter: string[];
     visibleColumns: string[];
+    showOnlyMyOrders: boolean;
 }
 
 export function useRequestSuggestions() {
@@ -76,6 +77,7 @@ export function useRequestSuggestions() {
         searchTerm: '',
         classificationFilter: [],
         visibleColumns: availableColumns.map(c => c.id),
+        showOnlyMyOrders: false,
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, 500);
@@ -116,9 +118,11 @@ export function useRequestSuggestions() {
         return state.suggestions.filter(item => {
             const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
             
-            const clientMatch = state.classificationFilter.length > 0 ? state.classificationFilter.includes(item.itemClassification) : true;
-            
-            if (!clientMatch) return false;
+            const classificationMatch = state.classificationFilter.length > 0 ? state.classificationFilter.includes(item.itemClassification) : true;
+            if (!classificationMatch) return false;
+
+            const myOrdersMatch = !state.showOnlyMyOrders || (currentUser?.erpAlias && item.erpUsers.includes(currentUser.erpAlias));
+            if (!myOrdersMatch) return false;
 
             if (searchTerms.length === 0) return true;
 
@@ -132,7 +136,7 @@ export function useRequestSuggestions() {
             
             return searchTerms.every(term => targetText.includes(term));
         });
-    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter]);
+    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter, state.showOnlyMyOrders, currentUser?.erpAlias]);
 
     const toggleItemSelection = (itemId: string) => {
         updateState({
@@ -285,6 +289,7 @@ export function useRequestSuggestions() {
         handleClearFilters: () => updateState({ searchTerm: '', classificationFilter: [] }),
         handleExportExcel,
         handleColumnVisibilityChange,
+        setShowOnlyMyOrders: (show: boolean) => updateState({ showOnlyMyOrders: show }),
     };
 
     return {

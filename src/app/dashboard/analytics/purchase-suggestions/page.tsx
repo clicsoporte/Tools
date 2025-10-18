@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
 
 
 export default function PurchaseSuggestionsPage() {
@@ -35,7 +36,7 @@ export default function PurchaseSuggestionsPage() {
         isInitialLoading,
     } = useRequestSuggestions();
 
-    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter, visibleColumns } = state;
+    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter, visibleColumns, showOnlyMyOrders } = state;
 
     if (isInitialLoading) {
         return (
@@ -91,56 +92,66 @@ export default function PurchaseSuggestionsPage() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent className="flex flex-wrap items-center gap-4">
-                     <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                id="date"
-                                variant={"outline"}
-                                className={cn(
-                                "w-full sm:w-auto sm:min-w-[260px] justify-start text-left font-normal",
-                                !dateRange && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateRange?.from ? (
-                                dateRange.to ? (
-                                    <>
-                                    {format(dateRange.from, "LLL dd, y", { locale: es })} -{" "}
-                                    {format(dateRange.to, "LLL dd, y", { locale: es })}
-                                    </>
-                                ) : (
-                                    format(dateRange.from, "LLL dd, y", { locale: es })
-                                )
-                                ) : (
-                                <span>Seleccionar fecha</span>
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                initialFocus
-                                mode="range"
-                                defaultMonth={dateRange?.from}
-                                selected={dateRange}
-                                onSelect={actions.setDateRange}
-                                numberOfMonths={2}
-                                locale={es}
-                            />
-                        </PopoverContent>
-                    </Popover>
-                    <div className="relative flex-1 min-w-[240px]">
-                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Buscar por artículo, cliente, pedido..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="pl-8 w-full" />
+                <CardContent>
+                    <div className="flex flex-wrap items-center gap-4">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                    "w-full sm:w-auto sm:min-w-[260px] justify-start text-left font-normal",
+                                    !dateRange && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (
+                                    dateRange.to ? (
+                                        <>
+                                        {format(dateRange.from, "LLL dd, y", { locale: es })} -{" "}
+                                        {format(dateRange.to, "LLL dd, y", { locale: es })}
+                                        </>
+                                    ) : (
+                                        format(dateRange.from, "LLL dd, y", { locale: es })
+                                    )
+                                    ) : (
+                                    <span>Seleccionar fecha</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={dateRange?.from}
+                                    selected={dateRange}
+                                    onSelect={actions.setDateRange}
+                                    numberOfMonths={2}
+                                    locale={es}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                        <div className="relative flex-1 min-w-[240px]">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Buscar por artículo, cliente, pedido..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="pl-8 w-full" />
+                        </div>
+                        <MultiSelectFilter
+                            title="Clasificación"
+                            options={selectors.classifications.map((c: string) => ({ value: c, label: c }))}
+                            selectedValues={classificationFilter}
+                            onSelectedChange={actions.setClassificationFilter}
+                            className="w-full sm:w-auto"
+                        />
+                        <Button variant="ghost" onClick={actions.handleClearFilters} className="flex-shrink-0"><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                     </div>
-                     <MultiSelectFilter
-                        title="Clasificación"
-                        options={selectors.classifications.map((c: string) => ({ value: c, label: c }))}
-                        selectedValues={classificationFilter}
-                        onSelectedChange={actions.setClassificationFilter}
-                        className="w-full sm:w-auto"
-                    />
-                    <Button variant="ghost" onClick={actions.handleClearFilters} className="flex-shrink-0"><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
+                    <div className="flex items-center space-x-2 pt-4">
+                        <Checkbox
+                            id="show-only-my-orders"
+                            checked={showOnlyMyOrders}
+                            onCheckedChange={(checked) => actions.setShowOnlyMyOrders(checked as boolean)}
+                        />
+                        <Label htmlFor="show-only-my-orders" className="font-normal">Mostrar solo mis pedidos del ERP</Label>
+                    </div>
                 </CardContent>
             </Card>
             
@@ -162,7 +173,7 @@ export default function PurchaseSuggestionsPage() {
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Columnas Visibles</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        {selectors.availableColumns.map((column: { id: string; label: string; }) => (
+                                        {selectors.availableColumns.map((column: { id: string; label: string }) => (
                                             <DropdownMenuCheckboxItem
                                                 key={column.id}
                                                 checked={visibleColumns.includes(column.id)}
