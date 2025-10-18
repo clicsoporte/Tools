@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -30,6 +31,38 @@ const getInitials = (name: string) => {
     return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
 };
 
+// --- Helper Functions for Time Conversion ---
+
+/**
+ * Converts decimal hours to HH:MM format.
+ * @param {number | null | undefined} decimalHours - The hours in decimal format (e.g., 1.5).
+ * @returns {string} The time in HH:MM format (e.g., "01:30").
+ */
+const toHHMM = (decimalHours: number | null | undefined): string => {
+    if (decimalHours === null || decimalHours === undefined) return '';
+    const totalMinutes = Math.round(decimalHours * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
+/**
+ * Converts a string (either decimal or HH:MM) to decimal hours.
+ * @param {string} input - The input string (e.g., "0.5", "0,5", "1:30").
+ * @returns {number | null} The time in decimal hours, or null if input is empty.
+ */
+const toDecimalHours = (input: string): number | null => {
+    if (!input) return null;
+    if (input.includes(':')) {
+        const [hours, minutes] = input.split(':').map(Number);
+        return (hours || 0) + ((minutes || 0) / 60);
+    } else {
+        const normalized = input.replace(',', '.');
+        const parsed = parseFloat(normalized);
+        return isNaN(parsed) ? null : parsed;
+    }
+};
+
 
 export default function GeneralSettingsPage() {
   const { isAuthorized } = useAuthorization(['admin:settings:general']);
@@ -39,12 +72,17 @@ export default function GeneralSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { setTitle } = usePageTitle();
 
+  const [syncWarningDisplay, setSyncWarningDisplay] = useState('');
+
   useEffect(() => {
     setTitle("Configuración General");
     const loadData = async () => {
         setIsLoading(true);
         const data = await getCompanySettings();
         setCompanyData(data);
+        if (data) {
+            setSyncWarningDisplay(toHHMM(data.syncWarningHours));
+        }
         setIsLoading(false);
     }
     if (isAuthorized) {
@@ -77,14 +115,20 @@ export default function GeneralSettingsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (!companyData) return;
-    const { id, value, type } = e.target;
-    
-    if (type === 'number') {
-        setCompanyData(prev => prev ? ({...prev, [id]: value === '' ? null : parseFloat(value)}) : null);
-    } else {
-        setCompanyData(prev => prev ? ({...prev, [id]: value}) : null);
-    }
+    const { id, value } = e.target;
+    setCompanyData(prev => prev ? ({...prev, [id]: value}) : null);
   }
+
+  const handleSyncWarningChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = e.target.value;
+      setSyncWarningDisplay(inputValue); // Update display value as user types
+
+      const decimalValue = toDecimalHours(inputValue);
+      if (companyData) {
+        setCompanyData({ ...companyData, syncWarningHours: decimalValue ?? undefined });
+      }
+  };
+
 
   const handleSubmit = async () => {
     if (!companyData) return;
@@ -213,16 +257,16 @@ export default function GeneralSettingsPage() {
                        </p>
                   </div>
                    <div className="space-y-2">
-                      <Label htmlFor="syncWarningHours">Horas para Alerta de Sinc.</Label>
-                      <Input 
+                      <Label htmlFor="syncWarningHours">Tiempo para Alerta de Sinc.</Label>
+                       <Input 
                           id="syncWarningHours"
-                          type="number"
-                          step="0.1"
-                          value={companyData.syncWarningHours ?? 12}
-                          onChange={handleChange}
+                          type="text"
+                          placeholder="HH:MM"
+                          value={syncWarningDisplay}
+                          onChange={handleSyncWarningChange}
                       />
                        <p className="text-xs text-muted-foreground pt-1">
-                          Después de cuántas horas sin sincronizar se mostrará la alerta en rojo.
+                          Después de cuánto tiempo sin sincronizar se mostrará la alerta. Formato HH:MM o decimal (ej: 0.5 para 30 min).
                        </p>
                   </div>
                 </CardContent>
