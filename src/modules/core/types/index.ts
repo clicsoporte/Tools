@@ -258,6 +258,7 @@ export type ProductionOrder = {
   defectiveQuantity?: number;
   erpPackageNumber?: string;
   erpTicketNumber?: string;
+  erpOrderNumber?: string;
   reopened?: boolean;
   machineId?: string | null;
   shiftId?: string | null;
@@ -667,3 +668,5 @@ export type ProductionReportData = {
     };
     details: (ProductionOrder & { completionDate: string | null })[];
 }
+
+    
