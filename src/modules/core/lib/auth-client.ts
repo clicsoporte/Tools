@@ -56,6 +56,7 @@ export async function getCurrentUser(): Promise<User | null> {
     if (!currentUserId) return null;
 
     const allUsers = await getAllUsersServer();
+    if (!allUsers) return null; // Safe guard against undefined return
     const user = allUsers.find(u => u.id === Number(currentUserId));
     return user || null;
 }
