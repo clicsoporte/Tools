@@ -5,21 +5,21 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { Button } from "../../../../components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../../components/ui/card";
-import { useToast } from "../../../../modules/core/hooks/use-toast";
-import { logError, logInfo } from "../../../../modules/core/lib/logger";
+import { useState, useEffect, useCallback, ChangeEvent } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/modules/core/hooks/use-toast";
+import { logError, logInfo } from "@/modules/core/lib/logger";
 import { Loader2, FileUp, Database, Save } from "lucide-react";
-import type { Company, SqlConfig, ImportQuery } from '../../../../modules/core/types';
-import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
-import { importData, getCompanySettings, saveCompanySettings, testSqlConnection, saveSqlConfig, saveImportQueries, getImportQueries, importAllDataFromFiles } from '../../../../modules/core/lib/db';
-import { getSqlConfig } from '../../../../modules/core/lib/config-db';
-import { useAuthorization } from '../../../../modules/core/hooks/useAuthorization';
-import { Input } from '../../../../components/ui/input';
-import { Label } from '../../../../components/ui/label';
-import { Switch } from '../../../../components/ui/switch';
-import { Textarea } from '../../../../components/ui/textarea';
+import type { Company, SqlConfig, ImportQuery } from '@/modules/core/types';
+import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
+import { importData, getCompanySettings, saveCompanySettings, testSqlConnection, saveSqlConfig, saveImportQueries, getImportQueries, importAllDataFromFiles } from '@/modules/core/lib/db';
+import { getSqlConfig } from '@/modules/core/lib/config-db';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type ImportType = ImportQuery['type'];
@@ -75,13 +75,13 @@ export default function ImportDataPage() {
             setSqlConfig(sql || {});
             
             const updatedQueries = [...queries];
-            if (!queries.some(q => q.type === 'erp_order_headers')) {
+            if (!queries.some((q: ImportQuery) => q.type === 'erp_order_headers')) {
                 updatedQueries.push({ type: 'erp_order_headers', query: "SELECT T0.[PEDIDO], T0.[ESTADO], T0.[CLIENTE], T0.[FECHA_PEDIDO], T0.[FECHA_PROMETIDA], T0.[ORDEN_COMPRA], T0.[TOTAL_UNIDADES], T0.[MONEDA_PEDIDO], T0.[USUARIO] FROM [GAREND].[PEDIDO] AS T0 WHERE T0.[FECHA_PEDIDO] >= DATEADD(day, -60, GETDATE()) AND T0.[ESTADO] NOT IN ('F', 'C') ORDER BY T0.[FECHA_PEDIDO] DESC" });
             }
-            if (!queries.some(q => q.type === 'erp_order_lines')) {
+            if (!queries.some((q: ImportQuery) => q.type === 'erp_order_lines')) {
                 updatedQueries.push({ type: 'erp_order_lines', query: "SELECT T1.[PEDIDO], T1.[PEDIDO_LINEA], T1.[ARTICULO], T1.[CANTIDAD_PEDIDA], T1.[PRECIO_UNITARIO] FROM [GAREND].[PEDIDO_LINEA] AS T1 INNER JOIN [GAREND].[PEDIDO] AS T0 ON T1.PEDIDO = T0.PEDIDO WHERE T0.FECHA_PEDIDO >= DATEADD(day, -60, GETDATE()) AND T1.[ESTADO] NOT IN ('F', 'C')" });
             }
-            if (!queries.some(q => q.type === 'suppliers')) {
+            if (!queries.some((q: ImportQuery) => q.type === 'suppliers')) {
                 updatedQueries.push({ type: 'suppliers', query: "SELECT [PROVEEDOR], [NOMBRE], [ALIAS], [E_MAIL], [TELEFONO1] FROM [GAREND].[PROVEEDOR]" });
             }
             setImportQueries(updatedQueries);
@@ -145,11 +145,11 @@ export default function ImportDataPage() {
     
     const handleCompanyDataChange = (field: keyof Company, value: any) => {
         if (!companyData) return;
-        setCompanyData(prev => prev ? ({ ...prev, [field]: value }) : null);
+        setCompanyData((prev: Company | null) => prev ? ({ ...prev, [field]: value }) : null);
     };
 
     const handleSqlConfigChange = (field: keyof SqlConfig, value: string) => {
-        setSqlConfig(prev => ({ ...prev, [field]: value }));
+        setSqlConfig((prev: SqlConfig) => ({ ...prev, [field]: value }));
     };
 
     const handleQueryChange = (type: ImportType, query: string) => {
@@ -214,7 +214,7 @@ export default function ImportDataPage() {
                         id={`${type}-path`}
                         placeholder={`Ej: C:\\import\\${type}.txt`}
                         value={companyData?.[fieldName] as string || ''}
-                        onChange={(e) => handleCompanyDataChange(fieldName, e.target.value)} 
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => handleCompanyDataChange(fieldName, e.target.value)} 
                     />
                 </CardHeader>
                 <CardFooter>
@@ -242,7 +242,7 @@ export default function ImportDataPage() {
                         <Switch
                           id="import-mode"
                           checked={companyData?.importMode === 'sql'}
-                          onCheckedChange={(checked) => handleCompanyDataChange('importMode', checked ? 'sql' : 'file')}
+                          onCheckedChange={(checked: boolean) => handleCompanyDataChange('importMode', checked ? 'sql' : 'file')}
                         />
                         <Label htmlFor="import-mode">Importar desde SQL Server</Label>
                     </div>
@@ -296,23 +296,23 @@ export default function ImportDataPage() {
                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="sql-host">Servidor (Host o IP)</Label>
-                                            <Input id="sql-host" value={sqlConfig.host || ''} onChange={e => handleSqlConfigChange('host', e.target.value)} />
+                                            <Input id="sql-host" value={sqlConfig.host || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleSqlConfigChange('host', e.target.value)} />
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="sql-port">Puerto</Label>
-                                            <Input id="sql-port" type="number" value={sqlConfig.port || ''} onChange={e => handleSqlConfigChange('port', e.target.value)} />
+                                            <Input id="sql-port" type="number" value={sqlConfig.port || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleSqlConfigChange('port', e.target.value)} />
                                         </div>
                                          <div className="space-y-2">
                                             <Label htmlFor="sql-database">Nombre de Base de Datos</Label>
-                                            <Input id="sql-database" value={sqlConfig.database || ''} onChange={e => handleSqlConfigChange('database', e.target.value)} />
+                                            <Input id="sql-database" value={sqlConfig.database || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleSqlConfigChange('database', e.target.value)} />
                                         </div>
                                          <div className="space-y-2">
                                             <Label htmlFor="sql-user">Usuario</Label>
-                                            <Input id="sql-user" value={sqlConfig.user || ''} onChange={e => handleSqlConfigChange('user', e.target.value)} />
+                                            <Input id="sql-user" value={sqlConfig.user || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleSqlConfigChange('user', e.target.value)} />
                                         </div>
                                          <div className="space-y-2">
                                             <Label htmlFor="sql-password">Contraseña</Label>
-                                            <Input id="sql-password" type="password" value={sqlConfig.password || ''} onChange={e => handleSqlConfigChange('password', e.target.value)} />
+                                            <Input id="sql-password" type="password" value={sqlConfig.password || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleSqlConfigChange('password', e.target.value)} />
                                         </div>
                                     </div>
                                 </div>
@@ -341,7 +341,7 @@ export default function ImportDataPage() {
                                             <Textarea
                                                 id={`query-${type}`}
                                                 value={importQueries.find(q => q.type === type)?.query || ''}
-                                                onChange={e => handleQueryChange(type, e.target.value)}
+                                                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => handleQueryChange(type, e.target.value)}
                                                 placeholder={`SELECT ... FROM tu_tabla_de_${type}`}
                                                 rows={4}
                                                 className="font-mono text-xs"
