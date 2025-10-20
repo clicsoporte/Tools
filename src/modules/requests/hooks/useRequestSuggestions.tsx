@@ -136,7 +136,7 @@ export function useRequestSuggestions() {
             
             return searchTerms.every(term => targetText.includes(term));
         });
-    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter, state.showOnlyMyOrders, currentUser?.erpAlias]);
+    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter, state.showOnlyMyOrders, currentUser]);
 
     const toggleItemSelection = (itemId: string) => {
         updateState({

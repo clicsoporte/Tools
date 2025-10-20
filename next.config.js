@@ -17,10 +17,10 @@ const nextConfig = {
       bodySizeLimit: '50mb',
     },
   },
-  // Forcing a cache invalidation by adding a comment
+  // Forcing a cache invalidation by toggling a setting
   typescript: {
-    // This setting is removed to re-enable type checking during build.
-    // ignoreBuildErrors: true, 
+    // This setting is disabled to ensure type checking is enforced during build.
+    ignoreBuildErrors: false, 
   },
 };
 
