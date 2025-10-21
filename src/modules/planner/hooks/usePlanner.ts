@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
  * This hook encapsulates all state and actions for the planner, keeping the UI component clean.
@@ -30,7 +31,7 @@ import { addNoteToOrder as addNoteServer } from '@/modules/planner/lib/actions';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
 import { AlertCircle } from 'lucide-react';
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'pendingAction' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'> = {
     deliveryDate: '',
     customerId: '',
     customerName: '',
@@ -46,12 +47,13 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     erpPackageNumber: undefined,
     erpTicketNumber: undefined,
     machineId: null,
-    shiftId: null,
     scheduledStartDate: null,
     scheduledEndDate: null,
     deliveredQuantity: undefined,
     defectiveQuantity: undefined,
     erpOrderNumber: undefined,
+    shiftId: null,
+    pendingAction: 'none',
 };
 
 const priorityConfig = { 
