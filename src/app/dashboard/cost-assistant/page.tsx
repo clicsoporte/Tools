@@ -27,10 +27,11 @@ export default function CostAssistantPage() {
         actions,
     } = useCostAssistant();
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
         onDrop: actions.handleFilesDrop,
         accept: { 'text/xml': ['.xml'] },
         multiple: true,
+        noClick: true, // We trigger the click manually via the button
     });
     
     const columns = [
@@ -215,21 +216,17 @@ export default function CostAssistantPage() {
                                             </ScrollArea>
                                         </CardContent>
                                     </Card>
-                                    <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors h-full min-h-[140px]", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50', state.isProcessing && 'cursor-not-allowed opacity-50')}>
-                                        <input {...getInputProps()} disabled={state.isProcessing}/>
-                                        {state.isProcessing ? (
-                                            <>
-                                                <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                                                <p className="mt-2 text-center text-primary text-sm">Procesando...</p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <UploadCloud className="w-8 h-8 text-muted-foreground" />
-                                                <p className="mt-2 text-center text-muted-foreground text-sm">
-                                                    {isDragActive ? "Suelta los XML aquí..." : "Arrastra o haz clic para seleccionar los XML"}
-                                                </p>
-                                            </>
-                                        )}
+                                    <div {...getRootProps()} className={cn('flex flex-col items-center justify-center space-y-2 p-4 border-2 border-dashed rounded-lg transition-colors h-full min-h-[140px]', isDragActive && 'border-primary bg-primary/10')}>
+                                        <input {...getInputProps()} />
+                                        <Button type="button" onClick={open} disabled={state.isProcessing}>
+                                            {state.isProcessing ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <UploadCloud className="mr-2 h-4 w-4" />
+                                            )}
+                                            Cargar Facturas XML
+                                        </Button>
+                                        <p className="text-xs text-muted-foreground">o arrastra los archivos aquí</p>
                                     </div>
                                </div>
                             </div>
