@@ -306,6 +306,7 @@ export type PlannerSettings = {
     requireMachineForStart: boolean;
     requireShiftForCompletion: boolean;
     assignmentLabel: string;
+    shiftLabel: string;
     customStatuses: CustomStatus[];
     pdfPaperSize: 'letter' | 'legal';
     pdfOrientation: 'portrait' | 'landscape';

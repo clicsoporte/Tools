@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import type { PlannerMachine, PlannerSettings, CustomStatus } from "@/modules/core/types";
+import type { PlannerMachine, PlannerSettings, CustomStatus, PlannerShift } from "@/modules/core/types";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { getPlannerSettings, savePlannerSettings } from "@/modules/planner/lib/actions";
@@ -54,15 +54,18 @@ export default function PlannerSettingsPage() {
     const [settings, setSettings] = useState<PlannerSettings | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [newMachine, setNewMachine] = useState({ id: "", name: "" });
+    const [newShift, setNewShift] = useState<PlannerShift>({ id: "", name: "" });
 
     useEffect(() => {
         setTitle("Configuración del Planificador");
         const loadSettings = async () => {
             setIsLoading(true);
             const currentSettings = await getPlannerSettings();
-            if (!currentSettings.assignmentLabel) {
-                currentSettings.assignmentLabel = 'Máquina Asignada';
-            }
+            if (!currentSettings.assignmentLabel) currentSettings.assignmentLabel = 'Máquina Asignada';
+            if (!currentSettings.shiftLabel) currentSettings.shiftLabel = 'Turno';
+            if (!currentSettings.shifts) currentSettings.shifts = [{ id: 'turno-a', name: 'Turno A'}, {id: 'turno-b', name: 'Turno B'}];
+            if (!currentSettings.requireShiftForCompletion) currentSettings.requireShiftForCompletion = false;
+
             if (!currentSettings.customStatuses || currentSettings.customStatuses.length < 4) {
                  currentSettings.customStatuses = [
                     { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
@@ -71,21 +74,12 @@ export default function PlannerSettingsPage() {
                     { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
                 ];
             }
-            if (!currentSettings.pdfPaperSize) {
-                currentSettings.pdfPaperSize = 'letter';
-            }
-             if (!currentSettings.pdfOrientation) {
-                currentSettings.pdfOrientation = 'portrait';
-            }
-            if (!currentSettings.pdfExportColumns || currentSettings.pdfExportColumns.length === 0) {
-                currentSettings.pdfExportColumns = availableColumns.map(c => c.id);
-            }
-            if (!Array.isArray(currentSettings.fieldsToTrackChanges)) {
-                currentSettings.fieldsToTrackChanges = ['quantity', 'deliveryDate', 'customerId', 'productId'];
-            }
-            if (currentSettings.showCustomerTaxId === undefined) {
-                currentSettings.showCustomerTaxId = true;
-            }
+            if (!currentSettings.pdfPaperSize) currentSettings.pdfPaperSize = 'letter';
+            if (!currentSettings.pdfOrientation) currentSettings.pdfOrientation = 'portrait';
+            if (!currentSettings.pdfExportColumns || currentSettings.pdfExportColumns.length === 0) currentSettings.pdfExportColumns = availableColumns.map(c => c.id);
+            if (!Array.isArray(currentSettings.fieldsToTrackChanges)) currentSettings.fieldsToTrackChanges = ['quantity', 'deliveryDate', 'customerId', 'productId'];
+            if (currentSettings.showCustomerTaxId === undefined) currentSettings.showCustomerTaxId = true;
+            
             setSettings(currentSettings);
             setIsLoading(false);
         };
@@ -111,6 +105,25 @@ export default function PlannerSettingsPage() {
         if (!settings) return;
         setSettings(prev => prev ? { ...prev, machines: prev.machines.filter(m => m.id !== id) } : null);
         toast({ title: "Asignación Eliminada", description: "La asignación ha sido eliminada. Guarda los cambios para confirmar.", variant: "destructive"});
+    }, [settings, toast]);
+    
+    const handleAddShift = () => {
+        if (!settings || !newShift.id || !newShift.name) {
+            toast({ title: "Datos incompletos", description: "El ID y el Nombre del turno son requeridos.", variant: "destructive" });
+            return;
+        }
+        if (settings.shifts.some(s => s.id === newShift.id)) {
+            toast({ title: "ID Duplicado", description: "Ya existe un turno con ese ID.", variant: "destructive" });
+            return;
+        }
+        setSettings(prev => prev ? { ...prev, shifts: [...prev.shifts, newShift] } : null);
+        setNewShift({ id: "", name: "" });
+    };
+    
+    const handleDeleteShift = useCallback((id: string) => {
+        if (!settings) return;
+        setSettings(prev => prev ? { ...prev, shifts: prev.shifts.filter(s => s.id !== id) } : null);
+        toast({ title: "Turno Eliminado", description: "El turno ha sido eliminado. Guarda los cambios para confirmar.", variant: "destructive"});
     }, [settings, toast]);
 
     const handleCustomStatusChange = (id: CustomStatus['id'], field: keyof CustomStatus, value: any) => {
@@ -211,7 +224,18 @@ export default function PlannerSettingsPage() {
                                     onChange={(e) => setSettings(prev => prev ? { ...prev, assignmentLabel: e.target.value } : null)}
                                 />
                                 <p className="text-sm text-muted-foreground">
-                                    Cambia el texto que se muestra para la asignación (ej: &quot;Máquina&quot;, &quot;Proceso&quot;, &quot;Operario&quot;).
+                                    Cambia el texto para la asignación (ej: &quot;Máquina&quot;, &quot;Operario&quot;).
+                                </p>
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="shift-label">Etiqueta para Turno</Label>
+                                <Input
+                                    id="shift-label"
+                                    value={settings.shiftLabel}
+                                    onChange={(e) => setSettings(prev => prev ? { ...prev, shiftLabel: e.target.value } : null)}
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Cambia el texto para el turno (ej: &quot;Turno&quot;, &quot;Jornada&quot;).
                                 </p>
                             </div>
                         </div>
@@ -233,9 +257,6 @@ export default function PlannerSettingsPage() {
                                 />
                                 <Label htmlFor="use-warehouse">Habilitar paso de &quot;Recibido en Bodega&quot;</Label>
                             </div>
-                            <p className="text-sm text-muted-foreground mt-2">
-                                Si se activa, las órdenes completadas necesitarán un paso adicional para ser archivadas.
-                            </p>
                              <div className="flex items-center space-x-2">
                                 <Switch
                                     id="require-machine"
@@ -244,14 +265,19 @@ export default function PlannerSettingsPage() {
                                 />
                                 <Label htmlFor="require-machine">Requerir asignación para iniciar la orden</Label>
                             </div>
-                            <p className="text-sm text-muted-foreground mt-2">
-                               Si se activa, será obligatorio realizar una asignación a la orden antes de poder cambiar su estado a &quot;En Progreso&quot;.
-                            </p>
+                             <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="require-shift"
+                                    checked={settings.requireShiftForCompletion}
+                                    onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, requireShiftForCompletion: checked } : null)}
+                                />
+                                <Label htmlFor="require-shift">Requerir turno para completar la orden</Label>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Accordion type="multiple" defaultValue={['assignments', 'custom-statuses', 'pdf-export']} className="w-full space-y-6">
+                <Accordion type="multiple" defaultValue={['assignments', 'shifts']} className="w-full space-y-6">
                     <Card>
                         <AccordionItem value="assignments">
                             <AccordionTrigger className="p-6">
@@ -284,6 +310,46 @@ export default function PlannerSettingsPage() {
                                             <Input id="machine-name" value={newMachine.name} onChange={(e) => setNewMachine(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Prensa Heidelberg" />
                                         </div>
                                         <Button size="icon" onClick={handleAddMachine}>
+                                            <PlusCircle className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Card>
+
+                     <Card>
+                        <AccordionItem value="shifts">
+                            <AccordionTrigger className="p-6">
+                                <CardTitle>Gestión de Turnos</CardTitle>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-6 pt-0">
+                                <CardDescription className="mb-4">Añade o elimina los turnos de trabajo disponibles.</CardDescription>
+                                <div className="space-y-4">
+                                    <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
+                                        {settings.shifts.map(shift => (
+                                            <div key={shift.id} className="flex items-center justify-between rounded-lg border p-3">
+                                                <div>
+                                                    <p className="font-medium">{shift.name}</p>
+                                                    <p className="text-sm text-muted-foreground">ID: <span className="font-mono">{shift.id}</span></p>
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteShift(shift.id)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <Separator />
+                                    <div className="flex items-end gap-2 pt-2">
+                                        <div className="grid flex-1 gap-2">
+                                            <Label htmlFor="shift-id">ID de Turno</Label>
+                                            <Input id="shift-id" value={newShift.id} onChange={(e) => setNewShift(prev => ({ ...prev, id: e.target.value }))} placeholder="Ej: turno-a" />
+                                        </div>
+                                        <div className="grid flex-1 gap-2">
+                                            <Label htmlFor="shift-name">Nombre del Turno</Label>
+                                            <Input id="shift-name" value={newShift.name} onChange={(e) => setNewShift(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Turno A (7am-3pm)" />
+                                        </div>
+                                        <Button size="icon" onClick={handleAddShift}>
                                             <PlusCircle className="h-4 w-4" />
                                         </Button>
                                     </div>

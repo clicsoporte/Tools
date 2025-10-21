@@ -87,6 +87,7 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('requireMachineForStart', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('requireShiftForCompletion', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('assignmentLabel', 'Máquina Asignada')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('shiftLabel', 'Turno')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfOrientation', 'portrait')`).run();
@@ -197,6 +198,10 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
              console.log("MIGRATION (planner.db): Adding requireShiftForCompletion to settings.");
             db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('requireShiftForCompletion', 'false')`).run();
         }
+        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'shiftLabel'`).get()) {
+             console.log("MIGRATION (planner.db): Adding shiftLabel to settings.");
+            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('shiftLabel', 'Turno')`).run();
+        }
     }
 }
 
@@ -215,6 +220,7 @@ export async function getPlannerSettings(): Promise<PlannerSettings> {
         requireMachineForStart: false,
         requireShiftForCompletion: false,
         assignmentLabel: 'Máquina Asignada',
+        shiftLabel: 'Turno',
         customStatuses: [],
         pdfPaperSize: 'letter',
         pdfOrientation: 'portrait',
@@ -233,6 +239,7 @@ export async function getPlannerSettings(): Promise<PlannerSettings> {
         else if (row.key === 'requireMachineForStart') settings.requireMachineForStart = row.value === 'true';
         else if (row.key === 'requireShiftForCompletion') settings.requireShiftForCompletion = row.value === 'true';
         else if (row.key === 'assignmentLabel') settings.assignmentLabel = row.value;
+        else if (row.key === 'shiftLabel') settings.shiftLabel = row.value;
         else if (row.key === 'customStatuses') settings.customStatuses = JSON.parse(row.value);
         else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
         else if (row.key === 'pdfOrientation') settings.pdfOrientation = row.value as 'portrait' | 'landscape';
@@ -247,7 +254,7 @@ export async function saveSettings(settings: PlannerSettings): Promise<void> {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'useWarehouseReception', 'showCustomerTaxId', 'machines', 'shifts', 'requireMachineForStart', 'requireShiftForCompletion', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
+        const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'useWarehouseReception', 'showCustomerTaxId', 'machines', 'shifts', 'requireMachineForStart', 'requireShiftForCompletion', 'assignmentLabel', 'shiftLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
         for (const key of keys) {
             if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -504,7 +511,7 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
         const newShiftName = shiftId ? settings.shifts.find(s => s.id === shiftId)?.name : 'N/A';
         updates.push('shiftId = @shiftId');
         params.shiftId = shiftId;
-        historyItems.push(`Turno: de ${oldShiftName} a ${newShiftName}`);
+        historyItems.push(`${settings.shiftLabel || 'Turno'}: de ${oldShiftName} a ${newShiftName}`);
     }
      if (scheduledDateRange) {
         const newStartDate = scheduledDateRange.from ? scheduledDateRange.from.toISOString().split('T')[0] : null;
