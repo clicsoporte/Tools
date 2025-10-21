@@ -46,6 +46,14 @@ export default function CostAssistantPage() {
     return (
         <TooltipProvider>
             <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
+                <input
+                    type="file"
+                    ref={state.fileInputRef}
+                    onChange={actions.onFileSelected}
+                    className="hidden"
+                    accept=".xml"
+                    multiple
+                />
                 <Card>
                     <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                         <div>
