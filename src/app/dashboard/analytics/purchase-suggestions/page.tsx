@@ -194,69 +194,67 @@ export default function PurchaseSuggestionsPage() {
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <ScrollArea className="h-[50vh] border rounded-md">
-                            <Table>
-                                <TableHeader className="sticky top-0 bg-background z-10">
-                                    <TableRow>
-                                        <TableHead className="w-12">
-                                            <Checkbox
-                                                checked={selectors.areAllSelected}
-                                                onCheckedChange={(checked) => actions.toggleSelectAll(checked as boolean)}
-                                                disabled={isLoading || selectors.filteredSuggestions.length === 0}
-                                            />
+                    <CardContent className="h-[50vh] overflow-y-auto border rounded-md p-0">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-background z-10">
+                                <TableRow>
+                                    <TableHead className="w-12">
+                                        <Checkbox
+                                            checked={selectors.areAllSelected}
+                                            onCheckedChange={(checked) => actions.toggleSelectAll(checked as boolean)}
+                                            disabled={isLoading || selectors.filteredSuggestions.length === 0}
+                                        />
+                                    </TableHead>
+                                    {selectors.visibleColumnsData.map((col: { id: string; label: string; tooltip: string; sortable?: boolean; sortKey?: string; align?: string }) => (
+                                         <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right', col.sortable && 'cursor-pointer hover:bg-muted')} onClick={() => col.sortable && actions.handleSort(col.sortKey as SortKey || col.id as SortKey)}>
+                                            <Tooltip><TooltipTrigger className='flex items-center gap-2'>
+                                                {col.label}
+                                                {sortKey === (col.sortKey || col.id) && (
+                                                    sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                                                )}
+                                            </TooltipTrigger><TooltipContent>{col.tooltip}</TooltipContent></Tooltip>
                                         </TableHead>
-                                        {selectors.visibleColumnsData.map((col: { id: string; label: string; tooltip: string; sortable?: boolean; sortKey?: string; align?: string }) => (
-                                             <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right', col.sortable && 'cursor-pointer hover:bg-muted')} onClick={() => col.sortable && actions.handleSort(col.sortKey as SortKey || col.id as SortKey)}>
-                                                <Tooltip><TooltipTrigger className='flex items-center gap-2'>
-                                                    {col.label}
-                                                    {sortKey === (col.sortKey || col.id) && (
-                                                        sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                                                    )}
-                                                </TooltipTrigger><TooltipContent>{col.tooltip}</TooltipContent></Tooltip>
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {isLoading ? (
-                                        Array.from({ length: 5 }).map((_, i) => (
-                                            <TableRow key={i}>
-                                                <TableCell colSpan={selectors.visibleColumnsData.length + 1}><Skeleton className="h-8 w-full" /></TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : selectors.filteredSuggestions.length > 0 ? (
-                                        selectors.filteredSuggestions.map((item: PurchaseSuggestion) => (
-                                            <TableRow key={item.itemId}>
-                                                <TableCell>
-                                                    <Checkbox
-                                                        checked={selectedItems.has(item.itemId)}
-                                                        onCheckedChange={() => actions.toggleItemSelection(item.itemId)}
-                                                    />
-                                                </TableCell>
-                                                {visibleColumns.map((colId: string) => {
-                                                    const colData = selectors.getColumnContent(item, colId);
-                                                    return (
-                                                        <TableCell key={colId} className={cn(colData.className)}>
-                                                            {colData.content}
-                                                        </TableCell>
-                                                    )
-                                                })}
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={selectors.visibleColumnsData.length + 1} className="h-32 text-center">
-                                                <div className="flex flex-col items-center justify-center gap-2">
-                                                    <AlertCircle className="h-8 w-8 text-muted-foreground" />
-                                                    <p className="text-muted-foreground">No se encontraron faltantes para los filtros seleccionados.</p>
-                                                </div>
-                                            </TableCell>
+                                    ))}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading ? (
+                                    Array.from({ length: 5 }).map((_, i) => (
+                                        <TableRow key={i}>
+                                            <TableCell colSpan={selectors.visibleColumnsData.length + 1}><Skeleton className="h-8 w-full" /></TableCell>
                                         </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
+                                    ))
+                                ) : selectors.filteredSuggestions.length > 0 ? (
+                                    selectors.filteredSuggestions.map((item: PurchaseSuggestion) => (
+                                        <TableRow key={item.itemId}>
+                                            <TableCell>
+                                                <Checkbox
+                                                    checked={selectedItems.has(item.itemId)}
+                                                    onCheckedChange={() => actions.toggleItemSelection(item.itemId)}
+                                                />
+                                            </TableCell>
+                                            {visibleColumns.map((colId: string) => {
+                                                const colData = selectors.getColumnContent(item, colId);
+                                                return (
+                                                    <TableCell key={colId} className={cn(colData.className)}>
+                                                        {colData.content}
+                                                    </TableCell>
+                                                )
+                                            })}
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={selectors.visibleColumnsData.length + 1} className="h-32 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-2">
+                                                <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                                                <p className="text-muted-foreground">No se encontraron faltantes para los filtros seleccionados.</p>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                     <CardFooter>
                         <Button onClick={() => actions.handleCreateRequests()} disabled={isSubmitting || selectors.selectedSuggestions.length === 0}>
@@ -297,3 +295,4 @@ export default function PurchaseSuggestionsPage() {
         </main>
     );
 }
+
