@@ -230,8 +230,8 @@ export default function PurchaseSuggestionsPage() {
                                                 <TableCell colSpan={selectors.visibleColumnsData.length + 1}><Skeleton className="h-8 w-full" /></TableCell>
                                             </TableRow>
                                         ))
-                                    ) : selectors.paginatedSuggestions.length > 0 ? (
-                                        selectors.paginatedSuggestions.map((item: PurchaseSuggestion) => (
+                                    ) : paginatedSuggestions.length > 0 ? (
+                                        paginatedSuggestions.map((item: PurchaseSuggestion) => (
                                             <TableRow key={item.itemId}>
                                                 <TableCell>
                                                     <Checkbox
