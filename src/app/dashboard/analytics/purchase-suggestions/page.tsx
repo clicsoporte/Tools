@@ -23,7 +23,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -168,26 +168,30 @@ export default function PurchaseSuggestionsPage() {
                                 </CardDescription>
                             </div>
                             <div className="flex items-center gap-2">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
+                                <Dialog>
+                                    <DialogTrigger asChild>
                                         <Button variant="outline"><Columns3 className="mr-2 h-4 w-4"/> Columnas</Button>
-                                    </DropdownMenuTrigger>
-                                     <DropdownMenuContent align="end">
-                                        <ScrollArea className="max-h-72">
-                                            <DropdownMenuLabel>Columnas Visibles</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            {selectors.availableColumns.map((column: { id: string; label: string }) => (
-                                                <DropdownMenuCheckboxItem
-                                                    key={column.id}
-                                                    checked={visibleColumns.includes(column.id)}
-                                                    onCheckedChange={(checked) => actions.handleColumnVisibilityChange(column.id, checked as boolean)}
-                                                >
-                                                    {column.label}
-                                                </DropdownMenuCheckboxItem>
-                                            ))}
+                                    </DialogTrigger>
+                                     <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Seleccionar Columnas Visibles</DialogTitle>
+                                        </DialogHeader>
+                                        <ScrollArea className="max-h-80">
+                                            <div className="space-y-2 p-1">
+                                                {selectors.availableColumns.map((column: { id: string; label: string }) => (
+                                                    <div key={column.id} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted">
+                                                        <Checkbox
+                                                            id={`col-${column.id}`}
+                                                            checked={visibleColumns.includes(column.id)}
+                                                            onCheckedChange={(checked) => actions.handleColumnVisibilityChange(column.id, !!checked)}
+                                                        />
+                                                        <Label htmlFor={`col-${column.id}`} className="font-normal flex-1 cursor-pointer">{column.label}</Label>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </ScrollArea>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                    </DialogContent>
+                                </Dialog>
                                 <Button onClick={actions.handleExportExcel} variant="outline" disabled={isLoading || selectors.filteredSuggestions.length === 0}>
                                     <FileSpreadsheet className="mr-2 h-4 w-4" />
                                     Exportar a Excel
