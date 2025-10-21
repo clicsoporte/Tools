@@ -17,7 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Layers, UploadCloud, BarChartBig, Lightbulb, FileText, Search as SearchIcon } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Layers, UploadCloud, BarChartBig, Lightbulb, FileText, Search as SearchIcon, Calculator } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -191,6 +191,50 @@ export default function HelpPage() {
                         </ul>
                     </li>
                 </ul>
+            </div>
+        )
+    },
+     {
+        title: "Guía Maestra: Asistente de Costos",
+        icon: <Calculator className="mr-4 h-6 w-6 text-orange-500" />,
+        content: (
+            <div className="space-y-4">
+                <p>Esta herramienta te ayuda a calcular los precios de venta de tus productos importados, tomando en cuenta todos los costos asociados a una compra.</p>
+                
+                <h4 className="font-semibold text-lg pt-2 border-t">Flujo de Trabajo del Asistente</h4>
+                <ol className="list-decimal space-y-4 pl-6">
+                    <li>
+                        <strong>Paso 1: Cargar Facturas XML (<UploadCloud className="inline h-4 w-4"/>).</strong>
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                            <li>Arrastra o selecciona una o varias facturas de compra en formato XML de Hacienda. El sistema extraerá automáticamente todos los artículos, cantidades y costos.</li>
+                            <li>Verás las facturas procesadas en la tarjeta de &quot;Facturas Procesadas&quot;, indicando si la extracción fue exitosa o si hubo algún error (ej. XML malformado).</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Paso 2: Añadir Costos Adicionales.</strong>
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                            <li>Ingresa el costo total de **Transporte** y de **Otros Costos** (como aduanas, comisiones, etc.).</li>
+                            <li>El sistema **prorrateará** estos costos automáticamente entre todos los artículos cargados, basándose en la cantidad de unidades de cada uno. Este costo se sumará al costo unitario de cada artículo, dándote un **costo final real**.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Paso 3: Ajustar y Calcular Precios.</strong>
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                            <li>En la tabla de "Artículos Extraídos", puedes editar la mayoría de los campos.</li>
+                            <li><strong>Costo Unit. (s/IVA):</strong> Este es el costo real del artículo (costo de factura + costo prorrateado). Puedes **sobrescribirlo manualmente** si necesitas ajustar el costo base para un artículo específico.</li>
+                            <li><strong>Imp. %:</strong> El sistema extrae el impuesto del XML, pero puedes editarlo aquí si es necesario (ej. de "13" a "1").</li>
+                            <li><strong>Margen:</strong> Introduce el margen de ganancia deseado (ej. "20" para un 20%).</li>
+                            <li>El sistema calculará automáticamente el **P.V.P. Unitario Sugerido** y la **Ganancia por Línea** en tiempo real.</li>
+                        </ul>
+                    </li>
+                     <li>
+                        <strong>Paso 4: Guardar o Exportar.</strong>
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                            <li><strong>Guardar Borrador (<Save className="inline h-4 w-4"/>):</strong> Si necesitas continuar más tarde, guarda tu análisis como un borrador. Podrás cargarlo desde el botón "Cargar Borradores".</li>
+                            <li><strong>Exportar para ERP (<FileDown className="inline h-4 w-4"/>):</strong> Cuando los precios estén listos, haz clic en este botón. Se generará un archivo **Excel (.xlsx)** con el formato exacto para ser importado directamente en tu ERP, actualizando o creando los nuevos precios de venta.</li>
+                        </ul>
+                    </li>
+                </ol>
             </div>
         )
     },
@@ -618,7 +662,26 @@ export default function HelpPage() {
         icon: <ListChecks className="mr-4 h-6 w-6 text-fuchsia-600" />,
         content: (
              <div className="space-y-4">
-                <h4 className="font-semibold text-lg">Versión 1.5.5 <Badge variant="secondary">Actual</Badge></h4>
+                 <h4 className="font-semibold text-lg">Versión 1.6.0 <Badge variant="secondary">Actual</Badge></h4>
+                <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
+                <ul className="list-disc space-y-3 pl-6">
+                     <li>
+                        <strong>Nuevo Módulo Mayor: Asistente de Costos y Precios.</strong> Permite cargar facturas XML de compras, prorratear costos adicionales (transporte, aduanas) y calcular precios de venta con márgenes de ganancia. Incluye la capacidad de guardar y cargar borradores de análisis y exportar los nuevos precios a Excel para el ERP.
+                    </li>
+                    <li>
+                        <strong>Mejora Mayor en Filtros:</strong> Se estandarizaron todos los filtros de selección múltiple y de columnas a una ventana modal (popup) con buscador y checkboxes, solucionando definitivamente los problemas de scroll y mejorando la usabilidad en todo el sistema.
+                    </li>
+                    <li>
+                        <strong>Mejora Mayor en Tablas:</strong> Se añadió la capacidad de ordenar los datos en las tablas de análisis haciendo clic en los encabezados de las columnas, con indicadores visuales para mostrar el orden actual.
+                    </li>
+                    <li>
+                        <strong>Mejora de Lógica:</strong> Se optimizó el proceso de cierre de sesión para usar el enrutador de Next.js, eliminando el parpadeo de la página.
+                    </li>
+                    <li>
+                        <strong>Mejora de Seguridad y Permisos:</strong> Se añadieron permisos granulares para el nuevo Asistente de Costos (`cost-assistant:access`, `cost-assistant:drafts:read-write`).
+                    </li>
+                </ul>
+                <h4 className="font-semibold text-lg pt-4 border-t">Versión 1.5.5</h4>
                 <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                 <ul className="list-disc space-y-3 pl-6">
                     <li>

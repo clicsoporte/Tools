@@ -152,9 +152,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     await clientLogout();
     setUser(null);
     setUserRole(null);
-    // Use window.location to force a full page reload, ensuring all state is cleared
-    // and styles are reloaded correctly. This prevents the unstyled page flash.
-    window.location.href = '/';
+    router.push('/');
   }
 
   useEffect(() => {

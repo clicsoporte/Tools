@@ -227,7 +227,6 @@ export async function getCostAssistantSettings(userId: number): Promise<CostAssi
     return settings ? settings : { columnVisibility: defaultSettings.columnVisibility };
 }
 
-
 export async function saveCostAssistantSettings(userId: number, settings: CostAssistantSettings): Promise<void> {
     return saveUserPreferences(userId, 'costAssistantSettings', settings);
 }

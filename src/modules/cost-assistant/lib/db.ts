@@ -6,67 +6,11 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
+import type { CostAnalysisDraft } from '@/modules/core/types';
 
 const COST_ASSISTANT_DB_FILE = 'cost_assistant.db';
 
-const defaultSettings: CostAssistantSettings = {
-    columnVisibility: {
-        cabysCode: true, supplierCode: true, description: true, quantity: true,
-        unitCostWithoutTax: true, unitCostWithTax: false, taxRate: true,
-        margin: true, sellPriceWithoutTax: true, finalSellPrice: true, profitPerLine: true
-    }
-};
-
-
-export async function initializeCostAssistantDb(db: import('better-sqlite3').Database) {
-    const schema = `
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS drafts (
-            id TEXT PRIMARY KEY,
-            userId INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            data TEXT NOT NULL,
-            createdAt TEXT NOT NULL
-        );
-    `;
-    db.exec(schema);
-
-    db.prepare(`
-        INSERT OR IGNORE INTO settings (key, value) VALUES ('columnVisibility', ?)
-    `).run(JSON.stringify(defaultSettings.columnVisibility));
-
-    console.log(`Database ${COST_ASSISTANT_DB_FILE} initialized for Cost Assistant.`);
-}
-
-
-export async function getCostAssistantSettings(): Promise<CostAssistantSettings> {
-    const db = await connectDb(COST_ASSISTANT_DB_FILE);
-    try {
-        const row = db.prepare(`SELECT value FROM settings WHERE key = 'columnVisibility'`).get() as { value: string } | undefined;
-        if (row) {
-            const parsedValue = JSON.parse(row.value);
-            // Ensure all keys from default settings are present
-            const completeVisibility = { ...defaultSettings.columnVisibility, ...parsedValue };
-            return { columnVisibility: completeVisibility };
-        }
-    } catch (error) {
-        console.error("Error getting cost assistant settings, returning default.", error);
-    }
-    return defaultSettings;
-}
-
-export async function saveCostAssistantSettings(settings: CostAssistantSettings): Promise<void> {
-    const db = await connectDb(COST_ASSISTANT_DB_FILE);
-    db.prepare(`
-        INSERT OR REPLACE INTO settings (key, value) VALUES ('columnVisibility', ?)
-    `).run(JSON.stringify(settings.columnVisibility));
-}
-
-export async function getAllDrafts(userId: string): Promise<CostAnalysisDraft[]> {
+export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]> {
     const db = await connectDb(COST_ASSISTANT_DB_FILE);
     try {
         const rows = db.prepare(`SELECT * FROM drafts WHERE userId = ? ORDER BY createdAt DESC`).all(userId) as any[];
