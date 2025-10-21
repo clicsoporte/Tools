@@ -60,6 +60,10 @@ const availableColumns = [
     { id: 'shortage', label: 'Faltante Total', tooltip: 'La cantidad que necesitas comprar para cubrir la demanda (Cant. Requerida - Inv. Actual).', align: 'right', sortable: true, sortKey: 'shortage' },
 ];
 
+const normalizeText = (text: string | null | undefined): string => {
+    if (!text) return "";
+    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
 
 interface State {
     isLoading: boolean;
@@ -144,7 +148,7 @@ export function useRequestSuggestions() {
 
     const filteredSuggestions = useMemo(() => {
         let filtered = state.suggestions.filter(item => {
-            const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
+            const searchTerms = normalizeText(debouncedSearchTerm).split(' ').filter(Boolean);
             
             const classificationMatch = state.classificationFilter.length > 0 ? state.classificationFilter.includes(item.itemClassification) : true;
             if (!classificationMatch) return false;
@@ -154,13 +158,13 @@ export function useRequestSuggestions() {
 
             if (searchTerms.length === 0) return true;
 
-            const targetText = `
-                ${item.itemId.toLowerCase()} 
-                ${item.itemDescription.toLowerCase()} 
-                ${item.sourceOrders.join(' ').toLowerCase()}
-                ${item.involvedClients.map(c => c.name).join(' ').toLowerCase()}
-                ${item.erpUsers.join(' ').toLowerCase()}
-            `;
+            const targetText = normalizeText(`
+                ${item.itemId} 
+                ${item.itemDescription} 
+                ${item.sourceOrders.join(' ')}
+                ${item.involvedClients.map(c => c.name).join(' ')}
+                ${item.erpUsers.join(' ')}
+            `);
             
             return searchTerms.every(term => targetText.includes(term));
         });

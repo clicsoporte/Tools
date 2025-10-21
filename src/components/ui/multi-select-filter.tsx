@@ -90,9 +90,10 @@ export function MultiSelectFilter({
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command>
           <CommandInput placeholder={`Buscar ${title.toLowerCase()}...`} />
-          <CommandList className="max-h-60">
+          <CommandList>
             <CommandEmpty>No se encontraron resultados.</CommandEmpty>
               <CommandGroup>
+                <ScrollArea className="max-h-60">
                 {options.map((option) => (
                   <CommandItem
                     key={option.value}
@@ -111,6 +112,7 @@ export function MultiSelectFilter({
                     {option.label}
                   </CommandItem>
                 ))}
+                </ScrollArea>
               </CommandGroup>
           </CommandList>
         </Command>
