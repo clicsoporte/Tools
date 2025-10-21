@@ -190,8 +190,8 @@ export type DatabaseModule = {
     id: string; // e.g., 'clic-tools-main'
     name: string; // e.g., 'Clic-Tools (Sistema Principal)'
     dbFile: string; // e.g., 'intratool.db'
-    initFn?: (db: any) => void;
-    migrationFn?: ((db: any) => void) | undefined;
+    initFn?: (db: any) => void | Promise<void>;
+    migrationFn?: ((db: any) => void | Promise<void>) | undefined;
 };
 
 /**
@@ -687,6 +687,7 @@ export type CostAssistantLine = {
     supplierCodeType: string;
     description: string;
     quantity: number;
+    discountAmount: number; // Discount amount for the entire line
     xmlUnitCost: number; // Cost from XML, before prorating
     unitCostWithTax: number; // Cost per unit with tax, in local currency (CRC)
     unitCostWithoutTax: number; // Cost per unit without tax, in local currency (CRC), after prorating/editing
@@ -730,6 +731,7 @@ export type CostAssistantSettings = {
         supplierCode: boolean;
         description: boolean;
         quantity: boolean;
+        discountAmount: boolean;
         unitCostWithoutTax: boolean;
         unitCostWithTax: boolean;
         taxRate: boolean;
@@ -737,5 +739,6 @@ export type CostAssistantSettings = {
         sellPriceWithoutTax: boolean;
         finalSellPrice: boolean;
         profitPerLine: boolean;
-    }
+    };
+    discountHandling: 'customer' | 'company';
 };

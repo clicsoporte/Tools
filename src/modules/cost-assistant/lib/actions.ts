@@ -124,11 +124,11 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
         
         const descuentoNode = getValue(linea, ['Descuento']);
-        const descuentoTotal = descuentoNode ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
+        const discountAmount = descuentoNode ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
         
         const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
         
-        const subTotalWithDiscount = subTotal - descuentoTotal;
+        const subTotalWithDiscount = subTotal - discountAmount;
         
         const unitCostWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
         const unitCostWithoutTax = cantidad > 0 ? subTotalWithDiscount / cantidad : 0;
@@ -155,6 +155,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             supplierCodeType: supplierCodeType,
             description: getValue(linea, ['Detalle']),
             quantity: cantidad,
+            discountAmount,
             unitCostWithTax: unitCostWithTaxInColones,
             unitCostWithoutTax: unitCostWithoutTaxInColones,
             xmlUnitCost: unitCostWithoutTaxInColones, // Store original cost
@@ -217,14 +218,15 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
 const defaultSettings: CostAssistantSettings = {
     columnVisibility: {
         cabysCode: true, supplierCode: true, description: true, quantity: true,
-        unitCostWithoutTax: true, unitCostWithTax: false, taxRate: true,
+        discountAmount: false, unitCostWithoutTax: true, unitCostWithTax: false, taxRate: true,
         margin: true, sellPriceWithoutTax: true, finalSellPrice: true, profitPerLine: true
-    }
+    },
+    discountHandling: 'customer',
 };
 
 export async function getCostAssistantSettings(userId: number): Promise<CostAssistantSettings> {
     const settings = await getUserPreferences(userId, 'costAssistantSettings');
-    return settings ? settings : { columnVisibility: defaultSettings.columnVisibility };
+    return settings ? { ...defaultSettings, ...settings } : defaultSettings;
 }
 
 export async function saveCostAssistantSettings(userId: number, settings: CostAssistantSettings): Promise<void> {

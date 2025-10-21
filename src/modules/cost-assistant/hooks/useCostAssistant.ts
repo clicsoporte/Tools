@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -16,12 +16,10 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
     
-    // If a comma exists, it is the decimal separator. Remove dots, replace comma.
     if (s.includes(',')) {
         return parseFloat(s.replace(/\./g, '').replace(',', '.'));
     }
     
-    // If no comma exists, treat as a standard float, respecting the dot as decimal separator
     return parseFloat(s);
 };
 
@@ -31,6 +29,7 @@ const initialColumnVisibility: CostAssistantSettings['columnVisibility'] = {
     supplierCode: true,
     description: true,
     quantity: true,
+    discountAmount: false,
     unitCostWithoutTax: true,
     unitCostWithTax: false,
     taxRate: true,
@@ -51,6 +50,7 @@ const initialState = {
     drafts: [] as CostAnalysisDraft[],
     transportCost: 0,
     otherCosts: 0,
+    discountHandling: 'customer' as 'customer' | 'company',
     columnVisibility: initialColumnVisibility as ColumnVisibility,
     exportStatus: 'idle' as ExportStatus,
     exportFileName: null as string | null,
@@ -61,6 +61,8 @@ export const useCostAssistant = () => {
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user } = useAuth();
+    
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [state, setState] = useState(initialState);
 
@@ -70,7 +72,11 @@ export const useCostAssistant = () => {
             if (user) {
                 const settings = await getCostAssistantSettings(user.id);
                 const completeVisibility = { ...initialColumnVisibility, ...settings.columnVisibility };
-                setState(prevState => ({ ...prevState, columnVisibility: completeVisibility }));
+                setState(prevState => ({ 
+                    ...prevState, 
+                    columnVisibility: completeVisibility,
+                    discountHandling: settings.discountHandling || 'customer',
+                }));
             }
         };
         loadSettings();
@@ -132,6 +138,19 @@ export const useCostAssistant = () => {
         }
     }, [toast]);
     
+    const openFileDialog = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ""; // Reset to allow re-uploading the same file
+            fileInputRef.current.click();
+        }
+    };
+    
+    const onFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files) {
+            handleFilesDrop(Array.from(event.target.files));
+        }
+    };
+
     const removeLine = (id: string) => {
         setState(prevState => ({
             ...prevState,
@@ -184,11 +203,14 @@ export const useCostAssistant = () => {
     const handleSaveColumnVisibility = async () => {
         if (!user) return;
         try {
-            await saveCostAssistantSettings(user.id, { columnVisibility: state.columnVisibility });
-            toast({ title: "Preferencia Guardada", description: "La visibilidad de las columnas ha sido guardada." });
+            await saveCostAssistantSettings(user.id, { 
+                columnVisibility: state.columnVisibility,
+                discountHandling: state.discountHandling,
+            });
+            toast({ title: "Preferencia Guardada", description: "La visibilidad de las columnas y el manejo de descuentos han sido guardados." });
         } catch (error: any) {
-            logError("Failed to save column visibility", { error: error.message });
-            toast({ title: "Error", description: "No se pudo guardar la configuración de las columnas.", variant: "destructive" });
+            logError("Failed to save cost assistant settings", { error: error.message });
+            toast({ title: "Error", description: "No se pudo guardar la configuración.", variant: "destructive" });
         }
     };
 
@@ -196,6 +218,7 @@ export const useCostAssistant = () => {
         setState(prevState => ({
             ...initialState, 
             columnVisibility: prevState.columnVisibility,
+            discountHandling: prevState.discountHandling,
             drafts: prevState.drafts, // Keep drafts loaded
         }));
         toast({ title: "Operación Limpiada", description: "Se han borrado todos los datos para iniciar un nuevo análisis." });
@@ -297,8 +320,13 @@ export const useCostAssistant = () => {
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
 
         return state.lines.map(line => {
+            let costBase = line.xmlUnitCost;
+            if (state.discountHandling === 'customer' && line.discountAmount > 0 && line.quantity > 0) {
+                costBase -= (line.discountAmount / line.quantity);
+            }
+            
             const proportionalAdditionalCostPerUnit = (totalItems > 0 && line.quantity > 0) ? (totalAdditionalCosts / totalItems) : 0;
-            const finalUnitCost = line.isCostEdited ? line.unitCostWithoutTax : line.xmlUnitCost + proportionalAdditionalCostPerUnit;
+            const finalUnitCost = line.isCostEdited ? line.unitCostWithoutTax : costBase + proportionalAdditionalCostPerUnit;
             
             const sellPriceWithoutTax = finalUnitCost / (1 - line.margin);
             const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
@@ -313,11 +341,9 @@ export const useCostAssistant = () => {
                 profitPerLine,
             };
         });
-    }, [state.lines, state.transportCost, state.otherCosts]);
+    }, [state.lines, state.transportCost, state.otherCosts, state.discountHandling]);
     
-    // This effect synchronizes the calculated costs back into the main state.
     useEffect(() => {
-        // We compare to avoid an infinite loop. Only update if there's a difference in calculated values.
         if (JSON.stringify(state.lines) !== JSON.stringify(linesWithCalculatedCosts)) {
              setState(prevState => ({...prevState, lines: linesWithCalculatedCosts }));
         }
@@ -343,6 +369,8 @@ export const useCostAssistant = () => {
         handleUnitCostBlur,
         formatCurrency,
         handleClear,
+        openFileDialog,
+        onFileSelected,
         setTransportCost: (cost: number) => setState(prevState => ({ ...prevState, transportCost: cost })),
         setOtherCosts: (cost: number) => setState(prevState => ({ ...prevState, otherCosts: cost })),
         setColumnVisibility,
@@ -353,10 +381,11 @@ export const useCostAssistant = () => {
         loadDraft,
         deleteDraft: deleteDraftAction,
         handleFinalizeExport,
+        setDiscountHandling: (value: 'customer' | 'company') => setState(prevState => ({ ...prevState, discountHandling: value })),
     };
 
     return {
-        state: { ...state, totals },
+        state: { ...state, totals, fileInputRef },
         actions,
     };
 };

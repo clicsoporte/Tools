@@ -10,36 +10,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useDropzone } from 'react-dropzone';
 import { UploadCloud, Loader2, Percent, Calculator, Trash2, Settings2, FilePlus, Save, Briefcase, CheckCircle, XCircle, FolderClock, FileDown, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from '@/components/ui/sheet';
 import { format, parseISO, isValid } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { CostAnalysisDraft } from '@/modules/core/types';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
 
 export default function CostAssistantPage() {
     const {
         state,
         actions,
     } = useCostAssistant();
-
-    const { getRootProps, getInputProps, open } = useDropzone({
-        onDrop: actions.handleFilesDrop,
-        accept: { 'text/xml': ['.xml'] },
-        multiple: true,
-        noClick: true, // We trigger the click manually via the button
-    });
     
     const columns = [
         { id: 'cabysCode', label: 'Cabys', defaultVisible: true, className: 'min-w-[150px]' },
         { id: 'supplierCode', label: 'Cód. Artículo', defaultVisible: true, className: 'min-w-[150px]' },
         { id: 'description', label: 'Descripción', defaultVisible: true, className: 'min-w-[400px]' },
         { id: 'quantity', label: 'Cant.', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-right' },
-        { id: 'unitCostWithoutTax', label: 'Costo Unit. (s/IVA)', defaultVisible: true, className: 'w-[180px] min-w-[180px] text-right', tooltip: 'Costo por unidad sin impuestos después de prorratear costos adicionales.' },
+        { id: 'discountAmount', label: 'Descuento', defaultVisible: false, className: 'min-w-[180px] text-right', tooltip: 'Descuento total aplicado a esta línea.' },
+        { id: 'unitCostWithoutTax', label: 'Costo Unit. (s/IVA)', defaultVisible: true, className: 'w-[180px] min-w-[180px] text-right', tooltip: 'Costo por unidad sin impuestos después de prorratear costos adicionales y aplicar descuentos (si corresponde).' },
         { id: 'unitCostWithTax', label: 'Costo Unit. (c/IVA)', defaultVisible: false, className: 'min-w-[180px] text-right' },
         { id: 'taxRate', label: 'Imp. %', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-center' },
         { id: 'margin', label: 'Margen', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-right' },
@@ -57,8 +52,7 @@ export default function CostAssistantPage() {
                             <CardTitle>Asistente de Costos y Precios</CardTitle>
                             <CardDescription>Carga facturas XML para extraer artículos, añadir costos y calcular precios de venta.</CardDescription>
                         </div>
-                         <div {...getRootProps()} className="flex items-center gap-2 flex-wrap">
-                             <input {...getInputProps()} />
+                         <div className="flex items-center gap-2 flex-wrap">
                              <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
@@ -76,7 +70,7 @@ export default function CostAssistantPage() {
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
-                            <Button variant="outline" onClick={open} disabled={state.isProcessing}>
+                            <Button variant="outline" onClick={actions.openFileDialog} disabled={state.isProcessing}>
                                 {state.isProcessing ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
@@ -101,7 +95,7 @@ export default function CostAssistantPage() {
                                                         <Card key={draft.id}>
                                                             <CardHeader>
                                                                 <CardTitle className="text-lg">{draft.name}</CardTitle>
-                                                                <CardDescription>Guardado el {format(parseISO(draft.createdAt), 'dd/MM/yyyy HH:mm')}</CardDescription>
+                                                                <CardDescription>Guardado el {isValid(parseISO(draft.createdAt)) ? format(parseISO(draft.createdAt), 'dd/MM/yyyy HH:mm') : 'Fecha inválida'}</CardDescription>
                                                             </CardHeader>
                                                             <CardFooter className="flex justify-end gap-2">
                                                                 <AlertDialog>
@@ -139,7 +133,7 @@ export default function CostAssistantPage() {
                              <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle>Costos Adicionales</CardTitle>
+                                        <CardTitle>Configuración de Cálculo</CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div className="space-y-2">
@@ -161,6 +155,20 @@ export default function CostAssistantPage() {
                                                 onChange={(e) => actions.setOtherCosts(Number(e.target.value))}
                                                 placeholder="Ej: 10000"
                                             />
+                                        </div>
+                                        <Separator/>
+                                        <div className="space-y-3">
+                                            <Label>Manejo de Descuentos en Factura</Label>
+                                            <RadioGroup value={state.discountHandling} onValueChange={(value) => actions.setDiscountHandling(value as 'customer' | 'company')}>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="customer" id="disc-customer" />
+                                                    <Label htmlFor="disc-customer" className="font-normal">Trasladar descuento al costo (beneficia al cliente)</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="company" id="disc-company" />
+                                                    <Label htmlFor="disc-company" className="font-normal">Trasladar descuento a la ganancia (beneficia a la empresa)</Label>
+                                                </div>
+                                            </RadioGroup>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -309,6 +317,7 @@ export default function CostAssistantPage() {
                                             {state.columnVisibility.supplierCode && <TableCell className={columns.find(c=>c.id === 'supplierCode')?.className}><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
                                             {state.columnVisibility.description && <TableCell className={columns.find(c=>c.id === 'description')?.className}><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0"/></TableCell>}
                                             {state.columnVisibility.quantity && <TableCell className={columns.find(c=>c.id === 'quantity')?.className}><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>}
+                                            {state.columnVisibility.discountAmount && <TableCell className={cn(columns.find(c=>c.id === 'discountAmount')?.className, "font-mono")}>{line.discountAmount > 0 ? `${actions.formatCurrency(line.discountAmount)} (${((line.discountAmount / (line.xmlUnitCost * line.quantity)) * 100).toFixed(1)}%)` : actions.formatCurrency(0)}</TableCell>}
                                             {state.columnVisibility.unitCostWithoutTax && <TableCell className={cn(columns.find(c=>c.id === 'unitCostWithoutTax')?.className, "font-mono")}><Input type="text" value={line.displayUnitCost} onChange={(e) => actions.updateLine(line.id, { displayUnitCost: e.target.value })} onBlur={(e) => actions.handleUnitCostBlur(line.id, e.target.value)} className="h-auto p-1 border-0 text-right" /></TableCell>}
                                             {state.columnVisibility.unitCostWithTax && <TableCell className={cn(columns.find(c=>c.id === 'unitCostWithTax')?.className, "font-mono")}>{actions.formatCurrency(line.unitCostWithTax)}</TableCell>}
                                             {state.columnVisibility.taxRate && <TableCell className={columns.find(c=>c.id === 'taxRate')?.className}>
