@@ -1,6 +1,6 @@
 /**
- * @fileoverview A reusable multi-select filter component with a popover and checkboxes.
- * This version uses a simple scrollable list of checkboxes for improved reliability and user experience.
+ * @fileoverview A reusable multi-select filter component using a dialog modal.
+ * This component provides a robust filtering experience with a search bar and checkboxes.
  */
 "use client";
 
@@ -9,10 +9,14 @@ import { Check, ChevronsUpDown, PlusCircle, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Badge } from "./badge";
 import { ScrollArea } from "./scroll-area";
 import { Input } from "./input";
@@ -42,6 +46,16 @@ export function MultiSelectFilter({
 }: MultiSelectFilterProps) {
   const [open, setOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
+  
+  // Temporary state to hold changes until the user clicks "Apply"
+  const [tempSelected, setTempSelected] = React.useState(selectedValues);
+  
+  React.useEffect(() => {
+    // When the dialog opens, sync the temporary state with the external state
+    if (open) {
+      setTempSelected(selectedValues);
+    }
+  }, [open, selectedValues]);
 
   const filteredOptions = React.useMemo(() =>
     options.filter(option =>
@@ -50,23 +64,28 @@ export function MultiSelectFilter({
   );
 
   const handleToggle = (value: string) => {
-    const newSelected = selectedValues.includes(value)
-      ? selectedValues.filter((v) => v !== value)
-      : [...selectedValues, value];
-    onSelectedChange(newSelected);
+    const newSelected = tempSelected.includes(value)
+      ? tempSelected.filter((v) => v !== value)
+      : [...tempSelected, value];
+    setTempSelected(newSelected);
   };
   
   const handleToggleAll = () => {
-    if (selectedValues.length === options.length) {
-      onSelectedChange([]);
+    if (tempSelected.length === options.length) {
+      setTempSelected([]);
     } else {
-      onSelectedChange(options.map(o => o.value));
+      setTempSelected(options.map(o => o.value));
     }
   };
 
+  const handleApply = () => {
+    onSelectedChange(tempSelected);
+    setOpen(false);
+  }
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button
           variant="outline"
           role="combobox"
@@ -99,53 +118,62 @@ export function MultiSelectFilter({
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-        <div className="p-2 space-y-2">
-            <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Buscar..."
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
-             <div className="flex items-center border-t pt-2">
-                <Checkbox
-                    id="select-all"
-                    checked={selectedValues.length === options.length && options.length > 0}
-                    onCheckedChange={handleToggleAll}
-                    aria-label="Seleccionar todo"
-                />
-                <Label htmlFor="select-all" className="ml-2 text-sm font-medium">
-                    Seleccionar todo
-                </Label>
-            </div>
-        </div>
-        <ScrollArea className="max-h-60">
-          <div className="p-2 space-y-1">
-            {filteredOptions.length > 0 ? (
-                filteredOptions.map((option) => (
-                    <div key={option.value} className="flex items-center space-x-2 p-1 rounded-md hover:bg-accent">
-                        <Checkbox
-                            id={`check-${option.value}`}
-                            checked={selectedValues.includes(option.value)}
-                            onCheckedChange={() => handleToggle(option.value)}
-                        />
-                         <Label htmlFor={`check-${option.value}`} className="font-normal w-full cursor-pointer">
-                            {option.label}
-                        </Label>
-                    </div>
-                ))
-            ) : (
-                 <div className="py-6 text-center text-sm text-muted-foreground">
-                    No se encontraron resultados.
-                </div>
-            )}
+      </DialogTrigger>
+      <DialogContent className="p-0 sm:max-w-[425px]">
+        <DialogHeader className="p-6 pb-2">
+          <DialogTitle>Seleccionar {title}</DialogTitle>
+        </DialogHeader>
+        <div className="p-6 pt-0 space-y-4">
+          <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                  placeholder="Buscar..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+              />
           </div>
-        </ScrollArea>
-      </PopoverContent>
-    </Popover>
+          <div className="flex items-center border-t pt-4">
+              <Checkbox
+                  id="select-all"
+                  checked={tempSelected.length === options.length && options.length > 0}
+                  onCheckedChange={handleToggleAll}
+                  aria-label="Seleccionar todo"
+              />
+              <Label htmlFor="select-all" className="ml-2 text-sm font-medium">
+                  Seleccionar todo
+              </Label>
+          </div>
+          <ScrollArea className="h-60 rounded-md border">
+            <div className="p-2 space-y-1">
+              {filteredOptions.length > 0 ? (
+                  filteredOptions.map((option) => (
+                      <div key={option.value} className="flex items-center space-x-2 p-1 rounded-md hover:bg-accent">
+                          <Checkbox
+                              id={`check-${option.value}`}
+                              checked={tempSelected.includes(option.value)}
+                              onCheckedChange={() => handleToggle(option.value)}
+                          />
+                          <Label htmlFor={`check-${option.value}`} className="font-normal w-full cursor-pointer">
+                              {option.label}
+                          </Label>
+                      </div>
+                  ))
+              ) : (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                      No se encontraron resultados.
+                  </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+        <DialogFooter className="p-6 pt-2 border-t">
+          <DialogClose asChild>
+            <Button variant="ghost">Cancelar</Button>
+          </DialogClose>
+          <Button onClick={handleApply}>Aplicar Filtros</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
