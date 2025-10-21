@@ -59,7 +59,13 @@ const HelpSection = ({ title, icon, content, searchTerm, defaultOpen = false }: 
         return getText(content).toLowerCase();
     }, [content]);
 
-    const isVisible = searchTerm.length < 2 || contentString.includes(searchTerm.toLowerCase()) || title.toLowerCase().includes(searchTerm.toLowerCase());
+    const isVisible = useMemo(() => {
+        const searchTerms = searchTerm.toLowerCase().split(' ').filter(Boolean);
+        if (searchTerms.length === 0) return true;
+
+        const targetText = (title.toLowerCase() + ' ' + contentString);
+        return searchTerms.every(term => targetText.includes(term));
+    }, [searchTerm, title, contentString]);
 
     if (!isVisible) {
         return null;
