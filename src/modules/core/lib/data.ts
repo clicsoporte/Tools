@@ -31,6 +31,7 @@ import {
   BarChartBig,
   Lightbulb,
   FileText,
+  Calculator,
 } from "lucide-react";
 
 /**
@@ -97,6 +98,15 @@ export const mainTools: Tool[] = [
     icon: CalendarCheck,
     bgColor: "bg-purple-500",
     textColor: "text-white",
+  },
+  {
+    id: 'cost-assistant',
+    name: 'Asistente de Costos',
+    description: 'Calcular costos y precios a partir de facturas XML.',
+    href: '/dashboard/cost-assistant',
+    icon: Calculator,
+    bgColor: 'bg-orange-500',
+    textColor: 'text-white',
   },
    {
     id: "warehouse-search",

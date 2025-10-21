@@ -9,7 +9,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { initialCompany, initialRoles } from './data';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -17,6 +17,7 @@ import { logInfo, logWarn, logError } from './logger';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
+import { initializeCostAssistantDb } from '../../cost-assistant/lib/db';
 
 
 const DB_FILE = 'intratool.db';
@@ -34,6 +35,7 @@ const DB_MODULES: DatabaseModule[] = [
     { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
     { id: 'production-planner', name: 'Planificador de Producción', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
     { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db', initFn: initializeWarehouseDb, migrationFn: runWarehouseMigrations },
+    { id: 'cost-assistant', name: 'Asistente de Costos', dbFile: 'cost_assistant.db', initFn: initializeCostAssistantDb, migrationFn: undefined },
 ];
 
 
@@ -99,6 +101,12 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
         if(!usersTable) {
              console.log("Migration check skipped: Main database not initialized yet.");
              return;
+        }
+        
+        const userPrefsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='user_preferences'`).get();
+        if (!userPrefsTable) {
+            console.log("MIGRATION: Creating user_preferences table.");
+            db.exec(`CREATE TABLE user_preferences (userId INTEGER NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (userId, key));`);
         }
 
         const usersTableInfo = db.prepare(`PRAGMA table_info(users)`).all() as { name: string }[];
@@ -254,6 +262,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, userId INTEGER NOT NULL, message TEXT NOT NULL, href TEXT, isRead INTEGER DEFAULT 0, timestamp TEXT NOT NULL, FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE);
         CREATE TABLE erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT, TOTAL_UNIDADES REAL, MONEDA_PEDIDO TEXT, USUARIO TEXT);
         CREATE TABLE erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));
+        CREATE TABLE user_preferences (userId INTEGER NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (userId, key));
     `;
 
     db.exec(mainSchema);
@@ -1228,4 +1237,17 @@ export async function markNotificationsAsRead(notificationIds: number[], userId:
   if (notificationIds.length === 0) return;
   const ids = notificationIds.map(id => '?').join(',');
   db.prepare(`UPDATE notifications SET isRead = 1 WHERE id IN (${ids}) AND userId = ?`).run(...notificationIds, userId);
+}
+
+
+// --- User Preferences ---
+export async function getUserPreferences(userId: number, key: string): Promise<any | null> {
+    const db = await connectDb();
+    const row = db.prepare('SELECT value FROM user_preferences WHERE userId = ? AND key = ?').get(userId, key) as { value: string } | undefined;
+    return row ? JSON.parse(row.value) : null;
+}
+
+export async function saveUserPreferences(userId: number, key: string, value: any): Promise<void> {
+    const db = await connectDb();
+    db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
 }

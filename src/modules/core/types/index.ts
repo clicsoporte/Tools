@@ -191,7 +191,7 @@ export type DatabaseModule = {
     name: string; // e.g., 'Clic-Tools (Sistema Principal)'
     dbFile: string; // e.g., 'intratool.db'
     initFn?: (db: any) => void;
-    migrationFn?: (db: any) => void;
+    migrationFn?: ((db: any) => void) | undefined;
 };
 
 /**
@@ -672,4 +672,50 @@ export type ProductionReportData = {
     details: (ProductionOrder & { completionDate: string | null })[];
 }
 
-    
+// --- User Preferences ---
+export type UserPreferences = {
+    [key: string]: any;
+};
+
+// --- Cost Assistant Types ---
+export type CostAssistantLine = {
+    id: string; // Unique ID for the line, e.g., `${invoiceKey}-${lineNumber}`
+    invoiceKey: string;
+    lineNumber: number;
+    cabysCode: string;
+    supplierCode: string;
+    supplierCodeType: string;
+    description: string;
+    quantity: number;
+    unitCostWithTax: number; // Cost per unit with tax, in local currency (CRC)
+    unitCostWithoutTax: number; // Cost per unit without tax, in local currency (CRC)
+    taxRate: number; // e.g., 0.13
+    taxCode: string; // e.g., '08' for 13%
+    margin: number; // Profit margin, e.g., 0.20 for 20%
+    displayMargin: string; // The string value of the margin for the input
+    sellPriceWithoutTax: number;
+    finalSellPrice: number;
+    profitPerLine: number;
+    supplierName: string;
+};
+
+export type ProcessedInvoiceInfo = {
+    supplierName: string;
+    invoiceNumber: string;
+    invoiceDate: string;
+    status: 'success' | 'error';
+    errorMessage?: string;
+};
+
+export type CostAnalysisDraft = {
+    id: string;
+    userId: string;
+    name: string;
+    createdAt: string;
+    lines: CostAssistantLine[];
+    globalCosts: {
+        transportCost: number;
+        otherCosts: number;
+    };
+    processedInvoices: ProcessedInvoiceInfo[];
+};

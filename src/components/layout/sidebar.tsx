@@ -31,6 +31,7 @@ import {
   Search,
   PackagePlus,
   BarChartBig,
+  Calculator,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -127,6 +128,15 @@ export function AppSidebar() {
       icon: CalendarCheck,
       bgColor: "bg-purple-500",
       textColor: "text-white",
+    },
+    {
+      id: 'cost-assistant',
+      name: 'Asistente de Costos',
+      description: 'Calcular costos y precios a partir de facturas XML.',
+      href: '/dashboard/cost-assistant',
+      icon: Calculator,
+      bgColor: 'bg-orange-500',
+      textColor: 'text-white',
     },
     {
       id: "warehouse",
