@@ -719,3 +719,19 @@ export type CostAnalysisDraft = {
     };
     processedInvoices: ProcessedInvoiceInfo[];
 };
+
+export type CostAssistantSettings = {
+    columnVisibility: {
+        cabysCode: boolean;
+        supplierCode: boolean;
+        description: boolean;
+        quantity: boolean;
+        unitCostWithoutTax: boolean;
+        unitCostWithTax: boolean;
+        taxRate: boolean;
+        margin: boolean;
+        sellPriceWithoutTax: boolean;
+        finalSellPrice: boolean;
+        profitPerLine: boolean;
+    }
+};

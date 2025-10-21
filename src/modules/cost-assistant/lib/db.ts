@@ -6,25 +6,9 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { CostAnalysisDraft } from '@/modules/core/types';
+import type { CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
 
-export const COST_ASSISTANT_DB_FILE = 'cost_assistant.db';
-
-export type CostAssistantSettings = {
-    columnVisibility: {
-        cabysCode: boolean;
-        supplierCode: boolean;
-        description: boolean;
-        quantity: boolean;
-        unitCostWithoutTax: boolean;
-        unitCostWithTax: boolean;
-        taxRate: boolean;
-        margin: boolean;
-        sellPriceWithoutTax: boolean;
-        finalSellPrice: boolean;
-        profitPerLine: boolean;
-    }
-};
+const COST_ASSISTANT_DB_FILE = 'cost_assistant.db';
 
 const defaultSettings: CostAssistantSettings = {
     columnVisibility: {
@@ -64,7 +48,10 @@ export async function getCostAssistantSettings(): Promise<CostAssistantSettings>
     try {
         const row = db.prepare(`SELECT value FROM settings WHERE key = 'columnVisibility'`).get() as { value: string } | undefined;
         if (row) {
-            return { columnVisibility: JSON.parse(row.value) };
+            const parsedValue = JSON.parse(row.value);
+            // Ensure all keys from default settings are present
+            const completeVisibility = { ...defaultSettings.columnVisibility, ...parsedValue };
+            return { columnVisibility: completeVisibility };
         }
     } catch (error) {
         console.error("Error getting cost assistant settings, returning default.", error);
