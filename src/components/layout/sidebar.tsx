@@ -264,7 +264,7 @@ export function AppSidebar() {
             </div>
           </div>
            <div className="text-center text-xs text-sidebar-foreground/50 p-2 group-data-[collapsible=icon]:hidden">
-                Clic-Tools v1.5 - ClicSoporte
+                Clic-Tools v1.6.0 - ClicSoporte
            </div>
         </SidebarFooter>
       </Sidebar>
