@@ -27,7 +27,7 @@ export default function CostAssistantPage() {
         actions,
     } = useCostAssistant();
 
-    const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    const { getRootProps, getInputProps, open } = useDropzone({
         onDrop: actions.handleFilesDrop,
         accept: { 'text/xml': ['.xml'] },
         multiple: true,
@@ -57,7 +57,8 @@ export default function CostAssistantPage() {
                             <CardTitle>Asistente de Costos y Precios</CardTitle>
                             <CardDescription>Carga facturas XML para extraer artículos, añadir costos y calcular precios de venta.</CardDescription>
                         </div>
-                         <div className="flex items-center gap-2 flex-wrap">
+                         <div {...getRootProps()} className="flex items-center gap-2 flex-wrap">
+                             <input {...getInputProps()} />
                              <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
@@ -75,6 +76,14 @@ export default function CostAssistantPage() {
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
+                            <Button variant="outline" onClick={open} disabled={state.isProcessing}>
+                                {state.isProcessing ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <UploadCloud className="mr-2 h-4 w-4" />
+                                )}
+                                Cargar Facturas XML
+                            </Button>
                             <Sheet onOpenChange={(open) => open && actions.loadDrafts()}>
                                 <SheetTrigger asChild>
                                     <Button variant="outline"><FolderClock className="mr-2 h-4 w-4"/>Cargar Borradores</Button>
@@ -184,51 +193,37 @@ export default function CostAssistantPage() {
                                 </Card>
                             </div>
                             <div className="lg:col-span-2 space-y-4">
-                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                     <Card>
-                                        <CardHeader>
-                                            <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" />Facturas Procesadas</CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <ScrollArea className="h-40">
-                                                {state.processedInvoices.length > 0 ? (
-                                                    <ul className="space-y-3 text-sm">
-                                                        {state.processedInvoices.map((invoice, index) => (
-                                                            <li key={index} className="border-b pb-2">
-                                                                <div className="flex justify-between items-start">
-                                                                    <div className="flex-1 pr-2">
-                                                                        <p className="font-semibold text-muted-foreground">{invoice.invoiceNumber}</p>
-                                                                        <p>{invoice.supplierName}</p>
-                                                                        <p className="text-xs text-muted-foreground">{isValid(parseISO(invoice.invoiceDate)) ? format(parseISO(invoice.invoiceDate), 'dd/MM/yyyy') : 'Fecha Inválida'}</p>
-                                                                    </div>
-                                                                    <div className={cn("flex items-center gap-1 text-xs font-medium", invoice.status === 'success' ? 'text-green-600' : 'text-red-600')}>
-                                                                        {invoice.status === 'success' ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                                                                        <span>{invoice.status === 'success' ? 'Éxito' : 'Error'}</span>
-                                                                    </div>
-                                                                </div>
-                                                                {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                ) : (
-                                                    <p className="text-sm text-center text-muted-foreground h-full flex items-center justify-center">Aún no se han cargado facturas.</p>
-                                                )}
-                                            </ScrollArea>
-                                        </CardContent>
-                                    </Card>
-                                    <div {...getRootProps()} className={cn('flex flex-col items-center justify-center space-y-2 p-4 border-2 border-dashed rounded-lg transition-colors h-full min-h-[140px]', isDragActive && 'border-primary bg-primary/10')}>
-                                        <input {...getInputProps()} />
-                                        <Button type="button" onClick={open} disabled={state.isProcessing}>
-                                            {state.isProcessing ? (
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <UploadCloud className="mr-2 h-4 w-4" />
-                                            )}
-                                            Cargar Facturas XML
-                                        </Button>
-                                        <p className="text-xs text-muted-foreground">o arrastra los archivos aquí</p>
-                                    </div>
-                               </div>
+                               <Card>
+                                  <CardHeader>
+                                      <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" />Facturas Procesadas</CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                      <ScrollArea className="h-40">
+                                          {state.processedInvoices.length > 0 ? (
+                                              <ul className="space-y-3 text-sm">
+                                                  {state.processedInvoices.map((invoice, index) => (
+                                                      <li key={index} className="border-b pb-2">
+                                                          <div className="flex justify-between items-start">
+                                                              <div className="flex-1 pr-2">
+                                                                  <p className="font-semibold text-muted-foreground">{invoice.invoiceNumber}</p>
+                                                                  <p>{invoice.supplierName}</p>
+                                                                  <p className="text-xs text-muted-foreground">{isValid(parseISO(invoice.invoiceDate)) ? format(parseISO(invoice.invoiceDate), 'dd/MM/yyyy') : 'Fecha Inválida'}</p>
+                                                              </div>
+                                                              <div className={cn("flex items-center gap-1 text-xs font-medium", invoice.status === 'success' ? 'text-green-600' : 'text-red-600')}>
+                                                                  {invoice.status === 'success' ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                                                                  <span>{invoice.status === 'success' ? 'Éxito' : 'Error'}</span>
+                                                              </div>
+                                                          </div>
+                                                          {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
+                                                      </li>
+                                                  ))}
+                                              </ul>
+                                          ) : (
+                                              <p className="text-sm text-center text-muted-foreground h-full flex items-center justify-center">Aún no se han cargado facturas.</p>
+                                          )}
+                                      </ScrollArea>
+                                  </CardContent>
+                              </Card>
                             </div>
                         </div>
                     </CardContent>
