@@ -38,9 +38,9 @@ export default function CostAssistantPage() {
         { id: 'supplierCode', label: 'Cód. Artículo', defaultVisible: true, className: 'min-w-[150px]' },
         { id: 'description', label: 'Descripción', defaultVisible: true, className: 'min-w-[400px]' },
         { id: 'quantity', label: 'Cant.', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-right' },
-        { id: 'unitCostWithoutTax', label: 'Costo Unit. (s/IVA)', defaultVisible: true, className: 'min-w-[180px] text-right', tooltip: 'Costo por unidad sin impuestos después de prorratear costos adicionales.' },
+        { id: 'unitCostWithoutTax', label: 'Costo Unit. (s/IVA)', defaultVisible: true, className: 'w-[180px] min-w-[180px] text-right', tooltip: 'Costo por unidad sin impuestos después de prorratear costos adicionales.' },
         { id: 'unitCostWithTax', label: 'Costo Unit. (c/IVA)', defaultVisible: false, className: 'min-w-[180px] text-right' },
-        { id: 'taxRate', label: 'Imp. %', defaultVisible: true, className: 'min-w-[80px] text-center' },
+        { id: 'taxRate', label: 'Imp. %', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-center' },
         { id: 'margin', label: 'Margen', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-right' },
         { id: 'sellPriceWithoutTax', label: 'P.V.P Unitario (s/IVA)', defaultVisible: true, className: 'min-w-[180px] text-right', tooltip: 'Precio de Venta al Público por unidad, sin impuestos.' },
         { id: 'finalSellPrice', label: 'P.V.P Unitario Sugerido', defaultVisible: true, className: 'min-w-[180px] text-right', tooltip: 'Precio de Venta al Público final por unidad (con IVA incluido).' },
@@ -317,9 +317,20 @@ export default function CostAssistantPage() {
                                             {state.columnVisibility.supplierCode && <TableCell className={columns.find(c=>c.id === 'supplierCode')?.className}><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
                                             {state.columnVisibility.description && <TableCell className={columns.find(c=>c.id === 'description')?.className}><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0"/></TableCell>}
                                             {state.columnVisibility.quantity && <TableCell className={columns.find(c=>c.id === 'quantity')?.className}><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>}
-                                            {state.columnVisibility.unitCostWithoutTax && <TableCell className={cn(columns.find(c=>c.id === 'unitCostWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.unitCostWithoutTax)}</TableCell>}
+                                            {state.columnVisibility.unitCostWithoutTax && <TableCell className={cn(columns.find(c=>c.id === 'unitCostWithoutTax')?.className, "font-mono")}><Input type="text" value={line.displayUnitCost} onChange={(e) => actions.updateLine(line.id, { displayUnitCost: e.target.value })} onBlur={(e) => actions.handleUnitCostBlur(line.id, e.target.value)} className="h-auto p-1 border-0 text-right" /></TableCell>}
                                             {state.columnVisibility.unitCostWithTax && <TableCell className={cn(columns.find(c=>c.id === 'unitCostWithTax')?.className, "font-mono")}>{actions.formatCurrency(line.unitCostWithTax)}</TableCell>}
-                                            {state.columnVisibility.taxRate && <TableCell className={cn(columns.find(c=>c.id === 'taxRate')?.className, "font-mono text-xs")}>{`${(line.taxRate * 100).toFixed(0)}%`}</TableCell>}
+                                            {state.columnVisibility.taxRate && <TableCell className={columns.find(c=>c.id === 'taxRate')?.className}>
+                                                    <div className="relative">
+                                                        <Input 
+                                                            type="text" 
+                                                            value={line.displayTaxRate}
+                                                            onChange={(e) => actions.updateLine(line.id, { displayTaxRate: e.target.value })}
+                                                            onBlur={(e) => actions.handleTaxRateBlur(line.id, e.target.value)}
+                                                            className="h-auto p-1 border-0 text-right pr-6" 
+                                                        />
+                                                        <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
+                                                    </div>
+                                                </TableCell>}
                                             {state.columnVisibility.margin && 
                                                 <TableCell className={columns.find(c=>c.id === 'margin')?.className}>
                                                     <div className="relative">

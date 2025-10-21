@@ -7,7 +7,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft } from '@/modules/core/types';
+import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
 import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings, getAllDrafts, saveDraft, deleteDraft, exportForERP, cleanupExportFile } from '../lib/actions';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -26,7 +26,7 @@ const parseDecimal = (str: any): number => {
 };
 
 
-const initialColumnVisibility = {
+const initialColumnVisibility: CostAssistantSettings['columnVisibility'] = {
     cabysCode: true,
     supplierCode: true,
     description: true,
@@ -67,13 +67,14 @@ export const useCostAssistant = () => {
     useEffect(() => {
         setTitle("Asistente de Costos");
         const loadSettings = async () => {
-            const settings = await getCostAssistantSettings();
-            // Ensure all keys from initialVisibility are present
-            const completeVisibility = { ...initialColumnVisibility, ...settings.columnVisibility };
-            setState(prevState => ({ ...prevState, columnVisibility: completeVisibility }));
+            if (user) {
+                const settings = await getCostAssistantSettings(user.id);
+                const completeVisibility = { ...initialColumnVisibility, ...settings.columnVisibility };
+                setState(prevState => ({ ...prevState, columnVisibility: completeVisibility }));
+            }
         };
         loadSettings();
-    }, [setTitle]);
+    }, [setTitle, user]);
 
     const updateLine = (id: string, updatedFields: Partial<CostAssistantLine>) => {
         setState(prevState => ({
@@ -107,6 +108,9 @@ export const useCostAssistant = () => {
                 ...line,
                 displayMargin: "20",
                 margin: 0.20,
+                displayTaxRate: (line.taxRate * 100).toFixed(0),
+                displayUnitCost: line.unitCostWithoutTax.toFixed(4),
+                isCostEdited: false,
                 finalSellPrice: 0, // Will be calculated by useMemo
                 profitPerLine: 0, // Will be calculated by useMemo
                 sellPriceWithoutTax: 0,
@@ -143,6 +147,23 @@ export const useCostAssistant = () => {
         });
     };
 
+    const handleTaxRateBlur = (lineId: string, displayValue: string) => {
+        const numericValue = parseDecimal(displayValue);
+        updateLine(lineId, {
+            taxRate: numericValue / 100,
+            displayTaxRate: String(numericValue)
+        });
+    };
+
+    const handleUnitCostBlur = (lineId: string, displayValue: string) => {
+        const numericValue = parseDecimal(displayValue);
+        updateLine(lineId, {
+            unitCostWithoutTax: numericValue,
+            displayUnitCost: String(numericValue),
+            isCostEdited: true, // Mark as manually edited
+        });
+    };
+
     const formatCurrency = (amount: number) => {
         return `¢${amount.toLocaleString("es-CR", {
           minimumFractionDigits: 2,
@@ -161,8 +182,9 @@ export const useCostAssistant = () => {
     };
 
     const handleSaveColumnVisibility = async () => {
+        if (!user) return;
         try {
-            await saveCostAssistantSettings({ columnVisibility: state.columnVisibility });
+            await saveCostAssistantSettings(user.id, { columnVisibility: state.columnVisibility });
             toast({ title: "Preferencia Guardada", description: "La visibilidad de las columnas ha sido guardada." });
         } catch (error: any) {
             logError("Failed to save column visibility", { error: error.message });
@@ -275,13 +297,21 @@ export const useCostAssistant = () => {
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
 
         return state.lines.map(line => {
-            const proportionalAdditionalCostPerUnit = totalItems > 0 && line.quantity > 0 ? (totalAdditionalCosts / totalItems) : 0;
-            const finalUnitCost = line.unitCostWithoutTax + proportionalAdditionalCostPerUnit;
+            const proportionalAdditionalCostPerUnit = (totalItems > 0 && line.quantity > 0) ? (totalAdditionalCosts / totalItems) : 0;
+            const finalUnitCost = line.isCostEdited ? line.unitCostWithoutTax : line.xmlUnitCost + proportionalAdditionalCostPerUnit;
+            
             const sellPriceWithoutTax = finalUnitCost / (1 - line.margin);
             const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
             const profitPerLine = (sellPriceWithoutTax - finalUnitCost) * line.quantity;
 
-            return { ...line, finalSellPrice, sellPriceWithoutTax, profitPerLine, unitCostWithoutTax: finalUnitCost };
+            return {
+                ...line,
+                unitCostWithoutTax: finalUnitCost,
+                displayUnitCost: String(finalUnitCost.toFixed(4)),
+                finalSellPrice,
+                sellPriceWithoutTax,
+                profitPerLine,
+            };
         });
     }, [state.lines, state.transportCost, state.otherCosts]);
     
@@ -309,6 +339,8 @@ export const useCostAssistant = () => {
         removeLine,
         updateLine,
         handleMarginBlur,
+        handleTaxRateBlur,
+        handleUnitCostBlur,
         formatCurrency,
         handleClear,
         setTransportCost: (cost: number) => setState(prevState => ({ ...prevState, transportCost: cost })),

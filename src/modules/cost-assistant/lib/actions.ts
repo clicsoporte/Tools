@@ -6,12 +6,13 @@
 'use server';
 
 import { XMLParser } from 'fast-xml-parser';
-import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft } from '@/modules/core/types';
-import { getCostAssistantSettings as getCostAssistantSettingsServer, saveCostAssistantSettings as saveCostAssistantSettingsServer, type CostAssistantSettings, getAllDrafts as getAllDraftsServer, saveDraft as saveDraftServer, deleteDraft as deleteDraftServer } from './db';
+import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
+import { getCostAssistantSettings as getCostAssistantSettingsServer, saveCostAssistantSettings as saveCostAssistantSettingsServer, getAllDrafts as getAllDraftsServer, saveDraft as saveDraftServer, deleteDraft as deleteDraftServer } from './db';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import * as XLSX from 'xlsx';
 import path from 'path';
 import fs from 'fs';
+import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 
 // Helper to get a value from a potentially nested object
 const getValue = (obj: any, path: string[], defaultValue: any = '') => {
@@ -156,10 +157,14 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             quantity: cantidad,
             unitCostWithTax: unitCostWithTaxInColones,
             unitCostWithoutTax: unitCostWithoutTaxInColones,
+            xmlUnitCost: unitCostWithoutTaxInColones, // Store original cost
             taxRate: taxRate,
             taxCode: taxCode,
             displayMargin: "20",
             margin: 0.20,
+            displayTaxRate: (taxRate * 100).toFixed(0),
+            displayUnitCost: unitCostWithoutTaxInColones.toFixed(4),
+            isCostEdited: false,
             finalSellPrice: 0, // Calculated in the frontend
             profitPerLine: 0, // Calculated in the frontend
             sellPriceWithoutTax: 0, // Calculated in the frontend
@@ -209,13 +214,13 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
     return JSON.parse(JSON.stringify({ lines: allLines, processedInvoices }));
 }
 
-export async function getCostAssistantSettings(): Promise<CostAssistantSettings> {
-    const settings = await getCostAssistantSettingsServer();
-    return JSON.parse(JSON.stringify(settings));
+export async function getCostAssistantSettings(userId: number): Promise<CostAssistantSettings> {
+    const settings = await getUserPreferences(userId, 'costAssistantSettings');
+    return settings ? settings : { columnVisibility: {} };
 }
 
-export async function saveCostAssistantSettings(settings: CostAssistantSettings): Promise<void> {
-    return saveCostAssistantSettingsServer(settings);
+export async function saveCostAssistantSettings(userId: number, settings: CostAssistantSettings): Promise<void> {
+    return saveUserPreferences(userId, 'costAssistantSettings', settings);
 }
 
 export async function getAllDrafts(userId: string): Promise<CostAnalysisDraft[]> {

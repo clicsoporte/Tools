@@ -687,12 +687,16 @@ export type CostAssistantLine = {
     supplierCodeType: string;
     description: string;
     quantity: number;
+    xmlUnitCost: number; // Cost from XML, before prorating
     unitCostWithTax: number; // Cost per unit with tax, in local currency (CRC)
-    unitCostWithoutTax: number; // Cost per unit without tax, in local currency (CRC)
+    unitCostWithoutTax: number; // Cost per unit without tax, in local currency (CRC), after prorating/editing
     taxRate: number; // e.g., 0.13
     taxCode: string; // e.g., '08' for 13%
     margin: number; // Profit margin, e.g., 0.20 for 20%
-    displayMargin: string; // The string value of the margin for the input
+    displayMargin: string;
+    displayTaxRate: string;
+    displayUnitCost: string;
+    isCostEdited: boolean;
     sellPriceWithoutTax: number;
     finalSellPrice: number;
     profitPerLine: number;
