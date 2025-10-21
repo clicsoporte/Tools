@@ -93,7 +93,7 @@ function HeaderActions() {
     return (
         <>
             {exchangeRateData.rate && (
-                <div className="hidden items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg md:flex">
+                <div className="hidden items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg sm:flex">
                     <DollarSign className="h-4 w-4"/>
                     <span>TC Venta: <strong>{exchangeRateData.rate.toLocaleString('es-CR')}</strong></span>
                     <span className="text-xs hidden md:inline">({exchangeRateData.date})</span>
@@ -104,17 +104,17 @@ function HeaderActions() {
             )}
             {companyData?.lastSyncTimestamp && (
                 <>
-                    <div className={cn("hidden items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg md:flex", isSyncOld && "text-red-500 font-medium border-red-500/50 bg-red-50")}>
+                    <div className={cn("hidden items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg sm:flex", isSyncOld && "text-red-500 font-medium border-red-500/50 bg-red-50")}>
                         <Clock className="h-4 w-4" />
                         <span>Última Sinc: <strong>{format(parseISO(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}</strong></span>
                     </div>
-                    <Button onClick={handleFullSync} disabled={isSyncing || !hasPermission('admin:import:run')} size="sm" variant="outline" className={cn("hidden md:inline-flex", isSyncOld && "border-red-500/50 bg-red-50 text-red-500 animate-pulse")}>
+                    <Button onClick={handleFullSync} disabled={isSyncing || !hasPermission('admin:import:run')} size="sm" variant="outline" className={cn("hidden lg:inline-flex", isSyncOld && "border-red-500/50 bg-red-50 text-red-500 animate-pulse")}>
                         {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         <span>Sincronizar ERP</span>
                     </Button>
-                     <Button onClick={handleFullSync} disabled={isSyncing || !hasPermission('admin:import:run')} size="sm" variant="outline" className={cn("md:hidden", isSyncOld && "border-red-500/50 bg-red-50 text-red-500 animate-pulse")}>
+                     <Button onClick={handleFullSync} disabled={isSyncing || !hasPermission('admin:import:run')} size="sm" variant="outline" className={cn("lg:hidden", isSyncOld && "border-red-500/50 bg-red-50 text-red-500 animate-pulse")}>
                         {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                        <span>{format(parseISO(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}</span>
+                        <span className='sm:hidden'>{format(parseISO(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}</span>
                     </Button>
                 </>
             )}

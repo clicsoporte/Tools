@@ -126,7 +126,7 @@ export default function PlannerPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-4 pt-0 flex-grow">
-                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-6 text-sm">
+                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6 text-sm">
                         <div className="space-y-1">
                             <p className="font-semibold text-muted-foreground">Estado Actual</p>
                             <div className="flex items-center gap-2">
