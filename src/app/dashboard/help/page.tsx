@@ -665,7 +665,7 @@ export default function HelpPage() {
                 <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                 <ul className="list-disc space-y-3 pl-6">
                      <li>
-                        <strong>Nuevo Módulo Mayor: Asistente de Costos y Precios.</strong> Permite cargar facturas XML de compras, prorratear costos adicionales (transporte, aduanas) y calcular precios de venta con márgenes de ganancia. Incluye la capacidad de guardar y cargar borradores de análisis y exportar los nuevos precios a Excel para el ERP.
+                        <strong>Nuevo Módulo Mayor: Asistente de Costos.</strong> Permite cargar facturas XML de compras, prorratear costos adicionales (transporte, aduanas) y calcular precios de venta con márgenes de ganancia. Incluye la capacidad de guardar y cargar borradores de análisis y exportar los nuevos precios a Excel para el ERP.
                     </li>
                     <li>
                         <strong>Mejora Mayor en Filtros:</strong> Se estandarizaron todos los filtros de selección múltiple y de columnas a una ventana modal (popup) con buscador y checkboxes, solucionando definitivamente los problemas de scroll y mejorando la usabilidad en todo el sistema.
@@ -746,7 +746,7 @@ export default function HelpPage() {
                     </div>
                 </div>
                 <div className="relative mt-6">
-                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input 
                         placeholder="Escribe para buscar en la ayuda (ej: 'cotizacion', 'importar', 'resetear')..."
                         className="w-full pl-10 h-12 text-base"
