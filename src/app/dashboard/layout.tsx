@@ -43,16 +43,23 @@ export default function DashboardLayout({
   const [isVerified, setIsVerified] = useState(false);
 
   useEffect(() => {
+    // This effect is the single source of truth for session verification.
+    // It waits until the auth state is fully resolved (isLoading is false).
     if (!isLoading) {
       if (user) {
+        // If there's a user, we can safely show the dashboard.
         setIsVerified(true);
       } else {
-        // If there's no user after loading, redirect to the login page.
+        // If there's no user after loading, it means the session is invalid.
+        // Redirect to the login page. This is the only place this redirect happens.
         router.replace('/');
       }
     }
   }, [isLoading, user, router]);
 
+  // While waiting for the initial check, show a global loading screen.
+  // We use `!isVerified` which covers both the initial `isLoading` state
+  // and the brief moment before the redirect happens if the user is not authenticated.
   if (!isVerified) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -61,6 +68,7 @@ export default function DashboardLayout({
     );
   }
 
+  // Once verified, render the full dashboard layout.
   return (
       <PageTitleProvider initialTitle="Panel">
         <SidebarProvider>
