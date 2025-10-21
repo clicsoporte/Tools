@@ -10,6 +10,26 @@ import type { CostAnalysisDraft } from '@/modules/core/types';
 
 const COST_ASSISTANT_DB_FILE = 'cost_assistant.db';
 
+/**
+ * Initializes the database for the Cost Assistant module.
+ * This function is called automatically when the DB is first created.
+ * @param db - The database instance.
+ */
+export async function initializeCostAssistantDb(db: import('better-sqlite3').Database) {
+    const schema = `
+        CREATE TABLE IF NOT EXISTS drafts (
+            id TEXT PRIMARY KEY,
+            userId INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            data TEXT NOT NULL
+        );
+    `;
+    db.exec(schema);
+    console.log(`Database ${COST_ASSISTANT_DB_FILE} initialized for Cost Assistant.`);
+}
+
+
 export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]> {
     const db = await connectDb(COST_ASSISTANT_DB_FILE);
     try {
