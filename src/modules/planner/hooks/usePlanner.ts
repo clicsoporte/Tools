@@ -31,7 +31,7 @@ import type { RowInput } from 'jspdf-autotable';
 import { addNoteToOrder as addNoteServer } from '@/modules/planner/lib/actions';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'shiftId'> = {
     deliveryDate: '',
     customerId: '',
     customerName: '',
@@ -115,6 +115,7 @@ export const usePlanner = () => {
         isAddNoteDialogOpen: false,
         notePayload: null as { orderId: number; notes: string } | null,
         isActionDialogOpen: false,
+        activeOrdersForSelectedProduct: [] as ProductionOrder[], // For duplicate check
     });
     
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, authCompanyData?.searchDebounceTime ?? 500);
@@ -220,7 +221,7 @@ export const usePlanner = () => {
     }, [hasPermission, state.plannerSettings]);
     
     const actions = {
-        setNewOrderDialogOpen: (isOpen: boolean) => updateState({ isNewOrderDialogOpen: isOpen }),
+        setNewOrderDialogOpen: (isOpen: boolean) => updateState({ isNewOrderDialogOpen: isOpen, activeOrdersForSelectedProduct: [] }),
         setEditOrderDialogOpen: (isOpen: boolean) => updateState({ isEditOrderDialogOpen: isOpen }),
         setViewingArchived: (isArchived: boolean) => updateState({ viewingArchived: isArchived, archivedPage: 0 }),
         setArchivedPage: (pageUpdate: (page: number) => number) => updateState({ archivedPage: pageUpdate(state.archivedPage) }),
@@ -245,7 +246,10 @@ export const usePlanner = () => {
         setDateFilter: (range: DateRange | undefined) => updateState({ dateFilter: range }),
         setCustomerSearchTerm: (term: string) => updateState({ customerSearchTerm: term }),
         setCustomerSearchOpen: (isOpen: boolean) => updateState({ isCustomerSearchOpen: isOpen }),
-        setProductSearchTerm: (term: string) => updateState({ productSearchTerm: term }),
+        setProductSearchTerm: (term: string) => {
+            updateState({ productSearchTerm: term });
+            if (!term) updateState({ activeOrdersForSelectedProduct: [] });
+        },
         setProductSearchOpen: (isOpen: boolean) => updateState({ isProductSearchOpen: isOpen }),
         setStatusDialogOpen: (isOpen: boolean) => updateState({ isStatusDialogOpen: isOpen }),
         setNewStatus: (status: ProductionOrderStatus | null) => updateState({ newStatus: status }),
@@ -276,7 +280,8 @@ export const usePlanner = () => {
                     newOrder: { ...emptyOrder, deliveryDate: new Date().toISOString().split('T')[0] },
                     customerSearchTerm: '',
                     productSearchTerm: '',
-                    activeOrders: [...prevState.activeOrders, createdOrder]
+                    activeOrders: [...prevState.activeOrders, createdOrder],
+                    activeOrdersForSelectedProduct: [],
                 }));
             } catch (error: any) {
                 logError("Failed to create order", { error: error.message });
@@ -467,7 +472,7 @@ export const usePlanner = () => {
         },
 
         handleSelectProduct: (value: string) => {
-            updateState({ isProductSearchOpen: false });
+            updateState({ isProductSearchOpen: false, activeOrdersForSelectedProduct: [] });
             const product = products.find(p => p.id === value);
             if (product) {
                 const stock = stockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
@@ -479,6 +484,9 @@ export const usePlanner = () => {
                     inventory: stock,
                 };
 
+                const existingActive = state.activeOrders.filter(o => o.productId === product.id);
+                updateState({ activeOrdersForSelectedProduct: existingActive });
+
                 if (state.orderToEdit) {
                     actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
                 } else {
@@ -486,6 +494,8 @@ export const usePlanner = () => {
                 }
 
                 updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
+            } else {
+                 updateState({ productSearchTerm: '' });
             }
         },
     
@@ -500,6 +510,8 @@ export const usePlanner = () => {
                     updateState({ newOrder: { ...state.newOrder, ...dataToUpdate }});
                 }
                 updateState({ customerSearchTerm: `[${customer.id}] ${customer.name} (${customer.taxId})` });
+            } else {
+                updateState({ customerSearchTerm: '' });
             }
         },
 

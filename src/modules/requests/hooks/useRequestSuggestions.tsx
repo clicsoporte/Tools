@@ -42,7 +42,7 @@ export interface PurchaseSuggestion {
     erpUsers: string[];
     earliestCreationDate: string | null;
     earliestDueDate: string | null;
-    existingActiveRequests: { id: number; consecutive: string, status: string, quantity: number }[];
+    existingActiveRequests: { id: number; consecutive: string, status: string, quantity: number, purchaseOrder?: string, erpOrderNumber?: string }[];
 }
 
 export type SortKey = keyof Pick<PurchaseSuggestion, 'earliestCreationDate' | 'earliestDueDate' | 'shortage' | 'totalRequired' | 'currentStock'> | 'item';
@@ -183,7 +183,7 @@ export function useRequestSuggestions() {
         });
 
         return filtered;
-    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter, state.showOnlyMyOrders, currentUser?.erpAlias, state.sortKey, state.sortDirection]);
+    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter, state.showOnlyMyOrders, currentUser, state.sortKey, state.sortDirection]);
 
     const toggleItemSelection = (itemId: string) => {
         const item = state.suggestions.find(s => s.itemId === itemId);

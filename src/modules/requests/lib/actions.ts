@@ -181,9 +181,9 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
         const currentStock = stockInfo?.totalStock ?? 0;
         
         const existingActiveRequests = allActiveRequests.filter(r => r.itemId === itemId);
-        const quantityInActiveRequests = existingActiveRequests.reduce((sum, r) => sum + r.quantity, 0);
-
-        const shortage = data.totalRequired - (currentStock + quantityInActiveRequests);
+        
+        // Let's adjust shortage calculation to NOT consider active requests yet. The hook will do that.
+        const shortage = data.totalRequired - currentStock;
 
         if (shortage > 0) {
             const productInfo = allProducts.find(p => p.id === itemId);
@@ -211,4 +211,3 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
 
     return suggestions.sort((a, b) => b.shortage - a.shortage);
 }
-```
