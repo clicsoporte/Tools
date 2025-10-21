@@ -32,16 +32,19 @@ export interface PurchaseSuggestion {
     earliestDueDate: string | null;
 }
 
+type SortKey = keyof Pick<PurchaseSuggestion, 'earliestCreationDate' | 'earliestDueDate' | 'shortage'> | 'item';
+type SortDirection = 'asc' | 'desc';
+
 const availableColumns = [
-    { id: 'item', label: 'Artículo', tooltip: 'Código y descripción del artículo con faltante de inventario.' },
+    { id: 'item', label: 'Artículo', tooltip: 'Código y descripción del artículo con faltante de inventario.', sortable: true },
     { id: 'sourceOrders', label: 'Pedidos Origen', tooltip: 'Números de pedido del ERP que requieren este artículo.' },
     { id: 'clients', label: 'Clientes Involucrados', tooltip: 'Lista de todos los clientes de los pedidos analizados que están esperando este artículo.' },
     { id: 'erpUsers', label: 'Usuario ERP', tooltip: 'Usuario que creó el pedido en el sistema ERP.' },
-    { id: 'creationDate', label: 'Fecha Pedido', tooltip: 'La fecha de creación más temprana para este artículo entre todos los pedidos analizados.' },
-    { id: 'dueDate', label: 'Próxima Entrega', tooltip: 'La fecha de entrega más cercana para este artículo entre todos los pedidos analizados.' },
+    { id: 'creationDate', label: 'Fecha Pedido', tooltip: 'La fecha de creación más temprana para este artículo entre todos los pedidos analizados.', sortable: true, sortKey: 'earliestCreationDate' },
+    { id: 'dueDate', label: 'Próxima Entrega', tooltip: 'La fecha de entrega más cercana para este artículo entre todos los pedidos analizados.', sortable: true, sortKey: 'earliestDueDate' },
     { id: 'required', label: 'Cant. Requerida', tooltip: 'La suma total de este artículo requerida para cumplir con todos los pedidos en el rango de fechas.', align: 'right' },
     { id: 'stock', label: 'Inv. Actual (ERP)', tooltip: 'La cantidad total de este artículo disponible en todas las bodegas según la última sincronización del ERP.', align: 'right' },
-    { id: 'shortage', label: 'Faltante Total', tooltip: 'La cantidad que necesitas comprar para cubrir la demanda (Cant. Requerida - Inv. Actual).', align: 'right' },
+    { id: 'shortage', label: 'Faltante Total', tooltip: 'La cantidad que necesitas comprar para cubrir la demanda (Cant. Requerida - Inv. Actual).', align: 'right', sortable: true, sortKey: 'shortage' },
 ];
 
 
@@ -55,6 +58,8 @@ interface State {
     classificationFilter: string[];
     visibleColumns: string[];
     showOnlyMyOrders: boolean;
+    sortKey: SortKey;
+    sortDirection: SortDirection;
 }
 
 export function useRequestSuggestions() {
@@ -78,6 +83,8 @@ export function useRequestSuggestions() {
         classificationFilter: [],
         visibleColumns: availableColumns.map(c => c.id),
         showOnlyMyOrders: false,
+        sortKey: 'earliestCreationDate',
+        sortDirection: 'desc',
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, 500);
@@ -115,7 +122,7 @@ export function useRequestSuggestions() {
     }, [setTitle, isAuthorized]);
 
     const filteredSuggestions = useMemo(() => {
-        return state.suggestions.filter(item => {
+        let filtered = state.suggestions.filter(item => {
             const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
             
             const classificationMatch = state.classificationFilter.length > 0 ? state.classificationFilter.includes(item.itemClassification) : true;
@@ -136,7 +143,26 @@ export function useRequestSuggestions() {
             
             return searchTerms.every(term => targetText.includes(term));
         });
-    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter, state.showOnlyMyOrders, currentUser]);
+
+        // Sorting logic
+        filtered.sort((a, b) => {
+            const dir = state.sortDirection === 'asc' ? 1 : -1;
+            switch(state.sortKey) {
+                case 'item':
+                    return a.itemDescription.localeCompare(b.itemDescription) * dir;
+                case 'earliestCreationDate':
+                    return (new Date(a.earliestCreationDate || 0).getTime() - new Date(b.earliestCreationDate || 0).getTime()) * dir;
+                case 'earliestDueDate':
+                     return (new Date(a.earliestDueDate || 0).getTime() - new Date(b.earliestDueDate || 0).getTime()) * dir;
+                case 'shortage':
+                    return (a.shortage - b.shortage) * dir;
+                default:
+                    return 0;
+            }
+        });
+
+        return filtered;
+    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter, state.showOnlyMyOrders, currentUser, state.sortKey, state.sortDirection]);
 
     const toggleItemSelection = (itemId: string) => {
         updateState({
@@ -263,6 +289,18 @@ export function useRequestSuggestions() {
         });
     };
     
+    const handleSort = (key: SortKey) => {
+        let direction: SortDirection = 'asc';
+        if (state.sortKey === key && state.sortDirection === 'asc') {
+            direction = 'desc';
+        } else if (state.sortKey === key && state.sortDirection === 'desc') {
+            // Optional: cycle back to default sort
+            key = 'earliestCreationDate';
+            direction = 'desc';
+        }
+        updateState({ sortKey: key, sortDirection: direction });
+    };
+
     const selectors = {
         filteredSuggestions,
         selectedSuggestions,
@@ -292,6 +330,7 @@ export function useRequestSuggestions() {
         handleExportExcel,
         handleColumnVisibilityChange,
         setShowOnlyMyOrders: (show: boolean) => updateState({ showOnlyMyOrders: show }),
+        handleSort,
     };
 
     return {

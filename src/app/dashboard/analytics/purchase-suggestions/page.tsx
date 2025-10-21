@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
-import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart, FilterX, Search, FileSpreadsheet, Columns3 } from 'lucide-react';
+import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart, FilterX, Search, FileSpreadsheet, Columns3, ArrowUp, ArrowDown } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -36,7 +36,7 @@ export default function PurchaseSuggestionsPage() {
         isInitialLoading,
     } = useRequestSuggestions();
 
-    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter, visibleColumns, showOnlyMyOrders } = state;
+    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter, visibleColumns, showOnlyMyOrders, sortKey, sortDirection } = state;
 
     if (isInitialLoading) {
         return (
@@ -203,9 +203,14 @@ export default function PurchaseSuggestionsPage() {
                                                 disabled={isLoading || selectors.filteredSuggestions.length === 0}
                                             />
                                         </TableHead>
-                                        {selectors.visibleColumnsData.map((col: { id: string; label: string; tooltip: string; align?: string }) => (
-                                             <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right')}>
-                                                <Tooltip><TooltipTrigger>{col.label}</TooltipTrigger><TooltipContent>{col.tooltip}</TooltipContent></Tooltip>
+                                        {selectors.visibleColumnsData.map((col: { id: string; label: string; tooltip: string; sortable?: boolean; sortKey?: string; align?: string }) => (
+                                             <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right', col.sortable && 'cursor-pointer hover:bg-muted')} onClick={() => col.sortable && actions.handleSort(col.sortKey || col.id)}>
+                                                <Tooltip><TooltipTrigger className='flex items-center gap-2'>
+                                                    {col.label}
+                                                    {sortKey === (col.sortKey || col.id) && (
+                                                        sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                                                    )}
+                                                </TooltipTrigger><TooltipContent>{col.tooltip}</TooltipContent></Tooltip>
                                             </TableHead>
                                         ))}
                                     </TableRow>
