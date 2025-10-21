@@ -171,17 +171,19 @@ export default function PurchaseSuggestionsPage() {
                                         <Button variant="outline"><Columns3 className="mr-2 h-4 w-4"/> Columnas</Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Columnas Visibles</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        {selectors.availableColumns.map((column: { id: string; label: string }) => (
-                                            <DropdownMenuCheckboxItem
-                                                key={column.id}
-                                                checked={visibleColumns.includes(column.id)}
-                                                onCheckedChange={(checked) => actions.handleColumnVisibilityChange(column.id, checked as boolean)}
-                                            >
-                                                {column.label}
-                                            </DropdownMenuCheckboxItem>
-                                        ))}
+                                        <ScrollArea className='h-72'>
+                                            <DropdownMenuLabel>Columnas Visibles</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            {selectors.availableColumns.map((column: { id: string; label: string }) => (
+                                                <DropdownMenuCheckboxItem
+                                                    key={column.id}
+                                                    checked={visibleColumns.includes(column.id)}
+                                                    onCheckedChange={(checked) => actions.handleColumnVisibilityChange(column.id, checked as boolean)}
+                                                >
+                                                    {column.label}
+                                                </DropdownMenuCheckboxItem>
+                                            ))}
+                                        </ScrollArea>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                                 <Button onClick={actions.handleExportExcel} variant="outline" disabled={isLoading || selectors.filteredSuggestions.length === 0}>
