@@ -39,6 +39,7 @@ export default function PurchaseSuggestionsPage() {
     } = useRequestSuggestions();
 
     const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter, visibleColumns, showOnlyMyOrders, sortKey, sortDirection, itemsToCreate, isDuplicateConfirmOpen, currentPage, rowsPerPage } = state;
+    const { paginatedSuggestions } = selectors;
 
     if (isInitialLoading) {
         return (
