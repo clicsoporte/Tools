@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
-import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart, FilterX, Search, FileSpreadsheet, Columns3, ArrowUp, ArrowDown, Info } from 'lucide-react';
+import { Loader2, CalendarIcon, FilePlus, Layers, AlertCircle, ShoppingCart, FilterX, Search, FileSpreadsheet, Columns3, ArrowUp, ArrowDown, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 export default function PurchaseSuggestionsPage() {
@@ -37,7 +38,7 @@ export default function PurchaseSuggestionsPage() {
         isInitialLoading,
     } = useRequestSuggestions();
 
-    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter, visibleColumns, showOnlyMyOrders, sortKey, sortDirection, itemsToCreate, isDuplicateConfirmOpen } = state;
+    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter, visibleColumns, showOnlyMyOrders, sortKey, sortDirection, itemsToCreate, isDuplicateConfirmOpen, currentPage, rowsPerPage } = state;
 
     if (isInitialLoading) {
         return (
@@ -194,9 +195,9 @@ export default function PurchaseSuggestionsPage() {
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="h-[50vh] overflow-y-auto border rounded-md p-0">
+                    <CardContent className="border rounded-md p-0">
                         <Table>
-                            <TableHeader className="sticky top-0 bg-background z-10">
+                            <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-12">
                                         <Checkbox
@@ -224,8 +225,8 @@ export default function PurchaseSuggestionsPage() {
                                             <TableCell colSpan={selectors.visibleColumnsData.length + 1}><Skeleton className="h-8 w-full" /></TableCell>
                                         </TableRow>
                                     ))
-                                ) : selectors.filteredSuggestions.length > 0 ? (
-                                    selectors.filteredSuggestions.map((item: PurchaseSuggestion) => (
+                                ) : selectors.paginatedSuggestions.length > 0 ? (
+                                    selectors.paginatedSuggestions.map((item: PurchaseSuggestion) => (
                                         <TableRow key={item.itemId}>
                                             <TableCell>
                                                 <Checkbox
@@ -256,12 +257,34 @@ export default function PurchaseSuggestionsPage() {
                             </TableBody>
                         </Table>
                     </CardContent>
-                    <CardFooter>
-                        <Button onClick={() => actions.handleCreateRequests()} disabled={isSubmitting || selectors.selectedSuggestions.length === 0}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            <FilePlus className="mr-2 h-4 w-4" />
-                            Crear {selectors.selectedSuggestions.length > 0 ? `${selectors.selectedSuggestions.length} Solicitud(es)` : 'Solicitudes'}
-                        </Button>
+                    <CardFooter className="flex flex-col items-end gap-4 pt-4">
+                        <div className="flex w-full items-center justify-between">
+                            <Button onClick={() => actions.handleCreateRequests()} disabled={isSubmitting || selectors.selectedSuggestions.length === 0}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                <FilePlus className="mr-2 h-4 w-4" />
+                                Crear {selectors.selectedSuggestions.length > 0 ? `${selectors.selectedSuggestions.length} Solicitud(es)` : 'Solicitudes'}
+                            </Button>
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="rows-per-page">Filas por página:</Label>
+                                    <Select value={String(rowsPerPage)} onValueChange={(value) => actions.setRowsPerPage(Number(value))}>
+                                        <SelectTrigger id="rows-per-page" className="w-20"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {[5, 10, 25, 50, 100].map(size => <SelectItem key={size} value={String(size)}>{size}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <span className="text-sm text-muted-foreground">Página {currentPage + 1} de {selectors.totalPages}</span>
+                                <div className="flex items-center gap-2">
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => actions.setCurrentPage(currentPage - 1)} disabled={currentPage === 0}>
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => actions.setCurrentPage(currentPage + 1)} disabled={currentPage >= selectors.totalPages - 1}>
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
                     </CardFooter>
                 </Card>
             </TooltipProvider>
@@ -295,4 +318,3 @@ export default function PurchaseSuggestionsPage() {
         </main>
     );
 }
-

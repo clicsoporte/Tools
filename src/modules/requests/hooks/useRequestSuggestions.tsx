@@ -75,6 +75,8 @@ interface State {
     sortDirection: SortDirection;
     isDuplicateConfirmOpen: boolean;
     itemsToCreate: PurchaseSuggestion[];
+    currentPage: number;
+    rowsPerPage: number;
 }
 
 export function useRequestSuggestions() {
@@ -102,6 +104,8 @@ export function useRequestSuggestions() {
         sortDirection: 'desc',
         isDuplicateConfirmOpen: false,
         itemsToCreate: [],
+        currentPage: 0,
+        rowsPerPage: 5,
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, 500);
@@ -123,7 +127,7 @@ export function useRequestSuggestions() {
             logError("Failed to get purchase suggestions", { error: error.message });
             toast({ title: "Error al Analizar", description: error.message, variant: "destructive" });
         } finally {
-            updateState({ isLoading: false });
+            updateState({ isLoading: false, currentPage: 0 }); // Reset page on new analysis
             if (isInitialLoading) {
                 setIsInitialLoading(false);
             }
@@ -184,6 +188,13 @@ export function useRequestSuggestions() {
 
         return filtered;
     }, [state.suggestions, debouncedSearchTerm, state.classificationFilter, state.showOnlyMyOrders, currentUser, state.sortKey, state.sortDirection]);
+
+    const paginatedSuggestions = useMemo(() => {
+        const start = state.currentPage * state.rowsPerPage;
+        const end = start + state.rowsPerPage;
+        return filteredSuggestions.slice(start, end);
+    }, [filteredSuggestions, state.currentPage, state.rowsPerPage]);
+
 
     const toggleItemSelection = (itemId: string) => {
         const item = state.suggestions.find(s => s.itemId === itemId);
@@ -382,6 +393,8 @@ export function useRequestSuggestions() {
 
     const selectors = {
         filteredSuggestions,
+        paginatedSuggestions,
+        totalPages: useMemo(() => Math.ceil(filteredSuggestions.length / state.rowsPerPage), [filteredSuggestions, state.rowsPerPage]),
         selectedSuggestions,
         areAllSelected: useMemo(() => {
             if (filteredSuggestions.length === 0) return false;
@@ -414,6 +427,8 @@ export function useRequestSuggestions() {
         setShowOnlyMyOrders: (show: boolean) => updateState({ showOnlyMyOrders: show }),
         handleSort,
         setDuplicateConfirmOpen: (isOpen: boolean) => updateState({ isDuplicateConfirmOpen: isOpen }),
+        setCurrentPage: (page: number) => updateState({ currentPage: page }),
+        setRowsPerPage: (size: number) => updateState({ rowsPerPage: size, currentPage: 0 }),
     };
 
     return {
