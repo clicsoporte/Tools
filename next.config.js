@@ -17,9 +17,9 @@ const nextConfig = {
       bodySizeLimit: '50mb',
     },
   },
-  // Forcing a cache invalidation by toggling a setting
   typescript: {
-    // This setting is disabled to ensure type checking is enforced during build.
+    // This setting is explicitly set to false to ensure type checking is enforced
+    // during the build process and to help invalidate the Next.js build cache.
     ignoreBuildErrors: false, 
   },
 };
