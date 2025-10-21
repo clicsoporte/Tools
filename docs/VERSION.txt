@@ -1,1 +1,1 @@
-Clic-Tools v1.5.4 - Analytics Module & UX Improvements
+Clic-Tools v1.5.5 - Searchable Help & Usability Enhancements
