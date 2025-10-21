@@ -45,14 +45,14 @@ export interface PurchaseSuggestion {
     existingActiveRequests: { id: number; consecutive: string, status: string, quantity: number, purchaseOrder?: string, erpOrderNumber?: string }[];
 }
 
-export type SortKey = keyof Pick<PurchaseSuggestion, 'earliestCreationDate' | 'earliestDueDate' | 'shortage' | 'totalRequired' | 'currentStock'> | 'item';
+export type SortKey = keyof Pick<PurchaseSuggestion, 'earliestCreationDate' | 'earliestDueDate' | 'shortage' | 'totalRequired' | 'currentStock' | 'erpUsers'> | 'item';
 export type SortDirection = 'asc' | 'desc';
 
 const availableColumns = [
     { id: 'item', label: 'Artículo', tooltip: 'Código y descripción del artículo con faltante de inventario.', sortable: true },
     { id: 'sourceOrders', label: 'Pedidos Origen', tooltip: 'Números de pedido del ERP que requieren este artículo.' },
     { id: 'clients', label: 'Clientes Involucrados', tooltip: 'Lista de todos los clientes de los pedidos analizados que están esperando este artículo.' },
-    { id: 'erpUsers', label: 'Usuario ERP', tooltip: 'Usuario que creó el pedido en el sistema ERP.' },
+    { id: 'erpUsers', label: 'Usuario ERP', tooltip: 'Usuario que creó el pedido en el sistema ERP.', sortable: true, sortKey: 'erpUsers' },
     { id: 'creationDate', label: 'Fecha Pedido', tooltip: 'La fecha de creación más temprana para este artículo entre todos los pedidos analizados.', sortable: true, sortKey: 'earliestCreationDate' },
     { id: 'dueDate', label: 'Próxima Entrega', tooltip: 'La fecha de entrega más cercana para este artículo entre todos los pedidos analizados.', sortable: true, sortKey: 'earliestDueDate' },
     { id: 'required', label: 'Cant. Requerida', tooltip: 'La suma total de este artículo requerida para cumplir con todos los pedidos en el rango de fechas.', align: 'right', sortable: true, sortKey: 'totalRequired' },
@@ -175,6 +175,8 @@ export function useRequestSuggestions() {
             switch(state.sortKey) {
                 case 'item':
                     return a.itemDescription.localeCompare(b.itemDescription) * dir;
+                case 'erpUsers':
+                    return (a.erpUsers.join(', ') || '').localeCompare(b.erpUsers.join(', ') || '') * dir;
                 case 'earliestCreationDate':
                     return (new Date(a.earliestCreationDate || 0).getTime() - new Date(b.earliestCreationDate || 0).getTime()) * dir;
                 case 'earliestDueDate':
