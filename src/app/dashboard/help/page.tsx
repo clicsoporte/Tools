@@ -37,16 +37,14 @@ const HighlightedText = ({ text, highlight }: { text: string; highlight: string 
   if (!highlight.trim()) {
     return <>{text}</>;
   }
-  const normalizedText = normalizeText(text);
   const normalizedHighlight = normalizeText(highlight);
 
-  const regex = new RegExp(`(${normalizedHighlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  const parts = text.split(regex);
+  const parts = text.split(new RegExp(`(${normalizedHighlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
   
   return (
     <>
       {parts.map((part, i) =>
-        normalizeText(part) === normalizedHighlight ? (
+        normalizeText(part).toLowerCase() === normalizedHighlight ? (
           <mark key={i} className="bg-yellow-300 p-0 m-0">{part}</mark>
         ) : (
           <span key={i}>{part}</span>
@@ -74,7 +72,7 @@ const HelpSection = ({ title, icon, content, searchTerm }: { title: string, icon
     }, [content]);
 
     const isVisible = useMemo(() => {
-        const searchTerms = searchTerm.split(' ').filter(Boolean).map(term => normalizeText(term));
+        const searchTerms = normalizeText(searchTerm).split(' ').filter(Boolean);
         if (searchTerms.length === 0) return true;
 
         const targetText = normalizeText(title + ' ' + contentString);
@@ -152,9 +150,9 @@ export default function HelpPage() {
                      <li>
                         <strong>¿Cómo se configura?:</strong> Un administrador debe ir a <strong>Administración &gt; Importar Datos</strong> y:
                         <ol className="list-decimal space-y-2 pl-5 mt-2">
-                            <li>Activar el interruptor a "Importar desde SQL Server".</li>
+                            <li>Activar el interruptor a &quot;Importar desde SQL Server&quot;.</li>
                             <li>Ingresar las credenciales de la base de datos (servidor, usuario, contraseña, etc.).</li>
-                            <li>Pegar las consultas `SELECT` específicas para cada tipo de dato (clientes, artículos, etc.) en el "Gestor de Consultas".</li>
+                            <li>Pegar las consultas `SELECT` específicas para cada tipo de dato (clientes, artículos, etc.) en el &quot;Gestor de Consultas&quot;.</li>
                         </ol>
                     </li>
                     <li>
@@ -162,11 +160,11 @@ export default function HelpPage() {
                     </li>
                 </ul>
 
-                <h4 className="font-semibold text-lg pt-2 border-t">¿Qué es el Botón "Sincronizar ERP"?</h4>
+                <h4 className="font-semibold text-lg pt-2 border-t">¿Qué es el Botón &quot;Sincronizar ERP&quot;?</h4>
                  <ul className="list-disc space-y-3 pl-6">
                     <li>Este botón, visible en el encabezado para usuarios con permisos, ejecuta el proceso de importación completo (ya sea desde archivos o SQL) en segundo plano.</li>
                     <li>
-                        <strong>Alerta de Sincronización Antigua (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si ha pasado mucho tiempo desde la última sincronización (el tiempo es configurable en Administración &gt; General), el indicador "Última Sinc" y el botón de sincronización se pondrán en **rojo y parpadearán**. Esto es una alerta visual crítica que te indica que los datos de la aplicación (como precios o inventario) pueden estar desactualizados.
+                        <strong>Alerta de Sincronización Antigua (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si ha pasado mucho tiempo desde la última sincronización (el tiempo es configurable en Administración &gt; General), el indicador &quot;Última Sinc&quot; y el botón de sincronización se pondrán en **rojo y parpadearán**. Esto es una alerta visual crítica que te indica que los datos de la aplicación (como precios o inventario) pueden estar desactualizados.
                     </li>
                 </ul>
             </div>
@@ -387,7 +385,7 @@ export default function HelpPage() {
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>Selecciona un rango de fechas de los pedidos del ERP que quieres analizar y haz clic en &quot;Analizar Pedidos&quot;.</li>
                             <li>El sistema te mostrará una tabla con los artículos faltantes. Para cada artículo, verás la cantidad total que necesitas, cuánto tienes en inventario, y el faltante exacto.</li>
-                            <li><strong>Ordena los resultados:</strong> Haz clic en el encabezado de cualquier columna (ej: "Próxima Entrega" o "Faltante Total") para ordenar la tabla según ese criterio. Una flecha te indicará el orden actual.</li>
+                            <li><strong>Ordena los resultados:</strong> Haz clic en el encabezado de cualquier columna (ej: &quot;Próxima Entrega&quot; o &quot;Faltante Total&quot;) para ordenar la tabla según ese criterio. Una flecha te indicará el orden actual.</li>
                             <li>También verás información clave como los **clientes involucrados** y la **próxima fecha de entrega** que debes cumplir.</li>
                             <li>Usa los filtros de búsqueda y de clasificación (que ahora permite **selección múltiple**) para refinar la lista.</li>
                             <li>Marca los artículos que quieres comprar, y haz clic en **&quot;Crear Solicitudes&quot;** para generar todas las solicitudes de compra de forma automática. El sistema te advertirá si estás a punto de crear una solicitud duplicada.</li>
@@ -609,7 +607,7 @@ export default function HelpPage() {
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>¡Atención!</AlertTitle>
                     <AlertDescription>
-                        Nunca reemplaces la carpeta `dbs/` del servidor con la de la nueva versión, ya que esto borraría todos tus datos de producción.
+                        Nunca reemplaces la carpeta &quot;dbs/&quot; del servidor con la de la nueva versión, ya que esto borraría todos tus datos de producción.
                     </AlertDescription>
                 </Alert>
             </div>
@@ -713,4 +711,3 @@ export default function HelpPage() {
     </main>
   );
 }
-
