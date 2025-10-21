@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
  * This hook encapsulates all state and actions for the planner, keeping the UI component clean.
@@ -30,6 +31,11 @@ import type { RowInput } from 'jspdf-autotable';
 import { addNoteToOrder as addNoteServer } from '@/modules/planner/lib/actions';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
 import { AlertCircle } from 'lucide-react';
+
+const normalizeText = (text: string | null | undefined): string => {
+    if (!text) return "";
+    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
 
 const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'> = {
     deliveryDate: '',
@@ -750,17 +756,17 @@ export const usePlanner = () => {
         },
         customerOptions: useMemo(() => {
             if (debouncedCustomerSearch.length < 2) return [];
-            const searchTerms = debouncedCustomerSearch.toLowerCase().split(' ').filter(Boolean);
+            const searchTerms = normalizeText(debouncedCustomerSearch).split(' ').filter(Boolean);
             return customers.filter(c => {
-                const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
+                const targetText = normalizeText(`${c.id} ${c.name} ${c.taxId}`);
                 return searchTerms.every(term => targetText.includes(term));
             }).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
         }, [customers, debouncedCustomerSearch]),
         productOptions: useMemo(() => {
             if (debouncedProductSearch.length < 2) return [];
-            const searchTerms = debouncedProductSearch.toLowerCase().split(' ').filter(Boolean);
+            const searchTerms = normalizeText(debouncedProductSearch).split(' ').filter(Boolean);
             return products.filter(p => {
-                const targetText = `${p.id} ${p.description}`.toLowerCase();
+                const targetText = normalizeText(`${p.id} ${p.description}`);
                 return searchTerms.every(term => targetText.includes(term));
             }).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
         }, [products, debouncedProductSearch]),
@@ -770,12 +776,12 @@ export const usePlanner = () => {
         filteredOrders: useMemo(() => {
             let ordersToFilter = state.viewingArchived ? state.archivedOrders : state.activeOrders;
             
-            const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
+            const searchTerms = normalizeText(debouncedSearchTerm).split(' ').filter(Boolean);
 
             return ordersToFilter.filter(order => {
                 const product = products.find(p => p.id === order.productId);
 
-                const targetText = `${order.consecutive} ${order.customerName} ${order.productDescription} ${order.purchaseOrder || ''}`.toLowerCase();
+                const targetText = normalizeText(`${order.consecutive} ${order.customerName} ${order.productDescription} ${order.purchaseOrder || ''}`);
                 const searchMatch = debouncedSearchTerm ? searchTerms.every(term => targetText.includes(term)) : true;
                 
                 const statusMatch = state.statusFilter.length === 0 || state.statusFilter.includes(order.status);

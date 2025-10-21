@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
  * This hook encapsulates all state and actions for the module, keeping the UI component clean.
@@ -19,7 +20,7 @@ import {
 import type { 
     PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
     PurchaseRequestHistoryEntry, RequestSettings, Company, DateRange, 
-    AdministrativeAction, AdministrativeActionPayload, Product, StockInfo, ErpOrderHeader, ErpOrderLine, Customer 
+    AdministrativeAction, AdministrativeActionPayload, Product, StockInfo, ErpOrderHeader, ErpOrderLine, User 
 } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -27,6 +28,12 @@ import { useDebounce } from 'use-debounce';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
+import { AlertCircle } from 'lucide-react';
+
+const normalizeText = (text: string | null | undefined): string => {
+    if (!text) return "";
+    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
 
 const emptyRequest: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'> = {
     requiredDate: '',
@@ -724,17 +731,17 @@ export const useRequests = () => {
         getDaysRemaining: (dateStr: string) => getSimpleDaysRemaining(dateStr),
         clientOptions: useMemo(() => {
             if (debouncedClientSearch.length < 2) return [];
-            const searchTerms = debouncedClientSearch.toLowerCase().split(' ').filter(Boolean);
+            const searchTerms = normalizeText(debouncedClientSearch).split(' ').filter(Boolean);
             return authCustomers.filter(c => {
-                const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
+                const targetText = normalizeText(`${c.id} ${c.name} ${c.taxId}`);
                 return searchTerms.every(term => targetText.includes(term));
             }).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
         }, [authCustomers, debouncedClientSearch]),
         itemOptions: useMemo(() => {
             if (debouncedItemSearch.length < 2) return [];
-            const searchTerms = debouncedItemSearch.toLowerCase().split(' ').filter(Boolean);
+            const searchTerms = normalizeText(debouncedItemSearch).split(' ').filter(Boolean);
             return authProducts.filter(p => {
-                const targetText = `${p.id} ${p.description}`.toLowerCase();
+                const targetText = normalizeText(`${p.id} ${p.description}`);
                 return searchTerms.every(term => targetText.includes(term));
             }).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
         }, [authProducts, debouncedItemSearch]),
@@ -742,10 +749,10 @@ export const useRequests = () => {
         filteredRequests: useMemo(() => {
             let requestsToFilter = state.viewingArchived ? state.archivedRequests : state.activeRequests;
             
-            const searchTerms = debouncedSearchTerm.toLowerCase().split(' ').filter(Boolean);
+            const searchTerms = normalizeText(debouncedSearchTerm).split(' ').filter(Boolean);
             return requestsToFilter.filter(request => {
                 const product = authProducts.find(p => p.id === request.itemId);
-                const targetText = `${request.consecutive} ${request.clientName} ${request.itemDescription} ${request.purchaseOrder || ''} ${request.erpOrderNumber || ''}`.toLowerCase();
+                const targetText = normalizeText(`${request.consecutive} ${request.clientName} ${request.itemDescription} ${request.purchaseOrder || ''} ${request.erpOrderNumber || ''}`);
                 
                 const searchMatch = debouncedSearchTerm ? searchTerms.every(term => targetText.includes(term)) : true;
                 const statusMatch = state.statusFilter === 'all' || request.status === state.statusFilter;
@@ -776,5 +783,3 @@ export const useRequests = () => {
         isAuthorized
     };
 };
-
-    

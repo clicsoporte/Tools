@@ -24,17 +24,29 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
+// --- Helper Functions ---
+
+// Normaliza el texto: lo convierte a minúsculas y elimina los acentos.
+const normalizeText = (text: string | null | undefined): string => {
+    if (!text) return "";
+    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
+
 // Componente para resaltar texto
 const HighlightedText = ({ text, highlight }: { text: string; highlight: string }) => {
   if (!highlight.trim()) {
     return <>{text}</>;
   }
-  const regex = new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const normalizedText = normalizeText(text);
+  const normalizedHighlight = normalizeText(highlight);
+
+  const regex = new RegExp(`(${normalizedHighlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
   const parts = text.split(regex);
+  
   return (
     <>
       {parts.map((part, i) =>
-        part.toLowerCase() === highlight.toLowerCase() ? (
+        normalizeText(part) === normalizedHighlight ? (
           <mark key={i} className="bg-yellow-300 p-0 m-0">{part}</mark>
         ) : (
           <span key={i}>{part}</span>
@@ -44,13 +56,9 @@ const HighlightedText = ({ text, highlight }: { text: string; highlight: string 
   );
 };
 
+
 // Componente para una sección de ayuda individual
-const HelpSection = ({ title, icon, content, searchTerm, defaultOpen = false }: { title: string, icon: React.ReactNode, content: React.ReactNode, searchTerm: string, defaultOpen?: boolean }) => {
-    
-    // Normaliza el texto: lo convierte a minúsculas y elimina los acentos.
-    const normalizeText = (text: string) => {
-        return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    };
+const HelpSection = ({ title, icon, content, searchTerm }: { title: string, icon: React.ReactNode, content: React.ReactNode, searchTerm: string }) => {
     
     const contentString = useMemo(() => {
         // Simple function to extract text from JSX for searching
@@ -66,7 +74,7 @@ const HelpSection = ({ title, icon, content, searchTerm, defaultOpen = false }: 
     }, [content]);
 
     const isVisible = useMemo(() => {
-        const searchTerms = searchTerm.split(' ').filter(Boolean).map(normalizeText);
+        const searchTerms = searchTerm.split(' ').filter(Boolean).map(term => normalizeText(term));
         if (searchTerms.length === 0) return true;
 
         const targetText = normalizeText(title + ' ' + contentString);
@@ -115,6 +123,53 @@ export default function HelpPage() {
                 El objetivo es simple: tener todas las herramientas importantes (como hacer cotizaciones, solicitudes de compra o planificar la producción) en un solo lugar, con la flexibilidad de obtener datos tanto de archivos de texto como directamente desde el ERP.
                 </p>
             </>
+        )
+    },
+    {
+        title: "Guía Crítica: Sincronización de Datos del ERP",
+        icon: <DatabaseZap className="mr-4 h-6 w-6 text-cyan-500" />,
+        content: (
+            <div className="space-y-4">
+                <p>
+                Esta es una de las funcionalidades más importantes. Permite que la aplicación se mantenga al día con los datos maestros de tu sistema ERP (clientes, productos, inventario, etc.). Se gestiona desde <strong>Administración &gt; Importar Datos</strong> y tiene dos modos de funcionamiento.
+                </p>
+
+                <h4 className="font-semibold text-lg pt-2 border-t">Modo 1: Importación desde Archivos</h4>
+                <ul className="list-disc space-y-3 pl-6">
+                    <li>
+                        <strong>¿Cómo funciona?:</strong> Debes generar archivos de texto plano (`.txt` o `.csv`) desde tu ERP y colocarlos en una carpeta en el servidor. Luego, en la pantalla de importación, le dices a la aplicación la ruta completa de cada archivo.
+                    </li>
+                    <li>
+                        <strong>Ventajas:</strong> Es un método robusto y sencillo de configurar, ideal si no quieres dar acceso directo a tu base de datos del ERP.
+                    </li>
+                </ul>
+
+                <h4 className="font-semibold text-lg pt-2 border-t">Modo 2: Sincronización desde SQL Server (Recomendado)</h4>
+                 <ul className="list-disc space-y-3 pl-6">
+                    <li>
+                        <strong>¿Cómo funciona?:</strong> En lugar de archivos, la aplicación se conecta directamente a la base de datos de tu ERP (usando un usuario de **solo lectura**) y ejecuta consultas `SELECT` para traer los datos.
+                    </li>
+                     <li>
+                        <strong>¿Cómo se configura?:</strong> Un administrador debe ir a <strong>Administración &gt; Importar Datos</strong> y:
+                        <ol className="list-decimal space-y-2 pl-5 mt-2">
+                            <li>Activar el interruptor a "Importar desde SQL Server".</li>
+                            <li>Ingresar las credenciales de la base de datos (servidor, usuario, contraseña, etc.).</li>
+                            <li>Pegar las consultas `SELECT` específicas para cada tipo de dato (clientes, artículos, etc.) en el "Gestor de Consultas".</li>
+                        </ol>
+                    </li>
+                    <li>
+                        <strong>Ventajas:</strong> Es más rápido, directo y elimina la necesidad de generar archivos manualmente.
+                    </li>
+                </ul>
+
+                <h4 className="font-semibold text-lg pt-2 border-t">¿Qué es el Botón "Sincronizar ERP"?</h4>
+                 <ul className="list-disc space-y-3 pl-6">
+                    <li>Este botón, visible en el encabezado para usuarios con permisos, ejecuta el proceso de importación completo (ya sea desde archivos o SQL) en segundo plano.</li>
+                    <li>
+                        <strong>Alerta de Sincronización Antigua (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si ha pasado mucho tiempo desde la última sincronización (el tiempo es configurable en Administración &gt; General), el indicador "Última Sinc" y el botón de sincronización se pondrán en **rojo y parpadearán**. Esto es una alerta visual crítica que te indica que los datos de la aplicación (como precios o inventario) pueden estar desactualizados.
+                    </li>
+                </ul>
+            </div>
         )
     },
     {
@@ -659,4 +714,3 @@ export default function HelpPage() {
   );
 }
 
-    
