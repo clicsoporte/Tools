@@ -29,7 +29,7 @@ const HighlightedText = ({ text, highlight }: { text: string; highlight: string 
   if (!highlight.trim()) {
     return <>{text}</>;
   }
-  const regex = new RegExp(`(${highlight})`, 'gi');
+  const regex = new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
   const parts = text.split(regex);
   return (
     <>
@@ -46,6 +46,12 @@ const HighlightedText = ({ text, highlight }: { text: string; highlight: string 
 
 // Componente para una sección de ayuda individual
 const HelpSection = ({ title, icon, content, searchTerm, defaultOpen = false }: { title: string, icon: React.ReactNode, content: React.ReactNode, searchTerm: string, defaultOpen?: boolean }) => {
+    
+    // Normaliza el texto: lo convierte a minúsculas y elimina los acentos.
+    const normalizeText = (text: string) => {
+        return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    };
+    
     const contentString = useMemo(() => {
         // Simple function to extract text from JSX for searching
         const getText = (node: React.ReactNode): string => {
@@ -56,14 +62,14 @@ const HelpSection = ({ title, icon, content, searchTerm, defaultOpen = false }: 
             }
             return '';
         };
-        return getText(content).toLowerCase();
+        return getText(content);
     }, [content]);
 
     const isVisible = useMemo(() => {
-        const searchTerms = searchTerm.toLowerCase().split(' ').filter(Boolean);
+        const searchTerms = searchTerm.split(' ').filter(Boolean).map(normalizeText);
         if (searchTerms.length === 0) return true;
 
-        const targetText = (title.toLowerCase() + ' ' + contentString);
+        const targetText = normalizeText(title + ' ' + contentString);
         return searchTerms.every(term => targetText.includes(term));
     }, [searchTerm, title, contentString]);
 
@@ -627,7 +633,7 @@ export default function HelpPage() {
                 <div className="relative mt-6">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input 
-                        placeholder="Escribe para buscar en la ayuda (ej: 'cotización', 'importar', 'resetear')..."
+                        placeholder="Escribe para buscar en la ayuda (ej: 'cotizacion', 'importar', 'resetear')..."
                         className="w-full pl-10 h-12 text-base"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -652,3 +658,5 @@ export default function HelpPage() {
     </main>
   );
 }
+
+    
