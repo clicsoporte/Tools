@@ -7,7 +7,7 @@
 
 import { XMLParser } from 'fast-xml-parser';
 import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
-import { getCostAssistantSettings as getCostAssistantSettingsServer, saveCostAssistantSettings as saveCostAssistantSettingsServer, getAllDrafts as getAllDraftsServer, saveDraft as saveDraftServer, deleteDraft as deleteDraftServer } from './db';
+import { getAllDrafts as getAllDraftsServer, saveDraft as saveDraftServer, deleteDraft as deleteDraftServer } from './db';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import * as XLSX from 'xlsx';
 import path from 'path';
@@ -214,16 +214,25 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
     return JSON.parse(JSON.stringify({ lines: allLines, processedInvoices }));
 }
 
+const defaultSettings: CostAssistantSettings = {
+    columnVisibility: {
+        cabysCode: true, supplierCode: true, description: true, quantity: true,
+        unitCostWithoutTax: true, unitCostWithTax: false, taxRate: true,
+        margin: true, sellPriceWithoutTax: true, finalSellPrice: true, profitPerLine: true
+    }
+};
+
 export async function getCostAssistantSettings(userId: number): Promise<CostAssistantSettings> {
     const settings = await getUserPreferences(userId, 'costAssistantSettings');
-    return settings ? settings : { columnVisibility: {} };
+    return settings ? settings : { columnVisibility: defaultSettings.columnVisibility };
 }
+
 
 export async function saveCostAssistantSettings(userId: number, settings: CostAssistantSettings): Promise<void> {
     return saveUserPreferences(userId, 'costAssistantSettings', settings);
 }
 
-export async function getAllDrafts(userId: string): Promise<CostAnalysisDraft[]> {
+export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]> {
     const drafts = await getAllDraftsServer(userId);
     return JSON.parse(JSON.stringify(drafts));
 }

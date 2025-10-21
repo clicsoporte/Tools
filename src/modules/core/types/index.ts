@@ -713,7 +713,7 @@ export type ProcessedInvoiceInfo = {
 
 export type CostAnalysisDraft = {
     id: string;
-    userId: string;
+    userId: number;
     name: string;
     createdAt: string;
     lines: CostAssistantLine[];
