@@ -32,8 +32,8 @@ export interface PurchaseSuggestion {
     earliestDueDate: string | null;
 }
 
-type SortKey = keyof Pick<PurchaseSuggestion, 'earliestCreationDate' | 'earliestDueDate' | 'shortage' | 'totalRequired' | 'currentStock'> | 'item';
-type SortDirection = 'asc' | 'desc';
+export type SortKey = keyof Pick<PurchaseSuggestion, 'earliestCreationDate' | 'earliestDueDate' | 'shortage' | 'totalRequired' | 'currentStock'> | 'item';
+export type SortDirection = 'asc' | 'desc';
 
 const availableColumns = [
     { id: 'item', label: 'Artículo', tooltip: 'Código y descripción del artículo con faltante de inventario.', sortable: true },
