@@ -56,7 +56,7 @@
     - Las órdenes modificadas después de ser aprobadas se marcan visualmente para alertar a los supervisores.
     - Al crear una nueva orden, el sistema avisa si ya existen otras órdenes activas para el mismo producto.
 - **Gestión de Turnos Personalizable**: Desde administración, se puede cambiar el nombre de la etiqueta "Turno" y añadir, editar o eliminar los diferentes turnos de trabajo disponibles.
-- **Paginación de Archivados**: Para manejar un gran volumen de datos, las órdenes archivadas se cargan por páginas. La búsqueda y el filtrado se aplican de forma eficiente sobre todo el conjunto de datos archivados del lado del servidor.
+- **Interfaz Optimizada**: La vista de órdenes ahora cuenta con un **encabezado fijo** que permanece visible al hacer scroll, mejorando la legibilidad.
 - **Exportación Flexible:** Permite exportar la vista actual (con filtros) a un archivo **PDF** o **Excel (.xlsx)**.
 
 ### 3.3. Solicitud de Compra (`/dashboard/requests`)
@@ -66,7 +66,7 @@
 - **Alerta Visual de Duplicados:** Antes de crear una solicitud, el sistema avisa si ya existen otras solicitudes activas para el mismo artículo, mostrando un tooltip con los detalles. La creación de duplicados puede ser restringida por permisos.
 - **Claridad del Cliente y Trazabilidad del ERP:** Muestra el nombre y la cédula del cliente asociado a la solicitud, así como el número de pedido del ERP del que se originó, creando una trazabilidad completa.
 - **Alertas y Trazabilidad:** Al igual que el planificador, las solicitudes modificadas post-aprobación se marcan visualmente, y cada cambio queda en un historial.
-- **Paginación de Archivados**: Las solicitudes archivadas se cargan por páginas, y la búsqueda es eficiente sobre todo el historial.
+- **Interfaz Optimizada**: La vista de solicitudes ahora cuenta con un **encabezado fijo** que permanece visible al hacer scroll.
 - **Exportación Flexible:** Permite exportar la vista actual (con filtros) a un archivo **PDF** o **Excel (.xlsx)**.
 
 ### 3.4. Analíticas y Reportes (`/dashboard/analytics`)

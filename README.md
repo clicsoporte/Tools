@@ -1,6 +1,6 @@
 # Clic-Tools: Documentación Técnica y Manual de Usuario
 
-**Clic-Tools v1.5.4** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
+**Clic-Tools v1.5.5** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
 
 ---
 
@@ -52,17 +52,21 @@
 - **Visibilidad Controlada:** Por defecto, los usuarios solo ven las órdenes que ellos han creado. Un permiso especial (`planner:read:all`) permite a supervisores y administradores ver todas las órdenes.
 - **Flujo de Estados Completo:** Controla el ciclo de vida de una orden (Pendiente, Aprobada, En Progreso, Completada, etc.).
 - **Trazabilidad:** Cada cambio de estado, nota o modificación queda registrada en un historial detallado por orden.
-- **Alertas Visuales:** Las órdenes modificadas después de ser aprobadas se marcan visualmente para alertar a los supervisores.
-- **Paginación de Archivados**: Para manejar un gran volumen de datos, las órdenes archivadas se cargan por páginas. La búsqueda y el filtrado se aplican de forma eficiente sobre todo el conjunto de datos archivados del lado del servidor.
+- **Alertas Visuales:**
+    - Las órdenes modificadas después de ser aprobadas se marcan visualmente para alertar a los supervisores.
+    - Al crear una nueva orden, el sistema avisa si ya existen otras órdenes activas para el mismo producto.
+- **Gestión de Turnos Personalizable**: Desde administración, se puede cambiar el nombre de la etiqueta "Turno" y añadir, editar o eliminar los diferentes turnos de trabajo disponibles.
+- **Interfaz Optimizada**: La vista de órdenes ahora cuenta con un **encabezado fijo** que permanece visible al hacer scroll, mejorando la legibilidad.
 - **Exportación Flexible:** Permite exportar la vista actual (con filtros) a un archivo **PDF** o **Excel (.xlsx)**.
 
 ### 3.3. Solicitud de Compra (`/dashboard/requests`)
 - **Visibilidad Controlada:** Igual que el planificador, los usuarios ven por defecto solo sus propias solicitudes. El permiso `requests:read:all` otorga visibilidad total.
 - **Flujo de Aprobación:** Gestiona el ciclo de vida de una solicitud, desde "Pendiente" hasta "Recibida" y opcionalmente "En Bodega".
 - **Creación Inteligente desde ERP:** Permite crear solicitudes de compra automáticamente a partir de un pedido de venta del ERP. El sistema analiza el pedido, compara con el inventario actual y sugiere qué artículos comprar, ahorrando tiempo y reduciendo errores.
+- **Alerta Visual de Duplicados:** Antes de crear una solicitud, el sistema avisa si ya existen otras solicitudes activas para el mismo artículo, mostrando un tooltip con los detalles. La creación de duplicados puede ser restringida por permisos.
 - **Claridad del Cliente y Trazabilidad del ERP:** Muestra el nombre y la cédula del cliente asociado a la solicitud, así como el número de pedido del ERP del que se originó, creando una trazabilidad completa.
 - **Alertas y Trazabilidad:** Al igual que el planificador, las solicitudes modificadas post-aprobación se marcan visualmente, y cada cambio queda en un historial.
-- **Paginación de Archivados**: Las solicitudes archivadas se cargan por páginas, y la búsqueda es eficiente sobre todo el historial.
+- **Interfaz Optimizada**: La vista de solicitudes ahora cuenta con un **encabezado fijo** que permanece visible al hacer scroll.
 - **Exportación Flexible:** Permite exportar la vista actual (con filtros) a un archivo **PDF** o **Excel (.xlsx)**.
 
 ### 3.4. Analíticas y Reportes (`/dashboard/analytics`)
@@ -70,7 +74,8 @@ Este módulo agrupa herramientas de inteligencia de negocio para ayudar en la to
 - **Sugerencias de Compra Proactivas (`/purchase-suggestions`):**
     - Analiza los pedidos de venta del ERP en un rango de fechas y los cruza con el inventario actual.
     - Genera una lista consolidada de todos los artículos que tienen un faltante de stock para cumplir con la demanda.
-    - Permite filtrar por clasificación de producto y muestra detalles como los clientes involucrados y la fecha de entrega más próxima.
+    - Permite filtrar por clasificación de producto (con multiselección), ordenar los resultados por cualquier columna (ej: por fecha de entrega más próxima) y paginar la lista.
+    - Muestra detalles como los clientes involucrados, la próxima fecha de entrega y si ya existen solicitudes de compra activas para un artículo.
     - Con un solo clic, el usuario puede seleccionar los artículos sugeridos y crear automáticamente las solicitudes de compra necesarias.
 
 ### 3.5. Almacenes (`/dashboard/warehouse`)
@@ -84,6 +89,10 @@ Este módulo agrupa herramientas de inteligencia de negocio para ayudar en la to
 ### 3.7. Buzón de Sugerencias (`/dashboard/admin/suggestions`)
 - **Feedback Directo:** Permite a los usuarios enviar sugerencias o reportar problemas directamente desde la interfaz.
 - **Panel de Administración:** Los administradores pueden ver, gestionar y marcar como leídas las sugerencias para un seguimiento efectivo.
+
+### 3.8. Centro de Ayuda (`/dashboard/help`)
+- **Documentación Integrada**: Una guía de usuario completa y siempre actualizada, directamente accesible desde la aplicación.
+- **Búsqueda Inteligente**: Incluye una barra de búsqueda que filtra y resalta las secciones relevantes en tiempo real, permitiendo a los usuarios encontrar la ayuda que necesitan al instante.
 
 ---
 

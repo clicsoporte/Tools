@@ -207,7 +207,7 @@ export default function PurchaseSuggestionsPage() {
                                         />
                                     </TableHead>
                                     {selectors.visibleColumnsData.map((col: { id: string; label: string; tooltip: string; sortable?: boolean; sortKey?: string; align?: string }) => (
-                                         <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right', col.sortable && 'cursor-pointer hover:bg-muted')} onClick={() => col.sortable && actions.handleSort(col.sortKey as SortKey || col.id as SortKey)}>
+                                         <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right', col.sortable && 'cursor-pointer hover:bg-muted')} onClick={() => col.sortable && actions.handleSort((col.sortKey || col.id) as SortKey)}>
                                             <Tooltip><TooltipTrigger className='flex items-center gap-2'>
                                                 {col.label}
                                                 {sortKey === (col.sortKey || col.id) && (
