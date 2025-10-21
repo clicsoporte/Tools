@@ -17,6 +17,18 @@ import { exportToExcel } from '@/modules/core/lib/excel-export';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Info } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 export interface PurchaseSuggestion {
     itemId: string;
@@ -30,6 +42,7 @@ export interface PurchaseSuggestion {
     erpUsers: string[];
     earliestCreationDate: string | null;
     earliestDueDate: string | null;
+    existingActiveRequests: { id: number; consecutive: string, status: string, quantity: number }[];
 }
 
 export type SortKey = keyof Pick<PurchaseSuggestion, 'earliestCreationDate' | 'earliestDueDate' | 'shortage' | 'totalRequired' | 'currentStock'> | 'item';
@@ -60,10 +73,12 @@ interface State {
     showOnlyMyOrders: boolean;
     sortKey: SortKey;
     sortDirection: SortDirection;
+    isDuplicateConfirmOpen: boolean;
+    itemsToCreate: PurchaseSuggestion[];
 }
 
 export function useRequestSuggestions() {
-    const { isAuthorized } = useAuthorization(['requests:create', 'analytics:purchase-suggestions:read']);
+    const { isAuthorized, hasPermission } = useAuthorization(['requests:create', 'analytics:purchase-suggestions:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user: currentUser, products } = useAuth();
@@ -85,6 +100,8 @@ export function useRequestSuggestions() {
         showOnlyMyOrders: false,
         sortKey: 'earliestCreationDate',
         sortDirection: 'desc',
+        isDuplicateConfirmOpen: false,
+        itemsToCreate: [],
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, 500);
@@ -166,9 +183,19 @@ export function useRequestSuggestions() {
         });
 
         return filtered;
-    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter, state.showOnlyMyOrders, currentUser, state.sortKey, state.sortDirection]);
+    }, [state.suggestions, debouncedSearchTerm, state.classificationFilter, state.showOnlyMyOrders, currentUser?.erpAlias, state.sortKey, state.sortDirection]);
 
     const toggleItemSelection = (itemId: string) => {
+        const item = state.suggestions.find(s => s.itemId === itemId);
+        if (!item) return;
+
+        const isDuplicate = item.existingActiveRequests.length > 0;
+        const canCreateDuplicates = hasPermission('requests:create:duplicate');
+        if (isDuplicate && !canCreateDuplicates) {
+            toast({ title: "Permiso Requerido", description: "No tienes permiso para crear solicitudes duplicadas para este artículo.", variant: "destructive" });
+            return;
+        }
+
         updateState({
             selectedItems: new Set(
                 state.selectedItems.has(itemId)
@@ -179,7 +206,15 @@ export function useRequestSuggestions() {
     };
 
     const toggleSelectAll = (checked: boolean) => {
-        const itemsToSelect = filteredSuggestions.map(s => s.itemId);
+        const canCreateDuplicates = hasPermission('requests:create:duplicate');
+        
+        const itemsToSelect = filteredSuggestions
+            .filter(s => {
+                const isDuplicate = s.existingActiveRequests.length > 0;
+                return !isDuplicate || canCreateDuplicates;
+            })
+            .map(s => s.itemId);
+
         updateState({
             selectedItems: new Set(
                 checked ? itemsToSelect : []
@@ -192,20 +227,31 @@ export function useRequestSuggestions() {
         [state.suggestions, state.selectedItems]
     );
 
-    const handleCreateRequests = async () => {
+    const handleCreateRequests = async (confirmedItems?: PurchaseSuggestion[]) => {
         if (!currentUser) {
             toast({ title: "Error de autenticación", variant: "destructive" });
             return;
         }
-        if (selectedSuggestions.length === 0) {
+        
+        const itemsToProcess = confirmedItems || selectedSuggestions;
+
+        if (itemsToProcess.length === 0) {
             toast({ title: "No hay artículos seleccionados", variant: "destructive" });
             return;
         }
+        
+        if (!confirmedItems) {
+            const hasDuplicates = itemsToProcess.some(item => item.existingActiveRequests.length > 0);
+            if (hasDuplicates) {
+                updateState({ itemsToCreate: itemsToProcess, isDuplicateConfirmOpen: true });
+                return;
+            }
+        }
 
-        updateState({ isSubmitting: true });
+        updateState({ isSubmitting: true, isDuplicateConfirmOpen: false });
         try {
             let createdCount = 0;
-            for (const item of selectedSuggestions) {
+            for (const item of itemsToProcess) {
                  const requestPayload: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'> = {
                     requiredDate: item.earliestDueDate || new Date().toISOString().split('T')[0],
                     clientId: 'VAR-CLI', // Generic client
@@ -230,7 +276,7 @@ export function useRequestSuggestions() {
             logError("Failed to create requests from suggestions", { error: error.message });
             toast({ title: "Error al Crear", description: error.message, variant: "destructive" });
         } finally {
-            updateState({ isSubmitting: false });
+            updateState({ isSubmitting: false, itemsToCreate: [] });
         }
     };
 
@@ -243,17 +289,46 @@ export function useRequestSuggestions() {
     };
     
     const getColumnContent = (item: PurchaseSuggestion, colId: string): { content: React.ReactNode, className?: string } => {
+        const isDuplicate = item.existingActiveRequests.length > 0;
+        const totalRequestedInActive = item.existingActiveRequests.reduce((sum, req) => sum + req.quantity, 0);
+
         switch (colId) {
-            case 'item': return { content: <><p className="font-medium">{item.itemDescription}</p><p className="text-sm text-muted-foreground">{item.itemId}</p></> };
-            case 'sourceOrders': return { content: <Tooltip><TooltipTrigger asChild><p className="text-xs text-muted-foreground truncate max-w-xs">{item.sourceOrders.join(', ')}</p></TooltipTrigger><TooltipContent><div className="max-w-md"><p className="font-bold mb-1">Pedidos de Origen:</p><p>{item.sourceOrders.join(', ')}</p></div></TooltipContent></Tooltip> };
-            case 'clients': return { content: <p className="text-xs text-muted-foreground truncate max-w-xs" title={item.involvedClients.map(c => `${c.name} (${c.id})`).join(', ')}>{item.involvedClients.map(c => c.name).join(', ')}</p> };
-            case 'erpUsers': return { content: <p className="text-xs text-muted-foreground">{item.erpUsers.join(', ')}</p> };
-            case 'creationDate': return { content: item.earliestCreationDate ? new Date(item.earliestCreationDate).toLocaleDateString('es-CR') : 'N/A' };
-            case 'dueDate': return { content: item.earliestDueDate ? new Date(item.earliestDueDate).toLocaleDateString('es-CR') : 'N/A' };
-            case 'required': return { content: item.totalRequired.toLocaleString(), className: 'text-right' };
-            case 'stock': return { content: item.currentStock.toLocaleString(), className: 'text-right' };
-            case 'shortage': return { content: item.shortage.toLocaleString(), className: 'text-right font-bold text-red-600' };
-            default: return { content: '' };
+            case 'item': return { 
+                content: (
+                    <div className="flex items-center gap-2">
+                        {isDuplicate && (
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <Info className="h-4 w-4 text-amber-500"/>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="font-bold">Este artículo ya tiene solicitudes activas:</p>
+                                    <ul className="list-disc list-inside mt-1 text-xs">
+                                        {item.existingActiveRequests.map(req => (
+                                            <li key={req.id}>{req.consecutive} ({req.status}) - Cant: {req.quantity}</li>
+                                        ))}
+                                        <li className="font-semibold mt-1">Total activo: {totalRequestedInActive}</li>
+                                    </ul>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
+                        <div>
+                            <p className="font-medium">{item.itemDescription}</p>
+                            <p className="text-sm text-muted-foreground">{item.itemId}</p>
+                        </div>
+                    </div>
+                ),
+                className: isDuplicate ? 'bg-amber-50' : ''
+            };
+            case 'sourceOrders': return { content: <Tooltip><TooltipTrigger asChild><p className="text-xs text-muted-foreground truncate max-w-xs">{item.sourceOrders.join(', ')}</p></TooltipTrigger><TooltipContent><div className="max-w-md"><p className="font-bold mb-1">Pedidos de Origen:</p><p>{item.sourceOrders.join(', ')}</p></div></TooltipContent></Tooltip>, className: isDuplicate ? 'bg-amber-50' : '' };
+            case 'clients': return { content: <p className="text-xs text-muted-foreground truncate max-w-xs" title={item.involvedClients.map(c => `${c.name} (${c.id})`).join(', ')}>{item.involvedClients.map(c => c.name).join(', ')}</p>, className: isDuplicate ? 'bg-amber-50' : '' };
+            case 'erpUsers': return { content: <p className="text-xs text-muted-foreground">{item.erpUsers.join(', ')}</p>, className: isDuplicate ? 'bg-amber-50' : '' };
+            case 'creationDate': return { content: item.earliestCreationDate ? new Date(item.earliestCreationDate).toLocaleDateString('es-CR') : 'N/A', className: isDuplicate ? 'bg-amber-50' : '' };
+            case 'dueDate': return { content: item.earliestDueDate ? new Date(item.earliestDueDate).toLocaleDateString('es-CR') : 'N/A', className: isDuplicate ? 'bg-amber-50' : '' };
+            case 'required': return { content: item.totalRequired.toLocaleString(), className: cn('text-right', isDuplicate ? 'bg-amber-50' : '') };
+            case 'stock': return { content: item.currentStock.toLocaleString(), className: cn('text-right', isDuplicate ? 'bg-amber-50' : '') };
+            case 'shortage': return { content: item.shortage.toLocaleString(), className: cn('text-right font-bold text-red-600', isDuplicate ? 'bg-amber-50' : '') };
+            default: return { content: '', className: isDuplicate ? 'bg-amber-50' : '' };
         }
     };
     
@@ -310,8 +385,11 @@ export function useRequestSuggestions() {
         selectedSuggestions,
         areAllSelected: useMemo(() => {
             if (filteredSuggestions.length === 0) return false;
-            return filteredSuggestions.every(s => state.selectedItems.has(s.itemId));
-        }, [filteredSuggestions, state.selectedItems]),
+            const canCreateDuplicates = hasPermission('requests:create:duplicate');
+            const selectableItems = filteredSuggestions.filter(s => !s.existingActiveRequests.length || canCreateDuplicates);
+            if (selectableItems.length === 0) return false;
+            return selectableItems.every(s => state.selectedItems.has(s.itemId));
+        }, [filteredSuggestions, state.selectedItems, hasPermission]),
         
         classifications: useMemo<string[]>(() => 
             Array.from(new Set(products.map(p => p.classification).filter(Boolean)))
@@ -335,6 +413,7 @@ export function useRequestSuggestions() {
         handleColumnVisibilityChange,
         setShowOnlyMyOrders: (show: boolean) => updateState({ showOnlyMyOrders: show }),
         handleSort,
+        setDuplicateConfirmOpen: (isOpen: boolean) => updateState({ isDuplicateConfirmOpen: isOpen }),
     };
 
     return {

@@ -143,6 +143,7 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
     const allStock = await getAllStock();
     const allProducts = await getAllProducts();
     const allCustomers = await getAllCustomers();
+    const allActiveRequests = await getRequests({}).then(res => res.requests.filter(r => ['pending', 'approved', 'ordered'].includes(r.status)));
 
     const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string>; clientIds: Set<string>; erpUsers: Set<string>; earliestCreationDate: Date | null, earliestDueDate: Date | null; }>();
 
@@ -178,7 +179,11 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
     for (const [itemId, data] of requiredItems.entries()) {
         const stockInfo = allStock.find(s => s.itemId === itemId);
         const currentStock = stockInfo?.totalStock ?? 0;
-        const shortage = data.totalRequired - currentStock;
+        
+        const existingActiveRequests = allActiveRequests.filter(r => r.itemId === itemId);
+        const quantityInActiveRequests = existingActiveRequests.reduce((sum, r) => sum + r.quantity, 0);
+
+        const shortage = data.totalRequired - (currentStock + quantityInActiveRequests);
 
         if (shortage > 0) {
             const productInfo = allProducts.find(p => p.id === itemId);
@@ -199,9 +204,11 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
                 erpUsers: Array.from(data.erpUsers),
                 earliestCreationDate: data.earliestCreationDate ? data.earliestCreationDate.toISOString() : null,
                 earliestDueDate: data.earliestDueDate ? data.earliestDueDate.toISOString() : null,
+                existingActiveRequests, // Add existing active requests to the suggestion object
             });
         }
     }
 
     return suggestions.sort((a, b) => b.shortage - a.shortage);
 }
+```
