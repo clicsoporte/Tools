@@ -45,13 +45,13 @@ export interface PurchaseSuggestion {
     existingActiveRequests: { id: number; consecutive: string, status: string, quantity: number, purchaseOrder?: string, erpOrderNumber?: string }[];
 }
 
-export type SortKey = keyof Pick<PurchaseSuggestion, 'earliestCreationDate' | 'earliestDueDate' | 'shortage' | 'totalRequired' | 'currentStock' | 'erpUsers'> | 'item';
+export type SortKey = keyof Pick<PurchaseSuggestion, 'earliestCreationDate' | 'earliestDueDate' | 'shortage' | 'totalRequired' | 'currentStock' | 'erpUsers' | 'sourceOrders' | 'involvedClients'> | 'item';
 export type SortDirection = 'asc' | 'desc';
 
 const availableColumns = [
     { id: 'item', label: 'Artículo', tooltip: 'Código y descripción del artículo con faltante de inventario.', sortable: true },
-    { id: 'sourceOrders', label: 'Pedidos Origen', tooltip: 'Números de pedido del ERP que requieren este artículo.' },
-    { id: 'clients', label: 'Clientes Involucrados', tooltip: 'Lista de todos los clientes de los pedidos analizados que están esperando este artículo.' },
+    { id: 'sourceOrders', label: 'Pedidos Origen', tooltip: 'Números de pedido del ERP que requieren este artículo.', sortable: true, sortKey: 'sourceOrders' },
+    { id: 'clients', label: 'Clientes Involucrados', tooltip: 'Lista de todos los clientes de los pedidos analizados que están esperando este artículo.', sortable: true, sortKey: 'involvedClients' },
     { id: 'erpUsers', label: 'Usuario ERP', tooltip: 'Usuario que creó el pedido en el sistema ERP.', sortable: true, sortKey: 'erpUsers' },
     { id: 'creationDate', label: 'Fecha Pedido', tooltip: 'La fecha de creación más temprana para este artículo entre todos los pedidos analizados.', sortable: true, sortKey: 'earliestCreationDate' },
     { id: 'dueDate', label: 'Próxima Entrega', tooltip: 'La fecha de entrega más cercana para este artículo entre todos los pedidos analizados.', sortable: true, sortKey: 'earliestDueDate' },
@@ -175,6 +175,10 @@ export function useRequestSuggestions() {
             switch(state.sortKey) {
                 case 'item':
                     return a.itemDescription.localeCompare(b.itemDescription) * dir;
+                case 'sourceOrders':
+                    return (a.sourceOrders[0] || '').localeCompare(b.sourceOrders[0] || '') * dir;
+                case 'involvedClients':
+                    return (a.involvedClients[0]?.name || '').localeCompare(b.involvedClients[0]?.name || '') * dir;
                 case 'erpUsers':
                     return (a.erpUsers.join(', ') || '').localeCompare(b.erpUsers.join(', ') || '') * dir;
                 case 'earliestCreationDate':
