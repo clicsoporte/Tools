@@ -150,9 +150,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   
   const handleLogout = async () => {
     await clientLogout();
-    setUser(null);
-    setUserRole(null);
-    router.push('/');
+    // Use a full page reload to ensure all state is cleared, which is more robust
+    // for preventing login/logout issues than just using the router.
+    window.location.href = '/';
   }
 
   useEffect(() => {

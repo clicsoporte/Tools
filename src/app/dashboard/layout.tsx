@@ -13,6 +13,7 @@ import { usePageTitle, PageTitleProvider } from "../../modules/core/hooks/usePag
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { title } = usePageTitle();
@@ -37,8 +38,8 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading, logout } = useAuth();
-  
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
   const [isVerified, setIsVerified] = useState(false);
 
   useEffect(() => {
@@ -46,11 +47,11 @@ export default function DashboardLayout({
       if (user) {
         setIsVerified(true);
       } else {
-        // The logout function now handles the full-page redirection.
-        logout();
+        // If there's no user after loading, redirect to the login page.
+        router.replace('/');
       }
     }
-  }, [isLoading, user, logout]);
+  }, [isLoading, user, router]);
 
   if (!isVerified) {
     return (
