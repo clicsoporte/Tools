@@ -6,7 +6,7 @@
 'use client';
 
 import React from 'react';
-import { useRequestSuggestions, type PurchaseSuggestion } from '@/modules/requests/hooks/useRequestSuggestions';
+import { useRequestSuggestions, type PurchaseSuggestion, type SortKey } from '@/modules/requests/hooks/useRequestSuggestions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -25,7 +25,7 @@ import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
-import type { SortKey } from '@/modules/requests/hooks/useRequestSuggestions';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
 export default function PurchaseSuggestionsPage() {
@@ -37,7 +37,7 @@ export default function PurchaseSuggestionsPage() {
         isInitialLoading,
     } = useRequestSuggestions();
 
-    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter, visibleColumns, showOnlyMyOrders, sortKey, sortDirection } = state;
+    const { isLoading, dateRange, selectedItems, isSubmitting, searchTerm, classificationFilter, visibleColumns, showOnlyMyOrders, sortKey, sortDirection, itemsToCreate, isDuplicateConfirmOpen } = state;
 
     if (isInitialLoading) {
         return (
@@ -171,8 +171,8 @@ export default function PurchaseSuggestionsPage() {
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="outline"><Columns3 className="mr-2 h-4 w-4"/> Columnas</Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <ScrollArea className='h-72'>
+                                     <DropdownMenuContent align="end">
+                                        <ScrollArea className="max-h-72">
                                             <DropdownMenuLabel>Columnas Visibles</DropdownMenuLabel>
                                             <DropdownMenuSeparator />
                                             {selectors.availableColumns.map((column: { id: string; label: string }) => (
@@ -207,7 +207,7 @@ export default function PurchaseSuggestionsPage() {
                                             />
                                         </TableHead>
                                         {selectors.visibleColumnsData.map((col: { id: string; label: string; tooltip: string; sortable?: boolean; sortKey?: string; align?: string }) => (
-                                             <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right', col.sortable && 'cursor-pointer hover:bg-muted')} onClick={() => col.sortable && actions.handleSort((col.sortKey || col.id) as SortKey)}>
+                                             <TableHead key={col.id} className={cn(col.align === 'right' && 'text-right', col.sortable && 'cursor-pointer hover:bg-muted')} onClick={() => col.sortable && actions.handleSort(col.sortKey as SortKey || col.id as SortKey)}>
                                                 <Tooltip><TooltipTrigger className='flex items-center gap-2'>
                                                     {col.label}
                                                     {sortKey === (col.sortKey || col.id) && (
@@ -259,7 +259,7 @@ export default function PurchaseSuggestionsPage() {
                         </ScrollArea>
                     </CardContent>
                     <CardFooter>
-                        <Button onClick={actions.handleCreateRequests} disabled={isSubmitting || selectors.selectedSuggestions.length === 0}>
+                        <Button onClick={() => actions.handleCreateRequests()} disabled={isSubmitting || selectors.selectedSuggestions.length === 0}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             <FilePlus className="mr-2 h-4 w-4" />
                             Crear {selectors.selectedSuggestions.length > 0 ? `${selectors.selectedSuggestions.length} Solicitud(es)` : 'Solicitudes'}
@@ -267,6 +267,33 @@ export default function PurchaseSuggestionsPage() {
                     </CardFooter>
                 </Card>
             </TooltipProvider>
+
+            <AlertDialog open={isDuplicateConfirmOpen} onOpenChange={actions.setDuplicateConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar Creación de Duplicados</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            <p>Uno o más artículos que seleccionaste ya tienen solicitudes de compra activas. ¿Estás seguro de que quieres crear solicitudes adicionales?</p>
+                            <div className="mt-4 max-h-40 overflow-y-auto space-y-2 border p-2 rounded-md">
+                                {itemsToCreate.filter(item => item.existingActiveRequests.length > 0).map(item => (
+                                    <div key={item.itemId}>
+                                        <p className="font-semibold">{item.itemDescription}</p>
+                                        <ul className="list-disc list-inside text-xs text-muted-foreground">
+                                            {item.existingActiveRequests.map(req => (
+                                                <li key={req.id}>{req.consecutive} ({req.status}) - Cant: {req.quantity} {req.purchaseOrder && `(OC: ${req.purchaseOrder})`} {req.erpOrderNumber && `(PE: ${req.erpOrderNumber})`}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => actions.handleCreateRequests(itemsToCreate)}>Sí, crear duplicados</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </main>
     );
 }

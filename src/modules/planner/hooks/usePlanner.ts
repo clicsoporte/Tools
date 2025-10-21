@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
  * This hook encapsulates all state and actions for the planner, keeping the UI component clean.
@@ -30,8 +28,9 @@ import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import type { RowInput } from 'jspdf-autotable';
 import { addNoteToOrder as addNoteServer } from '@/modules/planner/lib/actions';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
+import { AlertCircle } from 'lucide-react';
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'shiftId'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'pendingAction' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'> = {
     deliveryDate: '',
     customerId: '',
     customerName: '',
@@ -44,8 +43,15 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     inventory: 0,
     inventoryErp: 0,
     purchaseOrder: '',
-    pendingAction: 'none',
+    erpPackageNumber: undefined,
+    erpTicketNumber: undefined,
+    machineId: null,
     shiftId: null,
+    scheduledStartDate: null,
+    scheduledEndDate: null,
+    deliveredQuantity: undefined,
+    defectiveQuantity: undefined,
+    erpOrderNumber: undefined,
 };
 
 const priorityConfig = { 
