@@ -1,55 +1,112 @@
 /**
- * @fileoverview Placeholder page for Cost Assistant settings.
+ * @fileoverview Page for Cost Assistant settings.
  */
 'use client';
 
+import { useEffect, useState } from 'react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Wrench } from 'lucide-react';
+import { Calculator, Save } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/modules/core/hooks/use-toast';
+import { getCostAssistantSettings, saveCostAssistantSettings } from '@/modules/cost-assistant/lib/actions';
+import { CostAssistantSettings } from '@/modules/core/types';
 
 export default function CostAssistantSettingsPage() {
     const { isAuthorized } = useAuthorization(['admin:settings:cost-assistant']);
     const { setTitle } = usePageTitle();
+    const { toast } = useToast();
+    const [settings, setSettings] = useState<CostAssistantSettings | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         setTitle("Configuración del Asistente de Costos");
-    }, [setTitle]);
+        if (isAuthorized) {
+            getCostAssistantSettings()
+                .then(data => {
+                    // Provide default values if they are missing
+                    const completeSettings = {
+                        ...data,
+                        draftPrefix: data.draftPrefix ?? 'AC-',
+                        nextDraftNumber: data.nextDraftNumber ?? 1,
+                    };
+                    setSettings(completeSettings);
+                })
+                .catch(err => {
+                    toast({ title: "Error", description: "No se pudieron cargar los ajustes.", variant: "destructive" });
+                    console.error(err);
+                })
+                .finally(() => setIsLoading(false));
+        }
+    }, [setTitle, isAuthorized, toast]);
 
-    if (isAuthorized === null) {
+    const handleSave = async () => {
+        if (!settings) return;
+        try {
+            await saveCostAssistantSettings(settings);
+            toast({ title: "Configuración Guardada", description: "Los ajustes del Asistente de Costos han sido actualizados." });
+        } catch (error: any) {
+            toast({ title: "Error al Guardar", description: error.message, variant: "destructive" });
+        }
+    };
+    
+    if (!isAuthorized) return null;
+
+    if (isLoading || !settings) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Skeleton className="h-64 w-full max-w-2xl mx-auto" />
             </main>
         );
     }
-    
-    if (isAuthorized === false) {
-        return null;
-    }
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="mx-auto max-w-2xl">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Wrench className="h-6 w-6"/>
-                            Configuración del Asistente de Costos
-                        </CardTitle>
-                        <CardDescription>
-                            Ajustes globales para el módulo de Asistente de Costos.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-center py-8 text-muted-foreground">
-                            <p>Este módulo aún no tiene configuraciones globales.</p>
-                            <p className="text-sm">Las preferencias de columnas son específicas de cada usuario.</p>
-                        </div>
-                    </CardContent>
-                </Card>
+                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Calculator className="h-6 w-6"/>
+                                Configuración del Asistente de Costos
+                            </CardTitle>
+                            <CardDescription>
+                                Ajustes globales para el módulo de Asistente de Costos, incluyendo prefijos y consecutivos para borradores.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="draftPrefix">Prefijo de Borrador</Label>
+                                    <Input
+                                        id="draftPrefix"
+                                        value={settings.draftPrefix || ''}
+                                        onChange={(e) => setSettings(prev => prev ? { ...prev, draftPrefix: e.target.value } : null)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="nextDraftNumber">Próximo Número de Borrador</Label>
+                                    <Input
+                                        id="nextDraftNumber"
+                                        type="number"
+                                        value={settings.nextDraftNumber || 1}
+                                        onChange={(e) => setSettings(prev => prev ? { ...prev, nextDraftNumber: Number(e.target.value) } : null)}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            <Button type="submit">
+                                <Save className="mr-2 h-4 w-4"/>
+                                Guardar Cambios
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                </form>
             </div>
         </main>
     );

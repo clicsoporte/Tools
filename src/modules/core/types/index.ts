@@ -364,6 +364,7 @@ export type PurchaseRequest = {
   unitSalePrice?: number; // Precio de venta unitario sin IVA
   erpOrderNumber?: string; // Número de pedido ERP de origen
   erpOrderLine?: number; // Número de línea del pedido ERP
+  erpEntryNumber?: string; // Consecutivo de ingreso en el ERP
   manualSupplier?: string; // Proveedor (manual)
   route?: string; // Ruta
   shippingMethod?: string; // Método de Envío
@@ -382,7 +383,6 @@ export type PurchaseRequest = {
   hasBeenModified?: boolean;
   sourceOrders?: string[];
   involvedClients?: { id: string; name: string }[];
-  erpEntryNumber?: string; // Consecutivo de ingreso en el ERP
 };
 
 export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'>> & {
@@ -739,6 +739,8 @@ export type CostAnalysisDraft = {
 };
 
 export type CostAssistantSettings = {
+    draftPrefix?: string;
+    nextDraftNumber?: number;
     columnVisibility: {
         cabysCode: boolean;
         supplierCode: boolean;

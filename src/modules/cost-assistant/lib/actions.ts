@@ -7,7 +7,13 @@
 
 import { XMLParser } from 'fast-xml-parser';
 import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
-import { getAllDrafts as getAllDraftsServer, saveDraft as saveDraftServer, deleteDraft as deleteDraftServer, getNextDraftNumber as getNextDraftNumberServer } from './db';
+import { 
+    getAllDrafts as getAllDraftsServer, 
+    saveDraft as saveDraftServer, 
+    deleteDraft as deleteDraftServer, 
+    getCostAssistantDbSettings as getDbSettings,
+    saveCostAssistantDbSettings as saveDbSettings,
+} from './db';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import * as XLSX from 'xlsx';
 import path from 'path';
@@ -216,6 +222,8 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
 }
 
 const defaultSettings: CostAssistantSettings = {
+    draftPrefix: 'AC-',
+    nextDraftNumber: 1,
     columnVisibility: {
         cabysCode: true, supplierCode: true, description: true, quantity: true,
         discountAmount: false, unitCostWithoutTax: true, unitCostWithTax: false, taxRate: true,
@@ -225,12 +233,17 @@ const defaultSettings: CostAssistantSettings = {
 };
 
 export async function getCostAssistantSettings(userId: number): Promise<CostAssistantSettings> {
-    const settings = await getUserPreferences(userId, 'costAssistantSettings');
-    return settings ? { ...defaultSettings, ...settings } : defaultSettings;
+    const userPrefs = await getUserPreferences(userId, 'costAssistantSettings');
+    const dbSettings = await getDbSettings();
+    const settings = { ...defaultSettings, ...dbSettings, ...userPrefs };
+    return settings;
 }
 
 export async function saveCostAssistantSettings(userId: number, settings: CostAssistantSettings): Promise<void> {
-    return saveUserPreferences(userId, 'costAssistantSettings', settings);
+    const { draftPrefix, nextDraftNumber, ...userPrefs } = settings;
+    await saveUserPreferences(userId, 'costAssistantSettings', userPrefs);
+    await saveDbSettings({ draftPrefix, nextDraftNumber });
+    await logInfo('Cost Assistant settings updated', { userId });
 }
 
 export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]> {
@@ -238,9 +251,12 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
     return JSON.parse(JSON.stringify(drafts));
 }
 
-export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>, nextDraftNumber: number): Promise<void> {
+export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<void> {
+    const settings = await getDbSettings();
+    const draftPrefix = settings.draftPrefix || 'AC-';
+    const nextDraftNumber = settings.nextDraftNumber || 1;
     await logInfo('Cost analysis draft saved', { name: draft.name, userId: draft.userId });
-    await saveDraftServer(draft, nextDraftNumber);
+    await saveDraftServer(draft, draftPrefix, nextDraftNumber);
 }
 
 export async function deleteDraft(id: string): Promise<void> {
@@ -249,7 +265,8 @@ export async function deleteDraft(id: string): Promise<void> {
 }
 
 export async function getNextDraftNumber(): Promise<number> {
-    return await getNextDraftNumberServer();
+    const settings = await getDbSettings();
+    return settings.nextDraftNumber || 1;
 }
 
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {

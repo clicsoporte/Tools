@@ -6,7 +6,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { CostAnalysisDraft } from '@/modules/core/types';
+import type { CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
 
 const COST_ASSISTANT_DB_FILE = 'cost_assistant.db';
 
@@ -31,6 +31,7 @@ export async function initializeCostAssistantDb(db: import('better-sqlite3').Dat
     `;
     db.exec(schema);
     db.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES ('nextDraftNumber', '1')`).run();
+    db.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES ('draftPrefix', 'AC-')`).run();
     console.log(`Database ${COST_ASSISTANT_DB_FILE} initialized for Cost Assistant.`);
 }
 
@@ -55,9 +56,9 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
     }
 }
 
-export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>, nextDraftNumber: number): Promise<CostAnalysisDraft> {
+export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>, draftPrefix: string, nextDraftNumber: number): Promise<CostAnalysisDraft> {
     const db = await connectDb(COST_ASSISTANT_DB_FILE);
-    const id = `AC-${String(nextDraftNumber).padStart(5, '0')}`;
+    const id = `${draftPrefix}${String(nextDraftNumber).padStart(5, '0')}`;
     const createdAt = new Date().toISOString();
     
     const { userId, name, ...dataToStore } = draft;
@@ -83,4 +84,31 @@ export async function getNextDraftNumber(): Promise<number> {
     const db = await connectDb(COST_ASSISTANT_DB_FILE);
     const row = db.prepare(`SELECT value FROM settings WHERE key = 'nextDraftNumber'`).get() as { value: string } | undefined;
     return row ? parseInt(row.value, 10) : 1;
+}
+
+export async function getCostAssistantDbSettings(): Promise<Partial<CostAssistantSettings>> {
+    const db = await connectDb(COST_ASSISTANT_DB_FILE);
+    const rows = db.prepare(`SELECT key, value FROM settings`).all() as {key: string, value: string}[];
+    const settings: Partial<CostAssistantSettings> = {};
+    for (const row of rows) {
+        if (row.key === 'draftPrefix') {
+            settings.draftPrefix = row.value;
+        } else if (row.key === 'nextDraftNumber') {
+            settings.nextDraftNumber = Number(row.value);
+        }
+    }
+    return settings;
+}
+
+export async function saveCostAssistantDbSettings(settings: Partial<CostAssistantSettings>): Promise<void> {
+    const db = await connectDb(COST_ASSISTANT_DB_FILE);
+    const transaction = db.transaction(() => {
+        if (settings.draftPrefix !== undefined) {
+            db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('draftPrefix', ?)`).run(settings.draftPrefix);
+        }
+        if (settings.nextDraftNumber !== undefined) {
+            db.prepare(`INSERT OR REPLACE INTO settings (key, value) VALUES ('nextDraftNumber', ?)`).run(settings.nextDraftNumber);
+        }
+    });
+    transaction();
 }
