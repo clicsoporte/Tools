@@ -50,7 +50,7 @@ const initialState = {
     drafts: [] as CostAnalysisDraft[],
     transportCost: 0,
     otherCosts: 0,
-    discountHandling: 'customer' as 'customer' | 'company',
+    discountHandling: 'company' as 'customer' | 'company',
     columnVisibility: initialColumnVisibility as ColumnVisibility,
     exportStatus: 'idle' as ExportStatus,
     exportFileName: null as string | null,
@@ -75,7 +75,7 @@ export const useCostAssistant = () => {
                 setState(prevState => ({ 
                     ...prevState, 
                     columnVisibility: completeVisibility,
-                    discountHandling: settings.discountHandling || 'customer',
+                    discountHandling: settings.discountHandling || 'company',
                 }));
             }
         };

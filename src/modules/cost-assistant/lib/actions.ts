@@ -221,7 +221,7 @@ const defaultSettings: CostAssistantSettings = {
         discountAmount: false, unitCostWithoutTax: true, unitCostWithTax: false, taxRate: true,
         margin: true, sellPriceWithoutTax: true, finalSellPrice: true, profitPerLine: true
     },
-    discountHandling: 'customer',
+    discountHandling: 'company',
 };
 
 export async function getCostAssistantSettings(userId: number): Promise<CostAssistantSettings> {
