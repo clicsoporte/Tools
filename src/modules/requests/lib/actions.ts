@@ -195,7 +195,7 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
     const suggestions: PurchaseSuggestion[] = [];
 
     for (const [itemId, data] of requiredItems.entries()) {
-        const stockInfo = allStock.find((s: StockInfo) => s.itemId === itemId);
+        const stockInfo: StockInfo | undefined = allStock.find((s: StockInfo) => s.itemId === itemId);
         const currentStock = stockInfo?.totalStock ?? 0;
         
         const existingActiveRequests = allActiveRequests.filter(r => r.itemId === itemId);

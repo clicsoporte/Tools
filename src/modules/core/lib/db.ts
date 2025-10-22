@@ -724,31 +724,6 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
     return dataArray;
 };
 
-async function updateCabysCatalogFromContent(fileContent: string): Promise<{ count: number }> {
-    return new Promise((resolve, reject) => {
-        Papa.parse(fileContent, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
-                try {
-                    const mappedData = results.data.map((row: any) => ({
-                        code: row.Codigo,
-                        description: row.Descripcion,
-                        taxRate: parseFloat(row.Impuesto) / 100
-                    }));
-                    const { count } = await updateCabysCatalog(mappedData);
-                    resolve({ count });
-                } catch (error) {
-                    reject(error);
-                }
-            },
-            error: (error: Error) => {
-                reject(error);
-            }
-        });
-    });
-}
-
 async function updateCabysCatalog(data: any[]): Promise<{ count: number }> {
     const db = await connectDb();
     const transaction = db.transaction((rows) => {
@@ -789,7 +764,16 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     const isCsv = filePath.toLowerCase().endsWith('.csv');
     if (type === 'cabys' && isCsv) {
-        const { count } = await updateCabysCatalogFromContent(fileContent);
+        const results = Papa.parse(fileContent, {
+            header: true,
+            skipEmptyLines: true,
+        });
+        const mappedData = results.data.map((row: any) => ({
+            code: row.Codigo,
+            description: row.Descripcion,
+            taxRate: parseFloat(row.Impuesto) / 100
+        }));
+        const { count } = await updateCabysCatalog(mappedData);
         return { count, source: filePath };
     }
     const lines = fileContent.split(/\r?\n/).filter(line => line.trim() !== '');
@@ -995,7 +979,7 @@ export async function saveAllStock(stockData: { itemId: string, warehouseId: str
     const transaction = db.transaction((data) => {
         db.prepare('DELETE FROM stock').run();
         for (const [itemId, stockByWarehouse] of data.entries()) {
-            const totalStock = Object.values(stockByWarehouse).reduce((acc: number, val: number) => acc + val, 0);
+            const totalStock = (Object.values(stockByWarehouse) as number[]).reduce((acc: number, val: number) => acc + val, 0);
             insert.run(itemId, JSON.stringify(stockByWarehouse), totalStock);
         }
     });
