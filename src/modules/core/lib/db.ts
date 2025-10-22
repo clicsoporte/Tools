@@ -724,6 +724,47 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
     return dataArray;
 };
 
+async function updateCabysCatalog(data: any[]): Promise<{ count: number }> {
+    const db = await connectDb();
+    const transaction = db.transaction((rows) => {
+        db.prepare('DELETE FROM cabys_catalog').run();
+        const insertStmt = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
+        for (const row of rows) {
+            const taxRate = row.taxRate ?? (row.Impuesto !== undefined ? parseFloat(String(row.Impuesto).replace('%', '')) / 100 : undefined);
+            if (row.code && row.description && taxRate !== undefined && !isNaN(taxRate)) {
+                insertStmt.run(row.code, row.description, taxRate);
+            }
+        }
+    });
+    transaction(data);
+    return { count: data.length };
+}
+
+async function updateCabysCatalogFromContent(fileContent: string): Promise<{ count: number }> {
+    return new Promise((resolve, reject) => {
+        Papa.parse(fileContent, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    const mappedData = results.data.map((row: any) => ({
+                        code: row.Codigo,
+                        description: row.Descripcion,
+                        taxRate: parseFloat(row.Impuesto) / 100
+                    }));
+                    const { count } = await updateCabysCatalog(mappedData);
+                    resolve({ count });
+                } catch (error) {
+                    reject(error);
+                }
+            },
+            error: (error: Error) => {
+                reject(error);
+            }
+        });
+    });
+}
+
 export async function importDataFromFile(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines'): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
@@ -759,7 +800,7 @@ export async function importDataFromFile(type: 'customers' | 'products' | 'exemp
     else if (type === 'stock') {
         await saveAllStock(dataArray as { itemId: string, warehouseId: string, stock: number }[]);
         return { count: new Set(dataArray.map(item => item.itemId)).size, source: filePath };
-    } else if (type === 'locations') await saveAllLocations(dataArray as ItemLocation[]);
+    }
     else if (type === 'suppliers') await saveAllSuppliers(dataArray as Supplier[]);
     return { count: dataArray.length, source: filePath };
 }
@@ -789,8 +830,7 @@ async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' |
     else if (type === 'stock') {
         await saveAllStock(mappedData as { itemId: string, warehouseId: string, stock: number }[]);
         return { count: new Set(mappedData.map(item => item.itemId)).size, source: 'SQL Server' };
-    } else if (type === 'locations') await saveAllLocations(mappedData as ItemLocation[]);
-    else if (type === 'cabys') {
+    } else if (type === 'cabys') {
         const { count } = await updateCabysCatalog(mappedData);
         return { count, source: 'SQL Server' };
     } else if (type === 'suppliers') {
@@ -802,23 +842,6 @@ async function importDataFromSql(type: 'customers' | 'products' | 'exemptions' |
     }
     return { count: mappedData.length, source: 'SQL Server' };
 }
-
-async function updateCabysCatalog(data: any[]): Promise<{ count: number }> {
-    const db = await connectDb();
-    const transaction = db.transaction((rows) => {
-        db.prepare('DELETE FROM cabys_catalog').run();
-        const insertStmt = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
-        for (const row of rows) {
-            const taxRate = row.taxRate ?? (row.Impuesto !== undefined ? parseFloat(String(row.Impuesto).replace('%', '')) / 100 : undefined);
-            if (row.code && row.description && taxRate !== undefined && !isNaN(taxRate)) {
-                insertStmt.run(row.code, row.description, taxRate);
-            }
-        }
-    });
-    transaction(data);
-    return { count: data.length };
-}
-
 
 export async function importData(type: ImportQuery['type']): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
@@ -940,6 +963,69 @@ export async function deleteSuggestion(id: number): Promise<void> {
   const db = await connectDb();
   db.prepare('DELETE FROM suggestions WHERE id = ?').run(id);
 }
+
+// --- Stock Functions ---
+
+export async function getAllStock(): Promise<StockInfo[]> {
+  const db = await connectDb();
+  try {
+    const rows = db.prepare('SELECT * FROM stock').all() as { itemId: string; stockByWarehouse: string; totalStock: number }[];
+    return rows.map(row => ({
+      ...row,
+      stockByWarehouse: JSON.parse(row.stockByWarehouse),
+    }));
+  } catch (error) {
+    console.error("Failed to get all stock:", error);
+    return [];
+  }
+}
+
+export async function saveAllStock(stockData: { itemId: string, warehouseId: string, stock: number }[]): Promise<void> {
+    const db = await connectDb();
+    const stockMap = new Map<string, { [key: string]: number }>();
+
+    for (const item of stockData) {
+        if (!stockMap.has(item.itemId)) {
+            stockMap.set(item.itemId, {});
+        }
+        stockMap.get(item.itemId)![item.warehouseId] = item.stock;
+    }
+
+    const insert = db.prepare('INSERT OR REPLACE INTO stock (itemId, stockByWarehouse, totalStock) VALUES (?, ?, ?)');
+    const transaction = db.transaction((data) => {
+        db.prepare('DELETE FROM stock').run();
+        for (const [itemId, stockByWarehouse] of data.entries()) {
+            const totalStock = Object.values(stockByWarehouse).reduce((acc, val) => acc + val, 0);
+            insert.run(itemId, JSON.stringify(stockByWarehouse), totalStock);
+        }
+    });
+
+    try {
+        transaction(stockMap);
+    } catch (error) {
+        console.error("Failed to save all stock:", error);
+        throw error;
+    }
+}
+
+export async function getStockSettings(): Promise<StockSettings> {
+    const db = await connectDb();
+    const rows = db.prepare('SELECT * FROM stock_settings').all() as { key: string; value: string }[];
+    const settings: StockSettings = { warehouses: [] };
+    for (const row of rows) {
+        if (row.key === 'warehouses') {
+            settings.warehouses = JSON.parse(row.value);
+        }
+    }
+    return settings;
+}
+
+export async function saveStockSettings(settings: StockSettings): Promise<void> {
+    const db = await connectDb();
+    db.prepare('INSERT OR REPLACE INTO stock_settings (key, value) VALUES (?, ?)')
+      .run('warehouses', JSON.stringify(settings.warehouses));
+}
+
 
 // --- Maintenance Functions ---
 

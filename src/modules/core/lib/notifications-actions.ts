@@ -4,8 +4,9 @@
 "use server";
 
 import { revalidatePath } from 'next/cache';
-import { getNotifications as dbGetNotifications, markNotificationsAsRead as dbMarkAsRead, createNotification as dbCreateNotification, getAllUsers as dbGetAllUsers } from './db';
-import type { Notification } from '../types';
+import { getNotifications as dbGetNotifications, markNotificationsAsRead as dbMarkAsRead, createNotification as dbCreateNotification } from './db';
+import { getAllUsers as dbGetAllUsers } from './auth';
+import type { Notification, User } from '../types';
 
 /**
  * Creates a new notification for a single user.
@@ -35,7 +36,7 @@ export async function createNotificationForRole(
     taskType: string
 ): Promise<void> {
     const allUsers = await dbGetAllUsers();
-    const targetUsers = allUsers.filter(user => user.role === roleId || user.role === 'admin');
+    const targetUsers = allUsers.filter((user: User) => user.role === roleId || user.role === 'admin');
 
     for (const user of targetUsers) {
         await dbCreateNotification({ 

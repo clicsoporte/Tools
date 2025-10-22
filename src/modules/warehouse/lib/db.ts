@@ -5,7 +5,7 @@
  */
 "use server";
 
-import { connectDb, getAllStock, getStockSettings as getStockSettingsFromMain } from '../../core/lib/db';
+import { connectDb, getAllStock as getAllStockFromMain, getStockSettings as getStockSettingsFromMain } from '../../core/lib/db';
 import type { WarehouseLocation, WarehouseInventoryItem, MovementLog, WarehouseSettings, StockSettings, StockInfo, ItemLocation } from '../../core/types';
 
 const WAREHOUSE_DB_FILE = 'warehouse.db';
@@ -209,7 +209,7 @@ export async function getWarehouseData(): Promise<{ locations: WarehouseLocation
     const locations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
     const inventory = db.prepare('SELECT * FROM inventory').all() as WarehouseInventoryItem[];
     const itemLocations = db.prepare('SELECT * FROM item_locations').all() as ItemLocation[];
-    const stock = await getAllStock();
+    const stock = await getAllStockFromMain();
     const warehouseSettings = await getWarehouseSettings();
     const stockSettings = await getStockSettingsFromMain();
 

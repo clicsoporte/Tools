@@ -158,7 +158,7 @@ export async function getErpOrderData(identifier: string | DateRange): Promise<{
  */
 export async function getRequestSuggestions(dateRange: DateRange): Promise<PurchaseSuggestion[]> {
     const { headers, lines } = await getErpOrderDataServer(dateRange);
-    const allStock = await getAllStock();
+    const allStock = await getAllStockFromMainDb();
     const allProducts = await getAllProducts();
     const allCustomers = await getAllCustomers();
     const allActiveRequests = await getRequests({}).then(res => res.requests.filter(r => ['pending', 'approved', 'ordered'].includes(r.status)));

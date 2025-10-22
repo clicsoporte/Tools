@@ -128,7 +128,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setUnreadSuggestionsCount(data.unreadSuggestions.length);
 
       if (currentUser && data.roles.length > 0) {
-        const role = data.roles.find(r => r.id === currentUser.role);
+        const role = data.roles.find((r: Role) => r.id === currentUser.role);
         setUserRole(role || null);
       } else {
         setUserRole(null);
