@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from '@/components/ui/sheet';
 import { format, parseISO, isValid } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -61,23 +62,23 @@ export default function CostAssistantPage() {
                             <CardDescription>Carga facturas XML para extraer artículos, añadir costos y calcular precios de venta.</CardDescription>
                         </div>
                          <div className="flex items-center gap-2 flex-wrap">
-                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
+                             <Dialog>
+                                <DialogTrigger asChild>
                                     <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Iniciar una nueva operación?</AlertDialogTitle>
-                                        <AlertDialogDescription>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>¿Iniciar una nueva operación?</DialogTitle>
+                                        <DialogDescription>
                                             Esta acción limpiará todos los artículos, costos y facturas cargadas. ¿Deseas continuar?
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={actions.handleClear}>Sí, limpiar todo</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                                        <DialogClose asChild><Button onClick={actions.handleClear}>Sí, limpiar todo</Button></DialogClose>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                             <Button variant="outline" onClick={actions.openFileDialog} disabled={state.isProcessing}>
                                 {state.isProcessing ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
