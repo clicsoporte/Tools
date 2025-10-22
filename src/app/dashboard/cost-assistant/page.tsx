@@ -103,7 +103,10 @@ export default function CostAssistantPage() {
                                                     {state.drafts.map((draft) => (
                                                         <Card key={draft.id}>
                                                             <CardHeader>
-                                                                <CardTitle className="text-lg">{draft.name}</CardTitle>
+                                                                <CardTitle className="text-lg flex items-center gap-2">
+                                                                    <span className="font-mono text-base bg-muted px-2 py-1 rounded">{draft.id}</span>
+                                                                    <span>{draft.name}</span>
+                                                                </CardTitle>
                                                                 <CardDescription>Guardado el {isValid(parseISO(draft.createdAt)) ? format(parseISO(draft.createdAt), 'dd/MM/yyyy HH:mm') : 'Fecha inválida'}</CardDescription>
                                                             </CardHeader>
                                                             <CardFooter className="flex justify-end gap-2">
@@ -134,7 +137,7 @@ export default function CostAssistantPage() {
                                     </div>
                                 </SheetContent>
                             </Sheet>
-                            <Button onClick={() => actions.saveDraft(prompt("Asigna un nombre a este borrador:") || `Borrador ${new Date().toLocaleString()}`)}><Save className="mr-2 h-4 w-4"/>Guardar Borrador</Button>
+                            <Button onClick={actions.saveDraft}><Save className="mr-2 h-4 w-4"/>Guardar Borrador</Button>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -220,8 +223,8 @@ export default function CostAssistantPage() {
                                               <ul className="space-y-3 text-sm">
                                                   {state.processedInvoices.map((invoice, index) => (
                                                       <li key={index} className="border-b pb-2">
-                                                          <div className="flex items-start gap-4">
-                                                              <div className="pr-2">
+                                                          <div className="flex items-center gap-4">
+                                                              <div className="flex-shrink-0">
                                                                   <p className="font-semibold text-muted-foreground">{invoice.invoiceNumber}</p>
                                                                   <p>{invoice.supplierName}</p>
                                                                   <p className="text-xs text-muted-foreground">{isValid(parseISO(invoice.invoiceDate)) ? format(parseISO(invoice.invoiceDate), 'dd/MM/yyyy') : 'Fecha Inválida'}</p>

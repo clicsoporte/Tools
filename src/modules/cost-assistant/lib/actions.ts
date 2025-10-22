@@ -7,7 +7,7 @@
 
 import { XMLParser } from 'fast-xml-parser';
 import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
-import { getAllDrafts as getAllDraftsServer, saveDraft as saveDraftServer, deleteDraft as deleteDraftServer } from './db';
+import { getAllDrafts as getAllDraftsServer, saveDraft as saveDraftServer, deleteDraft as deleteDraftServer, getNextDraftNumber as getNextDraftNumberServer } from './db';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import * as XLSX from 'xlsx';
 import path from 'path';
@@ -240,12 +240,17 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
 
 export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<void> {
     await logInfo('Cost analysis draft saved', { name: draft.name, userId: draft.userId });
-    await saveDraftServer(draft);
+    const nextDraftNumber = await getNextDraftNumberServer();
+    await saveDraftServer(draft, nextDraftNumber);
 }
 
 export async function deleteDraft(id: string): Promise<void> {
     await logInfo('Cost analysis draft deleted', { draftId: id });
     return deleteDraftServer(id);
+}
+
+export async function getNextDraftNumber(): Promise<number> {
+    return await getNextDraftNumberServer();
 }
 
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {

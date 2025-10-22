@@ -24,8 +24,13 @@ export async function initializeCostAssistantDb(db: import('better-sqlite3').Dat
             createdAt TEXT NOT NULL,
             data TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
     `;
     db.exec(schema);
+    db.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES ('nextDraftNumber', '1')`).run();
     console.log(`Database ${COST_ASSISTANT_DB_FILE} initialized for Cost Assistant.`);
 }
 
@@ -50,9 +55,9 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
     }
 }
 
-export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<CostAnalysisDraft> {
+export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>, nextDraftNumber: number): Promise<CostAnalysisDraft> {
     const db = await connectDb(COST_ASSISTANT_DB_FILE);
-    const id = `${draft.name.replace(/\s+/g, '-')}-${Date.now()}`;
+    const id = `AC-${String(nextDraftNumber).padStart(5, '0')}`;
     const createdAt = new Date().toISOString();
     
     const { userId, name, ...dataToStore } = draft;
@@ -61,6 +66,9 @@ export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt
         INSERT OR REPLACE INTO drafts (id, userId, name, data, createdAt)
         VALUES (?, ?, ?, ?, ?)
     `).run(id, userId, name, JSON.stringify(dataToStore), createdAt);
+
+    // Increment the draft number
+    db.prepare(`UPDATE settings SET value = ? WHERE key = 'nextDraftNumber'`).run(nextDraftNumber + 1);
     
     return { id, createdAt, ...draft };
 }
@@ -68,4 +76,11 @@ export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt
 export async function deleteDraft(id: string): Promise<void> {
     const db = await connectDb(COST_ASSISTANT_DB_FILE);
     db.prepare(`DELETE FROM drafts WHERE id = ?`).run(id);
+}
+
+
+export async function getNextDraftNumber(): Promise<number> {
+    const db = await connectDb(COST_ASSISTANT_DB_FILE);
+    const row = db.prepare(`SELECT value FROM settings WHERE key = 'nextDraftNumber'`).get() as { value: string } | undefined;
+    return row ? parseInt(row.value, 10) : 1;
 }

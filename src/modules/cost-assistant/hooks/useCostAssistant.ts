@@ -8,7 +8,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
-import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings, getAllDrafts, saveDraft, deleteDraft, exportForERP, cleanupExportFile } from '../lib/actions';
+import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings, getAllDrafts, saveDraft, deleteDraft, getNextDraftNumber, exportForERP, cleanupExportFile } from '../lib/actions';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 
@@ -262,8 +262,13 @@ export const useCostAssistant = () => {
         }
     };
 
-    const saveDraftAction = async (draftName: string) => {
-        if (!user || !draftName) return;
+    const saveDraftAction = async () => {
+        if (!user) return;
+        const nextNumber = await getNextDraftNumber();
+        const defaultName = `AC-${String(nextNumber).padStart(5, '0')} - Borrador de Costos`;
+        const draftName = prompt("Asigna un nombre a este borrador:", defaultName);
+
+        if (!draftName) return; // User cancelled prompt
 
         const newDraft: Omit<CostAnalysisDraft, 'id' | 'createdAt'> = {
             userId: user.id,
@@ -279,6 +284,7 @@ export const useCostAssistant = () => {
         try {
             await saveDraft(newDraft);
             toast({ title: "Borrador Guardado", description: `El análisis "${draftName}" ha sido guardado.` });
+            await loadDrafts(); // Refresh draft list
         } catch (error: any) {
             logError("Failed to save draft", { error: error.message });
             toast({ title: "Error", description: "No se pudo guardar el borrador.", variant: "destructive" });
