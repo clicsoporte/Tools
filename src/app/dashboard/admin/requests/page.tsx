@@ -241,22 +241,41 @@ export default function RequestSettingsPage() {
                                             placeholder="Ej: Documento Controlado - Versión 1.0"
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Tamaño del Papel</Label>
-                                        <RadioGroup
-                                            value={settings.pdfPaperSize}
-                                            onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfPaperSize: value as 'letter' | 'legal' } : null)}
-                                            className="flex items-center gap-4"
-                                        >
-                                            <div className="flex items-center space-x-2">
-                                                <RadioGroupItem value="letter" id="r-req-letter" />
-                                                <Label htmlFor="r-req-letter">Carta (Letter)</Label>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <RadioGroupItem value="legal" id="r-req-legal" />
-                                                <Label htmlFor="r-req-legal">Oficio (Legal)</Label>
-                                            </div>
-                                        </RadioGroup>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <Label>Tamaño del Papel</Label>
+                                            <RadioGroup
+                                                value={settings.pdfPaperSize}
+                                                onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfPaperSize: value as 'letter' | 'legal' } : null)}
+                                                className="flex items-center gap-4"
+                                            >
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="letter" id="r-req-letter" />
+                                                    <Label htmlFor="r-req-letter">Carta (Letter)</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="legal" id="r-req-legal" />
+                                                    <Label htmlFor="r-req-legal">Oficio (Legal)</Label>
+                                                </div>
+                                            </RadioGroup>
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label>Orientación</Label>
+                                            <RadioGroup
+                                                value={settings.pdfOrientation}
+                                                onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfOrientation: value as 'portrait' | 'landscape' } : null)}
+                                                className="flex items-center gap-4"
+                                            >
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="portrait" id="r-req-portrait" />
+                                                    <Label htmlFor="r-req-portrait">Vertical</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="landscape" id="r-req-landscape" />
+                                                    <Label htmlFor="r-req-landscape">Horizontal</Label>
+                                                </div>
+                                            </RadioGroup>
+                                        </div>
                                     </div>
                                     <div className="space-y-4">
                                         <Label>Columnas a Incluir en el Reporte</Label>

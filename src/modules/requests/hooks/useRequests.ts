@@ -15,7 +15,7 @@ import { logError, logInfo } from '@/modules/core/lib/logger';
 import { 
     getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, 
     updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, 
-    updatePendingAction, getErpOrderData, saveRequestSettings as saveSettingsServer
+    updatePendingAction, getErpOrderData
 } from '@/modules/requests/lib/actions';
 import type { 
     PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
@@ -29,6 +29,7 @@ import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
 import { AlertCircle } from 'lucide-react';
+import type { RowInput } from 'jspdf-autotable';
 
 const normalizeText = (text: string | null | undefined): string => {
     if (!text) return "";
@@ -656,7 +657,79 @@ export const useRequests = () => {
     };
 
     const handleExportPDF = async (orientation: 'portrait' | 'landscape' = 'portrait') => {
-        // Implementation remains the same
+        if (!authCompanyData || !state.requestSettings) return;
+
+        let logoDataUrl: string | null = null;
+        if (authCompanyData.logoUrl) {
+            try {
+                const response = await fetch(authCompanyData.logoUrl);
+                const blob = await response.blob();
+                logoDataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                console.error("Error processing logo for PDF:", e);
+            }
+        }
+
+        const allPossibleColumns: { id: string; header: string; width?: number }[] = [
+            { id: 'consecutive', header: 'SC', width: 45 },
+            { id: 'itemDescription', header: 'Artículo' },
+            { id: 'clientName', header: 'Cliente' },
+            { id: 'quantity', header: 'Cant.', width: 35 },
+            { id: 'requiredDate', header: 'F. Req.', width: 55 },
+            { id: 'status', header: 'Estado', width: 75 },
+            { id: 'requestedBy', header: 'Solicita', width: 65 },
+            { id: 'purchaseOrder', header: 'OC Cliente' },
+            { id: 'manualSupplier', header: 'Proveedor' },
+        ];
+        
+        const selectedColumnIds = state.requestSettings.pdfExportColumns || [];
+        const tableHeaders = selectedColumnIds.map(id => allPossibleColumns.find(c => c.id === id)?.header || id);
+        
+        const tableRows: RowInput[] = selectors.filteredRequests.map(request => {
+            return selectedColumnIds.map(id => {
+                switch (id) {
+                    case 'consecutive': return request.consecutive;
+                    case 'itemDescription': return `[${request.itemId}] ${request.itemDescription}`;
+                    case 'clientName': return request.clientName;
+                    case 'quantity': return request.quantity.toLocaleString('es-CR');
+                    case 'requiredDate': return format(parseISO(request.requiredDate), 'dd/MM/yy');
+                    case 'status': return statusConfig[request.status]?.label || request.status;
+                    case 'requestedBy': return request.requestedBy;
+                    case 'purchaseOrder': return request.purchaseOrder || 'N/A';
+                    case 'manualSupplier': return request.manualSupplier || 'N/A';
+                    default: return '';
+                }
+            });
+        });
+
+        const doc = generateDocument({
+            docTitle: `Solicitudes de Compra (${state.viewingArchived ? 'Archivadas' : 'Activas'})`,
+            docId: '',
+            companyData: authCompanyData,
+            logoDataUrl,
+            meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
+            blocks: [],
+            table: {
+                columns: tableHeaders,
+                rows: tableRows,
+                columnStyles: selectedColumnIds.reduce((acc, id, index) => {
+                    const col = allPossibleColumns.find(c => c.id === id);
+                    if (col?.width) { acc[index] = { cellWidth: col.width }; }
+                    if (id === 'quantity') { acc[index] = { ...acc[index], halign: 'right' }; }
+                    return acc;
+                }, {} as { [key: number]: any })
+            },
+            totals: [],
+            topLegend: state.requestSettings.pdfTopLegend,
+            paperSize: state.requestSettings.pdfPaperSize,
+            orientation: orientation,
+        });
+    
+        doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);
     };
 
     const handleExportSingleRequestPDF = async (request: PurchaseRequest) => {
