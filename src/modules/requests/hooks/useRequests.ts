@@ -74,7 +74,7 @@ type UIErpOrderLine = {
 
 const statusConfig: { [key: string]: { label: string, color: string } } = {
     pending: { label: "Pendiente", color: "bg-yellow-500" },
-    'purchasing-review': { label: "Compras Revisión", color: "bg-cyan-500" },
+    'purchasing-review': { label: "Revisión Compras", color: "bg-cyan-500" },
     'pending-approval': { label: "Pendiente Aprobación", color: "bg-orange-500" },
     approved: { label: "Aprobada", color: "bg-green-500" },
     ordered: { label: "Ordenada", color: "bg-blue-500" },
@@ -302,7 +302,7 @@ export const useRequests = () => {
             
             canRequestCancel: (isApproved || isOrdered) && hasPermission('requests:status:cancel'),
             canCancelPending: (isPending || isPurchasingReview || isPendingApproval) && hasPermission('requests:status:cancel'),
-            canRequestUnapproval: (isApproved || isOrdered) && hasPermission('requests:status:unapprove-request'),
+            canRequestUnapproval: (isApproved || isOrdered) && hasPermission('requests:status:unapproval-request'),
             canAddNote: hasPermission('requests:notes:add'),
         };
     }, [hasPermission, state.requestSettings]);
@@ -373,7 +373,7 @@ export const useRequests = () => {
             const payload: AdministrativeActionPayload = {
                 entityId: request.id,
                 action,
-                notes: `Solicitud de ${action === 'unapprove-request' ? 'desaprobación' : 'cancelación'} iniciada.`,
+                notes: `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada.`,
                 updatedBy: currentUser.name,
             };
             const updated = await updatePendingAction(payload);
@@ -381,7 +381,7 @@ export const useRequests = () => {
                 activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r),
                 archivedRequests: state.archivedRequests.map(r => r.id === updated.id ? updated : r)
             });
-            toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapprove-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
+            toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
         } catch (error: any) {
             logError(`Failed to request ${action}`, { error: error.message });
             toast({ title: "Error al Solicitar", description: `No se pudo enviar la solicitud. ${error.message}`, variant: "destructive" });
@@ -396,7 +396,7 @@ export const useRequests = () => {
 
         try {
             if (approve) {
-                const targetStatus = state.requestToUpdate.pendingAction === 'unapprove-request' ? 'pending' : 'canceled';
+                const targetStatus = state.requestToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
                 await handleStatusUpdate(targetStatus);
             } else {
                  const updated = await updatePendingAction({

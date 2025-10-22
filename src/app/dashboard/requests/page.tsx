@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -24,7 +25,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import type { PurchaseRequest, PurchaseRequestHistoryEntry } from '@/modules/core/types';
+import type { PurchaseRequest, PurchaseRequestHistoryEntry, NotePayload } from '@/modules/core/types';
 import Link from 'next/link';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 

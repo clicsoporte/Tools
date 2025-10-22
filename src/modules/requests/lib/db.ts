@@ -503,8 +503,8 @@ export async function getErpOrderData(identifier: string | DateRange): Promise<{
     }
 
     const itemIds = [...new Set(lines.map(line => line.ARTICULO))];
-    const inventory = await getAllStockFromMainDb();
-    const relevantInventory = inventory.filter((inv: StockInfo) => itemIds.includes(inv.itemId));
+    const inventory: StockInfo[] = await (await connectDb()).prepare(`SELECT * FROM stock WHERE itemId IN (${itemIds.map(() => '?').join(',')})`).all(...itemIds) as StockInfo[];
+    const relevantInventory = inventory.filter(inv => itemIds.includes(inv.itemId));
 
     return JSON.parse(JSON.stringify({ headers, lines, inventory: relevantInventory }));
 }
