@@ -6,7 +6,7 @@
 
 import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, UpdateProductionOrderPayload, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
 import { logInfo } from '@/modules/core/lib/logger';
-import { createNotification } from '@/modules/core/lib/notifications-actions';
+import { createNotification, createNotificationForRole } from '@/modules/core/lib/notifications-actions';
 import { 
     getOrders, 
     addOrder, 
@@ -19,6 +19,7 @@ import {
     addNote as addNoteServer,
     updatePendingAction as updatePendingActionServer,
     getUserByName,
+    getRolesWithPermission,
 } from './db';
 
 /**
@@ -48,6 +49,19 @@ export async function getProductionOrders(options: {
 export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'shiftId'>, requestedBy: string): Promise<ProductionOrder> {
     const createdOrder = await addOrder(order, requestedBy);
     await logInfo(`Production order ${createdOrder.consecutive} created by ${requestedBy}`, { customer: createdOrder.customerName, product: createdOrder.productDescription, quantity: createdOrder.quantity });
+
+    const approverRoles = await getRolesWithPermission('planner:status:approve');
+    for (const roleId of approverRoles) {
+        await createNotificationForRole(
+            roleId,
+            `Nueva orden ${createdOrder.consecutive} requiere aprobación.`,
+            `/dashboard/planner?search=${createdOrder.consecutive}`,
+            createdOrder.id,
+            'production-order',
+            'approve'
+        );
+    }
+
     return createdOrder;
 }
 

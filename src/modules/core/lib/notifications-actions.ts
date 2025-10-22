@@ -4,11 +4,11 @@
 "use server";
 
 import { revalidatePath } from 'next/cache';
-import { getNotifications as dbGetNotifications, markNotificationsAsRead as dbMarkAsRead, createNotification as dbCreateNotification } from './db';
+import { getNotifications as dbGetNotifications, markNotificationsAsRead as dbMarkAsRead, createNotification as dbCreateNotification, getAllUsers as dbGetAllUsers } from './db';
 import type { Notification } from '../types';
 
 /**
- * Creates a new notification for a user.
+ * Creates a new notification for a single user.
  * @param userId - The ID of the user who will receive the notification.
  * @param message - The notification message.
  * @param href - An optional URL for the notification to link to.
@@ -16,6 +16,39 @@ import type { Notification } from '../types';
 export async function createNotification(userId: number, message: string, href: string): Promise<void> {
     await dbCreateNotification({ userId, message, href });
 }
+
+/**
+ * Creates a notification for all users who have a specific role.
+ * @param roleId - The ID of the role to target.
+ * @param message - The notification message.
+ * @param href - An optional URL for the notification to link to.
+ * @param entityId - The ID of the entity this notification relates to (e.g., order ID).
+ * @param entityType - The type of entity (e.g., 'production-order').
+ * @param taskType - A specific identifier for the task (e.g., 'approve').
+ */
+export async function createNotificationForRole(
+    roleId: string, 
+    message: string, 
+    href: string,
+    entityId: number,
+    entityType: string,
+    taskType: string
+): Promise<void> {
+    const allUsers = await dbGetAllUsers();
+    const targetUsers = allUsers.filter(user => user.role === roleId);
+
+    for (const user of targetUsers) {
+        await dbCreateNotification({ 
+            userId: user.id, 
+            message, 
+            href,
+            entityId,
+            entityType,
+            taskType,
+        });
+    }
+}
+
 
 /**
  * Fetches all unread notifications for a specific user.

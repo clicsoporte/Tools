@@ -6,7 +6,7 @@
 
 import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User } from '../../core/types';
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import { createNotification } from '@/modules/core/lib/notifications-actions';
+import { createNotificationForRole } from '@/modules/core/lib/notifications-actions';
 import { 
     getRequests, 
     addRequest,
@@ -18,8 +18,9 @@ import {
     updatePendingAction as updatePendingActionServer,
     getErpOrderData as getErpOrderDataServer,
     getUserByName,
+    getRolesWithPermission,
 } from './db';
-import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions';
+import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions.tsx';
 import { getAllProducts, getAllStock, getAllCustomers } from '@/modules/core/lib/db';
 
 /**
@@ -49,6 +50,20 @@ export async function getPurchaseRequests(options: {
 export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'>, requestedBy: string): Promise<PurchaseRequest> {
     const createdRequest = await addRequest(request, requestedBy);
     await logInfo(`Purchase request ${createdRequest.consecutive} created by ${requestedBy}`, { item: createdRequest.itemDescription, quantity: createdRequest.quantity });
+    
+    // Notify users who can approve the request
+    const approverRoles = await getRolesWithPermission('requests:status:approve');
+    for (const roleId of approverRoles) {
+        await createNotificationForRole(
+            roleId,
+            `Nueva solicitud ${createdRequest.consecutive} requiere aprobación.`,
+            `/dashboard/requests?search=${createdRequest.consecutive}`,
+            createdRequest.id,
+            'purchase-request',
+            'approve'
+        );
+    }
+    
     return createdRequest;
 }
 
@@ -76,10 +91,13 @@ export async function updatePurchaseRequestStatus(payload: UpdateRequestStatusPa
     if (updatedRequest.requestedBy !== payload.updatedBy) {
         const targetUser = await getUserByName(updatedRequest.requestedBy);
         if (targetUser) {
-            await createNotification(
-                targetUser.id,
+            await createNotificationForRole(
+                targetUser.role,
                 `La solicitud ${updatedRequest.consecutive} ha sido actualizada a: ${updatedRequest.status}.`,
-                `/dashboard/requests?search=${updatedRequest.consecutive}`
+                `/dashboard/requests?search=${updatedRequest.consecutive}`,
+                updatedRequest.id,
+                'purchase-request',
+                'status-change'
             );
         }
     }

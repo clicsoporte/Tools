@@ -3,8 +3,7 @@
  */
 "use server";
 
-import { connectDb } from '../../core/lib/db';
-import { getAllUsers } from '../../core/lib/auth';
+import { connectDb, getAllUsers as getAllUsersFromMain, getAllRoles as getAllRolesFromMain } from '../../core/lib/db';
 import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload, AdministrativeActionPayload, User, PlannerShift } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
@@ -605,8 +604,13 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
 }
 
 export async function getUserByName(name: string): Promise<User | null> {
-    const users = await getAllUsers();
+    const users = await getAllUsersFromMain();
     return users.find((u) => u.name === name) || null;
+}
+
+export async function getRolesWithPermission(permission: string): Promise<string[]> {
+    const roles = await getAllRolesFromMain();
+    return roles.filter(role => role.id === 'admin' || role.permissions.includes(permission)).map(role => role.id);
 }
 
 export async function getCompletedOrdersByDateRange(dateRange: DateRange): Promise<(ProductionOrder & { history: ProductionOrderHistoryEntry[] })[]> {
