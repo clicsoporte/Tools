@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -370,7 +369,7 @@ export default function HaciendaQueryPage() {
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-8">
             <Tabs defaultValue="unified">
-                <TabsList className="w-full flex flex-wrap md:grid md:grid-cols-3">
+                <TabsList className="w-full flex-wrap h-auto md:h-10 md:grid md:grid-cols-3">
                     <TabsTrigger value="unified">Búsqueda Unificada</TabsTrigger>
                     <TabsTrigger value="taxpayer">Situación Tributaria</TabsTrigger>
                     <TabsTrigger value="exemption">Exoneraciones</TabsTrigger>

@@ -63,6 +63,7 @@ import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Skeleton } from "../../../../components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "../../../../components/ui/avatar";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type NewUserForm = Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & {
     password: string;
@@ -305,37 +306,39 @@ export default function UsersPage() {
                                 Completa los detalles para crear un nuevo usuario.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Nombre</Label>
-                                <Input id="name" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
+                        <ScrollArea className="max-h-[60vh]">
+                            <div className="space-y-4 py-4 px-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="name">Nombre</Label>
+                                    <Input id="name" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Correo</Label>
+                                    <Input id="email" type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="erpAlias">Alias de Usuario (ERP)</Label>
+                                    <Input id="erpAlias" value={newUser.erpAlias || ''} onChange={e => setNewUser({...newUser, erpAlias: e.target.value})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="password">Contraseña</Label>
+                                    <Input id="password" type="password" value={newUser.password || ''} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="role">Rol</Label>
+                                    <Select value={newUser.role} onValueChange={(value) => setNewUser({...newUser, role: value as User["role"]})}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecciona un rol" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {roles.map(role => (
+                                                <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Correo</Label>
-                                <Input id="email" type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="erpAlias">Alias de Usuario (ERP)</Label>
-                                <Input id="erpAlias" value={newUser.erpAlias || ''} onChange={e => setNewUser({...newUser, erpAlias: e.target.value})} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Contraseña</Label>
-                                <Input id="password" type="password" value={newUser.password || ''} onChange={e => setNewUser({...newUser, password: e.target.value})} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="role">Rol</Label>
-                                <Select value={newUser.role} onValueChange={(value) => setNewUser({...newUser, role: value as User["role"]})}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona un rol" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {roles.map(role => (
-                                            <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
+                        </ScrollArea>
                         <DialogFooter>
                             <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                             <Button onClick={handleAddUser}>Guardar Usuario</Button>
@@ -419,57 +422,59 @@ export default function UsersPage() {
                     </DialogDescription>
                 </DialogHeader>
                 {currentUserToEdit && (
-                     <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-name">Nombre</Label>
-                            <Input id="edit-name" value={currentUserToEdit.name} onChange={e => setCurrentUserToEdit({...currentUserToEdit, name: e.target.value})} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-email">Correo Electrónico</Label>
-                            <Input id="edit-email" type="email" value={currentUserToEdit.email} onChange={e => setCurrentUserToEdit({...currentUserToEdit, email: e.target.value})} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="edit-erpAlias">Alias de Usuario (ERP)</Label>
-                            <Input id="edit-erpAlias" value={currentUserToEdit.erpAlias || ''} onChange={e => setCurrentUserToEdit({...currentUserToEdit, erpAlias: e.target.value})} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+                    <ScrollArea className="max-h-[70vh]">
+                        <div className="space-y-4 py-4 px-2">
                             <div className="space-y-2">
-                                <Label htmlFor="edit-phone">Teléfono</Label>
-                                <Input id="edit-phone" value={currentUserToEdit.phone || ''} onChange={e => setCurrentUserToEdit({...currentUserToEdit, phone: e.target.value})} />
+                                <Label htmlFor="edit-name">Nombre</Label>
+                                <Input id="edit-name" value={currentUserToEdit.name} onChange={e => setCurrentUserToEdit({...currentUserToEdit, name: e.target.value})} />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="edit-whatsapp">WhatsApp</Label>
-                                <Input id="edit-whatsapp" value={currentUserToEdit.whatsapp || ''} onChange={e => setCurrentUserToEdit({...currentUserToEdit, whatsapp: e.target.value})} />
+                                <Label htmlFor="edit-email">Correo Electrónico</Label>
+                                <Input id="edit-email" type="email" value={currentUserToEdit.email} onChange={e => setCurrentUserToEdit({...currentUserToEdit, email: e.target.value})} />
                             </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-erpAlias">Alias de Usuario (ERP)</Label>
+                                <Input id="edit-erpAlias" value={currentUserToEdit.erpAlias || ''} onChange={e => setCurrentUserToEdit({...currentUserToEdit, erpAlias: e.target.value})} />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-phone">Teléfono</Label>
+                                    <Input id="edit-phone" value={currentUserToEdit.phone || ''} onChange={e => setCurrentUserToEdit({...currentUserToEdit, phone: e.target.value})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-whatsapp">WhatsApp</Label>
+                                    <Input id="edit-whatsapp" value={currentUserToEdit.whatsapp || ''} onChange={e => setCurrentUserToEdit({...currentUserToEdit, whatsapp: e.target.value})} />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-role">Rol</Label>
+                                <Select value={currentUserToEdit.role} onValueChange={(value) => setCurrentUserToEdit({...currentUserToEdit, role: value as User["role"]})}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona un rol" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {roles.map(role => (
+                                            <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Separator className="my-6" />
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-password">Nueva Contraseña</Label>
+                                <Input 
+                                    id="edit-password" 
+                                    type="password" 
+                                    value={newPassword}
+                                    onChange={e => setNewPassword(e.target.value)} 
+                                    placeholder="Dejar en blanco para no cambiar"
+                                />
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center">
+                                Solo complete el campo de contraseña si desea cambiarla.
+                            </p>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-role">Rol</Label>
-                            <Select value={currentUserToEdit.role} onValueChange={(value) => setCurrentUserToEdit({...currentUserToEdit, role: value as User["role"]})}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona un rol" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {roles.map(role => (
-                                        <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <Separator className="my-6" />
-                         <div className="space-y-2">
-                            <Label htmlFor="edit-password">Nueva Contraseña</Label>
-                            <Input 
-                                id="edit-password" 
-                                type="password" 
-                                value={newPassword}
-                                onChange={e => setNewPassword(e.target.value)} 
-                                placeholder="Dejar en blanco para no cambiar"
-                            />
-                        </div>
-                        <p className="text-xs text-muted-foreground text-center">
-                            Solo complete el campo de contraseña si desea cambiarla.
-                        </p>
-                    </div>
+                    </ScrollArea>
                 )}
                 <DialogFooter>
                     <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
