@@ -6,7 +6,7 @@
 
 import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, UpdateProductionOrderPayload, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
 import { logInfo } from '@/modules/core/lib/logger';
-import { createNotification, createNotificationForRole } from '@/modules/core/lib/notifications-actions';
+import { createNotificationForRole } from '@/modules/core/lib/notifications-actions';
 import { 
     getOrders, 
     addOrder, 
@@ -89,10 +89,13 @@ export async function updateProductionOrderStatus(payload: UpdateStatusPayload):
     if (updatedOrder.requestedBy !== payload.updatedBy) {
         const targetUser = await getUserByName(updatedOrder.requestedBy);
         if (targetUser) {
-            await createNotification(
-                targetUser.id,
+            await createNotificationForRole(
+                targetUser.role,
                 `La orden ${updatedOrder.consecutive} ha sido actualizada a: ${updatedOrder.status}.`,
-                `/dashboard/planner?search=${updatedOrder.consecutive}`
+                `/dashboard/planner?search=${updatedOrder.consecutive}`,
+                updatedOrder.id,
+                'production-order',
+                'status-change'
             );
         }
     }
@@ -166,10 +169,13 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
                 message = `El usuario ${payload.updatedBy} ha solicitado ${payload.action === 'unapproval-request' ? 'desaprobar' : 'cancelar'} la orden ${updatedOrder.consecutive}.`;
             }
             if (message) {
-                 await createNotification(
-                    targetUser.id,
+                 await createNotificationForRole(
+                    'admin',
                     message,
-                    `/dashboard/planner?search=${updatedOrder.consecutive}`
+                    `/dashboard/planner?search=${updatedOrder.consecutive}`,
+                    updatedOrder.id,
+                    'production-order',
+                    'admin-action-needed'
                 );
             }
         }

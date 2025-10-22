@@ -35,7 +35,7 @@ export async function createNotificationForRole(
     taskType: string
 ): Promise<void> {
     const allUsers = await dbGetAllUsers();
-    const targetUsers = allUsers.filter(user => user.role === roleId);
+    const targetUsers = allUsers.filter(user => user.role === roleId || user.role === 'admin');
 
     for (const user of targetUsers) {
         await dbCreateNotification({ 

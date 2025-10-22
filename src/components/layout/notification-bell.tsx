@@ -42,8 +42,8 @@ export function NotificationBell() {
         if (notification.isSuggestion && notification.suggestionId) {
             await markSuggestionAsRead(notification.suggestionId);
             await updateUnreadSuggestionsCount();
-        } else if (!notification.isSuggestion) {
-            await markNotificationAsRead(notification.id as number, user.id);
+        } else if (!notification.isSuggestion && typeof notification.id === 'number') {
+            await markNotificationAsRead(notification.id, user.id);
         }
         // Fetch notifications after any read action to ensure consistency
         await fetchUnreadNotifications();
