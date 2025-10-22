@@ -339,7 +339,7 @@ export type UpdateOrderDetailsPayload = {
 
 // --- Purchase Request Types ---
 
-export type PurchaseRequestStatus = 'pending' | 'approved' | 'ordered' | 'received' | 'received-in-warehouse' | 'canceled';
+export type PurchaseRequestStatus = 'pending' | 'purchasing-review' | 'pending-approval' | 'approved' | 'ordered' | 'received-in-warehouse' | 'entered-erp' | 'canceled';
 export type PurchaseRequestPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type PurchaseType = 'single' | 'multiple';
 
@@ -382,6 +382,7 @@ export type PurchaseRequest = {
   hasBeenModified?: boolean;
   sourceOrders?: string[];
   involvedClients?: { id: string; name: string }[];
+  erpEntryNumber?: string; // Consecutivo de ingreso en el ERP
 };
 
 export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'>> & {
@@ -405,6 +406,7 @@ export type RequestSettings = {
     routes: string[];
     shippingMethods: string[];
     useWarehouseReception: boolean;
+    useErpEntry: boolean;
     pdfTopLegend?: string;
     pdfExportColumns: string[];
     pdfPaperSize: 'letter' | 'legal';
@@ -423,6 +425,7 @@ export type UpdateRequestStatusPayload = {
     erpOrderNumber?: string;
     deliveredQuantity?: number;
     arrivalDate?: string;
+    erpEntryNumber?: string;
 };
 
 export type RejectCancellationPayload = {

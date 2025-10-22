@@ -4,7 +4,7 @@
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User } from '../../core/types';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User, NotePayload } from '../../core/types';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { createNotificationForRole } from '@/modules/core/lib/notifications-actions';
 import { 
@@ -19,6 +19,7 @@ import {
     getErpOrderData as getErpOrderDataServer,
     getUserByName,
     getRolesWithPermission,
+    addNote as addNoteServer
 } from './db';
 import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions.tsx';
 import { getAllProducts, getAllStock, getAllCustomers } from '@/modules/core/lib/db';
@@ -51,16 +52,15 @@ export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 
     const createdRequest = await addRequest(request, requestedBy);
     await logInfo(`Purchase request ${createdRequest.consecutive} created by ${requestedBy}`, { item: createdRequest.itemDescription, quantity: createdRequest.quantity });
     
-    // Notify users who can approve the request
-    const approverRoles = await getRolesWithPermission('requests:status:approve');
-    for (const roleId of approverRoles) {
+    const reviewRoles = await getRolesWithPermission('requests:status:review');
+    for (const roleId of reviewRoles) {
         await createNotificationForRole(
             roleId,
-            `Nueva solicitud ${createdRequest.consecutive} requiere aprobación.`,
+            `Nueva solicitud ${createdRequest.consecutive} requiere revisión.`,
             `/dashboard/requests?search=${createdRequest.consecutive}`,
             createdRequest.id,
             'purchase-request',
-            'approve'
+            'review'
         );
     }
     
@@ -87,13 +87,17 @@ export async function updatePurchaseRequestStatus(payload: UpdateRequestStatusPa
     const updatedRequest = await updateStatus(payload);
     await logInfo(`Status of request ${updatedRequest.consecutive} updated to '${payload.status}' by ${payload.updatedBy}`, { notes: payload.notes, requestId: payload.requestId });
     
-    // --- Create Notification ---
     if (updatedRequest.requestedBy !== payload.updatedBy) {
         const targetUser = await getUserByName(updatedRequest.requestedBy);
         if (targetUser) {
+             const { label: statusLabel } = await getSettings().then(s => {
+                return {
+                    label: s.useWarehouseReception ? (payload.status === 'received-in-warehouse' ? 'En Bodega' : payload.status) : payload.status
+                }
+            });
             await createNotificationForRole(
                 targetUser.role,
-                `La solicitud ${updatedRequest.consecutive} ha sido actualizada a: ${updatedRequest.status}.`,
+                `La solicitud ${updatedRequest.consecutive} ha sido actualizada a: ${statusLabel}.`,
                 `/dashboard/requests?search=${updatedRequest.consecutive}`,
                 updatedRequest.id,
                 'purchase-request',
@@ -200,7 +204,6 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
         
         const existingActiveRequests = allActiveRequests.filter(r => r.itemId === itemId);
         
-        // Let's adjust shortage calculation to NOT consider active requests yet. The hook will do that.
         const shortage = data.totalRequired - currentStock;
 
         if (shortage > 0) {
@@ -222,10 +225,21 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
                 erpUsers: Array.from(data.erpUsers),
                 earliestCreationDate: data.earliestCreationDate ? data.earliestCreationDate.toISOString() : null,
                 earliestDueDate: data.earliestDueDate ? data.earliestDueDate.toISOString() : null,
-                existingActiveRequests, // Add existing active requests to the suggestion object
+                existingActiveRequests,
             });
         }
     }
 
     return suggestions.sort((a, b) => b.shortage - a.shortage);
+}
+
+/**
+ * Adds a note to a purchase request without changing its status.
+ * @param payload - The note details including requestId and notes.
+ * @returns The updated purchase request.
+ */
+export async function addNoteToRequest(payload: { requestId: number; notes: string; updatedBy: string; }): Promise<PurchaseRequest> {
+    const updatedRequest = await addNoteServer(payload);
+    await logInfo(`Note added to request ${updatedRequest.consecutive} by ${payload.updatedBy}.`);
+    return updatedRequest;
 }

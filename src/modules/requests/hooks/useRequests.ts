@@ -15,12 +15,12 @@ import { logError, logInfo } from '@/modules/core/lib/logger';
 import { 
     getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, 
     updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, 
-    updatePendingAction, getErpOrderData
+    updatePendingAction, getErpOrderData, addNoteToRequest
 } from '@/modules/requests/lib/actions';
 import type { 
     PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
     PurchaseRequestHistoryEntry, RequestSettings, Company, DateRange, 
-    AdministrativeAction, AdministrativeActionPayload, Product, StockInfo, ErpOrderHeader, ErpOrderLine, User 
+    AdministrativeAction, AdministrativeActionPayload, Product, StockInfo, ErpOrderHeader, ErpOrderLine, User, NotePayload 
 } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -76,10 +76,12 @@ type UIErpOrderLine = {
 
 const statusConfig: { [key: string]: { label: string, color: string } } = {
     pending: { label: "Pendiente", color: "bg-yellow-500" },
+    'purchasing-review': { label: "Compras Revisión", color: "bg-cyan-500" },
+    'pending-approval': { label: "Pendiente Aprobación", color: "bg-orange-500" },
     approved: { label: "Aprobada", color: "bg-green-500" },
     ordered: { label: "Ordenada", color: "bg-blue-500" },
-    received: { label: "Recibida", color: "bg-teal-500" },
-    'received-in-warehouse': { label: "En Bodega", color: "bg-gray-700" },
+    'received-in-warehouse': { label: "Recibido en Bodega", color: "bg-teal-500" },
+    'entered-erp': { label: "Ingresado ERP", color: "bg-indigo-500" },
     canceled: { label: "Cancelada", color: "bg-red-700" }
 };
 
@@ -119,6 +121,7 @@ type State = {
     newStatus: PurchaseRequestStatus | null;
     statusUpdateNotes: string;
     deliveredQuantity: number | string;
+    erpEntryNumber: string;
     isHistoryDialogOpen: boolean;
     historyRequest: PurchaseRequest | null;
     history: PurchaseRequestHistoryEntry[];
@@ -138,6 +141,8 @@ type State = {
     showOnlyShortageItems: boolean;
     isContextInfoOpen: boolean;
     contextInfoData: PurchaseRequest | null;
+    isAddNoteDialogOpen: boolean;
+    notePayload: { requestId: number; notes: string } | null;
 };
 
 
@@ -176,6 +181,7 @@ export const useRequests = () => {
         newStatus: null,
         statusUpdateNotes: "",
         deliveredQuantity: "",
+        erpEntryNumber: "",
         isHistoryDialogOpen: false,
         historyRequest: null,
         history: [],
@@ -195,6 +201,8 @@ export const useRequests = () => {
         showOnlyShortageItems: true,
         isContextInfoOpen: false,
         contextInfoData: null,
+        isAddNoteDialogOpen: false,
+        notePayload: null,
     });
     
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, state.companyData?.searchDebounceTime ?? 500);
@@ -222,7 +230,10 @@ export const useRequests = () => {
             updateState({ requestSettings: settingsData });
             
             const useWarehouse = settingsData.useWarehouseReception;
-            const activeFilter = (o: PurchaseRequest) => useWarehouse ? o.status !== 'received-in-warehouse' && o.status !== 'canceled' : o.status !== 'received' && o.status !== 'canceled';
+            const useErpEntry = settingsData.useErpEntry;
+
+            const finalStatus = useErpEntry ? 'entered-erp' : (useWarehouse ? 'received-in-warehouse' : 'ordered');
+            const activeFilter = (o: PurchaseRequest) => o.status !== finalStatus && o.status !== 'canceled';
             
             const allRequests = requestsData.requests;
             
@@ -265,24 +276,35 @@ export const useRequests = () => {
     
     const getRequestPermissions = useCallback((request: PurchaseRequest) => {
         const isPending = request.status === 'pending';
+        const isPurchasingReview = request.status === 'purchasing-review';
+        const isPendingApproval = request.status === 'pending-approval';
         const isApproved = request.status === 'approved';
         const isOrdered = request.status === 'ordered';
-        const isReceived = request.status === 'received';
-        const isArchived = request.status === (state.requestSettings?.useWarehouseReception ? 'received-in-warehouse' : 'received') || request.status === 'canceled';
-
-        const canEditPending = isPending && hasPermission('requests:edit:pending');
-        const canEditApproved = (isApproved || isOrdered) && hasPermission('requests:edit:approved');
+        const isReceivedInWarehouse = request.status === 'received-in-warehouse';
         
+        let finalArchivedStatus: PurchaseRequestStatus = 'ordered';
+        if (state.requestSettings?.useErpEntry) {
+            finalArchivedStatus = 'entered-erp';
+        } else if (state.requestSettings?.useWarehouseReception) {
+            finalArchivedStatus = 'received-in-warehouse';
+        }
+        const isArchived = request.status === finalArchivedStatus || request.status === 'canceled';
+
         return {
-            canEdit: canEditPending || canEditApproved,
-            canApprove: isPending && hasPermission('requests:status:approve'),
-            canCancelPending: isPending && hasPermission('requests:status:cancel'),
+            canEdit: (isPending || isPurchasingReview || isPendingApproval) && hasPermission('requests:edit:pending'),
+            canReopen: isArchived && hasPermission('requests:reopen'),
+            
+            canSendToReview: isPending && hasPermission('requests:status:review'),
+            canSendToApproval: isPurchasingReview && hasPermission('requests:status:pending-approval'),
+            canApprove: isPendingApproval && hasPermission('requests:status:approve'),
             canOrder: isApproved && hasPermission('requests:status:ordered'),
             canRevertToApproved: isOrdered && hasPermission('requests:status:approve'),
-            canReceive: isOrdered && hasPermission('requests:status:received'),
-            canReceiveInWarehouse: isReceived && !!state.requestSettings?.useWarehouseReception && hasPermission('requests:status:received'),
+            canReceiveInWarehouse: isOrdered && hasPermission('requests:status:received-in-warehouse'),
+            canEnterToErp: isReceivedInWarehouse && hasPermission('requests:status:entered-erp'),
+            
             canRequestCancel: (isApproved || isOrdered) && hasPermission('requests:status:cancel'),
-            canReopen: isArchived && hasPermission('requests:reopen'),
+            canCancelPending: (isPending || isPurchasingReview || isPendingApproval) && hasPermission('requests:status:cancel'),
+            canAddNote: hasPermission('requests:notes:add'),
         };
     }, [hasPermission, state.requestSettings]);
 
@@ -338,7 +360,8 @@ export const useRequests = () => {
             requestToUpdate: request,
             newStatus: status,
             statusUpdateNotes: ".",
-            deliveredQuantity: status === 'received' ? request.quantity : "",
+            deliveredQuantity: status === 'received-in-warehouse' ? request.quantity : "",
+            erpEntryNumber: "",
             arrivalDate: '',
             isStatusDialogOpen: true
         });
@@ -408,8 +431,9 @@ export const useRequests = () => {
                 notes: state.statusUpdateNotes, 
                 updatedBy: currentUser.name, 
                 reopen: false, 
-                deliveredQuantity: finalStatus === 'received' ? Number(state.deliveredQuantity) : undefined,
-                arrivalDate: finalStatus === 'ordered' ? state.arrivalDate : undefined
+                deliveredQuantity: finalStatus === 'received-in-warehouse' ? Number(state.deliveredQuantity) : undefined,
+                arrivalDate: finalStatus === 'ordered' ? state.arrivalDate : undefined,
+                erpEntryNumber: finalStatus === 'entered-erp' ? state.erpEntryNumber : undefined,
             });
             toast({ title: "Estado Actualizado" });
             updateState({ isStatusDialogOpen: false, isActionDialogOpen: false });
@@ -736,6 +760,31 @@ export const useRequests = () => {
         // Implementation remains the same
     };
 
+    const openAddNoteDialog = (request: PurchaseRequest) => {
+        updateState({ notePayload: { requestId: request.id, notes: '' }, isAddNoteDialogOpen: true });
+    };
+
+    const handleAddNote = async () => {
+        if (!state.notePayload || !state.notePayload.notes.trim() || !currentUser) return;
+        updateState({ isSubmitting: true });
+        try {
+            const payload = { ...state.notePayload, updatedBy: currentUser.name };
+            const updatedRequest = await addNoteToRequest(payload);
+            toast({ title: "Nota Añadida" });
+            setState(prevState => ({
+                ...prevState,
+                isAddNoteDialogOpen: false,
+                activeRequests: prevState.activeRequests.map(o => o.id === updatedRequest.id ? updatedRequest : o),
+                archivedRequests: prevState.archivedRequests.map(o => o.id === updatedRequest.id ? updatedRequest : o)
+            }));
+        } catch(error: any) {
+            logError("Failed to add note to request", { error: error.message });
+            toast({ title: "Error", variant: "destructive" });
+        } finally {
+            updateState({ isSubmitting: false });
+        }
+    };
+
     const actions = {
         loadInitialData,
         handleCreateRequest,
@@ -756,6 +805,8 @@ export const useRequests = () => {
         handleCreateRequestsFromErp,
         handleSelectErpOrderHeader,
         handleCancelErpFetch,
+        openAddNoteDialog,
+        handleAddNote,
         setNewRequestDialogOpen: (isOpen: boolean) => updateState({ isNewRequestDialogOpen: isOpen, newRequest: emptyRequest, clientSearchTerm: '', itemSearchTerm: '' }),
         setEditRequestDialogOpen: (isOpen: boolean) => updateState({ isEditRequestDialogOpen: isOpen }),
         setViewingArchived: (isArchived: boolean) => updateState({ viewingArchived: isArchived, archivedPage: 0 }),
@@ -783,6 +834,7 @@ export const useRequests = () => {
         setNewStatus: (status: PurchaseRequestStatus | null) => updateState({ newStatus: status }),
         setStatusUpdateNotes: (notes: string) => updateState({ statusUpdateNotes: notes }),
         setDeliveredQuantity: (qty: number | string) => updateState({ deliveredQuantity: qty }),
+        setErpEntryNumber: (num: string) => updateState({ erpEntryNumber: num }),
         setHistoryDialogOpen: (isOpen: boolean) => updateState({ isHistoryDialogOpen: isOpen }),
         setReopenDialogOpen: (isOpen: boolean) => updateState({ isReopenDialogOpen: isOpen }),
         setReopenStep: (step: number) => updateState({ reopenStep: step }),
@@ -794,6 +846,8 @@ export const useRequests = () => {
         setErpOrderNumber: (num: string) => updateState({ erpOrderNumber: num }),
         setShowOnlyShortageItems: (show: boolean) => updateState({ showOnlyShortageItems: show }),
         setContextInfoOpen: (request: PurchaseRequest | null) => updateState({ isContextInfoOpen: !!request, contextInfoData: request }),
+        setAddNoteDialogOpen: (isOpen: boolean) => updateState({ isAddNoteDialogOpen: isOpen }),
+        setNotePayload: (payload: { requestId: number, notes: string } | null) => updateState({ notePayload: payload }),
     };
 
     const selectors = {

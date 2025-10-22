@@ -40,6 +40,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
             unitSalePrice REAL,
             erpOrderNumber TEXT,
             erpOrderLine INTEGER,
+            erpEntryNumber TEXT,
             manualSupplier TEXT,
             route TEXT,
             shippingMethod TEXT,
@@ -74,6 +75,7 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('routes', '["Ruta GAM", "Fuera de GAM"]')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('shippingMethods', '["Mensajería", "Encomienda", "Transporte Propio"]')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('useWarehouseReception', 'false')`).run();
+    db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('useErpEntry', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO request_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
     
     console.log(`Database ${REQUESTS_DB_FILE} initialized for Purchase Requests.`);
@@ -110,6 +112,7 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
     if (!columns.has('lastModifiedAt')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN lastModifiedAt TEXT`);
     if (!columns.has('hasBeenModified')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN hasBeenModified BOOLEAN DEFAULT FALSE`);
     if (!columns.has('clientTaxId')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN clientTaxId TEXT`);
+    if (!columns.has('erpEntryNumber')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN erpEntryNumber TEXT`);
     
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='request_settings'`).get();
     if(settingsTable){
@@ -140,6 +143,10 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
             console.log("MIGRATION (requests.db): Adding showCustomerTaxId to settings.");
             db.prepare(`INSERT INTO request_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
         }
+        if (!db.prepare(`SELECT key FROM request_settings WHERE key = 'useErpEntry'`).get()) {
+            console.log("MIGRATION (requests.db): Adding useErpEntry to settings.");
+            db.prepare(`INSERT INTO request_settings (key, value) VALUES ('useErpEntry', 'false')`).run();
+        }
     }
 }
 
@@ -155,6 +162,7 @@ export async function getSettings(): Promise<RequestSettings> {
         routes: [],
         shippingMethods: [],
         useWarehouseReception: false,
+        useErpEntry: false,
         pdfTopLegend: '',
         pdfExportColumns: [],
         pdfPaperSize: 'letter',
@@ -167,6 +175,7 @@ export async function getSettings(): Promise<RequestSettings> {
         else if (row.key === 'routes') settings.routes = JSON.parse(row.value);
         else if (row.key === 'shippingMethods') settings.shippingMethods = JSON.parse(row.value);
         else if (row.key === 'useWarehouseReception') settings.useWarehouseReception = row.value === 'true';
+        else if (row.key === 'useErpEntry') settings.useErpEntry = row.value === 'true';
         else if (row.key === 'showCustomerTaxId') settings.showCustomerTaxId = row.value === 'true';
         else if (row.key === 'pdfTopLegend') settings.pdfTopLegend = row.value;
         else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
@@ -180,7 +189,7 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
     const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
+        const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'useErpEntry', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
         for (const key of keys) {
              if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -216,9 +225,7 @@ export async function getRequests(options: {
         const params: any[] = [];
         
         const settings = await getSettings();
-        const archivedStatuses = settings.useWarehouseReception
-            ? ['received-in-warehouse', 'canceled']
-            : ['received', 'canceled'];
+        const archivedStatuses = settings.useErpEntry ? ['entered-erp', 'canceled'] : (settings.useWarehouseReception ? ['received-in-warehouse', 'canceled'] : ['ordered', 'canceled']);
         whereClauses.push(`status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`);
 
 
@@ -251,9 +258,7 @@ export async function getRequests(options: {
     } else {
         allRequests = db.prepare(`SELECT * FROM purchase_requests ORDER BY requestDate DESC`).all() as PurchaseRequest[];
         const settings = await getSettings();
-        const archivedStatuses = settings.useWarehouseReception
-            ? ['received-in-warehouse', 'canceled']
-            : ['received', 'canceled'];
+        const archivedStatuses = settings.useErpEntry ? ['entered-erp', 'canceled'] : (settings.useWarehouseReception ? ['received-in-warehouse', 'canceled'] : ['ordered', 'canceled']);
         const archivedWhereClause = `status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`;
         totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM purchase_requests WHERE ${archivedWhereClause}`).get() as { count: number }).count;
     }
@@ -379,7 +384,7 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
 
 export async function updateStatus(payload: UpdateRequestStatusPayload): Promise<PurchaseRequest> {
     const db = await connectDb(REQUESTS_DB_FILE);
-    const { requestId, status, notes, updatedBy, reopen, manualSupplier, erpOrderNumber, deliveredQuantity, arrivalDate } = payload;
+    const { requestId, status, notes, updatedBy, reopen, manualSupplier, erpOrderNumber, erpEntryNumber, deliveredQuantity, arrivalDate } = payload;
 
     const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest | undefined;
     if (!currentRequest) {
@@ -397,7 +402,7 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
     }
 
     let receivedDate = currentRequest.receivedDate;
-    if(status === 'received'){
+    if(status === 'received-in-warehouse'){
         receivedDate = new Date().toISOString();
     }
     
@@ -420,6 +425,7 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
                 reopened = @reopened,
                 manualSupplier = @manualSupplier,
                 erpOrderNumber = @erpOrderNumber,
+                erpEntryNumber = @erpEntryNumber,
                 deliveredQuantity = @deliveredQuantity,
                 receivedInWarehouseBy = @receivedInWarehouseBy,
                 receivedDate = @receivedDate,
@@ -438,6 +444,7 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
             reopened: reopen ? 1 : (currentRequest.reopened ? 1 : 0),
             manualSupplier: manualSupplier !== undefined ? manualSupplier : currentRequest.manualSupplier,
             erpOrderNumber: erpOrderNumber !== undefined ? erpOrderNumber : currentRequest.erpOrderNumber,
+            erpEntryNumber: erpEntryNumber !== undefined ? erpEntryNumber : currentRequest.erpEntryNumber,
             deliveredQuantity: deliveredQuantity !== undefined ? deliveredQuantity : currentRequest.deliveredQuantity,
             receivedInWarehouseBy: receivedInWarehouseBy !== undefined ? receivedInWarehouseBy : currentRequest.receivedInWarehouseBy,
             receivedDate: receivedDate,
@@ -574,4 +581,19 @@ export async function getUserByName(name: string): Promise<User | null> {
 export async function getRolesWithPermission(permission: string): Promise<string[]> {
     const roles = await getAllRolesFromMain();
     return roles.filter(role => role.id === 'admin' || role.permissions.includes(permission)).map(role => role.id);
+}
+
+export async function addNote(payload: { requestId: number; notes: string; updatedBy: string; }): Promise<PurchaseRequest> {
+    const db = await connectDb(REQUESTS_DB_FILE);
+    const { requestId, notes, updatedBy } = payload;
+
+    const currentRequest = db.prepare('SELECT status FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest | undefined;
+    if (!currentRequest) {
+        throw new Error("Request not found.");
+    }
+
+    db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
+      .run(requestId, new Date().toISOString(), currentRequest.status, updatedBy, `Nota agregada: ${notes}`);
+
+    return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
 }
