@@ -34,7 +34,7 @@ export function ToolCard({ tool, badgeCount = 0 }: ToolCardProps) {
         )}
         <CardHeader className="flex flex-col sm:flex-row items-center gap-4">
           <div className={cn("flex h-12 w-12 items-center justify-center rounded-lg shrink-0", tool.bgColor)}>
-            {Icon && <Icon className={cn("h-6 w-6 text-white")} />}
+            {Icon && <Icon className={cn("h-6 w-6", tool.textColor)} />}
           </div>
           <div className="text-center sm:text-left">
             <CardTitle className="text-lg">{tool.name}</CardTitle>
