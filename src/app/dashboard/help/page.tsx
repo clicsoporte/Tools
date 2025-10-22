@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Layers, UploadCloud, BarChartBig, Lightbulb, FileText, Calculator } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Layers, UploadCloud, BarChartBig, Lightbulb, FileText, Calculator, PanelLeft } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -212,7 +212,7 @@ export default function HelpPage() {
                     <li>
                         <strong>Paso 1: Cargar Facturas XML (<UploadCloud className="inline h-4 w-4"/>).</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li>Usa el botón "Cargar Facturas XML" para seleccionar una o varias facturas de compra en formato XML de Hacienda. El sistema extraerá automáticamente todos los artículos, cantidades y costos.</li>
+                            <li>Usa el botón &quot;Cargar Facturas XML&quot; para seleccionar una o varias facturas de compra en formato XML de Hacienda. El sistema extraerá automáticamente todos los artículos, cantidades y costos.</li>
                             <li>Verás las facturas procesadas en la tarjeta de &quot;Facturas Procesadas&quot;, indicando si la extracción fue exitosa o si hubo algún error (ej. XML malformado).</li>
                         </ul>
                     </li>
