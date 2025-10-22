@@ -238,9 +238,8 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
     return JSON.parse(JSON.stringify(drafts));
 }
 
-export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<void> {
+export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>, nextDraftNumber: number): Promise<void> {
     await logInfo('Cost analysis draft saved', { name: draft.name, userId: draft.userId });
-    const nextDraftNumber = await getNextDraftNumberServer();
     await saveDraftServer(draft, nextDraftNumber);
 }
 

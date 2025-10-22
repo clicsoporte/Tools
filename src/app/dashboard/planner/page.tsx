@@ -162,7 +162,7 @@ export default function PlannerPage() {
                             </Select>
                         </div>
                         <div className="space-y-1">
-                            <p className={cn("font-semibold text-muted-foreground", !order.shiftId && "text-destructive")}>Turno</p>
+                            <p className={cn("font-semibold text-muted-foreground", !order.shiftId && "text-destructive")}>{state.plannerSettings?.shiftLabel || 'Turno'}</p>
                             <Select value={order.shiftId || 'none'} onValueChange={(value) => actions.handleDetailUpdate(order.id, { shiftId: value })}>
                                 <SelectTrigger className={cn("h-8 w-40 border-0 focus:ring-0", !order.shiftId && "border-destructive focus:ring-destructive/50")}>
                                     <SelectValue placeholder="Sin Asignar" />

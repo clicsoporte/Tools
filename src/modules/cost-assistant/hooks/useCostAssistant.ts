@@ -282,7 +282,7 @@ export const useCostAssistant = () => {
         };
 
         try {
-            await saveDraft(newDraft);
+            await saveDraft(newDraft, nextNumber);
             toast({ title: "Borrador Guardado", description: `El análisis "${draftName}" ha sido guardado.` });
             await loadDrafts(); // Refresh draft list
         } catch (error: any) {
