@@ -90,11 +90,19 @@ export async function updatePurchaseRequestStatus(payload: UpdateRequestStatusPa
     if (updatedRequest.requestedBy !== payload.updatedBy) {
         const targetUser = await getUserByName(updatedRequest.requestedBy);
         if (targetUser) {
-             const { label: statusLabel } = await getSettings().then(s => {
-                return {
-                    label: s.useWarehouseReception ? (payload.status === 'received-in-warehouse' ? 'En Bodega' : payload.status) : payload.status
-                }
-            });
+             const settings = await getSettings();
+             const statusConfig = {
+                ...settings,
+                'pending': 'Pendiente',
+                'purchasing-review': 'Revisión Compras',
+                'pending-approval': 'Pendiente Aprobación',
+                'approved': 'Aprobada',
+                'ordered': 'Ordenada',
+                'received-in-warehouse': 'Recibido en Bodega',
+                'entered-erp': 'Ingresado ERP',
+                'canceled': 'Cancelada'
+             };
+             const statusLabel = statusConfig[payload.status] || payload.status;
             await createNotificationForRole(
                 targetUser.role,
                 `La solicitud ${updatedRequest.consecutive} ha sido actualizada a: ${statusLabel}.`,
@@ -143,6 +151,27 @@ export async function saveRequestSettings(settings: RequestSettings): Promise<vo
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<PurchaseRequest> {
     const updatedRequest = await updatePendingActionServer(payload);
     await logInfo(`Administrative action '${payload.action}' initiated for request ${updatedRequest.consecutive} by ${payload.updatedBy}.`);
+    
+    if (updatedRequest.requestedBy !== payload.updatedBy) {
+        const targetUser = await getUserByName(updatedRequest.requestedBy);
+        if (targetUser) {
+            let message = '';
+            if (payload.action.includes('request')) {
+                message = `El usuario ${payload.updatedBy} ha solicitado ${payload.action === 'unapproval-request' ? 'desaprobar' : 'cancelar'} la solicitud ${updatedRequest.consecutive}.`;
+            }
+            if (message) {
+                 await createNotificationForRole(
+                    'admin',
+                    message,
+                    `/dashboard/requests?search=${updatedRequest.consecutive}`,
+                    updatedRequest.id,
+                    'purchase-request',
+                    'admin-action-needed'
+                );
+            }
+        }
+    }
+    
     return updatedRequest;
 }
 
@@ -165,7 +194,7 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
     const allStock = await getAllStock();
     const allProducts = await getAllProducts();
     const allCustomers = await getAllCustomers();
-    const allActiveRequests = await getRequests({}).then(res => res.requests.filter(r => ['pending', 'approved', 'ordered'].includes(r.status)));
+    const allActiveRequests = await getRequests({}).then(res => res.requests.filter(r => ['pending', 'approved', 'ordered', 'purchasing-review', 'pending-approval'].includes(r.status)));
 
     const requiredItems = new Map<string, { totalRequired: number; sourceOrders: Set<string>; clientIds: Set<string>; erpUsers: Set<string>; earliestCreationDate: Date | null, earliestDueDate: Date | null; }>();
 

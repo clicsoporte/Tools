@@ -3,7 +3,7 @@
  */
 "use server";
 
-import { connectDb, getAllStock as getAllStockFromMainDb, getImportQueries as getImportQueriesFromMain, getAllRoles as getAllRolesFromMain } from '../../core/lib/db';
+import { connectDb, getImportQueries as getImportQueriesFromMain, getAllRoles as getAllRolesFromMain } from '../../core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '../../core/lib/auth';
 import { logInfo, logError, logWarn } from '../../core/lib/logger';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User } from '../../core/types';
@@ -213,56 +213,37 @@ export async function getRequests(options: {
 }): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
-    let allRequests: PurchaseRequest[] = [];
-    let totalArchivedCount = 0;
-    
-    const { page, pageSize, filters } = options;
+    const settings = await getSettings();
+    const finalStatus = settings.useErpEntry ? 'entered-erp' : (settings.useWarehouseReception ? 'received-in-warehouse' : 'ordered');
+    const archivedStatuses = `'${finalStatus}', 'canceled'`;
 
-    if (filters && page !== undefined && pageSize !== undefined) {
-        const { searchTerm, status, dateRange } = filters;
+    if (options.page !== undefined && options.pageSize !== undefined) {
+        const { page, pageSize } = options;
+        const archivedRequests = db.prepare(`
+            SELECT * FROM purchase_requests 
+            WHERE status IN (${archivedStatuses}) 
+            ORDER BY requestDate DESC 
+            LIMIT ? OFFSET ?
+        `).all(pageSize, page * pageSize) as PurchaseRequest[];
 
-        const whereClauses: string[] = [];
-        const params: any[] = [];
+        const activeRequests = db.prepare(`
+            SELECT * FROM purchase_requests
+            WHERE status NOT IN (${archivedStatuses})
+            ORDER BY requestDate DESC
+        `).all() as PurchaseRequest[];
         
-        const settings = await getSettings();
-        const archivedStatuses = settings.useErpEntry ? ['entered-erp', 'canceled'] : (settings.useWarehouseReception ? ['received-in-warehouse', 'canceled'] : ['ordered', 'canceled']);
-        whereClauses.push(`status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`);
-
-
-        if (searchTerm) {
-            whereClauses.push(`(consecutive LIKE ? OR clientName LIKE ? OR itemDescription LIKE ?)`);
-            const likeTerm = `%${searchTerm}%`;
-            params.push(likeTerm, likeTerm, likeTerm);
-        }
-        if (status && status !== 'all') {
-            whereClauses.push(`status = ?`);
-            params.push(status);
-        }
-        if (dateRange?.from) {
-            whereClauses.push(`requiredDate >= ?`);
-            params.push(dateRange.from.toISOString().split('T')[0]);
-        }
-        if (dateRange?.to) {
-            whereClauses.push(`requiredDate <= ?`);
-            params.push(dateRange.to.toISOString().split('T')[0]);
-        }
-
-        const finalWhere = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+        const totalArchivedCount = (db.prepare(`
+            SELECT COUNT(*) as count 
+            FROM purchase_requests 
+            WHERE status IN (${archivedStatuses})
+        `).get() as { count: number }).count;
         
-        const countQuery = `SELECT COUNT(*) as count FROM purchase_requests ${finalWhere}`;
-        totalArchivedCount = (db.prepare(countQuery).get(...params) as { count: number }).count;
-        
-        const query = `SELECT * FROM purchase_requests ${finalWhere} ORDER BY requestDate DESC LIMIT ? OFFSET ?`;
-        allRequests = db.prepare(query).all(...params, pageSize, page * pageSize) as PurchaseRequest[];
-
-    } else {
-        allRequests = db.prepare(`SELECT * FROM purchase_requests ORDER BY requestDate DESC`).all() as PurchaseRequest[];
-        const settings = await getSettings();
-        const archivedStatuses = settings.useErpEntry ? ['entered-erp', 'canceled'] : (settings.useWarehouseReception ? ['received-in-warehouse', 'canceled'] : ['ordered', 'canceled']);
-        const archivedWhereClause = `status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`;
-        totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM purchase_requests WHERE ${archivedWhereClause}`).get() as { count: number }).count;
+        return { requests: [...activeRequests, ...archivedRequests], totalArchivedCount };
     }
     
+    const allRequests = db.prepare(`SELECT * FROM purchase_requests ORDER BY requestDate DESC`).all() as PurchaseRequest[];
+    const totalArchivedCount = allRequests.filter(r => archivedStatuses.includes(`'${r.status}'`)).length;
+
     return { requests: allRequests, totalArchivedCount };
 }
 
@@ -406,14 +387,8 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
         receivedDate = new Date().toISOString();
     }
     
-    let previousStatus = currentRequest.previousStatus;
-    if (status === 'canceled' && currentRequest.status !== 'canceled') {
-        previousStatus = currentRequest.status;
-    } else if (status === 'approved' && currentRequest.status === 'ordered') {
-        // Allow reverting from ordered to approved
-    } else {
-        previousStatus = null;
-    }
+    const previousStatus = (status === 'canceled' || status === 'pending') ? currentRequest.status : null;
+
 
     const transaction = db.transaction(() => {
         const stmt = db.prepare(`
