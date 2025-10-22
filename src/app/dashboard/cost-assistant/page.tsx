@@ -220,8 +220,8 @@ export default function CostAssistantPage() {
                                               <ul className="space-y-3 text-sm">
                                                   {state.processedInvoices.map((invoice, index) => (
                                                       <li key={index} className="border-b pb-2">
-                                                          <div className="flex justify-between items-start">
-                                                              <div className="flex-1 pr-2">
+                                                          <div className="flex items-start gap-4">
+                                                              <div className="pr-2">
                                                                   <p className="font-semibold text-muted-foreground">{invoice.invoiceNumber}</p>
                                                                   <p>{invoice.supplierName}</p>
                                                                   <p className="text-xs text-muted-foreground">{isValid(parseISO(invoice.invoiceDate)) ? format(parseISO(invoice.invoiceDate), 'dd/MM/yyyy') : 'Fecha Inválida'}</p>
