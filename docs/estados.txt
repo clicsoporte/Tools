@@ -1,0 +1,105 @@
+# Plan de Acción: Implementación del Administrador de Estados y Flujos de Trabajo Dinámicos
+
+## 1. Visión General y Objetivos
+
+Este documento detalla el plan técnico para evolucionar Clic-Tools de una aplicación con flujos de trabajo fijos a una plataforma de gestión de procesos configurable y de bajo código. El objetivo es crear un "Administrador de Estados" centralizado que permita a los administradores definir, modificar y gestionar los ciclos de vida de los documentos (órdenes de producción, solicitudes de compra, etc.) directamente desde la interfaz, sin necesidad de modificar el código fuente.
+
+Los objetivos clave son:
+- **Flexibilidad Total:** Permitir que cada empresa adapte los flujos de trabajo a sus procesos internos exactos.
+- **Aprobaciones Multinivel:** Soportar cadenas de aprobación complejas (ej. Usuario -> Supervisor -> Gerente).
+- **Escalabilidad:** Facilitar la adición de nuevos módulos con sus propios flujos de trabajo en el futuro.
+- **Transparencia y Usabilidad:** Mejorar la experiencia del usuario mostrando claramente los próximos pasos y responsables, y utilizando el sistema de notificaciones como una bandeja de tareas proactiva.
+
+---
+
+## 2. Componente 1: El Motor de Flujos de Trabajo (Backend y Modelo de Datos)
+
+Esta es la base del sistema. Implica la creación de nuevas tablas en la base de datos principal (`intratool.db`) para modelar la máquina de estados.
+
+### Nuevas Tablas en la Base de Datos:
+
+1.  **`WorkflowModules`**: Registra los módulos que utilizarán el sistema.
+    -   `id` (TEXT, PK): Identificador único del módulo (ej: 'planner', 'requests').
+    -   `name` (TEXT): Nombre descriptivo (ej: 'Planificador OP').
+
+2.  **`WorkflowStates`**: Define cada estado posible dentro de un flujo.
+    -   `id` (INTEGER, PK): ID autoincremental del estado.
+    -   `moduleId` (TEXT): A qué módulo pertenece (FK a `WorkflowModules`).
+    -   `name` (TEXT): Nombre para la UI (ej: "En Progreso", "Pendiente de Aprobación Gerente").
+    -   `color` (TEXT): Color para la insignia (ej: '#0891b2').
+    -   `order` (INTEGER): Para definir el orden visual en el flujo.
+    -   `isInitial` (BOOLEAN): `true` si es el primer estado al crear un documento.
+    -   `isTerminal` (BOOLEAN): `true` si es un estado final (archivado).
+
+3.  **`WorkflowTransitions`**: Define las transiciones de un estado a otro.
+    -   `id` (INTEGER, PK): ID de la transición.
+    -   `moduleId` (TEXT): Módulo.
+    -   `fromStateId` (INTEGER): Estado de origen (FK a `WorkflowStates`).
+    -   `toStateId` (INTEGER): Estado de destino (FK a `WorkflowStates`).
+    -   `actionName` (TEXT): Texto del botón/menú (ej: "Enviar a Aprobación", "Marcar como Ordenada").
+    -   `permissionRequired` (TEXT): Permiso necesario para ejecutar la transición (opcional).
+
+4.  **`WorkflowApprovalSteps`** (Para Aprobaciones en Cadena):
+    -   `id` (INTEGER, PK): ID del paso de aprobación.
+    -   `transitionId` (INTEGER): A qué transición pertenece (FK a `WorkflowTransitions`).
+    -   `stepOrder` (INTEGER): El orden en la cadena (1, 2, 3...).
+    -   `approverRoleId` (TEXT): El `id` del rol que debe aprobar este paso.
+    -   `rejectionStateId` (INTEGER): A qué estado vuelve el documento si se rechaza en este paso (FK a `WorkflowStates`).
+
+### Modificaciones a Tablas Existentes:
+
+-   En `production_orders` y `purchase_requests`:
+    -   El campo `status` ya no será un `TEXT` con valores fijos, sino un `INTEGER` que corresponde al `id` de la tabla `WorkflowStates`.
+    -   Se añadirán los campos `currentApprovalStep` (INTEGER) y `isAwaitingApproval` (BOOLEAN) para gestionar las aprobaciones en cadena.
+    -   El campo `pendingAction` se mantendrá para manejar solicitudes especiales como "cancelación".
+
+---
+
+## 3. Componente 2: La Interfaz de Administración ("Admin de Estados")
+
+Se creará una nueva página en **Administración** para gestionar los flujos de trabajo.
+
+-   **Vista Principal:** Listará los módulos disponibles (`Planificador OP`, `Solicitud de Compra`).
+-   **Vista de Módulo:** Al seleccionar un módulo, se mostrará una interfaz visual (posiblemente con columnas tipo kanban o un diagrama) donde el administrador podrá:
+    1.  **Gestionar Estados:**
+        -   Añadir, editar o eliminar estados (con un límite de 10-12 por módulo).
+        -   Definir su nombre, color, y si es inicial o terminal.
+        -   Reordenar los estados mediante arrastrar y soltar (drag-and-drop).
+    2.  **Gestionar Transiciones:**
+        -   Para cada estado, un botón "Añadir Transición" abrirá un modal.
+        -   En el modal, se podrá definir:
+            -   **Acción:** El nombre del botón (ej: "Aprobar").
+            -   **Estado de Destino:** A qué estado se moverá el documento.
+            -   **Permiso Requerido:** Qué permiso necesita el usuario para ver y usar esta acción.
+            -   **Cadena de Aprobación (Opcional):** Si esta transición requiere múltiples aprobaciones, se podrá definir una secuencia de pasos, asignando un rol de aprobador a cada paso.
+
+---
+
+## 4. Componente 3: Roles como Plantillas (Mejora de Usabilidad)
+
+Para resolver la rigidez de los roles predefinidos, se modificará la página de **Gestión de Roles**:
+
+-   Los roles por defecto (`planner-user`, `requester-user`, etc.) ya no serán fijos.
+-   Al crear un nuevo rol, el administrador tendrá la opción de:
+    1.  **Crear Rol en Blanco.**
+    2.  **Crear desde una Plantilla** (ej: "Plantilla de Planificador").
+-   Al elegir una plantilla, el formulario de permisos se precargará con los permisos recomendados para esa función. El administrador podrá entonces añadir o quitar permisos y guardar el resultado como un **nuevo rol personalizado**.
+
+---
+
+## 5. Componente 4: Notificaciones y Diálogos Inteligentes
+
+Para mejorar la transparencia y reducir la fricción en el flujo de trabajo:
+
+-   **Diálogos de Confirmación Mejorados:**
+    -   Al realizar una acción que avanza el flujo (ej: "Enviar a Aprobación"), el diálogo de confirmación consultará el motor de flujos de trabajo.
+    -   Mostrará claramente cuál es el **próximo paso** y, más importante, **qué usuarios o roles** son los responsables de realizarlo.
+    -   Esto se logrará consultando qué usuarios tienen el `approverRoleId` definido en el siguiente paso de la cadena de aprobación.
+
+-   **Centro de Notificaciones como Bandeja de Tareas:**
+    -   Se implementará un sistema de **notificaciones accionables**.
+    -   Cuando un usuario deba aprobar un documento, recibirá una notificación en la campana que no será meramente informativa, sino una tarea pendiente.
+    -   El menú de notificaciones se dividirá en "Acciones Pendientes" y "Actividad Reciente".
+    -   Las "Acciones Pendientes" solo desaparecerán cuando la tarea sea completada (por el propio usuario o por otro con el mismo permiso).
+    -   Esto se logrará añadiendo las columnas `entityId` (ID del documento) y `taskType` (ID de la acción) a la tabla `notifications`, permitiendo al sistema saber qué notificaciones limpiar cuando una acción se completa.
+    -   Las notificaciones se enviarán a **todos los usuarios** que pertenezcan al rol definido como aprobador para un paso específico.
