@@ -25,7 +25,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import type { PurchaseRequest, PurchaseRequestHistoryEntry, NotePayload } from '@/modules/core/types';
+import type { PurchaseRequest, PurchaseRequestHistoryEntry, RequestNotePayload } from '@/modules/core/types';
 import Link from 'next/link';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -392,7 +392,7 @@ export default function PurchaseRequestPage() {
                     </div>
                 </DialogContent>
             </Dialog>
-            <Dialog open={isAddNoteDialogOpen} onOpenChange={actions.setAddNoteDialogOpen}><DialogContent><DialogHeader><DialogTitle>Añadir Nota a la Solicitud {notePayload?.requestId}</DialogTitle><DialogDescription>Agrega una nota o actualización a la solicitud sin cambiar su estado actual.</DialogDescription></DialogHeader><div className="py-4 space-y-2"><Label htmlFor="add-note-textarea">Nota</Label><Textarea id="add-note-textarea" value={notePayload?.notes || ''} onChange={e => actions.setNotePayload({ ...notePayload, notes: e.target.value } as NotePayload)} placeholder="Añade aquí una nota o actualización..." /></div><DialogFooter><DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose><Button onClick={actions.handleAddNote} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Añadir Nota</Button></DialogFooter></DialogContent></Dialog>
+            <Dialog open={isAddNoteDialogOpen} onOpenChange={actions.setAddNoteDialogOpen}><DialogContent><DialogHeader><DialogTitle>Añadir Nota a la Solicitud {notePayload?.requestId}</DialogTitle><DialogDescription>Agrega una nota o actualización a la solicitud sin cambiar su estado actual.</DialogDescription></DialogHeader><div className="py-4 space-y-2"><Label htmlFor="add-note-textarea">Nota</Label><Textarea id="add-note-textarea" value={notePayload?.notes || ''} onChange={e => actions.setNotePayload({ ...notePayload, notes: e.target.value } as RequestNotePayload)} placeholder="Añade aquí una nota o actualización..." /></div><DialogFooter><DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose><Button onClick={actions.handleAddNote} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Añadir Nota</Button></DialogFooter></DialogContent></Dialog>
             {(isSubmitting || isLoading) && (
                 <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
                     <Loader2 className="h-5 w-5 animate-spin" />

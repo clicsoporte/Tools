@@ -18,7 +18,7 @@ import {
 import type { 
     PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
     PurchaseRequestHistoryEntry, RequestSettings, Company, DateRange, 
-    AdministrativeAction, AdministrativeActionPayload, Product, StockInfo, ErpOrderHeader, ErpOrderLine, User, NotePayload 
+    AdministrativeAction, AdministrativeActionPayload, Product, StockInfo, ErpOrderHeader, ErpOrderLine, User, RequestNotePayload 
 } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -846,7 +846,7 @@ export const useRequests = () => {
         setShowOnlyShortageItems: (show: boolean) => updateState({ showOnlyShortageItems: show }),
         setContextInfoOpen: (request: PurchaseRequest | null) => updateState({ isContextInfoOpen: !!request, contextInfoData: request }),
         setAddNoteDialogOpen: (isOpen: boolean) => updateState({ isAddNoteDialogOpen: isOpen }),
-        setNotePayload: (payload: { requestId: number, notes: string } | null) => updateState({ notePayload: payload }),
+        setNotePayload: (payload: { requestId: number; notes: string } | null) => updateState({ notePayload: payload }),
     };
 
     const selectors = {

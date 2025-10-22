@@ -595,11 +595,18 @@ export type ImportQuery = {
 
 export type { DateRange };
 
-export type NotePayload = {
+export type PlannerNotePayload = {
     orderId: number;
     notes: string;
     updatedBy: string;
 };
+
+export type RequestNotePayload = {
+    requestId: number;
+    notes: string;
+    updatedBy: string;
+};
+
 
 // --- Maintenance Types ---
 export type UpdateBackupInfo = {
