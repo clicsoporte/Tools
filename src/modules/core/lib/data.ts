@@ -177,6 +177,7 @@ export const initialRoles: Role[] = [
         "requests:status:cancel",
         "requests:status:unapprove-request",
         "requests:status:unapprove-request:approve",
+        "requests:status:revert-to-approved",
         "planner:read",
         "planner:read:all",
         "planner:create",
@@ -261,6 +262,7 @@ export const initialRoles: Role[] = [
         "requests:read",
         "requests:create",
         "requests:status:cancel",
+        "requests:notes:add",
     ]
   }
 ];

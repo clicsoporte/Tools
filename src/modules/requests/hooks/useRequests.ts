@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
  * This hook encapsulates all state and actions for the module, keeping the UI component clean.
@@ -298,12 +296,13 @@ export const useRequests = () => {
             canSendToApproval: isPurchasingReview && hasPermission('requests:status:pending-approval'),
             canApprove: isPendingApproval && hasPermission('requests:status:approve'),
             canOrder: isApproved && hasPermission('requests:status:ordered'),
-            canRevertToApproved: isOrdered && hasPermission('requests:status:approve'),
+            canRevertToApproved: isOrdered && hasPermission('requests:status:revert-to-approved'),
             canReceiveInWarehouse: isOrdered && hasPermission('requests:status:received-in-warehouse'),
             canEnterToErp: isReceivedInWarehouse && hasPermission('requests:status:entered-erp'),
             
             canRequestCancel: (isApproved || isOrdered) && hasPermission('requests:status:cancel'),
             canCancelPending: (isPending || isPurchasingReview || isPendingApproval) && hasPermission('requests:status:cancel'),
+            canRequestUnapproval: (isApproved || isOrdered) && hasPermission('requests:status:unapprove-request'),
             canAddNote: hasPermission('requests:notes:add'),
         };
     }, [hasPermission, state.requestSettings]);
@@ -374,7 +373,7 @@ export const useRequests = () => {
             const payload: AdministrativeActionPayload = {
                 entityId: request.id,
                 action,
-                notes: `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada.`,
+                notes: `Solicitud de ${action === 'unapprove-request' ? 'desaprobación' : 'cancelación'} iniciada.`,
                 updatedBy: currentUser.name,
             };
             const updated = await updatePendingAction(payload);
@@ -382,7 +381,7 @@ export const useRequests = () => {
                 activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r),
                 archivedRequests: state.archivedRequests.map(r => r.id === updated.id ? updated : r)
             });
-            toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
+            toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapprove-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
         } catch (error: any) {
             logError(`Failed to request ${action}`, { error: error.message });
             toast({ title: "Error al Solicitar", description: `No se pudo enviar la solicitud. ${error.message}`, variant: "destructive" });
@@ -397,7 +396,7 @@ export const useRequests = () => {
 
         try {
             if (approve) {
-                const targetStatus = state.requestToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
+                const targetStatus = state.requestToUpdate.pendingAction === 'unapprove-request' ? 'pending' : 'canceled';
                 await handleStatusUpdate(targetStatus);
             } else {
                  const updated = await updatePendingAction({
