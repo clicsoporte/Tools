@@ -119,6 +119,13 @@ export default function HelpPage() {
                 <p>
                 El objetivo es simple: tener todas las herramientas importantes (como hacer cotizaciones, solicitudes de compra o planificar la producción) en un solo lugar, con la flexibilidad de obtener datos tanto de archivos de texto como directamente desde el ERP.
                 </p>
+                 <Alert variant="default" className="mt-4">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>¡Nuevo Panel Lateral Plegable!</AlertTitle>
+                    <AlertDescription>
+                        Ahora puedes hacer clic en el botón <span className="inline-flex items-center justify-center h-6 w-6 bg-primary/10 rounded-md"><PanelLeft className="h-4 w-4 text-primary" /></span> en la esquina superior izquierda para contraer el menú lateral y maximizar tu espacio de trabajo.
+                    </AlertDescription>
+                </Alert>
             </>
         )
     },
@@ -205,22 +212,22 @@ export default function HelpPage() {
                     <li>
                         <strong>Paso 1: Cargar Facturas XML (<UploadCloud className="inline h-4 w-4"/>).</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li>Arrastra o selecciona una o varias facturas de compra en formato XML de Hacienda. El sistema extraerá automáticamente todos los artículos, cantidades y costos.</li>
+                            <li>Usa el botón "Cargar Facturas XML" para seleccionar una o varias facturas de compra en formato XML de Hacienda. El sistema extraerá automáticamente todos los artículos, cantidades y costos.</li>
                             <li>Verás las facturas procesadas en la tarjeta de &quot;Facturas Procesadas&quot;, indicando si la extracción fue exitosa o si hubo algún error (ej. XML malformado).</li>
                         </ul>
                     </li>
                     <li>
-                        <strong>Paso 2: Añadir Costos Adicionales.</strong>
+                        <strong>Paso 2: Añadir Costos y Manejar Descuentos.</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li>Ingresa el costo total de **Transporte** y de **Otros Costos** (como aduanas, comisiones, etc.).</li>
-                            <li>El sistema **prorrateará** estos costos automáticamente entre todos los artículos cargados, basándose en la cantidad de unidades de cada uno. Este costo se sumará al costo unitario de cada artículo, dándote un **costo final real**.</li>
+                            <li>Ingresa el costo total de **Transporte** y de **Otros Costos** (como aduanas, comisiones, etc.). El sistema **prorrateará** estos costos automáticamente entre todos los artículos cargados.</li>
+                            <li>**Manejo de Descuentos:** En la misma tarjeta, puedes decidir cómo tratar los descuentos de la factura: si se aplican para **reducir el costo** del producto (beneficiando al cliente final) o si se consideran como **parte de la ganancia** de la empresa.</li>
                         </ul>
                     </li>
                     <li>
                         <strong>Paso 3: Ajustar y Calcular Precios.</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>En la tabla de &quot;Artículos Extraídos&quot;, puedes editar la mayoría de los campos.</li>
-                            <li><strong>Costo Unit. (s/IVA):</strong> Este es el costo real del artículo (costo de factura + costo prorrateado). Puedes **sobrescribirlo manualmente** si necesitas ajustar el costo base para un artículo específico.</li>
+                            <li><strong>Costo Unit. (s/IVA):</strong> Este es el costo real del artículo (costo de factura + costo prorrateado +/- efecto del descuento). Puedes **sobrescribirlo manualmente** si necesitas ajustar el costo base para un artículo específico.</li>
                             <li><strong>Imp. %:</strong> El sistema extrae el impuesto del XML, pero puedes editarlo aquí si es necesario (ej. de &quot;13&quot; a &quot;1&quot;).</li>
                             <li><strong>Margen:</strong> Introduce el margen de ganancia deseado (ej. &quot;20&quot; para un 20%).</li>
                             <li>El sistema calculará automáticamente el **P.V.P. Unitario Sugerido** y la **Ganancia por Línea** en tiempo real.</li>
@@ -578,6 +585,10 @@ export default function HelpPage() {
                         <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el comportamiento del Cotizador, definiendo el prefijo (ej. &quot;COT-&quot;) y el número con el que iniciará la siguiente cotización.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
+                        <Calculator className="mt-1 h-6 w-6 text-orange-600 shrink-0" />
+                        <div><h4 className="font-semibold">Config. Asist. Costos</h4><p>Configuraciones para el Asistente de Costos. Actualmente, esta sección es un marcador de posición para futuras opciones globales.</p></div>
+                    </div>
+                    <div className="flex items-start gap-4">
                         <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
                         <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador de Producción. Aquí puedes crear y nombrar las &quot;máquinas&quot; o &quot;procesos&quot; que se asignarán a las órdenes, así como los diferentes turnos de trabajo.</p></div>
                     </div>
@@ -665,7 +676,10 @@ export default function HelpPage() {
                 <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                 <ul className="list-disc space-y-3 pl-6">
                      <li>
-                        <strong>Nuevo Módulo Mayor: Asistente de Costos.</strong> Permite cargar facturas XML de compras, prorratear costos adicionales (transporte, aduanas) y calcular precios de venta con márgenes de ganancia. Incluye la capacidad de guardar y cargar borradores de análisis y exportar los nuevos precios a Excel para el ERP.
+                        <strong>Nuevo Módulo Mayor: Asistente de Costos.</strong> Permite cargar facturas XML de compras, prorratear costos adicionales (transporte, aduanas), configurar el manejo de descuentos y calcular precios de venta con márgenes de ganancia. Incluye la capacidad de guardar y cargar borradores de análisis y exportar los nuevos precios a Excel para el ERP.
+                    </li>
+                    <li>
+                        <strong>Mejora Mayor en Interfaz: Panel Lateral Plegable.</strong> Se añadió un botón para contraer el menú lateral, maximizando el espacio de trabajo en todas las vistas.
                     </li>
                     <li>
                         <strong>Mejora Mayor en Filtros:</strong> Se estandarizaron todos los filtros de selección múltiple y de columnas a una ventana modal (popup) con buscador y checkboxes, solucionando definitivamente los problemas de scroll y mejorando la usabilidad en todo el sistema.
@@ -674,10 +688,7 @@ export default function HelpPage() {
                         <strong>Mejora Mayor en Tablas:</strong> Se añadió la capacidad de ordenar los datos en las tablas de análisis haciendo clic en los encabezados de las columnas, con indicadores visuales para mostrar el orden actual.
                     </li>
                     <li>
-                        <strong>Mejora de Lógica:</strong> Se optimizó el proceso de cierre de sesión para usar el enrutador de Next.js, eliminando el parpadeo de la página.
-                    </li>
-                    <li>
-                        <strong>Mejora de Seguridad y Permisos:</strong> Se añadieron permisos granulares para el nuevo Asistente de Costos (`cost-assistant:access`, `cost-assistant:drafts:read-write`).
+                        <strong>Mejora de Lógica y Estabilidad:</strong> Se realizaron múltiples correcciones y optimizaciones internas para eliminar condiciones de carrera, mejorar la carga de datos y hacer más robustos los procesos de inicio y cierre de sesión.
                     </li>
                 </ul>
                 <h4 className="font-semibold text-lg pt-4 border-t">Versión 1.5.5</h4>
@@ -687,24 +698,16 @@ export default function HelpPage() {
                         <strong>Nueva Funcionalidad: Búsqueda en Centro de Ayuda.</strong> Se ha añadido una barra de búsqueda a la página de ayuda que filtra y resalta las secciones relevantes en tiempo real para encontrar información rápidamente.
                     </li>
                      <li>
-                        <strong>Mejora Mayor en Sugerencias de Compra:</strong>
-                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                             <li>Se ha implementado un sistema de **ordenamiento por columnas** para la tabla de sugerencias, permitiendo organizar los resultados por fecha, cantidad, etc.</li>
-                             <li>Se ha añadido un sistema de **paginación** para manejar grandes listas de resultados de manera eficiente.</li>
-                        </ul>
+                        <strong>Mejora Mayor en Sugerencias de Compra:</strong> Se implementó un sistema de **paginación** para manejar grandes listas de resultados de manera eficiente.
                     </li>
                     <li>
-                        <strong>Mejora Mayor de Usabilidad:</strong>
-                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                             <li>Se corrigió el error que impedía hacer scroll en los menús de filtros de selección múltiple.</li>
-                             <li>Se implementaron **encabezados de tabla fijos (sticky)** en las tablas principales de la aplicación para mejorar la legibilidad al desplazarse.</li>
-                        </ul>
+                        <strong>Mejora Mayor de Usabilidad:</strong> Se implementaron **encabezados de tabla fijos (sticky)** en las tablas principales de la aplicación para mejorar la legibilidad al desplazarse.
                     </li>
                      <li>
                         <strong>Mejora de Responsividad:</strong> Se realizó una revisión completa para mejorar la visualización y usabilidad de todos los módulos en dispositivos móviles y tablets.
                     </li>
                     <li>
-                        <strong>Mejora en Planificador:</strong> Se ha añadido la capacidad de personalizar completamente los **turnos de trabajo** desde el panel de administración, de la misma forma que se gestionan las máquinas.
+                        <strong>Mejora en Planificador:</strong> Se ha añadido la capacidad de personalizar completamente los **turnos de trabajo** desde el panel de administración.
                     </li>
                 </ul>
                 <h4 className="font-semibold text-lg pt-4 border-t">Versión 1.5.4</h4>

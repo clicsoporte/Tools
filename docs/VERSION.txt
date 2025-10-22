@@ -1,1 +1,1 @@
-Clic-Tools v1.5.5 - Searchable Help & Usability Enhancements
+Clic-Tools v1.6.0 - Cost Assistant & UI Enhancements
