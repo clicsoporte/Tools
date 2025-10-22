@@ -341,7 +341,7 @@ export const adminTools: Tool[] = [
         textColor: "text-white",
       },
       {
-        id: "admin:settings:cost-assistant",
+        id: "cost-assistant-settings",
         name: "Config. Asist. Costos",
         description: "Gestionar ajustes para el asistente de costos.",
         href: "/dashboard/admin/cost-assistant",
