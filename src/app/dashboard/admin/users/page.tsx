@@ -115,7 +115,17 @@ export default function UsersPage() {
                 getAllUsers(),
                 getAllRoles()
             ]);
-            setUsers(usersData);
+
+            const roleIds = new Set(rolesData.map(r => r.id));
+            const sanitizedUsers = usersData.map(user => {
+                if (!roleIds.has(user.role)) {
+                    logWarn(`User '${user.name}' has an invalid role '${user.role}'. Defaulting to 'viewer'.`);
+                    return { ...user, role: 'viewer' };
+                }
+                return user;
+            });
+
+            setUsers(sanitizedUsers);
             setRoles(rolesData);
         } catch (error) {
             console.error("Failed to fetch user data:", error);

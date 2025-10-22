@@ -91,9 +91,10 @@ export const useCostAssistant = () => {
         }));
     };
     
-    const handleFilesDrop = useCallback(async (acceptedFiles: File[]) => {
-        if (acceptedFiles.length === 0) return;
+    const onFileSelected = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (!event.target.files || event.target.files.length === 0) return;
         
+        const acceptedFiles = Array.from(event.target.files);
         setState(prevState => ({ ...prevState, isProcessing: true }));
         
         try {
@@ -142,12 +143,6 @@ export const useCostAssistant = () => {
         if (fileInputRef.current) {
             fileInputRef.current.value = ""; // Reset to allow re-uploading the same file
             fileInputRef.current.click();
-        }
-    };
-    
-    const onFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            handleFilesDrop(Array.from(event.target.files));
         }
     };
 
@@ -361,7 +356,6 @@ export const useCostAssistant = () => {
 
 
     const actions = {
-        handleFilesDrop,
         removeLine,
         updateLine,
         handleMarginBlur,
