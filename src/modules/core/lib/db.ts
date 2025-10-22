@@ -1047,7 +1047,10 @@ const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
 
 export async function backupAllForUpdate(): Promise<void> {
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-    const timestamp = new Date().toISOString();
+    
+    // Create a Windows-compatible timestamp
+    const timestamp = new Date().toISOString().replace(/:/g, '-');
+    
     for (const dbModule of DB_MODULES) {
         const dbPath = path.join(dbDirectory, dbModule.dbFile);
         if (fs.existsSync(dbPath)) {
