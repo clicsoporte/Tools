@@ -724,22 +724,6 @@ const parseData = (lines: string[], type: 'customers' | 'products' | 'exemptions
     return dataArray;
 };
 
-async function updateCabysCatalog(data: any[]): Promise<{ count: number }> {
-    const db = await connectDb();
-    const transaction = db.transaction((rows) => {
-        db.prepare('DELETE FROM cabys_catalog').run();
-        const insertStmt = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
-        for (const row of rows) {
-            const taxRate = row.taxRate ?? (row.Impuesto !== undefined ? parseFloat(String(row.Impuesto).replace('%', '')) / 100 : undefined);
-            if (row.code && row.description && taxRate !== undefined && !isNaN(taxRate)) {
-                insertStmt.run(row.code, row.description, taxRate);
-            }
-        }
-    });
-    transaction(data);
-    return { count: data.length };
-}
-
 async function updateCabysCatalogFromContent(fileContent: string): Promise<{ count: number }> {
     return new Promise((resolve, reject) => {
         Papa.parse(fileContent, {
@@ -763,6 +747,22 @@ async function updateCabysCatalogFromContent(fileContent: string): Promise<{ cou
             }
         });
     });
+}
+
+async function updateCabysCatalog(data: any[]): Promise<{ count: number }> {
+    const db = await connectDb();
+    const transaction = db.transaction((rows) => {
+        db.prepare('DELETE FROM cabys_catalog').run();
+        const insertStmt = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
+        for (const row of rows) {
+            const taxRate = row.taxRate ?? (row.Impuesto !== undefined ? parseFloat(String(row.Impuesto).replace('%', '')) / 100 : undefined);
+            if (row.code && row.description && taxRate !== undefined && !isNaN(taxRate)) {
+                insertStmt.run(row.code, row.description, taxRate);
+            }
+        }
+    });
+    transaction(data);
+    return { count: data.length };
 }
 
 export async function importDataFromFile(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines'): Promise<{ count: number, source: string }> {
@@ -995,7 +995,7 @@ export async function saveAllStock(stockData: { itemId: string, warehouseId: str
     const transaction = db.transaction((data) => {
         db.prepare('DELETE FROM stock').run();
         for (const [itemId, stockByWarehouse] of data.entries()) {
-            const totalStock = Object.values(stockByWarehouse).reduce((acc, val) => acc + val, 0);
+            const totalStock = Object.values(stockByWarehouse).reduce((acc: number, val: number) => acc + val, 0);
             insert.run(itemId, JSON.stringify(stockByWarehouse), totalStock);
         }
     });

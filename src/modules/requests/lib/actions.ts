@@ -158,7 +158,7 @@ export async function getErpOrderData(identifier: string | DateRange): Promise<{
  */
 export async function getRequestSuggestions(dateRange: DateRange): Promise<PurchaseSuggestion[]> {
     const { headers, lines } = await getErpOrderDataServer(dateRange);
-    const allStock = await getAllStockFromMainDb();
+    const allStock = await getAllStock();
     const allProducts = await getAllProducts();
     const allCustomers = await getAllCustomers();
     const allActiveRequests = await getRequests({}).then(res => res.requests.filter(r => ['pending', 'approved', 'ordered'].includes(r.status)));
@@ -195,7 +195,7 @@ export async function getRequestSuggestions(dateRange: DateRange): Promise<Purch
     const suggestions: PurchaseSuggestion[] = [];
 
     for (const [itemId, data] of requiredItems.entries()) {
-        const stockInfo = allStock.find(s => s.itemId === itemId);
+        const stockInfo = allStock.find((s: StockInfo) => s.itemId === itemId);
         const currentStock = stockInfo?.totalStock ?? 0;
         
         const existingActiveRequests = allActiveRequests.filter(r => r.itemId === itemId);
