@@ -31,7 +31,7 @@ import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { Label } from '../../../../components/ui/label';
 import { Input } from '../../../../components/ui/input';
-import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules } from '../../../../modules/core/lib/db';
+import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules, getCurrentVersion } from '../../../../modules/core/lib/db';
 import type { UpdateBackupInfo, DatabaseModule } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { shutdownServer } from '@/modules/core/lib/actions';
+import { Alert } from '@/components/ui/alert';
 
 
 export default function MaintenancePage() {
@@ -54,6 +55,7 @@ export default function MaintenancePage() {
     const { setTitle } = usePageTitle();
 
     // State for update backups
+    const [systemVersion, setSystemVersion] = useState<string | null>(null);
     const [updateBackups, setUpdateBackups] = useState<UpdateBackupInfo[]>([]);
     const [dbModules, setDbModules] = useState<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]>([]);
     const [isRestoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
@@ -85,12 +87,14 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('load');
         try {
-            const [backups, modules] = await Promise.all([
+            const [backups, modules, version] = await Promise.all([
                 listAllUpdateBackups(),
-                getDbModules()
+                getDbModules(),
+                getCurrentVersion()
             ]);
             setUpdateBackups(backups);
             setDbModules(modules);
+            setSystemVersion(version);
             if (backups.length > 0) {
                 const latestTimestamp = backups.reduce((latest: string, current: UpdateBackupInfo) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
                 setSelectedRestoreTimestamp(latestTimestamp);
@@ -154,19 +158,15 @@ export default function MaintenancePage() {
         setProcessingAction('full-restore');
         
         try {
-            await logWarn(`System restore initiated by ${user?.name} from backup point ${selectedRestoreTimestamp}. The system will restart.`);
             await restoreAllFromUpdateBackup(selectedRestoreTimestamp);
 
             toast({
                 title: "Restauración Completada",
-                description: `Se han restaurado los datos. El servidor se reiniciará en 5 segundos.`,
-                duration: 5000,
+                description: `Se han restaurado los datos. Por favor, reinicie manualmente el servidor de la aplicación para aplicar los cambios.`,
+                duration: 10000,
             });
 
-            // Call server shutdown AFTER restore and toast.
-            setTimeout(() => {
-                shutdownServer();
-            }, 5000);
+            await logWarn(`System restore initiated by ${user?.name} from backup point ${selectedRestoreTimestamp}. Manual server restart is required.`);
 
         } catch (error: any) {
              toast({
@@ -174,8 +174,9 @@ export default function MaintenancePage() {
                 description: `No se pudo completar la restauración. ${error.message}`,
                 variant: "destructive"
             });
+        } finally {
              setIsProcessing(false);
-            setProcessingAction(null);
+             setProcessingAction(null);
         }
     };
 
@@ -216,18 +217,18 @@ export default function MaintenancePage() {
         setProcessingAction('single-restore');
         try {
             const moduleName = dbModules.find(m => m.id === moduleToRestore)?.name || moduleToRestore;
-            await logWarn(`Module ${moduleName} was restored by ${user?.name} from a file backup. The application will restart.`);
             await restoreDatabase(moduleToRestore, fileToRestore);
             
             toast({
                 title: "Módulo Restaurado",
-                description: `La base de datos de "${moduleName}" ha sido restaurada. La aplicación se reiniciará en 5 segundos.`,
-                duration: 5000,
+                description: `La base de datos de "${moduleName}" ha sido restaurada. Reinicie manualmente el servidor.`,
+                duration: 10000,
             });
-            setTimeout(() => shutdownServer(), 5000);
+            await logWarn(`Module ${moduleName} was restored by ${user?.name} from a file backup. Manual server restart is required.`);
         } catch (error: any) {
              toast({ title: "Error de Restauración", description: error.message, variant: "destructive" });
             logError("Single module restore failed.", { error: error.message, module: moduleToRestore });
+        } finally {
             setIsProcessing(false);
             setProcessingAction(null);
         }
@@ -243,14 +244,14 @@ export default function MaintenancePage() {
         setProcessingAction('factory-reset');
         try {
             const moduleName = dbModules.find(m => m.id === moduleToReset)?.name || moduleToReset;
-            await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. The application will restart.`);
-            await factoryReset(moduleToReset);
             
             toast({
                 title: "Módulo Reseteado",
                 description: `Se ha borrado la base de datos de "${moduleName}". La aplicación se reiniciará en 5 segundos para reinicializarla.`,
                 duration: 5000,
             });
+            await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. The application will restart.`);
+            await factoryReset(moduleToReset);
             setTimeout(() => shutdownServer(), 5000);
         } catch (error: any) {
             toast({ title: "Error en el Reseteo", description: error.message, variant: "destructive" });
@@ -269,14 +270,13 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('full-factory-reset');
         try {
-            await logWarn(`FULL SYSTEM FACTORY RESET initiated by user ${user?.name}. All data will be wiped. The application will restart.`);
-            await factoryReset('__all__');
-            
             toast({
                 title: "Reseteo de Fábrica Completado",
                 description: "Se han borrado todas las bases de datos. La aplicación se reiniciará en 5 segundos para reinicializar.",
                 duration: 5000,
             });
+            await logWarn(`FULL SYSTEM FACTORY RESET initiated by user ${user?.name}. All data will be wiped. The application will restart.`);
+            await factoryReset('__all__');
             setTimeout(() => shutdownServer(), 5000);
         } catch (error: any) {
             toast({ title: "Error en el Reseteo Total", description: error.message, variant: "destructive" });
@@ -297,7 +297,9 @@ export default function MaintenancePage() {
     if (!isAuthorized) {
         return null;
     }
-
+    
+    const selectedBackupVersion = selectedRestoreTimestamp ? updateBackups.find(b => b.date === selectedRestoreTimestamp)?.version : null;
+    const isVersionMismatch = systemVersion && selectedBackupVersion && systemVersion !== selectedBackupVersion;
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -335,9 +337,15 @@ export default function MaintenancePage() {
                                             <Select value={selectedRestoreTimestamp} onValueChange={setSelectedRestoreTimestamp} disabled={isProcessing}>
                                                 <SelectTrigger><SelectValue placeholder="Seleccione..." /></SelectTrigger>
                                                 <SelectContent>
-                                                    {uniqueTimestamps.slice(0, showAllRestorePoints ? undefined : 5).map(ts => (
-                                                        <SelectItem key={ts} value={ts}>{format(parseISO(ts), "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es })}</SelectItem>
-                                                    ))}
+                                                    {uniqueTimestamps.slice(0, showAllRestorePoints ? undefined : 5).map(ts => {
+                                                        const backupInfo = updateBackups.find(b => b.date === ts);
+                                                        return (
+                                                            <SelectItem key={ts} value={ts}>
+                                                                {format(parseISO(ts), "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es })}
+                                                                {backupInfo?.version && <span className="ml-2 text-xs text-muted-foreground"> (v{backupInfo.version})</span>}
+                                                            </SelectItem>
+                                                        )
+                                                    })}
                                                 </SelectContent>
                                             </Select>
                                             <div className="flex items-center space-x-2 pt-1">
@@ -345,6 +353,15 @@ export default function MaintenancePage() {
                                                 <Label htmlFor="show-all-restore-points" className="text-sm font-normal">Mostrar todos los puntos</Label>
                                             </div>
                                         </div>
+                                         {isVersionMismatch && (
+                                            <Alert variant="destructive">
+                                                <AlertTriangle className="h-4 w-4" />
+                                                <AlertTitle>¡Cuidado! Incompatibilidad de Versiones</AlertTitle>
+                                                <p className="text-xs">
+                                                   Estás intentando restaurar un backup de la versión <strong>v{selectedBackupVersion}</strong> sobre la versión actual del sistema <strong>v{systemVersion}</strong>. Esto puede causar errores o corrupción de datos. Procede solo si también vas a restaurar los archivos de la aplicación a la versión anterior.
+                                                </p>
+                                            </Alert>
+                                        )}
                                         <AlertDialog open={isRestoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
                                             <AlertDialogTrigger asChild>
                                                 <Button variant="destructive" disabled={isProcessing || !selectedRestoreTimestamp} className="w-full">
@@ -355,7 +372,7 @@ export default function MaintenancePage() {
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>¿Confirmar Restauración del Sistema?</AlertDialogTitle>
                                                     <AlertDialogDescription>
-                                                        Esta acción reemplazará **TODAS** las bases de datos actuales con los datos del punto de restauración. La aplicación se reiniciará.
+                                                        Esta acción reemplazará **TODAS** las bases de datos actuales. Recibirás una notificación para reiniciar el servidor manualmente una vez que el proceso finalice.
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
@@ -375,7 +392,7 @@ export default function MaintenancePage() {
                                                     {updateBackups.map(b => (
                                                         <div key={b.fileName} className="flex items-center justify-between rounded-md p-2 hover:bg-muted">
                                                             <div>
-                                                                <p className="font-semibold text-sm">{b.moduleName}</p>
+                                                                <p className="font-semibold text-sm">{b.moduleName} {b.version && <span className="font-normal text-xs text-muted-foreground">(v{b.version})</span>}</p>
                                                                 <p className="text-xs text-muted-foreground">{format(parseISO(b.date), "dd/MM/yyyy HH:mm:ss", { locale: es })}</p>
                                                             </div>
                                                             <a href={`/api/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>

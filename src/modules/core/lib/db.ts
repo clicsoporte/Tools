@@ -24,6 +24,8 @@ const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
 const UPDATE_BACKUP_DIR = 'update_backups';
+const VERSION_FILE_PATH = path.join(process.cwd(), 'docs', 'VERSION.txt');
+
 
 /**
  * Acts as a registry for all database modules in the application.
@@ -1045,6 +1047,20 @@ export async function saveStockSettings(settings: StockSettings): Promise<void> 
       .run('warehouses', JSON.stringify(settings.warehouses));
 }
 
+// --- Versioning ---
+export async function getCurrentVersion(): Promise<string | null> {
+    try {
+        if (fs.existsSync(VERSION_FILE_PATH)) {
+            const content = fs.readFileSync(VERSION_FILE_PATH, 'utf-8');
+            const match = content.match(/v(\d+\.\d+\.\d+)/);
+            return match ? match[1] : content.trim();
+        }
+        return null;
+    } catch (error) {
+        console.error("Could not read VERSION.txt", error);
+        return null;
+    }
+}
 
 // --- Maintenance Functions ---
 
@@ -1055,11 +1071,12 @@ export async function backupAllForUpdate(): Promise<void> {
     
     // Create a Windows-compatible timestamp
     const timestamp = new Date().toISOString().replace(/:/g, '-');
+    const version = await getCurrentVersion() || 'unknown';
     
     for (const dbModule of DB_MODULES) {
         const dbPath = path.join(dbDirectory, dbModule.dbFile);
         if (fs.existsSync(dbPath)) {
-            const backupPath = path.join(backupDir, `${timestamp}_${dbModule.dbFile}`);
+            const backupPath = path.join(backupDir, `${timestamp}_v${version}_${dbModule.dbFile}`);
             fs.copyFileSync(dbPath, backupPath);
         }
     }
@@ -1069,14 +1086,18 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
     if (!fs.existsSync(backupDir)) return [];
     const files = fs.readdirSync(backupDir);
     return files.map(file => {
-        const [date, ...rest] = file.split('_');
-        const dbFile = rest.join('_');
+        const parts = file.split('_');
+        const date = parts[0];
+        const version = parts[1]?.startsWith('v') ? parts[1].substring(1) : null;
+        const dbFile = version ? parts.slice(2).join('_') : parts.slice(1).join('_');
+        
         const dbModule = DB_MODULES.find(m => m.dbFile === dbFile);
         return {
             moduleId: dbModule?.id || 'unknown',
             moduleName: dbModule?.name || 'Base de Datos Desconocida',
             fileName: file,
-            date: date
+            date: date,
+            version: version
         };
     }).sort((a, b) => b.date.localeCompare(a.date));
 }
@@ -1111,11 +1132,10 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
         throw new Error("No se encontraron archivos de backup para la fecha y hora seleccionada.");
     }
     
-    await logWarn(`System restore initiated from backup point: ${timestamp}`);
-
     // First, close all active database connections
     for (const [dbFile, connection] of dbConnections.entries()) {
         if (connection && connection.open) {
+            console.log(`Closing connection to ${dbFile} before restore...`);
             connection.close();
         }
         dbConnections.delete(dbFile);

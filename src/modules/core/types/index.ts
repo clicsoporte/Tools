@@ -614,6 +614,7 @@ export type UpdateBackupInfo = {
     moduleName: string;
     fileName: string;
     date: string;
+    version: string | null;
 };
 
 // --- Suggestion Box Types ---

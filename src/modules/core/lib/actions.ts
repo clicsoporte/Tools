@@ -21,5 +21,8 @@ export async function syncAllData(): Promise<{ type: string; count: number; }[]>
  */
 export async function shutdownServer(): Promise<void> {
     console.warn("SERVER SHUTDOWN INITIATED. This will terminate the process.");
-    process.exit(1);
+    // A small delay to ensure any final logs can be written
+    setTimeout(() => {
+        process.exit(1);
+    }, 100);
 }
