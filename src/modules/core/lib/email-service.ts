@@ -28,6 +28,11 @@ export async function getEmailSettings(): Promise<Partial<EmailSettings>> {
         }
         return settings;
     } catch (error) {
+        // If the table doesn't exist, it's not a critical failure, just return empty settings.
+        if ((error as Error).message.includes('no such table')) {
+            console.warn('email_settings table does not exist. Returning empty settings.');
+            return {};
+        }
         logError('Failed to get email settings', { error: (error as Error).message });
         return {};
     }

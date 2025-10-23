@@ -155,6 +155,11 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
             console.log("MIGRATION: Adding erpAlias to users table.");
             db.exec(`ALTER TABLE users ADD COLUMN erpAlias TEXT`);
         }
+        
+        if (!userColumns.has('forcePasswordChange')) {
+            console.log("MIGRATION: Adding forcePasswordChange to users table.");
+            db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange BOOLEAN DEFAULT FALSE`);
+        }
 
         const companyTableInfo = db.prepare(`PRAGMA table_info(company_settings)`).all() as { name: string }[];
         const companyColumns = new Set(companyTableInfo.map(c => c.name));
@@ -266,7 +271,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE users (
             id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL,
             phone TEXT, whatsapp TEXT, erpAlias TEXT, avatar TEXT, role TEXT NOT NULL, recentActivity TEXT,
-            securityQuestion TEXT, securityAnswer TEXT
+            securityQuestion TEXT, securityAnswer TEXT, forcePasswordChange BOOLEAN DEFAULT FALSE
         );
         CREATE TABLE company_settings (
             id INTEGER PRIMARY KEY DEFAULT 1, name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
@@ -276,6 +281,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             supplierFilePath TEXT, quoterShowTaxId BOOLEAN, syncWarningHours REAL
         );
         CREATE TABLE api_settings (id INTEGER PRIMARY KEY DEFAULT 1, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
+        CREATE TABLE email_settings (key TEXT PRIMARY KEY, value TEXT);
         CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT NOT NULL, authNumber TEXT);
         CREATE TABLE logs (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL, type TEXT NOT NULL, message TEXT NOT NULL, details TEXT);
         CREATE TABLE customers (id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT, creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT);
