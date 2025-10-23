@@ -64,9 +64,11 @@ import { Skeleton } from "../../../../components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "../../../../components/ui/avatar";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type NewUserForm = Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & {
     password: string;
+    forcePasswordChange: boolean;
 };
 
 // Initial state for the "Add User" form.
@@ -78,6 +80,7 @@ const emptyUser: NewUserForm = {
     phone: "",
     whatsapp: "",
     erpAlias: "",
+    forcePasswordChange: true,
 }
 
 const getInitials = (name: string) => {
@@ -323,6 +326,16 @@ export default function UsersPage() {
                                 <div className="space-y-2">
                                     <Label htmlFor="password">Contraseña</Label>
                                     <Input id="password" type="password" value={newUser.password || ''} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox 
+                                        id="force-password-change"
+                                        checked={newUser.forcePasswordChange}
+                                        onCheckedChange={checked => setNewUser({...newUser, forcePasswordChange: !!checked})}
+                                    />
+                                    <Label htmlFor="force-password-change" className="font-normal">
+                                        Forzar cambio de contraseña en el próximo inicio de sesión
+                                    </Label>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="role">Rol</Label>

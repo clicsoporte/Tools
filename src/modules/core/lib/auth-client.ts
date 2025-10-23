@@ -13,7 +13,8 @@ import {
     comparePasswords as comparePasswordsServer, 
     addUser as addUserServer, 
     logout as logoutServer,
-    getInitialAuthData as getInitialAuthDataServer 
+    getInitialAuthData as getInitialAuthDataServer,
+    sendPasswordRecoveryEmail as sendRecoveryEmailServer,
 } from './auth';
 
 const CURRENT_USER_ID_KEY = 'currentUserId';
@@ -22,20 +23,18 @@ const CURRENT_USER_ID_KEY = 'currentUserId';
  * Logs in a user and stores their ID in session storage.
  * @param {string} email - The user's email.
  * @param {string} password - The password provided by the user.
- * @returns {Promise<boolean>} A promise that resolves to true if login is successful, false otherwise.
+ * @returns {Promise<{ user: User | null, forcePasswordChange: boolean }>} A promise that resolves to the login result.
  */
-export async function login(email: string, password: string): Promise<boolean> {
-    const user = await loginServer(email, password);
-    if (user) {
-        sessionStorage.setItem(CURRENT_USER_ID_KEY, String(user.id));
-        return true;
+export async function login(email: string, password: string, clientInfo: { ip: string; host: string; }): Promise<{ user: User | null, forcePasswordChange: boolean }> {
+    const result = await loginServer(email, password, clientInfo);
+    if (result.user) {
+        sessionStorage.setItem(CURRENT_USER_ID_KEY, String(result.user.id));
     }
-    return false;
+    return result;
 }
 
 /**
  * Logs out the current user by removing their ID from session storage.
- * Dispatches a "storage" event to notify other components of the logout.
  */
 export async function logout() {
     const userId = sessionStorage.getItem(CURRENT_USER_ID_KEY);
@@ -43,7 +42,6 @@ export async function logout() {
         await logoutServer(Number(userId));
     }
     sessionStorage.removeItem(CURRENT_USER_ID_KEY);
-    // The useAuth hook will handle UI updates, no need to dispatch event manually.
 }
 
 /**
@@ -75,7 +73,7 @@ export async function getAllUsers(): Promise<User[]> {
  * @param userData - The new user's data.
  * @returns The created user object.
  */
-export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string }): Promise<User> {
+export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string, forcePasswordChange: boolean }): Promise<User> {
     return addUserServer(userData);
 }
 
@@ -108,4 +106,13 @@ export async function comparePasswords(userId: number, password: string, clientI
  */
 export async function getInitialAuthData() {
     return await getInitialAuthDataServer();
+}
+
+/**
+ * Triggers the password recovery email process.
+ * @param email - The email of the user requesting recovery.
+ * @param clientInfo - Information about the client making the request.
+ */
+export async function sendRecoveryEmail(email: string, clientInfo: { ip: string, host: string }): Promise<void> {
+    return await sendRecoveryEmailServer(email, clientInfo);
 }

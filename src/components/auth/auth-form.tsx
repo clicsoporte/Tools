@@ -26,8 +26,8 @@ import { Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import type { User } from "@/modules/core/types";
 import { useToast } from "@/modules/core/hooks/use-toast";
-import { login, getAllUsers, saveAllUsers } from "@/modules/core/lib/auth-client";
-import { logInfo, logWarn } from "@/modules/core/lib/logger";
+import { login, getAllUsers, saveAllUsers, sendRecoveryEmail } from "@/modules/core/lib/auth-client";
+import { logInfo, logWarn, logError } from "@/modules/core/lib/logger";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 
 interface AuthFormProps {
@@ -45,72 +45,51 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { refreshAuthAndRedirect } = useAuth();
+  
+  // State for the main auth flow
+  const [authStep, setAuthStep] = useState<'login' | 'force_change' | 'recovery_success'>('login');
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  
-  // State for password recovery flow
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [userForPasswordChange, setUserForPasswordChange] = useState<User | null>(null);
+
+  // State for password recovery dialog
   const [isRecoveryDialogOpen, setRecoveryDialogOpen] = useState(false);
-  const [recoveryStep, setRecoveryStep] = useState(1); // 1: Email, 2: Question, 3: New Password
   const [recoveryEmail, setRecoveryEmail] = useState("");
-  const [userForRecovery, setUserForRecovery] = useState<User | null>(null);
-  const [securityAnswer, setSecurityAnswer] = useState("");
+  
+  // State for new password form
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoggingIn(true);
-    const loggedIn = await login(email, password);
+    setIsProcessing(true);
+    try {
+      const loginResult = await login(email, password, clientInfo);
 
-    if (loggedIn) {
-      await refreshAuthAndRedirect('/dashboard');
-    } else {
-      toast({
-        title: "Credenciales Incorrectas",
-        description: "El correo o la contraseña no son correctos. Inténtalo de nuevo o usa la opción de recuperación.",
-        variant: "destructive",
-      });
-      setIsLoggingIn(false);
+      if (loginResult.user) {
+        if (loginResult.forcePasswordChange) {
+          setUserForPasswordChange(loginResult.user);
+          setAuthStep('force_change');
+        } else {
+          await refreshAuthAndRedirect('/dashboard');
+        }
+      } else {
+        toast({
+          title: "Credenciales Incorrectas",
+          description: "El correo o la contraseña no son correctos. Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({ title: "Error de Inicio de Sesión", description: error.message, variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleRecoveryStart = async () => {
-    await logInfo(`Password recovery initiated for email: ${recoveryEmail}`, clientInfo);
-    const allUsers: User[] = await getAllUsers();
-    const user = allUsers.find(u => u.email === recoveryEmail);
-
-    if (user && user.securityQuestion) {
-        setUserForRecovery(user);
-        setRecoveryStep(2);
-    } else {
-        toast({
-            title: "Error de Recuperación",
-            description: "El correo no fue encontrado o no tiene una pregunta de seguridad configurada.",
-            variant: "destructive",
-        })
-        await logWarn(`Password recovery failed for email: ${recoveryEmail} (user not found or no security question)`, clientInfo);
-    }
-  }
-
-  const handleRecoveryAnswer = async () => {
-    if (userForRecovery && securityAnswer.toLowerCase() === userForRecovery.securityAnswer?.toLowerCase()) {
-        await logInfo(`Password recovery security question passed for user: ${userForRecovery.name}`, clientInfo);
-        setRecoveryStep(3);
-    } else {
-        toast({
-            title: "Respuesta Incorrecta",
-            description: "La respuesta no coincide. Por favor, inténtalo de nuevo.",
-            variant: "destructive",
-        });
-        if(userForRecovery) {
-          await logWarn(`Password recovery security question failed for user: ${userForRecovery.name}`, clientInfo);
-        }
-    }
-  }
-
   const handleSetNewPassword = async () => {
-    if (!userForRecovery) return;
+    if (!userForPasswordChange) return;
 
     if (newPassword.length < 6) {
         toast({ title: "Contraseña Débil", description: "La nueva contraseña debe tener al menos 6 caracteres.", variant: "destructive"});
@@ -121,143 +100,138 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
         toast({ title: "Error", description: "Las contraseñas no coinciden.", variant: "destructive"});
         return;
     }
-    
-    // We fetch all users again to ensure we have the latest data before saving.
-    const allUsers = await getAllUsers();
-    const updatedUsers = allUsers.map(u => {
-        if (u.id === userForRecovery.id) {
-            // Important: We should only update the password field.
-            return { ...u, password: newPassword };
-        }
-        return u;
-    });
 
-    await saveAllUsers(updatedUsers); 
-    
-    await logWarn(`Password for user ${userForRecovery.name} was reset via recovery process.`, clientInfo);
-    toast({
-        title: "Contraseña Actualizada",
-        description: "Tu contraseña ha sido cambiada. Ya puedes iniciar sesión.",
-    });
+    setIsProcessing(true);
+    try {
+        const allUsers = await getAllUsers();
+        const updatedUsers = allUsers.map(u => {
+            if (u.id === userForPasswordChange.id) {
+                return { ...u, password: newPassword, forcePasswordChange: false };
+            }
+            return u;
+        });
 
-    resetRecovery();
-    setRecoveryDialogOpen(false);
+        await saveAllUsers(updatedUsers); 
+        
+        await logInfo(`Password for user ${userForPasswordChange.name} was changed successfully (forced).`);
+        setAuthStep('recovery_success');
+
+    } catch (error: any) {
+        logError('Failed to set new password', { error: error.message });
+        toast({ title: "Error", description: "No se pudo actualizar la contraseña.", variant: "destructive"});
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  const handleRecoveryStart = async () => {
+    if (!recoveryEmail) return;
+    setIsProcessing(true);
+    try {
+        await sendRecoveryEmail(recoveryEmail, clientInfo);
+        toast({
+            title: "Correo de Recuperación Enviado",
+            description: "Si el correo está registrado, recibirás una contraseña temporal. Revisa tu bandeja de entrada.",
+        });
+        setRecoveryDialogOpen(false);
+        resetRecovery();
+    } catch (error: any) {
+        logError("Password recovery process failed", { error: error.message, email: recoveryEmail });
+        toast({ title: "Error de Recuperación", description: error.message, variant: "destructive" });
+    } finally {
+        setIsProcessing(false);
+    }
   }
-  
+
   const resetRecovery = () => {
     setRecoveryEmail("");
-    setSecurityAnswer("");
-    setUserForRecovery(null);
+  }
+  
+  const returnToLogin = () => {
+    setEmail("");
+    setPassword("");
     setNewPassword("");
     setConfirmNewPassword("");
-    setRecoveryStep(1);
-  }
+    setUserForPasswordChange(null);
+    setAuthStep('login');
+  };
 
   return (
-    <form onSubmit={handleLogin} className="space-y-4">
-        <div className="space-y-2">
-            <Label htmlFor="email">Correo Electrónico</Label>
-            <Input
-            id="email"
-            type="email"
-            placeholder="usuario@ejemplo.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            suppressHydrationWarning={true}
-            />
-        </div>
-        <div className="space-y-2">
-            <div className="flex items-center justify-between">
-                <Label htmlFor="password">Contraseña</Label>
-                <Dialog open={isRecoveryDialogOpen} onOpenChange={(open) => { setRecoveryDialogOpen(open); if(!open) resetRecovery(); }}>
-                    <DialogTrigger asChild>
-                        <button type="button" className="text-sm font-medium text-primary hover:underline">
-                            ¿Olvidaste tu contraseña?
-                        </button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Recuperación de Acceso</DialogTitle>
-                            <DialogDescription>
-                                {recoveryStep === 1 && "Ingresa tu correo electrónico para encontrar tu pregunta de seguridad."}
-                                {recoveryStep === 2 && "Responde tu pregunta de seguridad para continuar."}
-                                {recoveryStep === 3 && "Crea tu nueva contraseña para recuperar el acceso."}
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            {recoveryStep === 1 && (
+    <div className="space-y-4">
+      {authStep === 'login' && (
+        <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+                <Label htmlFor="email">Correo Electrónico</Label>
+                <Input id="email" type="email" placeholder="usuario@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Contraseña</Label>
+                    <Dialog open={isRecoveryDialogOpen} onOpenChange={(open) => { setRecoveryDialogOpen(open); if(!open) resetRecovery(); }}>
+                        <DialogTrigger asChild>
+                            <button type="button" className="text-sm font-medium text-primary hover:underline">¿Olvidaste tu contraseña?</button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Recuperación de Contraseña</DialogTitle>
+                                <DialogDescription>Ingresa tu correo. Si existe, te enviaremos una contraseña temporal.</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="recovery-email">Correo Electrónico</Label>
-                                    <Input 
-                                        id="recovery-email"
-                                        type="email"
-                                        value={recoveryEmail}
-                                        onChange={e => setRecoveryEmail(e.target.value)}
-                                        placeholder="tu@correo.com"
-                                        suppressHydrationWarning={true}
-                                    />
+                                    <Input id="recovery-email" type="email" value={recoveryEmail} onChange={e => setRecoveryEmail(e.target.value)} placeholder="tu@correo.com" />
                                 </div>
-                            )}
-                            {recoveryStep === 2 && userForRecovery && (
-                                <div className="space-y-2">
-                                    <p className="font-medium text-sm">{userForRecovery.securityQuestion}</p>
-                                    <Label htmlFor="recovery-answer">Tu Respuesta</Label>
-                                    <Input 
-                                        id="recovery-answer"
-                                        value={securityAnswer}
-                                        onChange={e => setSecurityAnswer(e.target.value)}
-                                        placeholder="Ingresa tu respuesta secreta"
-                                        suppressHydrationWarning={true}
-                                    />
-                                </div>
-                            )}
-                            {recoveryStep === 3 && (
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="new-password">Nueva Contraseña</Label>
-                                        <Input 
-                                            id="new-password"
-                                            type="password"
-                                            value={newPassword}
-                                            onChange={e => setNewPassword(e.target.value)}
-                                            placeholder="Introduce la nueva contraseña"
-                                            suppressHydrationWarning={true}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="confirm-new-password">Confirmar Nueva Contraseña</Label>
-                                        <Input 
-                                            id="confirm-new-password"
-                                            type="password"
-                                            value={confirmNewPassword}
-                                            onChange={e => setConfirmNewPassword(e.target.value)}
-                                            placeholder="Confirma la nueva contraseña"
-                                            suppressHydrationWarning={true}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button variant="ghost" type="button">Cancelar</Button>
-                            </DialogClose>
-                            {recoveryStep === 1 && <Button onClick={handleRecoveryStart} type="button">Buscar</Button>}
-                            {recoveryStep === 2 && <Button onClick={handleRecoveryAnswer} type="button">Verificar</Button>}
-                            {recoveryStep === 3 && <Button onClick={handleSetNewPassword} type="button">Guardar Contraseña</Button>}
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild><Button variant="ghost" type="button">Cancelar</Button></DialogClose>
+                                <Button onClick={handleRecoveryStart} type="button" disabled={isProcessing}>
+                                    {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                    Enviar Correo
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+                <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
             </div>
-            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required suppressHydrationWarning={true} />
+            <CardFooter className="p-0 pt-4">
+                <Button type="submit" className="w-full" disabled={isProcessing}>
+                    {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Iniciar Sesión
+                </Button>
+            </CardFooter>
+        </form>
+      )}
+      
+      {authStep === 'force_change' && (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground text-center">Por seguridad, debes establecer una nueva contraseña.</p>
+          <div className="space-y-2">
+              <Label htmlFor="new-password">Nueva Contraseña</Label>
+              <Input id="new-password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
+          </div>
+           <div className="space-y-2">
+              <Label htmlFor="confirm-new-password">Confirmar Nueva Contraseña</Label>
+              <Input id="confirm-new-password" type="password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} required />
+          </div>
+           <CardFooter className="p-0 pt-4">
+              <Button onClick={handleSetNewPassword} className="w-full" disabled={isProcessing}>
+                  {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Establecer Nueva Contraseña
+              </Button>
+          </CardFooter>
         </div>
-        <CardFooter className="p-0 pt-4">
-            <Button type="submit" className="w-full" disabled={isLoggingIn}>
-                {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Iniciar Sesión
-            </Button>
-        </CardFooter>
-    </form>
+      )}
+
+      {authStep === 'recovery_success' && (
+        <div className="space-y-4 text-center">
+            <p className="text-green-600 font-medium">¡Contraseña actualizada!</p>
+            <p className="text-sm text-muted-foreground">Ya puedes iniciar sesión con tu nueva contraseña.</p>
+            <CardFooter className="p-0 pt-4">
+                <Button onClick={returnToLogin} className="w-full">Regresar a Inicio</Button>
+            </CardFooter>
+        </div>
+      )}
+    </div>
   );
 }

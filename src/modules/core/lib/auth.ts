@@ -7,11 +7,12 @@
 "use server";
 
 import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getDbModules, getUnreadSuggestions } from './db';
-import type { User, ExchangeRateApiResponse } from '../types';
+import { sendEmail } from './email-service';
+import type { User, ExchangeRateApiResponse, EmailSettings } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { headers } from 'next/headers';
-import { getExchangeRate } from './api-actions';
+import { getExchangeRate, getEmailSettings } from './api-actions';
 
 const SALT_ROUNDS = 10;
 
@@ -20,14 +21,11 @@ const SALT_ROUNDS = 10;
  * It securely compares the provided password with the stored hash.
  * @param {string} email - The user's email.
  * @param {string} passwordProvided - The password provided by the user.
- * @returns {Promise<User | null>} The user object if login is successful, null otherwise.
+ * @returns {Promise<{ user: User | null, forcePasswordChange: boolean }>} The user object and a flag indicating if a password change is required.
  */
-export async function login(email: string, passwordProvided: string): Promise<User | null> {
+export async function login(email: string, passwordProvided: string, clientInfo: { ip: string, host: string }): Promise<{ user: User | null, forcePasswordChange: boolean }> {
   const db = await connectDb();
-  const requestHeaders = headers();
-  const clientIp = requestHeaders.get('x-forwarded-for') ?? 'Unknown IP';
-  const clientHost = requestHeaders.get('host') ?? 'Unknown Host';
-  const logMeta = { email, ip: clientIp, host: clientHost };
+  const logMeta = { email, ...clientInfo };
   try {
     const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
     const user: User | undefined = stmt.get(email) as User | undefined;
@@ -35,18 +33,17 @@ export async function login(email: string, passwordProvided: string): Promise<Us
     if (user && user.password) {
       const isMatch = await bcrypt.compare(passwordProvided, user.password);
       if (isMatch) {
-        // Do not send the password hash back to the client.
         const { password, ...userWithoutPassword } = user;
         await logInfo(`User '${user.name}' logged in successfully.`, logMeta);
-        return userWithoutPassword as User;
+        return { user: userWithoutPassword as User, forcePasswordChange: !!user.forcePasswordChange };
       }
     }
     await logWarn(`Failed login attempt for email: ${email}`, logMeta);
-    return null;
+    return { user: null, forcePasswordChange: false };
   } catch (error: any) {
     console.error("Login error:", error);
     await logWarn(`Login process failed for email: ${email} with error: ${error.message}`, logMeta);
-    return null;
+    return { user: null, forcePasswordChange: false };
   }
 }
 
@@ -85,7 +82,7 @@ export async function getAllUsers(): Promise<User[]> {
  * @param userData - The data for the new user, including a plaintext password.
  * @returns The newly created user object, without the password hash.
  */
-export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string }): Promise<User> {
+export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string, forcePasswordChange: boolean }): Promise<User> {
   const db = await connectDb();
   
   const hashedPassword = bcrypt.hashSync(userData.password, SALT_ROUNDS);
@@ -104,11 +101,12 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
     phone: userData.phone || "",
     whatsapp: userData.whatsapp || "",
     erpAlias: userData.erpAlias || "",
+    forcePasswordChange: userData.forcePasswordChange,
   };
   
   const stmt = db.prepare(
-    `INSERT INTO users (id, name, email, password, phone, whatsapp, erpAlias, avatar, role, recentActivity, securityQuestion, securityAnswer) 
-     VALUES (@id, @name, @email, @password, @phone, @whatsapp, @erpAlias, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)`
+    `INSERT INTO users (id, name, email, password, phone, whatsapp, erpAlias, avatar, role, recentActivity, securityQuestion, securityAnswer, forcePasswordChange) 
+     VALUES (@id, @name, @email, @password, @phone, @whatsapp, @erpAlias, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer, @forcePasswordChange)`
   );
   
   stmt.run({
@@ -118,6 +116,7 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
     erpAlias: userToCreate.erpAlias || null,
     securityQuestion: userToCreate.securityQuestion || null,
     securityAnswer: userToCreate.securityAnswer || null,
+    forcePasswordChange: userToCreate.forcePasswordChange ? 1 : 0,
   });
 
   const { password, ...userWithoutPassword } = userToCreate;
@@ -135,8 +134,8 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
 export async function saveAllUsers(users: User[]): Promise<void> {
    const db = await connectDb();
    const upsert = db.prepare(`
-    INSERT INTO users (id, name, email, password, phone, whatsapp, erpAlias, avatar, role, recentActivity, securityQuestion, securityAnswer) 
-    VALUES (@id, @name, @email, @password, @phone, @whatsapp, @erpAlias, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)
+    INSERT INTO users (id, name, email, password, phone, whatsapp, erpAlias, avatar, role, recentActivity, securityQuestion, securityAnswer, forcePasswordChange) 
+    VALUES (@id, @name, @email, @password, @phone, @whatsapp, @erpAlias, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer, @forcePasswordChange)
     ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         email = excluded.email,
@@ -148,24 +147,25 @@ export async function saveAllUsers(users: User[]): Promise<void> {
         role = excluded.role,
         recentActivity = excluded.recentActivity,
         securityQuestion = excluded.securityQuestion,
-        securityAnswer = excluded.securityAnswer
+        securityAnswer = excluded.securityAnswer,
+        forcePasswordChange = excluded.forcePasswordChange
    `);
 
     const transaction = db.transaction((usersToSave: User[]) => {
-        const existingUsersMap = new Map<number, string | undefined>(
-            (db.prepare('SELECT id, password FROM users').all() as User[]).map(u => [u.id, u.password])
+        const existingUsersMap = new Map<number, { pass: string | undefined; force: boolean | number | undefined }>(
+            (db.prepare('SELECT id, password, forcePasswordChange FROM users').all() as User[]).map(u => [u.id, { pass: u.password, force: u.forcePasswordChange }])
         );
 
         for (const user of usersToSave) {
           let passwordToSave = user.password;
-          const existingPassword = existingUsersMap.get(user.id);
+          const existingUserData = existingUsersMap.get(user.id);
           
-          if (passwordToSave && passwordToSave !== existingPassword) {
+          if (passwordToSave && passwordToSave !== existingUserData?.pass) {
               if (!passwordToSave.startsWith('$2a$')) { // Basic check if it's not already a hash
                   passwordToSave = bcrypt.hashSync(passwordToSave, SALT_ROUNDS);
               }
           } else {
-             passwordToSave = existingPassword;
+             passwordToSave = existingUserData?.pass;
           }
 
           const userToInsert = {
@@ -176,6 +176,7 @@ export async function saveAllUsers(users: User[]): Promise<void> {
             erpAlias: user.erpAlias || null,
             securityQuestion: user.securityQuestion || null,
             securityAnswer: user.securityAnswer || null,
+            forcePasswordChange: user.forcePasswordChange ? 1 : 0,
           };
           upsert.run(userToInsert);
         }
@@ -264,4 +265,51 @@ export async function getInitialAuthData() {
         exchangeRate: rateData,
         unreadSuggestions
     };
+}
+
+
+/**
+ * Handles the password recovery process.
+ * Generates a temporary password, updates the user's record, and sends an email.
+ * @param email - The email of the user requesting recovery.
+ * @param clientInfo - Information about the client making the request.
+ */
+export async function sendPasswordRecoveryEmail(email: string, clientInfo: { ip: string; host: string; }): Promise<void> {
+    const db = await connectDb();
+    const logMeta = { email, ...clientInfo };
+
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
+    if (!user) {
+        await logWarn('Password recovery requested for non-existent email.', logMeta);
+        // We don't throw an error to prevent email enumeration attacks. The UI will show a generic message.
+        return;
+    }
+
+    const tempPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(tempPassword, SALT_ROUNDS);
+
+    db.prepare('UPDATE users SET password = ?, forcePasswordChange = 1 WHERE id = ?')
+      .run(hashedPassword, user.id);
+
+    try {
+        const emailSettings = await getEmailSettings() as EmailSettings;
+        if (!emailSettings.smtpHost) {
+            throw new Error("La configuración de SMTP no está establecida. No se puede enviar el correo.");
+        }
+        
+        const emailBody = emailSettings.recoveryEmailBody
+            .replace('[NOMBRE_USUARIO]', user.name)
+            .replace('[CLAVE_TEMPORAL]', tempPassword);
+            
+        await sendEmail({
+            to: user.email,
+            subject: emailSettings.recoveryEmailSubject,
+            html: emailBody
+        });
+
+        await logInfo(`Password recovery email sent successfully to ${user.name}.`, logMeta);
+    } catch (error: any) {
+        await logError('Failed to send password recovery email.', { ...logMeta, error: error.message });
+        throw new Error("No se pudo enviar el correo de recuperación. Revisa la configuración de SMTP.");
+    }
 }

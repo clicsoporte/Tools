@@ -20,7 +20,7 @@ const DB_FILE = 'intratool.db';
  * @throws {Error} If a user already exists in the database.
  */
 export async function createFirstUser(
-  userData: Omit<User, 'id' | 'role' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string },
+  userData: Omit<User, 'id' | 'role' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer' | 'forcePasswordChange'> & { password: string },
   clientInfo: { ip: string, host: string }
 ): Promise<void> {
   // Force a recreation of the main DB to ensure it's not corrupt from a bad reset.
@@ -44,11 +44,12 @@ export async function createFirstUser(
     recentActivity: "Primer usuario administrador creado.",
     phone: userData.phone,
     whatsapp: userData.whatsapp,
+    forcePasswordChange: false,
   };
   
   const stmt = db.prepare(
-    `INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity) 
-     VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity)`
+    `INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, forcePasswordChange) 
+     VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @forcePasswordChange)`
   );
   
   try {
@@ -56,6 +57,7 @@ export async function createFirstUser(
         ...userToCreate,
         phone: userToCreate.phone || null,
         whatsapp: userToCreate.whatsapp || null,
+        forcePasswordChange: 0,
     });
     await logInfo(`Initial admin user '${userToCreate.name}' created successfully.`, clientInfo);
   } catch (error: any) {

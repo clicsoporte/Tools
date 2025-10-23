@@ -5,8 +5,9 @@
  */
 "use server";
 
-import { getApiSettings } from './db';
+import { getApiSettings as getApiSettingsDb, getEmailSettings as getEmailSettingsDb } from './db';
 import { logError, logWarn } from './logger';
+import type { ApiSettings, EmailSettings } from '../types';
 
 /**
  * Fetches the current USD to CRC exchange rate from the configured API endpoint.
@@ -14,7 +15,7 @@ import { logError, logWarn } from './logger';
  */
 export async function getExchangeRate(): Promise<any> {
     try {
-        const apiSettings = await getApiSettings();
+        const apiSettings = await getApiSettingsDb();
         if (!apiSettings?.exchangeRateApi) {
             throw new Error("Exchange rate API URL not configured in settings.");
         }
@@ -50,7 +51,7 @@ export async function getExemptionStatus(authNumber: string): Promise<any> {
     }
 
     try {
-        const apiSettings = await getApiSettings();
+        const apiSettings = await getApiSettingsDb();
         if (!apiSettings?.haciendaExemptionApi) {
             throw new Error("Exemption API URL not configured in settings.");
         }
@@ -84,4 +85,22 @@ export async function getExemptionStatus(authNumber: string): Promise<any> {
         await logError(`Failed to fetch exemption for auth number: ${authNumber}`, { error: error.message });
         return { error: true, message: "Error interno al consultar la API de exoneraciones." };
     }
+}
+
+/**
+ * Fetches the API settings from the database.
+ * This is a server action wrapper for the database function.
+ * @returns {Promise<ApiSettings | null>} The API settings.
+ */
+export async function getApiSettings(): Promise<ApiSettings | null> {
+    return getApiSettingsDb();
+}
+
+/**
+ * Fetches the email settings from the database.
+ * This is a server action wrapper for the database function.
+ * @returns {Promise<Partial<EmailSettings>>} The email settings.
+ */
+export async function getEmailSettings(): Promise<Partial<EmailSettings>> {
+    return getEmailSettingsDb();
 }
