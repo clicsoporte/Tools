@@ -1,1 +1,1 @@
-Clic-Tools v1.6.0 - Cost Assistant & UI Enhancements
+Clic-Tools v1.7.0 - Recuperación de Contraseña y Mejoras de Flujo

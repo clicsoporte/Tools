@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Layers, UploadCloud, BarChartBig, Lightbulb, FileText, Calculator, PanelLeft } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Layers, UploadCloud, BarChartBig, Lightbulb, FileText, Calculator, PanelLeft, Mail, KeyRound } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -162,7 +162,7 @@ export default function HelpPage() {
                         </ol>
                     </li>
                     <li>
-                        <strong>Ventajas:</strong> Es más rápido, directo y elimina la necesidad de generar archivos manualmente.
+                        <strong>Ventajas:</strong> Es más rápido, directo y elimina la necesidad de generar archivos manually.
                     </li>
                 </ul>
 
@@ -173,6 +173,52 @@ export default function HelpPage() {
                         <strong>Alerta de Sincronización Antigua (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si ha pasado mucho tiempo desde la última sincronización (el tiempo es configurable en Administración &gt; General), el indicador &quot;Última Sinc&quot; y el botón de sincronización se pondrán en **rojo y parpadearán**. Esto es una alerta visual crítica que te indica que los datos de la aplicación (como precios o inventario) pueden estar desactualizados.
                     </li>
                 </ul>
+            </div>
+        )
+    },
+    {
+        title: "Guía de Seguridad: Recuperación de Contraseña",
+        icon: <KeyRound className="mr-4 h-6 w-6 text-fuchsia-600" />,
+        content: (
+            <div className="space-y-4">
+                <p>
+                Para mejorar la seguridad y la autonomía del usuario, el sistema ahora incluye un flujo completo para recuperar el acceso a una cuenta.
+                </p>
+
+                <h4 className="font-semibold text-lg pt-2 border-t">Configuración para Administradores</h4>
+                <ul className="list-disc space-y-3 pl-6">
+                    <li>
+                        <strong>Paso 1: Configurar el SMTP.</strong> Para que el sistema pueda enviar correos, un administrador debe ir a <strong>Administración &gt; Configuración de Correo</strong>.
+                    </li>
+                    <li>
+                        <strong>Campos Requeridos:</strong> Se deben ingresar los datos del servidor de correo de la empresa (Host, Puerto, Usuario, Contraseña y Seguridad). Estos datos se guardan de forma segura.
+                    </li>
+                     <li>
+                        <strong>Plantilla Personalizable:</strong> En esta misma pantalla, se puede personalizar el **asunto y el cuerpo del correo** de recuperación, usando `[NOMBRE_USUARIO]` y `[CLAVE_TEMPORAL]` como placeholders.
+                    </li>
+                    <li>
+                        <strong>Prueba de Conexión:</strong> Es crucial usar el botón **"Enviar Correo de Prueba"** para verificar que la configuración sea correcta.
+                    </li>
+                </ul>
+
+                <h4 className="font-semibold text-lg pt-2 border-t">Flujo de Recuperación para Usuarios</h4>
+                 <ul className="list-disc space-y-3 pl-6">
+                    <li>
+                        <strong>Olvidé mi contraseña:</strong> En la pantalla de login, el usuario hace clic en el enlace, ingresa su correo y el sistema le envía una **contraseña temporal**.
+                    </li>
+                    <li>
+                        <strong>Inicio de Sesión Forzado:</strong> Al ingresar con la contraseña temporal, la misma tarjeta de login se transforma y le pide al usuario que establezca una **nueva contraseña personal**.
+                    </li>
+                    <li>
+                        <strong>Proceso Finalizado:</strong> Una vez que establece su nueva contraseña, se le informa que el cambio fue exitoso y se le pide que vuelva a la pantalla de login para ingresar normalmente.
+                    </li>
+                </ul>
+
+                 <h4 className="font-semibold text-lg pt-2 border-t">Creación de Nuevos Usuarios</h4>
+                 <ul className="list-disc space-y-3 pl-6">
+                    <li>Al crear un nuevo usuario, el administrador ahora tiene una casilla: **"Forzar cambio de contraseña en el próximo inicio de sesión"**.</li>
+                    <li>Si se marca, el nuevo usuario seguirá el mismo flujo de cambio de contraseña forzado la primera vez que ingrese, asegurando que establezca una clave personal y segura.</li>
+                 </ul>
             </div>
         )
     },
@@ -304,11 +350,14 @@ export default function HelpPage() {
                 <li>
                     <strong>Paso 2: Entender el Flujo de Estados.</strong> Las solicitudes pasan por varios estados para un seguimiento claro:
                     <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                        <li><strong>Pendiente:</strong> La solicitud ha sido creada y está esperando aprobación.</li>
+                        <li><strong>Pendiente:</strong> La solicitud ha sido creada y está esperando revisión.</li>
+                        <li><strong>Revisión Compras:</strong> El equipo de compras está revisando la solicitud. Desde aquí, pueden **regresar a Pendiente** si se necesita una corrección.</li>
+                        <li><strong>Pendiente Aprobación:</strong> La solicitud ha sido enviada para su aprobación final. Desde aquí, se puede **regresar a Revisión Compras**.</li>
                         <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> Un usuario con permisos ha aprobado la compra.</li>
                         <li><strong>Ordenada (<Truck className="inline h-4 w-4 text-blue-600"/>):</strong> Ya se realizó el pedido al proveedor.</li>
-                        <li><strong>Recibida (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> El producto ha llegado. Aquí puedes registrar la cantidad real que se recibió.</li>
-                        <li><strong>En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):</strong> (Opcional, si está activado) Un paso final para confirmar que el producto ya está en el almacén físico.</li>
+                        <li><strong>Recibida (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> (Paso opcional) El producto ha llegado.</li>
+                        <li><strong>En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):</strong> (Paso opcional) El producto ya está en el almacén físico.</li>
+                        <li><strong>Ingresado en ERP (<DatabaseZap className="inline h-4 w-4 text-indigo-600"/>):</strong> (Paso opcional) El ingreso de la mercancía se ha registrado en el ERP.</li>
                         <li><strong>Cancelada (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> La solicitud ha sido cancelada.</li>
                     </ul>
                 </li>
@@ -351,10 +400,7 @@ export default function HelpPage() {
                     <strong>Solicitar Cancelación:</strong> Si una solicitud ya está Aprobada u Ordenada, no se puede cancelar directamente. En su lugar, un usuario con permisos puede &quot;Solicitar Cancelación&quot;. Esto pone la solicitud en un estado de espera y notifica a un administrador, quien debe aprobar o rechazar la cancelación, dejando un registro del motivo.
                 </li>
                 <li>
-                    <strong>Exportación:</strong> En el menú desplegable &quot;Exportar&quot;, puedes generar un archivo **PDF** del reporte actual o un archivo **Excel (.xlsx)** para análisis externo.
-                </li>
-                <li>
-                    <strong>Navegar en el Historial:</strong> Para mantener la velocidad, la vista de &quot;Archivadas&quot; carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
+                    **Exportación:** Puedes generar un archivo **PDF** o **Excel (.xlsx)** del reporte actual.
                 </li>
                 </ul>
             </div>
@@ -370,48 +416,48 @@ export default function HelpPage() {
                 </p>
                 <ul className="list-disc space-y-3 pl-6">
                     <li>
-                        <strong>Visibilidad por Defecto:</strong> Al igual que en Compras, el planificador te mostrará por defecto solo las órdenes que tú has creado. Los usuarios con el permiso `planner:read:all` pueden desmarcar el filtro para tener una vista global de la producción.
+                        **Visibilidad por Defecto:** Al igual que en Compras, el planificador te mostrará por defecto solo las órdenes que tú has creado. Los usuarios con el permiso `planner:read:all` pueden desmarcar el filtro para tener una vista global de la producción.
                     </li>
                     <li>
-                        <strong>Paso 1: Crear Órdenes.</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
+                        **Paso 1: Crear Órdenes.** Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
                          <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li><strong>Alerta de Duplicados (<Info className="inline h-4 w-4 text-amber-500" />):</strong> Al seleccionar un producto, el sistema te avisará si ya existen otras órdenes de producción activas para ese mismo artículo, ayudándote a evitar duplicar trabajo.</li>
+                            <li>**Alerta de Duplicados (<Info className="inline h-4 w-4 text-amber-500" />):** Al seleccionar un producto, el sistema te avisará si ya existen otras órdenes de producción activas para ese mismo artículo, ayudándote a evitar duplicar trabajo.</li>
                         </ul>
                     </li>
                     <li>
-                        <strong>Paso 2: Flujo de Estados y Trazabilidad.</strong>
+                        **Paso 2: Flujo de Estados y Trazabilidad.**
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li><strong>Pendiente:</strong> La orden ha sido creada y espera aprobación.</li>
-                            <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> La orden está autorizada para producción.</li>
-                            <li><strong>En Cola (<Hourglass className="inline h-4 w-4 text-cyan-600"/>):</strong> La orden está lista, esperando que se libere un recurso (ej: una máquina) para poder iniciar.</li>
-                            <li><strong>En Progreso (<Play className="inline h-4 w-4 text-blue-600"/>):</strong> La orden se está produciendo activamente.</li>
-                            <li><strong>En Espera / Mantenimiento (<Pause className="inline h-4 w-4 text-gray-600"/>):</strong> La producción se detuvo temporalmente.</li>
-                            <li><strong>Completada (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> La producción ha finalizado.</li>
-                            <li><strong>En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):</strong> (Opcional) El producto terminado ya está en el almacén.</li>
+                            <li>**Pendiente:** La orden ha sido creada y espera aprobación.</li>
+                            <li>**Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):** La orden está autorizada para producción.</li>
+                            <li>**En Cola (<Hourglass className="inline h-4 w-4 text-cyan-600"/>):** La orden está lista, esperando que se libere un recurso (ej: una máquina) para poder iniciar.</li>
+                            <li>**En Progreso (<Play className="inline h-4 w-4 text-blue-600"/>):** La orden se está produciendo activamente.</li>
+                            <li>**En Espera / Mantenimiento (<Pause className="inline h-4 w-4 text-gray-600"/>):** La producción se detuvo temporalmente.</li>
+                            <li>**Completada (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):** La producción ha finalizado.</li>
+                            <li>**En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):** (Paso opcional) El producto terminado ya está en el almacén.</li>
                         </ul>
                     </li>
                     <li>
-                        <strong>Paso 3: Alertas y Solicitudes de Cambio.</strong>
+                        **Paso 3: Alertas y Solicitudes de Cambio.**
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li><strong>Aviso de &quot;Modificado&quot; (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una orden se edita después de ser aprobada, aparecerá esta alerta para notificar a todos sobre el cambio.</li>
-                            <li><strong>Solicitar Desaprobación (<Undo2 className="inline h-4 w-4 text-orange-600"/>):</strong> Si una orden ya aprobada necesita un cambio mayor (ej: cambiar de producto), un usuario puede &quot;Solicitar Desaprobación&quot;. Esto bloquea la orden y requiere que un administrador la apruebe o rechace para devolverla al estado &quot;Pendiente&quot;.</li>
-                            <li><strong>Solicitar Cancelación (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> Similar a la desaprobación, permite pedir la cancelación de una orden que ya está en el flujo, requiriendo aprobación administrativa.</li>
+                            <li>**Aviso de &quot;Modificado&quot; (<AlertTriangle className="inline h-4 w-4 text-red-600" />):** Si una orden se edita después de ser aprobada, aparecerá esta alerta para notificar a todos sobre el cambio.</li>
+                            <li>**Solicitar Desaprobación (<Undo2 className="inline h-4 w-4 text-orange-600"/>):** Si una orden ya aprobada necesita un cambio mayor (ej: cambiar de producto), un usuario puede &quot;Solicitar Desaprobación&quot;. Esto bloquea la orden y requiere que un administrador la apruebe o rechace para devolverla al estado &quot;Pendiente&quot;.</li>
+                            <li>**Solicitar Cancelación (<XCircle className="inline h-4 w-4 text-red-600"/>):** Similar a la desaprobación, permite pedir la cancelación de una orden que ya está en el flujo, requiriendo aprobación administrativa.</li>
                         </ul>
                     </li>
                     <li>
-                        <strong>Paso 4: Programación y Prioridades.</strong>
+                        **Paso 4: Programación y Prioridades.**
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li><strong>Programación por Rango:</strong> Haz clic en el área de &quot;Fecha Programada&quot; para abrir un calendario y seleccionar un rango de fechas de inicio y fin.</li>
-                            <li><strong>Asignación:</strong> Asigna cada orden a una máquina, proceso u operario específico desde el menú desplegable. Estas opciones se configuran en Administración.</li>
-                            <li><strong>Gestión de Turnos:</strong> Asigna la orden a un turno de trabajo específico. Los turnos disponibles se pueden personalizar completamente en **Administración &gt; Config. Planificador**.</li>
-                            <li><strong>Prioridades y Cuenta Regresiva:</strong> Usa el selector de prioridad y fíjate en el indicador de días restantes (basado en la fecha de entrega) para organizar el trabajo.</li>
+                            <li>**Programación por Rango:** Haz clic en el área de &quot;Fecha Programada&quot; para abrir un calendario y seleccionar un rango de fechas de inicio y fin.</li>
+                            <li>**Asignación:** Asigna cada orden a una máquina, proceso u operario específico desde el menú desplegable. Estas opciones se configuran en Administración.</li>
+                            <li>**Gestión de Turnos:** Asigna la orden a un turno de trabajo específico. Los turnos disponibles se pueden personalizar completamente en **Administración > Config. Planificador**.</li>
+                            <li>**Prioridades y Cuenta Regresiva:** Usa el selector de prioridad y fíjate en el indicador de días restantes (basado en la fecha de entrega) para organizar el trabajo.</li>
                         </ul>
                     </li>
                     <li>
-                        <strong>Exportación:</strong> En el menú desplegable &quot;Exportar&quot;, puedes generar un archivo **PDF** del reporte actual o un archivo **Excel (.xlsx)** para análisis externo.
+                        **Exportación:** Puedes generar un archivo **PDF** o **Excel (.xlsx)** del reporte actual.
                     </li>
                     <li>
-                        <strong>Historial (<History className="inline h-4 w-4"/>):</strong> Haz clic en el icono de historial en cualquier orden para ver un registro detallado de cada cambio de estado, quién lo hizo y cuándo.
+                        **Historial (<History className="inline h-4 w-4"/>):** Haz clic en el icono de historial en cualquier orden para ver un registro detallado de cada cambio de estado, quién lo hizo y cuándo.
                     </li>
                 </ul>
             </div>
@@ -435,7 +481,7 @@ export default function HelpPage() {
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>Selecciona un rango de fechas de los pedidos del ERP que quieres analizar y haz clic en &quot;Analizar Pedidos&quot;.</li>
                             <li>El sistema te mostrará una tabla con los artículos faltantes. Para cada artículo, verás la cantidad total que necesitas, cuánto tienes en inventario, y el faltante exacto.</li>
-                            <li><strong>Ordena los resultados:</strong> Haz clic en el encabezado de cualquier columna (ej: &quot;Próxima Entrega&quot; o &quot;Faltante Total&quot;) para ordenar la tabla según ese criterio. Una flecha te indicará el orden actual.</li>
+                            <li>**Ordena los resultados:** Haz clic en el encabezado de cualquier columna (ej: &quot;Próxima Entrega&quot; o &quot;Faltante Total&quot;) para ordenar la tabla según ese criterio. Una flecha te indicará el orden actual.</li>
                             <li>También verás información clave como los **clientes involucrados** y la **próxima fecha de entrega** que debes cumplir.</li>
                             <li>Usa los filtros de búsqueda y de clasificación (que ahora permite **selección múltiple**) para refinar la lista.</li>
                             <li>Marca los artículos que quieres comprar, y haz clic en **&quot;Crear Solicitudes&quot;** para generar todas las solicitudes de compra de forma automática. El sistema te advertirá si estás a punto de crear una solicitud duplicada.</li>
@@ -566,35 +612,39 @@ export default function HelpPage() {
                 <div className="space-y-4">
                     <div className="flex items-start gap-4">
                         <Users className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
-                        <div><h4 className="font-semibold">Gestión de Usuarios</h4><p>Permite crear, editar, eliminar y asignar roles a las cuentas de usuario que pueden acceder al sistema.</p></div>
+                        <div><h4 className="font-semibold">Gestión de Usuarios</h4><p>Permite crear, editar, eliminar y asignar roles a las cuentas de usuario. Incluye la opción de forzar el cambio de contraseña para nuevos usuarios.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <ShieldCheck className="mt-1 h-6 w-6 text-green-500 shrink-0" />
-                        <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo. La función &quot;Restablecer Roles&quot; ahora sobreescribe los roles por defecto para garantizar que siempre tengan los permisos de las últimas funcionalidades.</p></div>
+                        <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo.</p></div>
+                    </div>
+                     <div className="flex items-start gap-4">
+                        <Mail className="mt-1 h-6 w-6 text-purple-600 shrink-0" />
+                        <div><h4 className="font-semibold">Configuración de Correo</h4><p>Configura tu servidor de correo (SMTP) para habilitar el envío de notificaciones y la recuperación de contraseñas. Permite personalizar las plantillas de los correos.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Briefcase className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
-                        <div><h4 className="font-semibold">Configuración General</h4><p>Establece la identidad de tu empresa (nombre, logo, cédula jurídica) que aparecerá en los documentos. Aquí también puedes ajustar parámetros globales como el tiempo de espera de la búsqueda o las horas para la alerta de sincronización (acepta decimales, ej: 0.5 para 30 min).</p></div>
+                        <div><h4 className="font-semibold">Configuración General</h4><p>Establece la identidad de tu empresa (nombre, logo, etc.) y ajusta parámetros globales como el tiempo de espera de la búsqueda o las horas para la alerta de sincronización.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <MessageSquare className="mt-1 h-6 w-6 text-green-600 shrink-0" />
-                        <div><h4 className="font-semibold">Buzón de Sugerencias</h4><p>Lee y gestiona el feedback enviado por los usuarios a través del botón &quot;Sugerencias y Mejoras&quot;. Es el canal de comunicación directo para mejorar la aplicación.</p></div>
+                        <div><h4 className="font-semibold">Buzón de Sugerencias</h4><p>Revisa el feedback enviado por los usuarios a través del botón &quot;Sugerencias y Mejoras&quot;.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <DollarSign className="mt-1 h-6 w-6 text-emerald-600 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el comportamiento del Cotizador, definiendo el prefijo (ej. &quot;COT-&quot;) y el número con el que iniciará la siguiente cotización.</p></div>
+                        <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el comportamiento del Cotizador, definiendo el prefijo y el número con el que iniciará la siguiente cotización.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Calculator className="mt-1 h-6 w-6 text-orange-600 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Asist. Costos</h4><p>Configuraciones para el Asistente de Costos. Actualmente, esta sección es un marcador de posición para futuras opciones globales.</p></div>
+                        <div><h4 className="font-semibold">Config. Asist. Costos</h4><p>Ajustes globales para el módulo Asistente de Costos, incluyendo prefijos para borradores y consecutivos.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador de Producción. Aquí puedes crear y nombrar las &quot;máquinas&quot; o &quot;procesos&quot; que se asignarán a las órdenes, así como los diferentes turnos de trabajo.</p></div>
+                        <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador, incluyendo los nombres de "máquinas", los turnos de trabajo y las columnas a exportar en PDF.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Store className="mt-1 h-6 w-6 text-amber-700 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Compras</h4><p>Define las opciones que aparecerán en el módulo de Solicitudes de Compra, como las diferentes rutas de entrega o los métodos de envío disponibles.</p></div>
+                        <div><h4 className="font-semibold">Config. Compras</h4><p>Define las rutas de entrega, métodos de envío y activa pasos opcionales en el flujo de aprobación como "Recibido en Bodega" o "Ingresado en ERP".</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Map className="mt-1 h-6 w-6 text-teal-700 shrink-0" />
@@ -672,55 +722,33 @@ export default function HelpPage() {
         icon: <ListChecks className="mr-4 h-6 w-6 text-fuchsia-600" />,
         content: (
              <div className="space-y-4">
-                 <h4 className="font-semibold text-lg">Versión 1.6.0 <Badge variant="secondary">Actual</Badge></h4>
+                <h4 className="font-semibold text-lg">Versión 1.7.0 <Badge variant="secondary">Actual</Badge></h4>
                 <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                 <ul className="list-disc space-y-3 pl-6">
                      <li>
-                        <strong>Nuevo Módulo Mayor: Asistente de Costos.</strong> Permite cargar facturas XML de compras, prorratear costos adicionales (transporte, aduanas), configurar el manejo de descuentos y calcular precios de venta con márgenes de ganancia. Incluye la capacidad de guardar y cargar borradores de análisis y exportar los nuevos precios a Excel para el ERP.
+                        <strong>Nueva Funcionalidad Mayor: Recuperación de Contraseña.</strong> Se implementó un sistema completo para que los usuarios puedan recuperar su contraseña por correo electrónico. Incluye una nueva página de administración para configurar el servidor SMTP y personalizar la plantilla del correo.
                     </li>
                     <li>
-                        <strong>Mejora Mayor en Interfaz: Panel Lateral Plegable.</strong> Se añadió un botón para contraer el menú lateral, maximizando el espacio de trabajo en todas las vistas.
+                        <strong>Nueva Funcionalidad de Seguridad: Cambio de Contraseña Forzado.</strong> Al crear un nuevo usuario, ahora se puede forzar a que cambie su contraseña en el primer inicio de sesión. Este flujo también se activa automáticamente al usar una contraseña temporal recuperada. El proceso se maneja directamente en la pantalla de login para una mejor experiencia.
                     </li>
                     <li>
-                        <strong>Mejora Mayor en Filtros:</strong> Se estandarizaron todos los filtros de selección múltiple y de columnas a una ventana modal (popup) con buscador y checkboxes, solucionando definitivamente los problemas de scroll y mejorando la usabilidad en todo el sistema.
+                        <strong>Mejora en Flujo de Compras:</strong> Se añadió la capacidad de configurar el paso final "Ingresado en ERP" y de retroceder solicitudes entre los estados de "Pendiente", "Revisión" y "Pendiente de Aprobación" para mayor flexibilidad.
+                    </li>
+                     <li>
+                        <strong>Mejora de Robustez: Refactorización del Flujo de Autenticación.</strong> Se reescribió la lógica de inicio de sesión, cierre de sesión y protección de rutas para eliminar condiciones de carrera, evitar parpadeos de pantalla y manejar las sesiones de manera más segura y estable.
                     </li>
                     <li>
-                        <strong>Mejora Mayor en Tablas:</strong> Se añadió la capacidad de ordenar los datos en las tablas de análisis haciendo clic en los encabezados de las columnas, con indicadores visuales para mostrar el orden actual.
-                    </li>
-                    <li>
-                        <strong>Mejora de Lógica y Estabilidad:</strong> Se realizaron múltiples correcciones y optimizaciones internas para eliminar condiciones de carrera, mejorar la carga de datos y hacer más robustos los procesos de inicio y cierre de sesión.
+                        **Mejora de Estabilidad: Corrección de Migraciones.** Se revisaron y corrigieron todos los scripts de migración de la base de datos para asegurar que las actualizaciones de la aplicación se realicen sin errores ni pérdida de datos.
                     </li>
                 </ul>
-                <h4 className="font-semibold text-lg pt-4 border-t">Versión 1.5.5</h4>
+                 <h4 className="font-semibold text-lg pt-4 border-t">Versión 1.6.0</h4>
                 <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                 <ul className="list-disc space-y-3 pl-6">
-                    <li>
-                        <strong>Nueva Funcionalidad: Búsqueda en Centro de Ayuda.</strong> Se ha añadido una barra de búsqueda a la página de ayuda que filtra y resalta las secciones relevantes en tiempo real para encontrar información rápidamente.
-                    </li>
                      <li>
-                        <strong>Mejora Mayor en Sugerencias de Compra:</strong> Se implementó un sistema de **paginación** para manejar grandes listas de resultados de manera eficiente.
+                        <strong>Nuevo Módulo Mayor: Asistente de Costos.</strong> Permite cargar facturas XML, prorratear costos y calcular precios de venta.
                     </li>
                     <li>
-                        <strong>Mejora Mayor de Usabilidad:</strong> Se implementaron **encabezados de tabla fijos (sticky)** en las tablas principales de la aplicación para mejorar la legibilidad al desplazarse.
-                    </li>
-                     <li>
-                        <strong>Mejora de Responsividad:</strong> Se realizó una revisión completa para mejorar la visualización y usabilidad de todos los módulos en dispositivos móviles y tablets.
-                    </li>
-                    <li>
-                        <strong>Mejora en Planificador:</strong> Se ha añadido la capacidad de personalizar completamente los **turnos de trabajo** desde el panel de administración.
-                    </li>
-                </ul>
-                <h4 className="font-semibold text-lg pt-4 border-t">Versión 1.5.4</h4>
-                <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
-                <ul className="list-disc space-y-3 pl-6">
-                    <li>
-                        <strong>Nuevo Módulo: Analíticas y Reportes.</strong> Se ha añadido un nuevo módulo central para herramientas de inteligencia de negocio.
-                    </li>
-                    <li>
-                        <strong>Mejora Mayor en Filtros: Selección Múltiple.</strong> Se reemplazaron los filtros de selección simple por un nuevo componente de checkboxes que permite seleccionar múltiples opciones a la vez.
-                    </li>
-                    <li>
-                        <strong>Nueva Funcionalidad: Exportación a Excel (.xlsx).</strong> Se añadió la opción en los módulos de Planificador, Solicitudes de Compra y Sugerencias de Compra.
+                        <strong>Mejora Mayor en Interfaz: Panel Lateral Plegable.</strong>
                     </li>
                 </ul>
             </div>
@@ -751,7 +779,7 @@ export default function HelpPage() {
                 <div className="relative mt-6">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input 
-                        placeholder="Escribe para buscar en la ayuda (ej: 'cotizacion', 'importar', 'resetear')..."
+                        placeholder="Escribe para buscar en la ayuda (ej: 'contraseña', 'importar', 'resetear')..."
                         className="w-full pl-10 h-12 text-base"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
