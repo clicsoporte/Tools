@@ -9,7 +9,7 @@ import React, { createContext, useState, useContext, ReactNode, FC, useEffect, u
 import { useRouter } from "next/navigation";
 import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification, Suggestion } from "../types";
 import { getCurrentUser as getCurrentUserClient, getInitialAuthData, logout as clientLogout } from '../lib/auth-client';
-import { getUnreadSuggestionsCount as getUnreadSuggestionsCountAction } from "../lib/suggestions-actions";
+import { getUnreadSuggestionsCount as getUnreadSuggestionsCountAction } from "../lib/suggestions-queries";
 import { getExchangeRate } from "../lib/api-actions";
 import { getNotificationsForUser } from "../lib/notifications-actions";
 
