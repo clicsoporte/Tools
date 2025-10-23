@@ -126,7 +126,7 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
         if (!historyTable) {
             console.log("MIGRATION (planner.db): Creating production_order_history table.");
             db.exec(`
-                CREATE TABLE production_order_history (
+                CREATE TABLE IF NOT EXISTS production_order_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     orderId INTEGER NOT NULL,
                     timestamp TEXT NOT NULL,
