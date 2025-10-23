@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview System maintenance page for administrators.
  * This page provides critical, high-risk functionalities such as database
@@ -35,7 +34,7 @@ import { Input } from '../../../../components/ui/input';
 import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules, getCurrentVersion } from '../../../../modules/core/lib/db';
 import type { UpdateBackupInfo, DatabaseModule } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -159,17 +158,14 @@ export default function MaintenancePage() {
         setProcessingAction('full-restore');
         
         try {
-            await restoreAllFromUpdateBackup(selectedRestoreTimestamp);
-
             toast({
-                title: "Restauración Completada",
-                description: `Se han restaurado los datos. Por favor, reinicie manualmente el servidor de la aplicación para aplicar los cambios.`,
-                duration: 10000,
+                title: "Restauración Iniciada",
+                description: `Se han restaurado los datos. El servidor se reiniciará en 5 segundos.`,
+                duration: 5000,
             });
 
-            await logWarn(`System restored by ${user?.name} from backup point ${selectedRestoreTimestamp}. The system will restart.`);
-            
-            // Wait a moment for toast to be visible, then initiate shutdown
+            await logWarn(`System restore initiated by ${user?.name} from backup point ${selectedRestoreTimestamp}. The system will restart.`);
+            await restoreAllFromUpdateBackup(selectedRestoreTimestamp);
             setTimeout(() => shutdownServer(), 5000);
 
         } catch (error: any) {
@@ -220,18 +216,18 @@ export default function MaintenancePage() {
         setProcessingAction('single-restore');
         try {
             const moduleName = dbModules.find(m => m.id === moduleToRestore)?.name || moduleToRestore;
-            await restoreDatabase(moduleToRestore, fileToRestore);
             
             toast({
                 title: "Módulo Restaurado",
-                description: `La base de datos de "${moduleName}" ha sido restaurada. Reinicie manualmente el servidor.`,
-                duration: 10000,
+                description: `La base de datos de "${moduleName}" ha sido restaurada. El servidor se reiniciará en 5 segundos.`,
+                duration: 5000,
             });
-            await logWarn(`Module ${moduleName} was restored by ${user?.name} from a file backup. Manual server restart is required.`);
+            await logWarn(`Module ${moduleName} was restored by ${user?.name} from a file backup. The server will restart.`);
+            await restoreDatabase(moduleToRestore, fileToRestore);
+            setTimeout(() => shutdownServer(), 5000);
         } catch (error: any) {
              toast({ title: "Error de Restauración", description: error.message, variant: "destructive" });
             logError("Single module restore failed.", { error: error.message, module: moduleToRestore });
-        } finally {
             setIsProcessing(false);
             setProcessingAction(null);
         }
@@ -373,9 +369,9 @@ export default function MaintenancePage() {
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
-                                                    <AlertDialogTitle>¿Confirmar Restauración del Sistema?</AlertDialogTitle>
+                                                    <AlertDialogTitleComponent>¿Confirmar Restauración del Sistema?</AlertDialogTitleComponent>
                                                     <AlertDialogDescription>
-                                                        Esta acción reemplazará **TODAS** las bases de datos actuales. El sistema se reiniciará automáticamente para aplicar los cambios.
+                                                        Esta acción reemplazará **TODAS** las bases de datos actuales con las del backup seleccionado. El servidor se reiniciará automáticamente.
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
@@ -417,7 +413,7 @@ export default function MaintenancePage() {
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
-                                                    <AlertDialogTitle>¿Limpiar Backups Antiguos?</AlertDialogTitle>
+                                                    <AlertDialogTitleComponent>¿Limpiar Backups Antiguos?</AlertDialogTitleComponent>
                                                     <AlertDialogDescription>
                                                         Se eliminarán todos los puntos de restauración excepto el más reciente. Esta acción no se puede deshacer.
                                                     </AlertDialogDescription>
@@ -460,7 +456,7 @@ export default function MaintenancePage() {
                                             <DialogContent>
                                                 <DialogHeader>
                                                     <DialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación de Restauración de Módulo</DialogTitle>
-                                                    <DialogDescription>Esta acción reemplazará la base de datos del módulo seleccionado. Todos los datos actuales en ese módulo se perderán y serán reemplazados por los del archivo.</DialogDescription>
+                                                    <DialogDescription>Esta acción reemplazará la base de datos del módulo seleccionado. Todos los datos actuales en ese módulo se perderán y el servidor se reiniciará.</DialogDescription>
                                                 </DialogHeader>
                                                 <div className="py-4 space-y-4">
                                                     <div className="space-y-2">
@@ -504,7 +500,7 @@ export default function MaintenancePage() {
                                                 <AlertDialogTrigger asChild><Button variant="destructive" disabled={isProcessing || !moduleToReset}><TrashIcon className="mr-2 h-4 w-4" />Resetear Módulo</Button></AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitle>
+                                                        <AlertDialogTitleComponent className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitleComponent>
                                                         <AlertDialogDescription>Esta acción borrará **TODA** la información del módulo &quot;{dbModules.find(m => m.id === moduleToReset)?.name || ''}&quot;. La aplicación se reiniciará.</AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <div className="py-4 space-y-4">
@@ -526,7 +522,7 @@ export default function MaintenancePage() {
                                             <AlertDialogTrigger asChild><Button variant="destructive" className='w-full'><Skull className="mr-2 h-4 w-4" />Resetear Sistema de Fábrica</Button></AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
-                                                    <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>¡ACCIÓN IRREVERSIBLE!</AlertDialogTitle>
+                                                    <AlertDialogTitleComponent className="flex items-center gap-2"><AlertTriangle/>¡ACCIÓN IRREVERSIBLE!</AlertDialogTitleComponent>
                                                     <AlertDialogDescription>Se borrarán **TODAS LAS BASES DE DATOS** y se perderá toda la información. La aplicación se reiniciará.</AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <div className="py-4 space-y-4">
@@ -556,5 +552,3 @@ export default function MaintenancePage() {
         </main>
     );
 }
-
-    
