@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview System maintenance page for administrators.
  * This page provides critical, high-risk functionalities such as database
@@ -34,7 +35,7 @@ import { Input } from '../../../../components/ui/input';
 import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules, getCurrentVersion } from '../../../../modules/core/lib/db';
 import type { UpdateBackupInfo, DatabaseModule } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -43,7 +44,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { shutdownServer } from '@/modules/core/lib/actions';
-import { Alert } from '@/components/ui/alert';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 
 
 export default function MaintenancePage() {
@@ -166,7 +167,10 @@ export default function MaintenancePage() {
                 duration: 10000,
             });
 
-            await logWarn(`System restore initiated by ${user?.name} from backup point ${selectedRestoreTimestamp}. Manual server restart is required.`);
+            await logWarn(`System restored by ${user?.name} from backup point ${selectedRestoreTimestamp}. The system will restart.`);
+            
+            // Wait a moment for toast to be visible, then initiate shutdown
+            setTimeout(() => shutdownServer(), 5000);
 
         } catch (error: any) {
              toast({
@@ -174,7 +178,6 @@ export default function MaintenancePage() {
                 description: `No se pudo completar la restauración. ${error.message}`,
                 variant: "destructive"
             });
-        } finally {
              setIsProcessing(false);
              setProcessingAction(null);
         }
@@ -372,7 +375,7 @@ export default function MaintenancePage() {
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>¿Confirmar Restauración del Sistema?</AlertDialogTitle>
                                                     <AlertDialogDescription>
-                                                        Esta acción reemplazará **TODAS** las bases de datos actuales. Recibirás una notificación para reiniciar el servidor manualmente una vez que el proceso finalice.
+                                                        Esta acción reemplazará **TODAS** las bases de datos actuales. El sistema se reiniciará automáticamente para aplicar los cambios.
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
@@ -553,3 +556,5 @@ export default function MaintenancePage() {
         </main>
     );
 }
+
+    
