@@ -5,7 +5,7 @@
 
 import { connectDb, getAllRoles as getAllRolesFromMain } from '../../core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '../../core/lib/auth';
-import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload, AdministrativeActionPayload, User, PlannerShift } from '../../core/types';
+import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, PlannerNotePayload, AdministrativeActionPayload, User, PlannerShift } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
@@ -556,7 +556,7 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
     return db.prepare('SELECT * FROM production_order_history WHERE orderId = ? ORDER BY timestamp DESC').all(orderId) as ProductionOrderHistoryEntry[];
 }
 
-export async function addNote(payload: NotePayload): Promise<ProductionOrder> {
+export async function addNote(payload: PlannerNotePayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     const { orderId, notes, updatedBy } = payload;
 

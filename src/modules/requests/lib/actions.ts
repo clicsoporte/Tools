@@ -4,7 +4,7 @@
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User, NotePayload } from '../../core/types';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User, RequestNotePayload } from '../../core/types';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { createNotificationForRole } from '@/modules/core/lib/notifications-actions';
 import { 

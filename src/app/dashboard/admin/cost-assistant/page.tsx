@@ -15,18 +15,20 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getCostAssistantSettings, saveCostAssistantSettings } from '@/modules/cost-assistant/lib/actions';
 import { CostAssistantSettings } from '@/modules/core/types';
+import { useAuth } from '@/modules/core/hooks/useAuth';
 
 export default function CostAssistantSettingsPage() {
     const { isAuthorized } = useAuthorization(['admin:settings:cost-assistant']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
+    const { user } = useAuth();
     const [settings, setSettings] = useState<CostAssistantSettings | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         setTitle("Configuración del Asistente de Costos");
-        if (isAuthorized) {
-            getCostAssistantSettings()
+        if (isAuthorized && user) {
+            getCostAssistantSettings(user.id)
                 .then(data => {
                     // Provide default values if they are missing
                     const completeSettings = {
@@ -42,12 +44,12 @@ export default function CostAssistantSettingsPage() {
                 })
                 .finally(() => setIsLoading(false));
         }
-    }, [setTitle, isAuthorized, toast]);
+    }, [setTitle, isAuthorized, toast, user]);
 
     const handleSave = async () => {
-        if (!settings) return;
+        if (!settings || !user) return;
         try {
-            await saveCostAssistantSettings(settings);
+            await saveCostAssistantSettings(user.id, settings);
             toast({ title: "Configuración Guardada", description: "Los ajustes del Asistente de Costos han sido actualizados." });
         } catch (error: any) {
             toast({ title: "Error al Guardar", description: error.message, variant: "destructive" });

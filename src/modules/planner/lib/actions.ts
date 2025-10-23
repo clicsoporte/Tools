@@ -4,7 +4,7 @@
  */
 'use client';
 
-import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, UpdateProductionOrderPayload, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
+import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, UpdateProductionOrderPayload, DateRange, PlannerNotePayload, AdministrativeActionPayload } from '../../core/types';
 import { logInfo } from '@/modules/core/lib/logger';
 import { createNotificationForRole } from '@/modules/core/lib/notifications-actions';
 import { 
@@ -145,7 +145,7 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
  * @param payload - The note details.
  * @returns The updated production order.
  */
-export async function addNoteToOrder(payload: NotePayload): Promise<ProductionOrder> {
+export async function addNoteToOrder(payload: PlannerNotePayload): Promise<ProductionOrder> {
     const updatedOrder = await addNoteServer(payload);
     await logInfo(`Note added to order ${updatedOrder.consecutive} by ${payload.updatedBy}.`);
     return updatedOrder;

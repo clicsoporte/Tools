@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProductionOrder, ProductionOrderPriority, NotePayload, AdministrativeActionPayload } from '@/modules/core/types';
+import { ProductionOrder, ProductionOrderPriority, PlannerNotePayload, AdministrativeActionPayload } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -590,7 +590,7 @@ export default function PlannerPage() {
                     </DialogHeader>
                      <div className="py-4 space-y-2">
                         <Label htmlFor="add-note-textarea">Nota</Label>
-                        <Textarea id="add-note-textarea" value={state.notePayload?.notes || ''} onChange={e => actions.setNotePayload({ ...state.notePayload, notes: e.target.value } as NotePayload)} placeholder="Añade aquí una nota o actualización..." />
+                        <Textarea id="add-note-textarea" value={state.notePayload?.notes || ''} onChange={e => actions.setNotePayload({ ...state.notePayload, notes: e.target.value } as PlannerNotePayload)} placeholder="Añade aquí una nota o actualización..." />
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>

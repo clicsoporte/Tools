@@ -18,7 +18,7 @@ import {
 import type { 
     ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, 
     ProductionOrderHistoryEntry, User, PlannerSettings, DateRange, 
-    NotePayload, UpdateProductionOrderPayload, AdministrativeActionPayload, Product, StockInfo 
+    PlannerNotePayload, UpdateProductionOrderPayload, AdministrativeActionPayload, Product, StockInfo 
 } from '../../core/types';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
