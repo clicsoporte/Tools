@@ -198,7 +198,7 @@ export default function HelpPage() {
                         <strong>Plantilla Personalizable:</strong> En esta misma pantalla, se puede personalizar el **asunto y el cuerpo del correo** de recuperación, usando `[NOMBRE_USUARIO]` y `[CLAVE_TEMPORAL]` como placeholders.
                     </li>
                     <li>
-                        <strong>Prueba de Conexión:</strong> Es crucial usar el botón **"Enviar Correo de Prueba"** para verificar que la configuración sea correcta.
+                        <strong>Prueba de Conexión:</strong> Es crucial usar el botón **&quot;Enviar Correo de Prueba&quot;** para verificar que la configuración sea correcta.
                     </li>
                 </ul>
 
@@ -217,7 +217,7 @@ export default function HelpPage() {
 
                  <h4 className="font-semibold text-lg pt-2 border-t">Creación de Nuevos Usuarios</h4>
                  <ul className="list-disc space-y-3 pl-6">
-                    <li>Al crear un nuevo usuario, el administrador ahora tiene una casilla: **"Forzar cambio de contraseña en el próximo inicio de sesión"**.</li>
+                    <li>Al crear un nuevo usuario, el administrador ahora tiene una casilla: **&quot;Forzar cambio de contraseña en el próximo inicio de sesión&quot;**.</li>
                     <li>Si se marca, el nuevo usuario seguirá el mismo flujo de cambio de contraseña forzado la primera vez que ingrese, asegurando que establezca una clave personal y segura.</li>
                  </ul>
             </div>
@@ -641,11 +641,11 @@ export default function HelpPage() {
                     </div>
                     <div className="flex items-start gap-4">
                         <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador, incluyendo los nombres de "máquinas", los turnos de trabajo y las columnas a exportar en PDF.</p></div>
+                        <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador, incluyendo los nombres de &quot;máquinas&quot;, los turnos de trabajo y las columnas a exportar en PDF.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Store className="mt-1 h-6 w-6 text-amber-700 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Compras</h4><p>Define las rutas de entrega, métodos de envío y activa pasos opcionales en el flujo de aprobación como "Recibido en Bodega" o "Ingresado en ERP".</p></div>
+                        <div><h4 className="font-semibold">Config. Compras</h4><p>Define las rutas de entrega, métodos de envío y activa pasos opcionales en el flujo de aprobación como &quot;Recibido en Bodega&quot; o &quot;Ingresado en ERP&quot;.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Map className="mt-1 h-6 w-6 text-teal-700 shrink-0" />
@@ -730,10 +730,10 @@ export default function HelpPage() {
                         <strong>Nueva Funcionalidad Mayor: Recuperación de Contraseña.</strong> Se implementó un sistema completo para que los usuarios puedan recuperar su contraseña por correo electrónico. Incluye una nueva página de administración para configurar el servidor SMTP y personalizar la plantilla del correo.
                     </li>
                     <li>
-                        <strong>Nueva Funcionalidad de Seguridad: Cambio de Contraseña Forzado.</strong> Al crear un nuevo usuario, ahora se puede forzar a que cambie su contraseña en el primer inicio de sesión. Este flujo también se activa automáticamente al usar una contraseña temporal recuperada. El proceso se maneja directamente en la pantalla de login para una mejor experiencia.
+                        <strong>Nueva Funcionalidad de Seguridad: Cambio de Contraseña Forzado.</strong> Al crear un nuevo usuario, ahora se puede forzar a que cambie su contraseña en el primer inicio de sesión. Este flujo también se activa automáticamente al usar una contraseña temporal recuperada.
                     </li>
                     <li>
-                        <strong>Mejora en Flujo de Compras:</strong> Se añadió la capacidad de configurar el paso final "Ingresado en ERP" y de retroceder solicitudes entre los estados de "Pendiente", "Revisión" y "Pendiente de Aprobación" para mayor flexibilidad.
+                        <strong>Mejora en Flujo de Compras:</strong> Se añadió la capacidad de configurar el paso final &quot;Ingresado en ERP&quot; y de retroceder solicitudes entre los estados de &quot;Pendiente&quot;, &quot;Revisión&quot; y &quot;Pendiente de Aprobación&quot; para mayor flexibilidad.
                     </li>
                      <li>
                         <strong>Mejora de Robustez: Refactorización del Flujo de Autenticación.</strong> Se reescribió la lógica de inicio de sesión, cierre de sesión y protección de rutas para eliminar condiciones de carrera, evitar parpadeos de pantalla y manejar las sesiones de manera más segura y estable.

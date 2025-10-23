@@ -6,8 +6,8 @@
  */
 "use server";
 
-import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getDbModules, getUnreadSuggestions, getEmailSettings as getEmailSettingsFromDb } from './db';
-import { sendEmail } from './email-service';
+import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getDbModules, getUnreadSuggestions } from './db';
+import { sendEmail, getEmailSettings as getEmailSettingsFromDb } from './email-service';
 import type { User, ExchangeRateApiResponse, EmailSettings } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
@@ -292,7 +292,6 @@ export async function sendPasswordRecoveryEmail(email: string, clientInfo: { ip:
       .run(hashedPassword, user.id);
 
     try {
-        // Fetch settings directly from the main database
         const emailSettings = await getEmailSettingsFromDb();
         if (!emailSettings.smtpHost) {
             throw new Error("La configuración de SMTP no está establecida. No se puede enviar el correo.");

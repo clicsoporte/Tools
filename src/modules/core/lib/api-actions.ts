@@ -5,7 +5,8 @@
  */
 "use server";
 
-import { getApiSettings as getApiSettingsDb, getEmailSettings as getEmailSettingsDb } from './db';
+import { getApiSettings as getApiSettingsDb } from './db';
+import { getEmailSettings as getEmailSettingsDb } from './email-service';
 import { logError, logWarn } from './logger';
 import type { ApiSettings, EmailSettings } from '../types';
 
