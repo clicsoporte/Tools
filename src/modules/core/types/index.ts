@@ -636,7 +636,7 @@ export type Notification = {
     isRead: 0 | 1;
     timestamp: string;
     entityId?: number; // e.g., order ID
-    entityType?: string; // e.g., 'production-order'
+    entityType?: string; // e.g., 'purchase-request'
     taskType?: string; // e.g., 'approve'
     isSuggestion?: boolean; // Flag to identify suggestion notifications
     suggestionId?: number; // Original suggestion ID

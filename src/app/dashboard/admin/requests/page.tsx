@@ -67,6 +67,9 @@ export default function RequestSettingsPage() {
                  if (currentSettings.showCustomerTaxId === undefined) {
                     currentSettings.showCustomerTaxId = true;
                 }
+                if (currentSettings.useErpEntry === undefined) {
+                    currentSettings.useErpEntry = false;
+                }
             }
             setSettings(currentSettings);
             setIsLoading(false);
@@ -218,6 +221,17 @@ export default function RequestSettingsPage() {
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
                                 Si se activa, las solicitudes recibidas necesitarán un paso adicional para ser archivadas.
+                            </p>
+                             <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="use-erp-entry"
+                                    checked={settings.useErpEntry}
+                                    onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, useErpEntry: checked } : null)}
+                                />
+                                <Label htmlFor="use-erp-entry">Habilitar paso de &quot;Ingresado en ERP&quot;</Label>
+                            </div>
+                             <p className="text-sm text-muted-foreground mt-2">
+                                Requiere que &quot;Recibido en Bodega&quot; esté activo. Añade un estado final para registrar el ingreso al ERP.
                             </p>
                         </div>
                     </CardContent>

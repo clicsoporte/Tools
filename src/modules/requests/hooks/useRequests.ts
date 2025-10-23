@@ -26,7 +26,7 @@ import { useDebounce } from 'use-debounce';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Undo2 } from 'lucide-react';
 import type { RowInput } from 'jspdf-autotable';
 
 const normalizeText = (text: string | null | undefined): string => {
@@ -291,15 +291,15 @@ export const useRequests = () => {
         return {
             canEdit: (isPending || isPurchasingReview || isPendingApproval) && hasPermission('requests:edit:pending'),
             canReopen: isArchived && hasPermission('requests:reopen'),
-            
+            canGoBackToPending: isPurchasingReview && hasPermission('requests:status:review'),
+            canGoBackToReview: isPendingApproval && hasPermission('requests:status:pending-approval'),
             canSendToReview: isPending && hasPermission('requests:status:review'),
             canSendToApproval: isPurchasingReview && hasPermission('requests:status:pending-approval'),
             canApprove: isPendingApproval && hasPermission('requests:status:approve'),
             canOrder: isApproved && hasPermission('requests:status:ordered'),
             canRevertToApproved: isOrdered && hasPermission('requests:status:revert-to-approved'),
             canReceiveInWarehouse: isOrdered && hasPermission('requests:status:received-in-warehouse'),
-            canEnterToErp: isReceivedInWarehouse && hasPermission('requests:status:entered-erp'),
-            
+            canEnterToErp: isReceivedInWarehouse && hasPermission('requests:status:entered-erp') && state.requestSettings?.useErpEntry,
             canRequestCancel: (isApproved || isOrdered) && hasPermission('requests:status:cancel'),
             canCancelPending: (isPending || isPurchasingReview || isPendingApproval) && hasPermission('requests:status:cancel'),
             canRequestUnapproval: (isApproved || isOrdered) && hasPermission('requests:status:unapproval-request'),
