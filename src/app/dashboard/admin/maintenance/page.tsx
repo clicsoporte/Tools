@@ -160,7 +160,7 @@ export default function MaintenancePage() {
                 description: `Se han restaurado los datos. La página se recargará en 5 segundos.`,
                 duration: 5000,
             });
-            setTimeout(() => window.location.reload(), 5000);
+            setTimeout(() => window.location.href = '/', 5000);
         } catch (error: any) {
              toast({
                 title: "Error de Restauración",
