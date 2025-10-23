@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
  * This hook encapsulates all state and actions for the planner, keeping the UI component clean.
@@ -191,7 +192,7 @@ export const usePlanner = () => {
             loadInitialData(0);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthReady]); // Depend on isAuthReady
+    }, [setTitle, isAuthReady]); // Use isAuthReady
     
     useEffect(() => {
         if (!isAuthReady || state.isLoading) return; // Use isAuthReady
@@ -800,3 +801,4 @@ export const usePlanner = () => {
         isAuthorized,
     };
 };
+

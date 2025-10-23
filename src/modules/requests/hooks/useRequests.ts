@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
  * This hook encapsulates all state and actions for the module, keeping the UI component clean.
@@ -291,15 +292,15 @@ export const useRequests = () => {
         return {
             canEdit: (isPending || isPurchasingReview || isPendingApproval) && hasPermission('requests:edit:pending'),
             canReopen: isArchived && hasPermission('requests:reopen'),
-            canGoBackToPending: isPurchasingReview && hasPermission('requests:status:review'),
-            canGoBackToReview: isPendingApproval && hasPermission('requests:status:pending-approval'),
             canSendToReview: isPending && hasPermission('requests:status:review'),
+            canGoBackToPending: isPurchasingReview && hasPermission('requests:status:review'),
             canSendToApproval: isPurchasingReview && hasPermission('requests:status:pending-approval'),
+            canGoBackToReview: isPendingApproval && hasPermission('requests:status:pending-approval'),
             canApprove: isPendingApproval && hasPermission('requests:status:approve'),
             canOrder: isApproved && hasPermission('requests:status:ordered'),
             canRevertToApproved: isOrdered && hasPermission('requests:status:revert-to-approved'),
-            canReceiveInWarehouse: isOrdered && hasPermission('requests:status:received-in-warehouse'),
-            canEnterToErp: isReceivedInWarehouse && hasPermission('requests:status:entered-erp') && state.requestSettings?.useErpEntry,
+            canReceiveInWarehouse: isOrdered && !!state.requestSettings?.useWarehouseReception && hasPermission('requests:status:received-in-warehouse'),
+            canEnterToErp: isReceivedInWarehouse && !!state.requestSettings?.useErpEntry && hasPermission('requests:status:entered-erp'),
             canRequestCancel: (isApproved || isOrdered) && hasPermission('requests:status:cancel'),
             canCancelPending: (isPending || isPurchasingReview || isPendingApproval) && hasPermission('requests:status:cancel'),
             canRequestUnapproval: (isApproved || isOrdered) && hasPermission('requests:status:unapproval-request'),
@@ -877,3 +878,4 @@ export const useRequests = () => {
         isAuthorized
     };
 };
+
