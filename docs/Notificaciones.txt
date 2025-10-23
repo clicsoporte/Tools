@@ -14,6 +14,7 @@ El objetivo es crear un sistema de notificaciones unificado y proactivo dentro d
 - **Alertas Relevantes:** Las notificaciones se generarán a partir de acciones importantes en el sistema (ej: aprobación de una orden, una solicitud que requiere atención, etc.).
 - **Redirección Inteligente:** Cada notificación será un enlace directo a la entidad correspondiente (la orden, la solicitud, etc.).
 - **Gestión por Roles:** El sistema podrá notificar a usuarios específicos o a todos los miembros de un rol (ej: notificar a todos los "admin").
+- **Notificaciones Accionables:** Las notificaciones podrán incluir botones para realizar acciones rápidas (ej: "Aprobar", "Marcar como leído") directamente desde el menú, convirtiéndolo en una bandeja de tareas.
 
 ---
 
@@ -26,8 +27,9 @@ La revisión de los archivos de ejemplo del proyecto "Novu" valida nuestro enfoq
 - **Entidades Clave:** El análisis de la especificación de la API de Novu (`5.txt`) confirma que nuestro modelo de entidades es correcto. Conceptos como `Subscribers` (nuestros `Users`), `Events` (los disparadores) y `Workflows` (nuestros flujos de estado) son el estándar de la industria.
 - **Concepto de "Topics":** La idea de Novu de usar "Topics" para agrupar suscriptores es una versión más avanzada de nuestra idea de "notificar a un rol". Lo incorporaremos como una posible mejora futura.
 - **Concepto de "Layouts" (Plantillas Maestras):** El análisis de `3.5.txt` revela el uso de "Layouts" reutilizables. Esta es una idea clave que adoptaremos: tendremos una plantilla de correo maestra y el contenido dinámico de cada notificación se inyectará en ella. Esto asegura consistencia y facilita el mantenimiento.
+- **Gestión del Ciclo de Vida:** El análisis de `3.6.txt` muestra funcionalidades avanzadas como "posponer" (snooze) y **acciones dentro de la notificación**. Adoptaremos la idea de las acciones para hacer el sistema más interactivo.
 
-**Conclusión:** Seguiremos con nuestro plan adaptado a Next.js y `better-sqlite3`, pero usando los conceptos de Novu como una referencia de arquitectura de alta calidad.
+**Conclusión:** Seguiremos con nuestro plan adaptado a Next.js y `better-sqlite3`, pero usando los conceptos de Novu como una referencia de arquitectura de alta calidad, incorporando las "notificaciones accionables" desde el inicio.
 
 ---
 
@@ -59,11 +61,12 @@ La revisión de los archivos de ejemplo del proyecto "Novu" valida nuestro enfoq
 
 - **Nuevo Archivo:** `src/modules/core/lib/notifications-actions.ts`
 - **Acciones a Crear (Funciones Server-Side):**
-  - **`createNotification(userId, message, href, entityId, entityType, taskType)`**: Crea una notificación para un usuario específico.
+  - **`createNotification(userId, message, href, entityId, entityType, taskType)`**: Crea una notificación para un usuario específico. El `taskType` definirá qué acciones (botones) mostrar.
   - **`createNotificationForRole(roleId, message, href, ...)`**: Busca todos los usuarios que pertenecen a un rol y les crea una notificación individual. Esta será nuestra implementación inicial de "topics".
   - **`getNotificationsForUser(userId)`**: Obtiene las últimas 50 notificaciones (leídas y no leídas) para un usuario, ordenadas por fecha.
   - **`markNotificationAsRead(notificationId, userId)`**: Marca una notificación específica como leída. Deberá validar que la notificación pertenezca al usuario.
   - **`markAllNotificationsAsRead(userId)`**: Marca todas las notificaciones de un usuario como leídas.
+  - **`executeNotificationAction(notificationId, actionType)`**: Una nueva función que ejecutará una acción asociada a un botón (ej: llamar a `updateProductionOrderStatus` con el estado 'approved').
 
 ### Fase 3: La Interfaz (Lo que el Usuario Ve)
 
@@ -71,6 +74,7 @@ La revisión de los archivos de ejemplo del proyecto "Novu" valida nuestro enfoq
   - Usará un `Popover` de ShadCN para mostrar la lista de notificaciones.
   - Mostrará un `Badge` con el contador de notificaciones no leídas.
   - Cada notificación será un `Link` que al hacer clic llamará a `markNotificationAsRead` y navegará al `href`.
+  - **(Nuevo)** Si una notificación tiene un `taskType` (ej: 'approve'), mostrará botones de acción. Al hacer clic en un botón, se llamará a `executeNotificationAction`.
 - **Modificar `useAuth`:** El hook `useAuth` se encargará de obtener periódicamente (ej. cada 30 segundos) las notificaciones del usuario y el contador de no leídas para que estén disponibles globalmente.
 - **Modificar `header.tsx`:** Se añadirá el componente `NotificationBell` a la cabecera.
 
@@ -81,7 +85,7 @@ Aquí es donde el sistema cobra vida.
 - **Archivos a Modificar:** Principalmente en los archivos `actions.ts` de los módulos `planner` y `requests`.
 - **Lógica de Ejemplo:**
   - En `updateProductionOrderStatus`, si el estado cambia a `approved`, se llamará a `createNotification` para notificar al `requestedBy`.
-  - En `updatePendingAction` (planner y requests), si se solicita una cancelación (`cancellation-request`), se llamará a `createNotificationForRole` para notificar a todos los `'admin'`.
+  - En `updatePendingAction` (planner y requests), si se solicita una cancelación (`cancellation-request`), se llamará a `createNotificationForRole` para notificar a todos los `'admin'` con el `taskType: 'approve-cancellation'`.
 
 ### Fase 5 (Futura): Evolución a "Topics"
 
@@ -94,3 +98,4 @@ Aquí es donde el sistema cobra vida.
 
 - **No habrá notificaciones push** del navegador o del sistema operativo.
 - **No habrá notificaciones por correo electrónico en tiempo real** para cada evento, para evitar el spam. El sistema se centrará en las notificaciones *dentro* de la aplicación.
+- La primera versión no incluirá la función de "posponer" (snooze).
