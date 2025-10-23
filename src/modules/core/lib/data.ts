@@ -347,7 +347,7 @@ export const adminTools: Tool[] = [
         description: "Gestionar ajustes para el asistente de costos.",
         href: "/dashboard/admin/cost-assistant",
         icon: Calculator,
-        bgColor: "bg-orange-600",
+        bgColor: "bg-orange-500",
         textColor: "text-white",
       },
       {
