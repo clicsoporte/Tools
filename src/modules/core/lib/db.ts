@@ -50,16 +50,27 @@ const dbConnections = new Map<string, Database.Database>();
  * If the database file does not exist, it creates it and initializes the schema and default data.
  * It manages multiple connections in a map to support a multi-database architecture.
  * @param {string} dbFile - The filename of the database to connect to.
+ * @param {boolean} [forceRecreate=false] - If true, deletes the existing DB file to start fresh.
  * @returns {Database.Database} The database connection instance.
  */
-export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Database> {
-    if (dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
+export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false): Promise<Database.Database> {
+    if (!forceRecreate && dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
         return dbConnections.get(dbFile)!;
+    }
+    
+    if (dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
+        dbConnections.get(dbFile)!.close();
+        dbConnections.delete(dbFile);
     }
     
     const dbPath = path.join(dbDirectory, dbFile);
     if (!fs.existsSync(dbDirectory)) {
         fs.mkdirSync(dbDirectory, { recursive: true });
+    }
+
+    if (forceRecreate && fs.existsSync(dbPath)) {
+        console.log(`Forced recreation: Deleting database file ${dbFile}.`);
+        fs.unlinkSync(dbPath);
     }
 
     let dbExists = fs.existsSync(dbPath);
@@ -69,15 +80,16 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
         db = new Database(dbPath);
     } catch (error: any) {
         if (error.code === 'SQLITE_CORRUPT') {
-            console.error(`Database file ${dbFile} is corrupt. Trying to recover by renaming.`);
-            fs.renameSync(dbPath, `${dbPath}.corrupt.${Date.now()}`);
+            console.error(`Database file ${dbFile} is corrupt. Renaming and creating a new one.`);
+            const backupPath = `${dbPath}.corrupt.${Date.now()}`;
+            fs.renameSync(dbPath, backupPath);
+            await logError(`Database ${dbFile} was corrupt. A new one has been created. Corrupt file backed up to ${backupPath}.`);
             db = new Database(dbPath); // Create a new one
             dbExists = false; // Treat as a new DB
         } else {
             throw error;
         }
     }
-
 
     const dbModule = DB_MODULES.find(m => m.dbFile === dbFile);
 
@@ -98,10 +110,11 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
 
     try {
         db.pragma('journal_mode = WAL');
-    } catch(error) {
-        // This can fail if the database is corrupt. Log it but don't crash the app.
+    } catch(error: any) {
         console.error(`Could not set PRAGMA on ${dbFile}. DB might be corrupt.`, error);
-        logError(`Failed to set PRAGMA on ${dbFile}`, { error: (error as Error).message });
+        if (error.code !== 'SQLITE_CORRUPT') {
+            await logError(`Failed to set PRAGMA on ${dbFile}`, { error: (error as Error).message });
+        }
     }
     
     dbConnections.set(dbFile, db);
@@ -311,12 +324,12 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
 }
 
 export async function getUserCount(): Promise<number> {
-    const db = await connectDb();
     try {
+        const db = await connectDb();
         const row = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
         return row.count;
     } catch(e) {
-        // This might happen if the table doesn't exist yet on the very first run.
+        console.error("Error getting user count, likely DB doesn't exist yet.", e);
         return 0;
     }
 }
@@ -401,16 +414,18 @@ export async function getLogs(filters: {type?: 'operational' | 'system' | 'all';
 };
 
 export async function addLog(entry: Omit<LogEntry, "id" | "timestamp">) {
-    const db = await connectDb();
     try {
-      const newEntry = {
-        ...entry,
-        timestamp: new Date().toISOString(),
-        details: entry.details ? JSON.stringify(entry.details) : null,
-      };
-      db.prepare('INSERT INTO logs (timestamp, type, message, details) VALUES (@timestamp, @type, @message, @details)').run(newEntry);
+        const db = await connectDb();
+        const newEntry = {
+            ...entry,
+            timestamp: new Date().toISOString(),
+            details: entry.details ? JSON.stringify(entry.details) : null,
+        };
+        db.prepare('INSERT INTO logs (timestamp, type, message, details) VALUES (@timestamp, @type, @message, @details)').run(newEntry);
     } catch (error) {
-      console.error("Failed to add log to database", error);
+        // If logging fails, log to console as a last resort.
+        console.error("FATAL: Failed to add log to database", error);
+        console.error("Original Log Message:", entry.message);
     }
 };
 

@@ -10,6 +10,7 @@ import bcrypt from 'bcryptjs';
 import { logInfo, logError } from './logger';
 
 const SALT_ROUNDS = 10;
+const DB_FILE = 'intratool.db';
 
 /**
  * Creates the very first user in the system, assigning them the 'admin' role.
@@ -22,7 +23,8 @@ export async function createFirstUser(
   userData: Omit<User, 'id' | 'role' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string },
   clientInfo: { ip: string, host: string }
 ): Promise<void> {
-  const db = await connectDb();
+  // Force a recreation of the main DB to ensure it's not corrupt from a bad reset.
+  const db = await connectDb(DB_FILE, true);
   
   const userCount = await getUserCount();
   if (userCount > 0) {
