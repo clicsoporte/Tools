@@ -353,7 +353,7 @@ export const adminTools: Tool[] = [
       {
         id: "import-data",
         name: "Importar Datos",
-        description: "Cargar clientes, productos, exoneraciones y existencias.",
+        description: "Cargar clientes, productos, exoneraciones y...",
         href: "/dashboard/admin/import",
         icon: FileUp,
         bgColor: "bg-cyan-700",
@@ -380,7 +380,7 @@ export const adminTools: Tool[] = [
        {
         id: "planner-settings",
         name: "Config. Planificador",
-        description: "Gestionar máquinas y otros ajustes del planificador.",
+        description: "Gestionar máquinas y otros ajustes del...",
         href: "/dashboard/admin/planner",
         icon: Factory,
         bgColor: "bg-purple-700",
