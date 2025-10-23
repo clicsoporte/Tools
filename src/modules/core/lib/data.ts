@@ -261,6 +261,7 @@ export const initialRoles: Role[] = [
         "dashboard:access",
         "requests:read",
         "requests:create",
+        "requests:status:review",
         "requests:status:cancel",
         "requests:notes:add",
     ]
