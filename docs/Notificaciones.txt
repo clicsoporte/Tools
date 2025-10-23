@@ -23,7 +23,7 @@ La revisión de los archivos de ejemplo del proyecto "Novu" valida nuestro enfoq
 
 - **Separación de Servicios:** La idea de separar `api`, `worker` (tareas en segundo plano) y `dashboard` es una práctica sólida que, aunque no implementaremos como microservicios separados por ahora, sí mantendremos lógicamente en nuestra arquitectura de carpetas.
 - **Capa de Acceso a Datos (DAL):** Nuestro enfoque de tener archivos `db.ts` por módulo se alinea con la idea de una DAL, aislando la lógica de la base de datos.
-- **Paquetes y Librerías:** La forma en que Novu organiza `packages` y `libs` nos inspira a mantener nuestro código modular y reutilizable.
+- **Paquetes y Librerías:** La forma en que Novu organiza `packages` y `libs`, así como su extenso listado de dependencias, nos muestra la complejidad de un sistema de este tipo, pero reafirma nuestra decisión de mantenerlo simple y enfocado en nuestras necesidades, utilizando nuestro stack actual (Next.js y `better-sqlite3`).
 
 **Conclusión:** Seguiremos con nuestro plan adaptado a Next.js y `better-sqlite3`, pero usando los conceptos de Novu como una referencia de arquitectura de alta calidad.
 
