@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -449,7 +450,7 @@ export default function HelpPage() {
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>**Programación por Rango:** Haz clic en el área de &quot;Fecha Programada&quot; para abrir un calendario y seleccionar un rango de fechas de inicio y fin.</li>
                             <li>**Asignación:** Asigna cada orden a una máquina, proceso u operario específico desde el menú desplegable. Estas opciones se configuran en Administración.</li>
-                            <li>**Gestión de Turnos:** Asigna la orden a un turno de trabajo específico. Los turnos disponibles se pueden personalizar completamente en **Administración > Config. Planificador**.</li>
+                            <li>**Gestión de Turnos:** Asigna la orden a un turno de trabajo específico. Los turnos disponibles se pueden personalizar completamente en **Administración &gt; Config. Planificador**.</li>
                             <li>**Prioridades y Cuenta Regresiva:** Usa el selector de prioridad y fíjate en el indicador de días restantes (basado en la fecha de entrega) para organizar el trabajo.</li>
                         </ul>
                     </li>
@@ -636,7 +637,7 @@ export default function HelpPage() {
                     </div>
                     <div className="flex items-start gap-4">
                         <Calculator className="mt-1 h-6 w-6 text-orange-600 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Asist. Costos</h4><p>Ajustes globales para el módulo Asistente de Costos, incluyendo prefijos para borradores y consecutivos.</p></div>
+                        <div><h4 className="font-semibold">Config. Asist. Costos</h4><p>Gestionar ajustes para el asistente de costos.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
