@@ -60,8 +60,11 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
         return dbConnections.get(dbFile)!;
     }
     
-    if (dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
-        dbConnections.get(dbFile)!.close();
+    if (dbConnections.has(dbFile)) {
+        const connection = dbConnections.get(dbFile);
+        if (connection && connection.open) {
+            connection.close();
+        }
         dbConnections.delete(dbFile);
     }
     
@@ -113,6 +116,7 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
     try {
         db.pragma('journal_mode = WAL');
     } catch(error: any) {
+        // This is a common error with a corrupt DB, log it but don't crash
         console.error(`Could not set PRAGMA on ${dbFile}. DB might be corrupt.`, error);
         if (error.code !== 'SQLITE_CORRUPT') {
             await logError(`Failed to set PRAGMA on ${dbFile}`, { error: (error as Error).message });
@@ -1133,12 +1137,15 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
     }
     
     // First, close all active database connections
-    for (const [dbFile, connection] of dbConnections.entries()) {
-        if (connection && connection.open) {
-            console.log(`Closing connection to ${dbFile} before restore...`);
-            connection.close();
+    for (const dbModule of DB_MODULES) {
+        if (dbConnections.has(dbModule.dbFile)) {
+            const connection = dbConnections.get(dbModule.dbFile);
+            if (connection && connection.open) {
+                console.log(`Closing connection to ${dbModule.dbFile} before restore...`);
+                connection.close();
+            }
+            dbConnections.delete(dbModule.dbFile);
         }
-        dbConnections.delete(dbFile);
     }
 
     // Now, perform the file copy operations

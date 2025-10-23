@@ -50,7 +50,8 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
             reopened BOOLEAN DEFAULT FALSE,
             machineId TEXT,
             shiftId TEXT,
-            previousStatus TEXT
+            previousStatus TEXT,
+            erpOrderNumber TEXT
         );
          CREATE TABLE IF NOT EXISTS production_order_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,107 +102,112 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
 }
 
 export async function runPlannerMigrations(db: import('better-sqlite3').Database) {
-    const plannerTableInfo = db.prepare(`PRAGMA table_info(production_orders)`).all() as { name: string }[];
-    const plannerColumns = new Set(plannerTableInfo.map(c => c.name));
-    
-    if (!plannerColumns.has('deliveredQuantity')) db.exec(`ALTER TABLE production_orders ADD COLUMN deliveredQuantity REAL`);
-    if (!plannerColumns.has('defectiveQuantity')) db.exec(`ALTER TABLE production_orders ADD COLUMN defectiveQuantity REAL`);
-    if (!plannerColumns.has('purchaseOrder')) db.exec(`ALTER TABLE production_orders ADD COLUMN purchaseOrder TEXT`);
-    if (!plannerColumns.has('scheduledStartDate')) db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledStartDate TEXT`);
-    if (!plannerColumns.has('scheduledEndDate')) db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledEndDate TEXT`);
-    if (!plannerColumns.has('lastModifiedBy')) db.exec(`ALTER TABLE production_orders ADD COLUMN lastModifiedBy TEXT`);
-    if (!plannerColumns.has('lastModifiedAt')) db.exec(`ALTER TABLE production_orders ADD COLUMN lastModifiedAt TEXT`);
-    if (!plannerColumns.has('hasBeenModified')) db.exec(`ALTER TABLE production_orders ADD COLUMN hasBeenModified BOOLEAN DEFAULT FALSE`);
-    if (!plannerColumns.has('previousStatus')) db.exec(`ALTER TABLE production_orders ADD COLUMN previousStatus TEXT`);
-    if (!plannerColumns.has('pendingAction')) db.exec(`ALTER TABLE production_orders ADD COLUMN pendingAction TEXT DEFAULT 'none'`);
-    if (!plannerColumns.has('inventoryErp')) db.exec(`ALTER TABLE production_orders ADD COLUMN inventoryErp REAL`);
-    if (!plannerColumns.has('customerTaxId')) db.exec(`ALTER TABLE production_orders ADD COLUMN customerTaxId TEXT`);
-    if (!plannerColumns.has('shiftId')) db.exec(`ALTER TABLE production_orders ADD COLUMN shiftId TEXT`);
-    
-
-    const historyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='production_order_history'`).get();
-    if (!historyTable) {
-         console.log("MIGRATION (planner.db): Creating production_order_history table.");
-         db.exec(`
-            CREATE TABLE production_order_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                orderId INTEGER NOT NULL,
-                timestamp TEXT NOT NULL,
-                status TEXT NOT NULL,
-                notes TEXT,
-                updatedBy TEXT NOT NULL,
-                FOREIGN KEY (orderId) REFERENCES production_orders(id)
-            );
-         `);
-    }
-
-    const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='planner_settings'`).get();
-    if (settingsTable) {
-        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'orderPrefix'`).get()) {
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('orderPrefix', 'OP-')`).run();
-        }
-        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'nextOrderNumber'`).get()) {
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('nextOrderNumber', '1')`).run();
-        }
-        const customStatusesRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'customStatuses'`).get() as { value: string } | undefined;
-        if (!customStatusesRow) {
-            console.log("MIGRATION (planner.db): Adding customStatuses to settings.");
-            const defaultCustomStatuses: CustomStatus[] = [
-                { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
-                { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
-                { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
-                { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
-            ];
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
-        }
-
-        const pdfPaperSizeRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfPaperSize'`).get() as { value: string } | undefined;
-        if (!pdfPaperSizeRow) {
-            console.log("MIGRATION (planner.db): Adding pdfPaperSize and pdfOrientation to settings.");
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfOrientation', 'portrait')`).run();
-        }
-
-        const pdfExportColumnsRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfExportColumns'`).get() as { value: string } | undefined;
-        if (!pdfExportColumnsRow) {
-            console.log("MIGRATION (planner.db): Adding pdfExportColumns to settings.");
-            const defaultColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultColumns));
-        }
-
-        const pdfTopLegendRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfTopLegend'`).get() as { value: string } | undefined;
-        if (!pdfTopLegendRow) {
-            console.log("MIGRATION (planner.db): Adding pdfTopLegend to settings.");
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfTopLegend', '')`).run();
-        }
-
-        const fieldsToTrackRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'fieldsToTrackChanges'`).get() as { value: string } | undefined;
-        if (!fieldsToTrackRow) {
-            console.log("MIGRATION (planner.db): Adding fieldsToTrackChanges to settings.");
-            const defaultFields = ['quantity', 'deliveryDate', 'customerId', 'productId'];
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('fieldsToTrackChanges', ?)`).run(JSON.stringify(defaultFields));
-        }
+    try {
+        const plannerTableInfo = db.prepare(`PRAGMA table_info(production_orders)`).all() as { name: string }[];
+        const plannerColumns = new Set(plannerTableInfo.map(c => c.name));
         
-        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'showCustomerTaxId'`).get()) {
-            console.log("MIGRATION (planner.db): Adding showCustomerTaxId to settings.");
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
+        if (!plannerColumns.has('deliveredQuantity')) db.exec(`ALTER TABLE production_orders ADD COLUMN deliveredQuantity REAL`);
+        if (!plannerColumns.has('defectiveQuantity')) db.exec(`ALTER TABLE production_orders ADD COLUMN defectiveQuantity REAL`);
+        if (!plannerColumns.has('purchaseOrder')) db.exec(`ALTER TABLE production_orders ADD COLUMN purchaseOrder TEXT`);
+        if (!plannerColumns.has('scheduledStartDate')) db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledStartDate TEXT`);
+        if (!plannerColumns.has('scheduledEndDate')) db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledEndDate TEXT`);
+        if (!plannerColumns.has('lastModifiedBy')) db.exec(`ALTER TABLE production_orders ADD COLUMN lastModifiedBy TEXT`);
+        if (!plannerColumns.has('lastModifiedAt')) db.exec(`ALTER TABLE production_orders ADD COLUMN lastModifiedAt TEXT`);
+        if (!plannerColumns.has('hasBeenModified')) db.exec(`ALTER TABLE production_orders ADD COLUMN hasBeenModified BOOLEAN DEFAULT FALSE`);
+        if (!plannerColumns.has('previousStatus')) db.exec(`ALTER TABLE production_orders ADD COLUMN previousStatus TEXT`);
+        if (!plannerColumns.has('pendingAction')) db.exec(`ALTER TABLE production_orders ADD COLUMN pendingAction TEXT DEFAULT 'none'`);
+        if (!plannerColumns.has('inventoryErp')) db.exec(`ALTER TABLE production_orders ADD COLUMN inventoryErp REAL`);
+        if (!plannerColumns.has('customerTaxId')) db.exec(`ALTER TABLE production_orders ADD COLUMN customerTaxId TEXT`);
+        if (!plannerColumns.has('shiftId')) db.exec(`ALTER TABLE production_orders ADD COLUMN shiftId TEXT`);
+        if (!plannerColumns.has('erpOrderNumber')) db.exec(`ALTER TABLE production_orders ADD COLUMN erpOrderNumber TEXT`);
+        
+
+        const historyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='production_order_history'`).get();
+        if (!historyTable) {
+            console.log("MIGRATION (planner.db): Creating production_order_history table.");
+            db.exec(`
+                CREATE TABLE production_order_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    orderId INTEGER NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    notes TEXT,
+                    updatedBy TEXT NOT NULL,
+                    FOREIGN KEY (orderId) REFERENCES production_orders(id)
+                );
+            `);
         }
-        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'shifts'`).get()) {
-             console.log("MIGRATION (planner.db): Adding shifts to settings.");
-            const defaultShifts: PlannerShift[] = [
-                { id: 'turno-a', name: 'Turno A' },
-                { id: 'turno-b', name: 'Turno B' },
-            ]
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('shifts', ?)`).run(JSON.stringify(defaultShifts));
+
+        const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='planner_settings'`).get();
+        if (settingsTable) {
+            if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'orderPrefix'`).get()) {
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('orderPrefix', 'OP-')`).run();
+            }
+            if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'nextOrderNumber'`).get()) {
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('nextOrderNumber', '1')`).run();
+            }
+            const customStatusesRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'customStatuses'`).get() as { value: string } | undefined;
+            if (!customStatusesRow) {
+                console.log("MIGRATION (planner.db): Adding customStatuses to settings.");
+                const defaultCustomStatuses: CustomStatus[] = [
+                    { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
+                    { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
+                    { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
+                    { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
+                ];
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
+            }
+
+            const pdfPaperSizeRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfPaperSize'`).get() as { value: string } | undefined;
+            if (!pdfPaperSizeRow) {
+                console.log("MIGRATION (planner.db): Adding pdfPaperSize and pdfOrientation to settings.");
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfOrientation', 'portrait')`).run();
+            }
+
+            const pdfExportColumnsRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfExportColumns'`).get() as { value: string } | undefined;
+            if (!pdfExportColumnsRow) {
+                console.log("MIGRATION (planner.db): Adding pdfExportColumns to settings.");
+                const defaultColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultColumns));
+            }
+
+            const pdfTopLegendRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfTopLegend'`).get() as { value: string } | undefined;
+            if (!pdfTopLegendRow) {
+                console.log("MIGRATION (planner.db): Adding pdfTopLegend to settings.");
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfTopLegend', '')`).run();
+            }
+
+            const fieldsToTrackRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'fieldsToTrackChanges'`).get() as { value: string } | undefined;
+            if (!fieldsToTrackRow) {
+                console.log("MIGRATION (planner.db): Adding fieldsToTrackChanges to settings.");
+                const defaultFields = ['quantity', 'deliveryDate', 'customerId', 'productId'];
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('fieldsToTrackChanges', ?)`).run(JSON.stringify(defaultFields));
+            }
+            
+            if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'showCustomerTaxId'`).get()) {
+                console.log("MIGRATION (planner.db): Adding showCustomerTaxId to settings.");
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
+            }
+            if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'shifts'`).get()) {
+                console.log("MIGRATION (planner.db): Adding shifts to settings.");
+                const defaultShifts: PlannerShift[] = [
+                    { id: 'turno-a', name: 'Turno A' },
+                    { id: 'turno-b', name: 'Turno B' },
+                ]
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('shifts', ?)`).run(JSON.stringify(defaultShifts));
+            }
+            if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'requireShiftForCompletion'`).get()) {
+                console.log("MIGRATION (planner.db): Adding requireShiftForCompletion to settings.");
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('requireShiftForCompletion', 'false')`).run();
+            }
+            if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'shiftLabel'`).get()) {
+                console.log("MIGRATION (planner.db): Adding shiftLabel to settings.");
+                db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('shiftLabel', 'Turno')`).run();
+            }
         }
-        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'requireShiftForCompletion'`).get()) {
-             console.log("MIGRATION (planner.db): Adding requireShiftForCompletion to settings.");
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('requireShiftForCompletion', 'false')`).run();
-        }
-        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'shiftLabel'`).get()) {
-             console.log("MIGRATION (planner.db): Adding shiftLabel to settings.");
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('shiftLabel', 'Turno')`).run();
-        }
+    } catch (error) {
+        console.error("Error during planner migrations:", error);
     }
 }
 
@@ -329,11 +335,11 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         INSERT INTO production_orders (
             consecutive, purchaseOrder, requestDate, deliveryDate, scheduledStartDate, scheduledEndDate,
             customerId, customerName, customerTaxId, productId, productDescription, quantity, inventory, inventoryErp, priority,
-            status, pendingAction, notes, requestedBy, reopened, machineId, shiftId, previousStatus, hasBeenModified
+            status, pendingAction, notes, requestedBy, reopened, machineId, shiftId, previousStatus, hasBeenModified, erpOrderNumber
         ) VALUES (
             @consecutive, @purchaseOrder, @requestDate, @deliveryDate, @scheduledStartDate, @scheduledEndDate,
             @customerId, @customerName, @customerTaxId, @productId, @productDescription, @quantity, @inventory, @inventoryErp, @priority,
-            @status, @pendingAction, @notes, @requestedBy, @reopened, @machineId, @shiftId, @previousStatus, @hasBeenModified
+            @status, @pendingAction, @notes, @requestedBy, @reopened, @machineId, @shiftId, @previousStatus, @hasBeenModified, @erpOrderNumber
         )
     `);
 
@@ -346,6 +352,7 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         reopened: newOrder.reopened ? 1 : 0,
         hasBeenModified: newOrder.hasBeenModified ? 1 : 0,
         shiftId: newOrder.shiftId || null,
+        erpOrderNumber: newOrder.erpOrderNumber || null,
     };
 
     const info = stmt.run(preparedOrder);
