@@ -302,7 +302,7 @@ export const useRequests = () => {
             
             canRequestCancel: (isApproved || isOrdered) && hasPermission('requests:status:cancel'),
             canCancelPending: (isPending || isPurchasingReview || isPendingApproval) && hasPermission('requests:status:cancel'),
-            canRequestUnapproval: (isApproved || isOrdered) && hasPermission('requests:status:unapprove-request'),
+            canRequestUnapproval: (isApproved || isOrdered) && hasPermission('requests:status:unapproval-request'),
             canAddNote: hasPermission('requests:notes:add'),
         };
     }, [hasPermission, state.requestSettings]);
@@ -746,8 +746,13 @@ export const useRequests = () => {
             // Implementation remains the same
         },
         openAddNoteDialog: (request: PurchaseRequest) => {
-            updateState({ notePayload: { requestId: request.id, notes: '' }, isAddNoteDialogOpen: true });
+            if (!currentUser) return;
+            updateState({
+                notePayload: { requestId: request.id, notes: '', updatedBy: currentUser.name },
+                isAddNoteDialogOpen: true
+            });
         },
+    
         handleAddNote: async () => {
             if (!state.notePayload || !state.notePayload.notes.trim() || !currentUser) return;
             updateState({ isSubmitting: true });
