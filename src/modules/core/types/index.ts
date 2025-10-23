@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
@@ -22,6 +23,7 @@ export type User = {
   recentActivity: string;
   securityQuestion?: string;
   securityAnswer?: string;
+  forcePasswordChange?: boolean | number;
 };
 
 /**
@@ -758,3 +760,14 @@ export type CostAssistantSettings = {
     };
     discountHandling: 'customer' | 'company';
 };
+
+// --- Email Types ---
+export interface EmailSettings {
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpPass: string;
+  smtpSecure: boolean;
+  recoveryEmailSubject: string;
+  recoveryEmailBody: string;
+}

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview The main dashboard page for the admin section.
  * It dynamically displays a grid of available administration tools.
@@ -27,6 +28,7 @@ export default function AdminDashboardPage() {
             if (tool.id === 'user-management') return hasPermission('users:read');
             if (tool.id === 'role-management') return hasPermission('roles:read');
             if (tool.id === 'general-settings') return hasPermission('admin:settings:general');
+            if (tool.id === 'email-settings') return hasPermission('admin:settings:general');
             if (tool.id === 'quoter-settings') return hasPermission('admin:settings:general');
             if (tool.id === 'api-settings') return hasPermission('admin:settings:api');
             if (tool.id === 'planner-settings') return hasPermission('admin:settings:planner');

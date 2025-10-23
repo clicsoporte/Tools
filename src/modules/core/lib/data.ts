@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file contains the initial or default data for the application.
  * This data is used to populate the database on its first run.
@@ -32,6 +33,7 @@ import {
   Lightbulb,
   FileText,
   Calculator,
+  Mail,
 } from "lucide-react";
 
 /**
@@ -321,6 +323,15 @@ export const adminTools: Tool[] = [
         href: "/dashboard/admin/general",
         icon: Briefcase,
         bgColor: "bg-orange-500",
+        textColor: "text-white",
+      },
+      {
+        id: "email-settings",
+        name: "Configuración de Correo",
+        description: "Ajustes del servidor SMTP para enviar correos.",
+        href: "/dashboard/admin/email",
+        icon: Mail,
+        bgColor: "bg-purple-600",
         textColor: "text-white",
       },
       {
