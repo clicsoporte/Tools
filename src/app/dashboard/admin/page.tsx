@@ -22,6 +22,7 @@ export default function AdminDashboardPage() {
     
     const visibleTools = useMemo(() => {
         return adminTools.filter(tool => {
+            if (!isAuthorized) return false;
             // A bit of a hacky way, but let's map some IDs to their real permissions
             if (tool.id === 'user-management') return hasPermission('users:read');
             if (tool.id === 'role-management') return hasPermission('roles:read');
@@ -32,14 +33,14 @@ export default function AdminDashboardPage() {
             if (tool.id === 'requests-settings') return hasPermission('admin:settings:requests');
             if (tool.id === 'warehouse-settings') return hasPermission('admin:settings:warehouse');
             if (tool.id === 'stock-settings') return hasPermission('admin:settings:stock');
-            if (tool.id === 'cost-assistant-settings') return hasPermission('cost-assistant:access');
+            if (tool.id === 'cost-assistant-settings') return hasPermission('admin:settings:cost-assistant');
             if (tool.id === 'suggestions-viewer') return hasPermission('admin:suggestions:read');
             if (tool.id === 'import-data') return hasPermission('admin:import:run');
             if (tool.id === 'maintenance') return hasPermission('admin:maintenance:backup');
             if (tool.id === 'log-viewer') return hasPermission('admin:logs:read');
             return false; // Default to not showing if no permission matches
         });
-    }, [hasPermission]);
+    }, [hasPermission, isAuthorized]);
 
     if (isAuthorized === false) {
         return null;

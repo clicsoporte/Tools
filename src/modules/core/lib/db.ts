@@ -62,8 +62,22 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
         fs.mkdirSync(dbDirectory, { recursive: true });
     }
 
-    const dbExists = fs.existsSync(dbPath);
-    const db = new Database(dbPath);
+    let dbExists = fs.existsSync(dbPath);
+    let db: Database.Database;
+
+    try {
+        db = new Database(dbPath);
+    } catch (error: any) {
+        if (error.code === 'SQLITE_CORRUPT') {
+            console.error(`Database file ${dbFile} is corrupt. Trying to recover by renaming.`);
+            fs.renameSync(dbPath, `${dbPath}.corrupt.${Date.now()}`);
+            db = new Database(dbPath); // Create a new one
+            dbExists = false; // Treat as a new DB
+        } else {
+            throw error;
+        }
+    }
+
 
     const dbModule = DB_MODULES.find(m => m.dbFile === dbFile);
 
@@ -82,8 +96,14 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
         }
     }
 
-    // WAL mode can improve performance and concurrency.
-    db.pragma('journal_mode = WAL');
+    try {
+        db.pragma('journal_mode = WAL');
+    } catch(error) {
+        // This can fail if the database is corrupt. Log it but don't crash the app.
+        console.error(`Could not set PRAGMA on ${dbFile}. DB might be corrupt.`, error);
+        logError(`Failed to set PRAGMA on ${dbFile}`, { error: (error as Error).message });
+    }
+    
     dbConnections.set(dbFile, db);
     return db;
 }
@@ -1078,20 +1098,20 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
     
     await logWarn(`System restore initiated from backup point: ${timestamp}`);
 
+    // First, close all active database connections
+    for (const [dbFile, connection] of dbConnections.entries()) {
+        if (connection && connection.open) {
+            connection.close();
+        }
+        dbConnections.delete(dbFile);
+    }
+
+    // Now, perform the file copy operations
     for (const backup of backupsToRestore) {
         const dbModule = DB_MODULES.find(m => m.id === backup.moduleId);
         if (dbModule) {
             const backupPath = path.join(backupDir, backup.fileName);
             const targetDbPath = path.join(dbDirectory, dbModule.dbFile);
-            
-            if (dbConnections.has(dbModule.dbFile)) {
-                 const connection = dbConnections.get(dbModule.dbFile);
-                if (connection && connection.open) {
-                    connection.close();
-                }
-                dbConnections.delete(dbModule.dbFile);
-            }
-
             fs.copyFileSync(backupPath, targetDbPath);
             console.log(`Restored ${dbModule.dbFile} from ${backup.fileName}`);
         }
