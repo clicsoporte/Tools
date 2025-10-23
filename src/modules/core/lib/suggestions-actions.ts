@@ -11,6 +11,7 @@ import {
     deleteSuggestion as dbDeleteSuggestion, 
     getUnreadSuggestions as dbGetUnreadSuggestions,
     getUnreadSuggestionsCount as dbGetUnreadSuggestionsCount,
+    addSuggestion as dbAddSuggestion,
 } from './db';
 import type { Suggestion } from '../types';
 import { revalidatePath } from 'next/cache';
@@ -58,3 +59,17 @@ export async function getUnreadSuggestions(): Promise<Suggestion[]> {
 export async function getUnreadSuggestionsCount(): Promise<number> {
     return dbGetUnreadSuggestionsCount();
 }
+
+/**
+ * Inserts a new suggestion into the database.
+ * @param content - The text of the suggestion.
+ * @param userId - The ID of the user submitting the suggestion.
+ * @param userName - The name of the user submitting the suggestion.
+ */
+export async function addSuggestion(content: string, userId: number, userName: string): Promise<void> {
+    await dbAddSuggestion(content, userId, userName);
+    await logInfo('New suggestion submitted', { user: userName });
+    // Revalidate the admin page to show the new suggestion immediately.
+    revalidatePath('/dashboard/admin/suggestions');
+}
+
