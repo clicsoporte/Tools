@@ -33,7 +33,7 @@ export default function AdminDashboardPage() {
             if (tool.id === 'requests-settings') return hasPermission('admin:settings:requests');
             if (tool.id === 'warehouse-settings') return hasPermission('admin:settings:warehouse');
             if (tool.id === 'stock-settings') return hasPermission('admin:settings:stock');
-            if (tool.id === 'cost-assistant-settings') return hasPermission('admin:settings:general');
+            if (tool.id === 'cost-assistant-settings') return hasPermission('admin:settings:cost-assistant');
             if (tool.id === 'suggestions-viewer') return hasPermission('admin:suggestions:read');
             if (tool.id === 'import-data') return hasPermission('admin:import:run');
             if (tool.id === 'maintenance') return hasPermission('admin:maintenance:backup');
