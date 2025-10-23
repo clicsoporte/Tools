@@ -152,17 +152,22 @@ export default function MaintenancePage() {
         }
         setIsProcessing(true);
         setProcessingAction('full-restore');
+        
         try {
+            await logWarn(`System restore initiated by ${user?.name} from backup point ${selectedRestoreTimestamp}. The system will restart.`);
             await restoreAllFromUpdateBackup(selectedRestoreTimestamp);
-            await logWarn(`System restored by ${user?.name} from backup point ${selectedRestoreTimestamp}. The system will restart.`);
+
             toast({
                 title: "Restauración Completada",
                 description: `Se han restaurado los datos. El servidor se reiniciará en 5 segundos.`,
                 duration: 5000,
             });
+
+            // Call server shutdown AFTER restore and toast.
             setTimeout(() => {
                 shutdownServer();
             }, 5000);
+
         } catch (error: any) {
              toast({
                 title: "Error de Restauración",
@@ -210,12 +215,13 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('single-restore');
         try {
-            await restoreDatabase(moduleToRestore, fileToRestore);
             const moduleName = dbModules.find(m => m.id === moduleToRestore)?.name || moduleToRestore;
             await logWarn(`Module ${moduleName} was restored by ${user?.name} from a file backup. The application will restart.`);
+            await restoreDatabase(moduleToRestore, fileToRestore);
+            
             toast({
                 title: "Módulo Restaurado",
-                description: `La base de datos de "${moduleName}" ha sido restaurada. La aplicación se recargará en 5 segundos.`,
+                description: `La base de datos de "${moduleName}" ha sido restaurada. La aplicación se reiniciará en 5 segundos.`,
                 duration: 5000,
             });
             setTimeout(() => shutdownServer(), 5000);
@@ -236,9 +242,10 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('factory-reset');
         try {
-            await factoryReset(moduleToReset);
             const moduleName = dbModules.find(m => m.id === moduleToReset)?.name || moduleToReset;
             await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. The application will restart.`);
+            await factoryReset(moduleToReset);
+            
             toast({
                 title: "Módulo Reseteado",
                 description: `Se ha borrado la base de datos de "${moduleName}". La aplicación se reiniciará en 5 segundos para reinicializarla.`,
@@ -262,8 +269,9 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('full-factory-reset');
         try {
-            await factoryReset('__all__'); // Use a special keyword for all modules
             await logWarn(`FULL SYSTEM FACTORY RESET initiated by user ${user?.name}. All data will be wiped. The application will restart.`);
+            await factoryReset('__all__');
+            
             toast({
                 title: "Reseteo de Fábrica Completado",
                 description: "Se han borrado todas las bases de datos. La aplicación se reiniciará en 5 segundos para reinicializar.",
