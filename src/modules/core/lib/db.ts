@@ -147,6 +147,12 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
             console.log("MIGRATION: Creating user_preferences table.");
             db.exec(`CREATE TABLE user_preferences (userId INTEGER NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (userId, key));`);
         }
+        
+        const emailTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='email_settings'`).get();
+        if (!emailTable) {
+            console.log("MIGRATION: Creating email_settings table.");
+            db.exec(`CREATE TABLE email_settings (key TEXT PRIMARY KEY, value TEXT);`);
+        }
 
         const usersTableInfo = db.prepare(`PRAGMA table_info(users)`).all() as { name: string }[];
         const userColumns = new Set(usersTableInfo.map(c => c.name));
