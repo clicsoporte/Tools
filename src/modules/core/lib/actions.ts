@@ -13,3 +13,13 @@ import { importAllDataFromFiles as importAllData } from './db';
 export async function syncAllData(): Promise<{ type: string; count: number; }[]> {
     return await importAllData();
 }
+
+/**
+ * Shuts down the Node.js process.
+ * This is a drastic action used to force a server restart after critical operations like a database restore.
+ * It relies on a process manager (like PM2 or IIS) to automatically restart the application.
+ */
+export async function shutdownServer(): Promise<void> {
+    console.warn("SERVER SHUTDOWN INITIATED. This will terminate the process.");
+    process.exit(1);
+}

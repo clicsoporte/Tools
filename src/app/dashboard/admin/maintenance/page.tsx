@@ -40,9 +40,9 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { shutdownServer } from '@/modules/core/lib/actions';
 
 
 export default function MaintenancePage() {
@@ -157,10 +157,12 @@ export default function MaintenancePage() {
             await logWarn(`System restored by ${user?.name} from backup point ${selectedRestoreTimestamp}. The system will restart.`);
             toast({
                 title: "Restauración Completada",
-                description: `Se han restaurado los datos. La página se recargará en 5 segundos.`,
+                description: `Se han restaurado los datos. El servidor se reiniciará en 5 segundos.`,
                 duration: 5000,
             });
-            setTimeout(() => window.location.href = '/', 5000);
+            setTimeout(() => {
+                shutdownServer();
+            }, 5000);
         } catch (error: any) {
              toast({
                 title: "Error de Restauración",
@@ -216,7 +218,7 @@ export default function MaintenancePage() {
                 description: `La base de datos de "${moduleName}" ha sido restaurada. La aplicación se recargará en 5 segundos.`,
                 duration: 5000,
             });
-            setTimeout(() => window.location.reload(), 5000);
+            setTimeout(() => shutdownServer(), 5000);
         } catch (error: any) {
              toast({ title: "Error de Restauración", description: error.message, variant: "destructive" });
             logError("Single module restore failed.", { error: error.message, module: moduleToRestore });
@@ -239,10 +241,10 @@ export default function MaintenancePage() {
             await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. The application will restart.`);
             toast({
                 title: "Módulo Reseteado",
-                description: `Se ha borrado la base de datos de "${moduleName}". La aplicación se recargará en 5 segundos para reinicializarla.`,
+                description: `Se ha borrado la base de datos de "${moduleName}". La aplicación se reiniciará en 5 segundos para reinicializarla.`,
                 duration: 5000,
             });
-            setTimeout(() => window.location.reload(), 5000);
+            setTimeout(() => shutdownServer(), 5000);
         } catch (error: any) {
             toast({ title: "Error en el Reseteo", description: error.message, variant: "destructive" });
             logError("Factory reset failed.", { error: error.message, module: moduleToReset });
@@ -264,10 +266,10 @@ export default function MaintenancePage() {
             await logWarn(`FULL SYSTEM FACTORY RESET initiated by user ${user?.name}. All data will be wiped. The application will restart.`);
             toast({
                 title: "Reseteo de Fábrica Completado",
-                description: "Se han borrado todas las bases de datos. La aplicación se recargará en 5 segundos para reinicializar.",
+                description: "Se han borrado todas las bases de datos. La aplicación se reiniciará en 5 segundos para reinicializar.",
                 duration: 5000,
             });
-            setTimeout(() => window.location.reload(), 5000);
+            setTimeout(() => shutdownServer(), 5000);
         } catch (error: any) {
             toast({ title: "Error en el Reseteo Total", description: error.message, variant: "destructive" });
             logError("Full factory reset failed.", { error: error.message });
@@ -475,7 +477,7 @@ export default function MaintenancePage() {
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitle>
-                                                        <AlertDialogDescription>Esta acción borrará **TODA** la información del módulo &quot;{dbModules.find(m => m.id === moduleToReset)?.name || ''}&quot;. La aplicación se recargará.</AlertDialogDescription>
+                                                        <AlertDialogDescription>Esta acción borrará **TODA** la información del módulo &quot;{dbModules.find(m => m.id === moduleToReset)?.name || ''}&quot;. La aplicación se reiniciará.</AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <div className="py-4 space-y-4">
                                                         <div className="flex items-center space-x-2"><Checkbox id="reset-confirm-checkbox" onCheckedChange={(checked) => setResetStep(checked ? 1 : 0)} /><Label htmlFor="reset-confirm-checkbox" className="font-medium text-destructive">Entiendo las consecuencias.</Label></div>
