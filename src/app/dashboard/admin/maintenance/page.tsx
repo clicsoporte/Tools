@@ -34,7 +34,7 @@ import { Input } from '../../../../components/ui/input';
 import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules, getCurrentVersion } from '../../../../modules/core/lib/db';
 import type { UpdateBackupInfo, DatabaseModule } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle as AlertDialogTitleComponent, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -158,15 +158,15 @@ export default function MaintenancePage() {
         setProcessingAction('full-restore');
         
         try {
+            await restoreAllFromUpdateBackup(selectedRestoreTimestamp);
+
             toast({
                 title: "Restauración Iniciada",
-                description: `Se han restaurado los datos. El servidor se reiniciará en 5 segundos.`,
-                duration: 5000,
+                description: "Los datos han sido restaurados. Por favor, reinicie manualmente el servidor de la aplicación para aplicar los cambios.",
+                duration: 10000,
             });
-
-            await logWarn(`System restore initiated by ${user?.name} from backup point ${selectedRestoreTimestamp}. The system will restart.`);
-            await restoreAllFromUpdateBackup(selectedRestoreTimestamp);
-            setTimeout(() => shutdownServer(), 5000);
+            
+            await logWarn(`System restore initiated by ${user?.name} from backup point ${selectedRestoreTimestamp}. A manual server restart is required.`);
 
         } catch (error: any) {
              toast({
@@ -174,6 +174,7 @@ export default function MaintenancePage() {
                 description: `No se pudo completar la restauración. ${error.message}`,
                 variant: "destructive"
             });
+        } finally {
              setIsProcessing(false);
              setProcessingAction(null);
         }
@@ -217,17 +218,20 @@ export default function MaintenancePage() {
         try {
             const moduleName = dbModules.find(m => m.id === moduleToRestore)?.name || moduleToRestore;
             
+            await restoreDatabase(moduleToRestore, fileToRestore);
+
             toast({
                 title: "Módulo Restaurado",
-                description: `La base de datos de "${moduleName}" ha sido restaurada. El servidor se reiniciará en 5 segundos.`,
-                duration: 5000,
+                description: `La base de datos de "${moduleName}" ha sido restaurada. Por favor, reinicie manualmente el servidor.`,
+                duration: 10000,
             });
-            await logWarn(`Module ${moduleName} was restored by ${user?.name} from a file backup. The server will restart.`);
-            await restoreDatabase(moduleToRestore, fileToRestore);
-            setTimeout(() => shutdownServer(), 5000);
+
+            await logWarn(`Module ${moduleName} was restored by ${user?.name} from a file backup. A manual server restart is required.`);
+            
         } catch (error: any) {
              toast({ title: "Error de Restauración", description: error.message, variant: "destructive" });
             logError("Single module restore failed.", { error: error.message, module: moduleToRestore });
+        } finally {
             setIsProcessing(false);
             setProcessingAction(null);
         }
@@ -244,17 +248,20 @@ export default function MaintenancePage() {
         try {
             const moduleName = dbModules.find(m => m.id === moduleToReset)?.name || moduleToReset;
             
+            await factoryReset(moduleToReset);
+            
             toast({
                 title: "Módulo Reseteado",
-                description: `Se ha borrado la base de datos de "${moduleName}". La aplicación se reiniciará en 5 segundos para reinicializarla.`,
-                duration: 5000,
+                description: `Se ha borrado la base de datos de "${moduleName}". Por favor, reinicie manualmente el servidor.`,
+                duration: 10000,
             });
-            await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. The application will restart.`);
-            await factoryReset(moduleToReset);
-            setTimeout(() => shutdownServer(), 5000);
+
+            await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. A manual server restart is required.`);
+
         } catch (error: any) {
             toast({ title: "Error en el Reseteo", description: error.message, variant: "destructive" });
             logError("Factory reset failed.", { error: error.message, module: moduleToReset });
+        } finally {
             setIsProcessing(false);
             setProcessingAction(null);
         }
@@ -269,17 +276,19 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('full-factory-reset');
         try {
+            await factoryReset('__all__');
+
             toast({
                 title: "Reseteo de Fábrica Completado",
-                description: "Se han borrado todas las bases de datos. La aplicación se reiniciará en 5 segundos para reinicializar.",
-                duration: 5000,
+                description: "Se han borrado todas las bases de datos. Por favor, reinicie manualmente el servidor para reinicializar.",
+                duration: 10000,
             });
-            await logWarn(`FULL SYSTEM FACTORY RESET initiated by user ${user?.name}. All data will be wiped. The application will restart.`);
-            await factoryReset('__all__');
-            setTimeout(() => shutdownServer(), 5000);
+
+            await logWarn(`FULL SYSTEM FACTORY RESET initiated by user ${user?.name}. All data will be wiped. A manual server restart is required.`);
         } catch (error: any) {
             toast({ title: "Error en el Reseteo Total", description: error.message, variant: "destructive" });
             logError("Full factory reset failed.", { error: error.message });
+        } finally {
             setIsProcessing(false);
             setProcessingAction(null);
         }
