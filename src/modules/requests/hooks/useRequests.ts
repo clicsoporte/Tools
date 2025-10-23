@@ -302,124 +302,12 @@ export const useRequests = () => {
             
             canRequestCancel: (isApproved || isOrdered) && hasPermission('requests:status:cancel'),
             canCancelPending: (isPending || isPurchasingReview || isPendingApproval) && hasPermission('requests:status:cancel'),
-            canRequestUnapproval: (isApproved || isOrdered) && hasPermission('requests:status:unapproval-request'),
+            canRequestUnapproval: (isApproved || isOrdered) && hasPermission('requests:status:unapprove-request'),
             canAddNote: hasPermission('requests:notes:add'),
         };
     }, [hasPermission, state.requestSettings]);
 
-    const handleCreateRequest = async () => {
-        if (!state.newRequest.clientId || !state.newRequest.itemId || !state.newRequest.quantity || !state.newRequest.requiredDate || !currentUser) return;
-        
-        const requestWithFormattedDate = {
-            ...state.newRequest,
-            requiredDate: new Date(state.newRequest.requiredDate).toISOString().split('T')[0]
-        };
-
-        updateState({ isSubmitting: true });
-        try {
-            const createdRequest = await savePurchaseRequest(requestWithFormattedDate, currentUser.name);
-            toast({ title: "Solicitud Creada" });
-            updateState({
-                isNewRequestDialogOpen: false,
-                newRequest: emptyRequest,
-                clientSearchTerm: '',
-                itemSearchTerm: '',
-                activeRequests: [createdRequest, ...state.activeRequests]
-            });
-        } catch (error: any) {
-            logError("Failed to create request", { error: error.message });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            updateState({ isSubmitting: false });
-        }
-    };
-    
-    const handleEditRequest = async (e: FormEvent) => {
-        e.preventDefault();
-        if (!state.requestToEdit || !currentUser) return;
-        updateState({ isSubmitting: true });
-        try {
-            const updated = await updatePurchaseRequest({ requestId: state.requestToEdit.id, updatedBy: currentUser.name, ...state.requestToEdit });
-            updateState({
-                activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r),
-                archivedRequests: state.archivedRequests.map(r => r.id === updated.id ? updated : r),
-                isEditRequestDialogOpen: false
-            });
-            toast({ title: "Solicitud Actualizada" });
-        } catch (error: any) {
-            logError("Failed to edit request", { error: error.message });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            updateState({ isSubmitting: false });
-        }
-    };
-
-    const openStatusDialog = (request: PurchaseRequest, status: PurchaseRequestStatus) => {
-        updateState({
-            requestToUpdate: request,
-            newStatus: status,
-            statusUpdateNotes: ".",
-            deliveredQuantity: status === 'received-in-warehouse' ? request.quantity : "",
-            erpEntryNumber: "",
-            arrivalDate: '',
-            isStatusDialogOpen: true
-        });
-    };
-
-    const openAdminActionDialog = async (request: PurchaseRequest, action: AdministrativeAction) => {
-        if (!currentUser) return;
-        updateState({ isSubmitting: true });
-        try {
-            const payload: AdministrativeActionPayload = {
-                entityId: request.id,
-                action,
-                notes: `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada.`,
-                updatedBy: currentUser.name,
-            };
-            const updated = await updatePendingAction(payload);
-            updateState({
-                activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r),
-                archivedRequests: state.archivedRequests.map(r => r.id === updated.id ? updated : r)
-            });
-            toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
-        } catch (error: any) {
-            logError(`Failed to request ${action}`, { error: error.message });
-            toast({ title: "Error al Solicitar", description: `No se pudo enviar la solicitud. ${error.message}`, variant: "destructive" });
-        } finally {
-            updateState({ isSubmitting: false });
-        }
-    };
-
-    const handleAdminAction = async (approve: boolean) => {
-        if (!state.requestToUpdate || !currentUser || !state.requestToUpdate.pendingAction || state.requestToUpdate.pendingAction === 'none') return;
-        updateState({ isSubmitting: true });
-
-        try {
-            if (approve) {
-                const targetStatus = state.requestToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
-                await handleStatusUpdate(targetStatus);
-            } else {
-                 const updated = await updatePendingAction({
-                    entityId: state.requestToUpdate.id,
-                    action: 'none',
-                    notes: state.statusUpdateNotes,
-                    updatedBy: currentUser.name,
-                });
-                toast({ title: 'Solicitud Rechazada' });
-                updateState({
-                    activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r)
-                });
-            }
-            updateState({ isActionDialogOpen: false });
-        } catch (error: any) {
-            logError("Failed to handle admin action", { error: error.message });
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            updateState({ isSubmitting: false });
-        }
-    };
-    
-    const handleStatusUpdate = async (statusOverride?: PurchaseRequestStatus) => {
+    const executeStatusUpdate = async (statusOverride?: PurchaseRequestStatus) => {
         const finalStatus = statusOverride || state.newStatus;
         if (!state.requestToUpdate || !finalStatus || !currentUser) return;
         updateState({ isSubmitting: true });
@@ -446,366 +334,441 @@ export const useRequests = () => {
         }
     };
     
-    const handleOpenHistory = async (request: PurchaseRequest) => {
-        updateState({ historyRequest: request, isHistoryDialogOpen: true, isHistoryLoading: true });
-        try {
-            updateState({ history: await getRequestHistory(request.id) });
-        } catch (error: any) {
-            logError("Failed to get history", {error: error.message});
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            updateState({ isHistoryLoading: false });
-        }
-    };
-    
-    const handleReopenRequest = async () => {
-        if (!state.requestToUpdate || !currentUser || state.reopenStep !== 2 || state.reopenConfirmationText !== 'REABRIR') return;
+    const handleAdminAction = async (approve: boolean) => {
+        if (!state.requestToUpdate || !currentUser || !state.requestToUpdate.pendingAction || state.requestToUpdate.pendingAction === 'none') return;
         updateState({ isSubmitting: true });
+
         try {
-            await updatePurchaseRequestStatus({ requestId: state.requestToUpdate.id, status: 'pending', notes: 'Solicitud reabierta.', updatedBy: currentUser.name, reopen: true });
-            toast({ title: "Solicitud Reabierta" });
-            updateState({ isReopenDialogOpen: false });
-            await loadInitialData();
-        } catch (error: any) {
-            logError("Failed to reopen request", { error: error.message });
-            toast({ title: "Error", variant: "destructive" });
-            await loadInitialData();
-        } finally {
-            updateState({ isSubmitting: false });
-        }
-    };
-    
-    const handleSelectItem = (value: string) => {
-        updateState({ isItemSearchOpen: false });
-        const product = authProducts.find(p => p.id === value);
-        if (product) {
-            const stock = authStockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
-            const dataToUpdate = { itemId: product.id, itemDescription: product.description || '', inventory: stock };
-            if (state.requestToEdit) {
-                 updateState({
-                    requestToEdit: state.requestToEdit ? { ...state.requestToEdit, ...dataToUpdate } : null
-                });
+            if (approve) {
+                const targetStatus = state.requestToUpdate.pendingAction === 'unapproval-request' ? 'pending' : 'canceled';
+                await executeStatusUpdate(targetStatus);
             } else {
-                updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
-            }
-            updateState({ itemSearchTerm: `[${product.id}] - ${product.description}` });
-        } else {
-             updateState({ itemSearchTerm: '' });
-        }
-    };
-
-    const handleSelectClient = (value: string) => {
-        updateState({ isClientSearchOpen: false });
-        const client = authCustomers.find(c => c.id === value);
-        if (client) {
-            const dataToUpdate = { clientId: client.id, clientName: client.name, clientTaxId: client.taxId };
-            if (state.requestToEdit) {
-                 updateState({
-                    requestToEdit: state.requestToEdit ? { ...state.requestToEdit, ...dataToUpdate } : null
+                 const updated = await updatePendingAction({
+                    entityId: state.requestToUpdate.id,
+                    action: 'none',
+                    notes: state.statusUpdateNotes,
+                    updatedBy: currentUser.name,
                 });
-            } else {
-                updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
-            }
-            updateState({ clientSearchTerm: `[${client.id}] ${client.name} (${client.taxId})` });
-        } else {
-            updateState({ clientSearchTerm: '' });
-        }
-    };
-
-    const handleFetchErpOrder = async () => {
-        if (!state.erpOrderNumber) return;
-        updateState({ isErpLoading: true });
-        
-        try {
-            const { headers } = await getErpOrderData(state.erpOrderNumber);
-            
-            const enrichedHeaders = headers.map((h: ErpOrderHeader) => {
-                const client = authCustomers.find(c => c.id === h.CLIENTE);
-                return { ...h, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
-            }).sort((a: ErpOrderHeader, b: ErpOrderHeader) => {
-                if (a.PEDIDO === state.erpOrderNumber) return -1;
-                if (b.PEDIDO === state.erpOrderNumber) return 1;
-                return a.PEDIDO.localeCompare(b.PEDIDO);
-            });
-
-            if (enrichedHeaders.length === 1) {
-                await processSingleErpOrder(enrichedHeaders[0]);
-            } else if (enrichedHeaders.length > 1) {
-                updateState({ erpOrderHeaders: enrichedHeaders });
-            } else {
-                 toast({ title: "Pedido no encontrado", description: `No se encontró ningún pedido con el número: ${state.erpOrderNumber}`, variant: "destructive" });
-            }
-            
-        } catch (error: any) {
-            logError('Failed to fetch ERP order data', { error: error.message, orderNumber: state.erpOrderNumber });
-            toast({ title: "Error al Cargar Pedido", description: error.message, variant: "destructive" });
-        } finally {
-            updateState({ isErpLoading: false });
-        }
-    };
-
-    const handleCancelErpFetch = () => {
-        updateState({
-            isErpLoading: false,
-            isErpOrderModalOpen: false,
-            erpOrderHeaders: [],
-            erpOrderNumber: ''
-        });
-    };
-    
-    const processSingleErpOrder = async (header: ErpOrderHeader) => {
-        const client = authCustomers.find(c => c.id === header.CLIENTE);
-        const enrichedHeader = { ...header, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
-        
-        const { lines, inventory } = await getErpOrderData(header.PEDIDO);
-
-        const enrichedLines: UIErpOrderLine[] = lines.map(line => {
-            const product = authProducts.find(p => p.id === line.ARTICULO) || {id: line.ARTICULO, description: `Artículo ${line.ARTICULO} no encontrado`, active: 'N', cabys: '', classification: '', isBasicGood: 'N', lastEntry: '', notes: '', unit: ''};
-            const stock = inventory.find(s => s.itemId === line.ARTICULO) || null;
-            const needsBuying = stock ? line.CANTIDAD_PEDIDA > stock.totalStock : true;
-            return {
-                ...line,
-                product,
-                stock,
-                selected: needsBuying,
-                displayQuantity: String(line.CANTIDAD_PEDIDA),
-                displayPrice: String(line.PRECIO_UNITARIO),
-            };
-        }).sort((a, b) => (a.selected === b.selected) ? 0 : a.selected ? -1 : 1);
-
-        updateState({
-            selectedErpOrderHeader: enrichedHeader,
-            erpOrderLines: enrichedLines,
-            isErpOrderModalOpen: false,
-            isErpItemsModalOpen: true,
-        });
-    };
-
-    const handleSelectErpOrderHeader = async (header: ErpOrderHeader) => {
-        updateState({ isErpLoading: true, isErpOrderModalOpen: false });
-        
-        try {
-            await processSingleErpOrder(header);
-        } catch (error: any) {
-            logError('Failed to fetch lines for selected ERP order', { error: error.message, orderNumber: header.PEDIDO });
-            toast({ title: "Error al Cargar Líneas", description: error.message, variant: "destructive" });
-        } finally {
-            updateState({ isErpLoading: false });
-        }
-    };
-
-
-    const handleErpLineChange = (lineIndex: number, field: keyof UIErpOrderLine, value: string | boolean) => {
-        if (lineIndex === -1) { // Select/Deselect all
-             updateState({ erpOrderLines: state.erpOrderLines.map(line => ({ ...line, selected: !!value })) });
-        } else {
-            updateState({
-                erpOrderLines: state.erpOrderLines.map((line, index) => 
-                    index === lineIndex ? { ...line, [field]: value } : line
-                )
-            });
-        }
-    };
-
-    const handleCreateRequestsFromErp = async () => {
-        if (!state.selectedErpOrderHeader || !currentUser) return;
-        const erpHeader = state.selectedErpOrderHeader;
-
-        const selectedLines = state.erpOrderLines.filter(line => line.selected);
-        if (selectedLines.length === 0) {
-            toast({ title: "No hay artículos seleccionados", description: "Marque al menos un artículo para crear solicitudes.", variant: "destructive" });
-            return;
-        }
-
-        updateState({ isSubmitting: true });
-        try {
-            for (const line of selectedLines) {
-                const requestPayload = {
-                    requiredDate: new Date(erpHeader.FECHA_PROMETIDA).toISOString().split('T')[0],
-                    clientId: erpHeader.CLIENTE,
-                    clientName: erpHeader.CLIENTE_NOMBRE || '',
-                    clientTaxId: authCustomers.find(c => c.id === erpHeader.CLIENTE)?.taxId || '',
-                    itemId: line.ARTICULO,
-                    itemDescription: line.product.description,
-                    quantity: parseFloat(line.displayQuantity) || 0,
-                    notes: `Generado desde Pedido ERP: ${erpHeader.PEDIDO}`,
-                    unitSalePrice: parseFloat(line.displayPrice) || 0,
-                    purchaseOrder: erpHeader.ORDEN_COMPRA || '',
-                    erpOrderNumber: erpHeader.PEDIDO,
-                    erpOrderLine: line.PEDIDO_LINEA,
-                    priority: 'medium' as PurchaseRequestPriority,
-                    purchaseType: 'single' as const,
-                    route: '',
-                    shippingMethod: '',
-                    inventory: 0,
-                    manualSupplier: '',
-                    arrivalDate: '',
-                    pendingAction: 'none' as const,
-                };
-                await savePurchaseRequest(requestPayload, currentUser.name);
-            }
-            toast({ title: "Solicitudes Creadas", description: `Se crearon ${selectedLines.length} solicitudes de compra.` });
-            updateState({ isErpItemsModalOpen: false, erpOrderNumber: '' });
-            await loadInitialData();
-        } catch (error: any) {
-            logError("Failed to create requests from ERP order", { error: error.message });
-            toast({ title: "Error al Crear Solicitudes", description: error.message, variant: "destructive" });
-        } finally {
-            updateState({ isSubmitting: false });
-        }
-    };
-
-    const handleExportExcel = () => {
-        if (!state.requestSettings) return;
-
-        const dataToExport = selectors.filteredRequests.map(request => [
-            request.consecutive,
-            request.itemDescription,
-            request.clientName,
-            request.quantity,
-            format(parseISO(request.requiredDate), 'dd/MM/yyyy'),
-            statusConfig[request.status]?.label || request.status,
-            request.requestedBy,
-            request.purchaseOrder,
-            request.manualSupplier,
-        ]);
-
-        exportToExcel({
-            fileName: 'solicitudes_compra',
-            sheetName: 'Solicitudes',
-            headers: ['Solicitud', 'Artículo', 'Cliente', 'Cant.', 'Fecha Req.', 'Estado', 'Solicitante', 'OC Cliente', 'Proveedor'],
-            data: dataToExport,
-            columnWidths: [12, 40, 25, 8, 12, 15, 15, 15, 20],
-        });
-    };
-
-    const handleExportPDF = async (orientation: 'portrait' | 'landscape' = 'portrait') => {
-        if (!authCompanyData || !state.requestSettings) return;
-
-        let logoDataUrl: string | null = null;
-        if (authCompanyData.logoUrl) {
-            try {
-                const response = await fetch(authCompanyData.logoUrl);
-                const blob = await response.blob();
-                logoDataUrl = await new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result as string);
-                    reader.readAsDataURL(blob);
+                toast({ title: 'Solicitud Rechazada' });
+                updateState({
+                    activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r)
                 });
-            } catch (e) {
-                console.error("Error processing logo for PDF:", e);
             }
-        }
-
-        const allPossibleColumns: { id: string; header: string; width?: number }[] = [
-            { id: 'consecutive', header: 'SC', width: 45 },
-            { id: 'itemDescription', header: 'Artículo' },
-            { id: 'clientName', header: 'Cliente' },
-            { id: 'quantity', header: 'Cant.', width: 35 },
-            { id: 'requiredDate', header: 'F. Req.', width: 55 },
-            { id: 'status', header: 'Estado', width: 75 },
-            { id: 'requestedBy', header: 'Solicita', width: 65 },
-            { id: 'purchaseOrder', header: 'OC Cliente' },
-            { id: 'manualSupplier', header: 'Proveedor' },
-        ];
-        
-        const selectedColumnIds = state.requestSettings.pdfExportColumns || [];
-        const tableHeaders = selectedColumnIds.map(id => allPossibleColumns.find(c => c.id === id)?.header || id);
-        
-        const tableRows: RowInput[] = selectors.filteredRequests.map(request => {
-            return selectedColumnIds.map(id => {
-                switch (id) {
-                    case 'consecutive': return request.consecutive;
-                    case 'itemDescription': return `[${request.itemId}] ${request.itemDescription}`;
-                    case 'clientName': return request.clientName;
-                    case 'quantity': return request.quantity.toLocaleString('es-CR');
-                    case 'requiredDate': return format(parseISO(request.requiredDate), 'dd/MM/yy');
-                    case 'status': return statusConfig[request.status]?.label || request.status;
-                    case 'requestedBy': return request.requestedBy;
-                    case 'purchaseOrder': return request.purchaseOrder || 'N/A';
-                    case 'manualSupplier': return request.manualSupplier || 'N/A';
-                    default: return '';
-                }
-            });
-        });
-
-        const doc = generateDocument({
-            docTitle: `Solicitudes de Compra (${state.viewingArchived ? 'Archivadas' : 'Activas'})`,
-            docId: '',
-            companyData: authCompanyData,
-            logoDataUrl,
-            meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
-            blocks: [],
-            table: {
-                columns: tableHeaders,
-                rows: tableRows,
-                columnStyles: selectedColumnIds.reduce((acc, id, index) => {
-                    const col = allPossibleColumns.find(c => c.id === id);
-                    if (col?.width) { acc[index] = { cellWidth: col.width }; }
-                    if (id === 'quantity') { acc[index] = { ...acc[index], halign: 'right' }; }
-                    return acc;
-                }, {} as { [key: number]: any })
-            },
-            totals: [],
-            topLegend: state.requestSettings.pdfTopLegend,
-            paperSize: state.requestSettings.pdfPaperSize,
-            orientation: orientation,
-        });
-    
-        doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);
-    };
-
-    const handleExportSingleRequestPDF = async (request: PurchaseRequest) => {
-        // Implementation remains the same
-    };
-
-    const openAddNoteDialog = (request: PurchaseRequest) => {
-        updateState({ notePayload: { requestId: request.id, notes: '' }, isAddNoteDialogOpen: true });
-    };
-
-    const handleAddNote = async () => {
-        if (!state.notePayload || !state.notePayload.notes.trim() || !currentUser) return;
-        updateState({ isSubmitting: true });
-        try {
-            const payload = { ...state.notePayload, updatedBy: currentUser.name };
-            const updatedRequest = await addNoteToRequest(payload);
-            toast({ title: "Nota Añadida" });
-            setState(prevState => ({
-                ...prevState,
-                isAddNoteDialogOpen: false,
-                activeRequests: prevState.activeRequests.map(o => o.id === updatedRequest.id ? updatedRequest : o),
-                archivedRequests: prevState.archivedRequests.map(o => o.id === updatedRequest.id ? updatedRequest : o)
-            }));
-        } catch(error: any) {
-            logError("Failed to add note to request", { error: error.message });
+            updateState({ isActionDialogOpen: false });
+        } catch (error: any) {
+            logError("Failed to handle admin action", { error: error.message });
             toast({ title: "Error", variant: "destructive" });
         } finally {
             updateState({ isSubmitting: false });
         }
     };
-
+    
     const actions = {
         loadInitialData,
-        handleCreateRequest,
-        handleEditRequest,
-        openStatusDialog,
-        handleStatusUpdate,
-        handleOpenHistory,
-        handleReopenRequest,
-        handleSelectClient,
-        handleSelectItem,
-        handleExportPDF,
-        handleExportExcel,
-        handleExportSingleRequestPDF,
-        openAdminActionDialog,
+        handleStatusUpdate: executeStatusUpdate,
         handleAdminAction,
-        handleFetchErpOrder,
-        handleErpLineChange,
-        handleCreateRequestsFromErp,
-        handleSelectErpOrderHeader,
-        handleCancelErpFetch,
-        openAddNoteDialog,
-        handleAddNote,
+        handleCreateRequest: async () => {
+            if (!state.newRequest.clientId || !state.newRequest.itemId || !state.newRequest.quantity || !state.newRequest.requiredDate || !currentUser) return;
+            
+            const requestWithFormattedDate = {
+                ...state.newRequest,
+                requiredDate: new Date(state.newRequest.requiredDate).toISOString().split('T')[0]
+            };
+
+            updateState({ isSubmitting: true });
+            try {
+                const createdRequest = await savePurchaseRequest(requestWithFormattedDate, currentUser.name);
+                toast({ title: "Solicitud Creada" });
+                updateState({
+                    isNewRequestDialogOpen: false,
+                    newRequest: emptyRequest,
+                    clientSearchTerm: '',
+                    itemSearchTerm: '',
+                    activeRequests: [createdRequest, ...state.activeRequests]
+                });
+            } catch (error: any) {
+                logError("Failed to create request", { error: error.message });
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+        handleEditRequest: async (e: FormEvent) => {
+            e.preventDefault();
+            if (!state.requestToEdit || !currentUser) return;
+            updateState({ isSubmitting: true });
+            try {
+                const updated = await updatePurchaseRequest({ requestId: state.requestToEdit.id, updatedBy: currentUser.name, ...state.requestToEdit });
+                updateState({
+                    activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r),
+                    archivedRequests: state.archivedRequests.map(r => r.id === updated.id ? updated : r),
+                    isEditRequestDialogOpen: false
+                });
+                toast({ title: "Solicitud Actualizada" });
+            } catch (error: any) {
+                logError("Failed to edit request", { error: error.message });
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+        openStatusDialog: (request: PurchaseRequest, status: PurchaseRequestStatus) => {
+            updateState({
+                requestToUpdate: request,
+                newStatus: status,
+                statusUpdateNotes: ".",
+                deliveredQuantity: status === 'received-in-warehouse' ? request.quantity : "",
+                erpEntryNumber: "",
+                arrivalDate: '',
+                isStatusDialogOpen: true
+            });
+        },
+        openAdminActionDialog: async (request: PurchaseRequest, action: AdministrativeAction) => {
+            if (!currentUser) return;
+            updateState({ isSubmitting: true });
+            try {
+                const payload: AdministrativeActionPayload = {
+                    entityId: request.id,
+                    action,
+                    notes: `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada.`,
+                    updatedBy: currentUser.name,
+                };
+                const updated = await updatePendingAction(payload);
+                updateState({
+                    activeRequests: state.activeRequests.map(r => r.id === updated.id ? updated : r),
+                    archivedRequests: state.archivedRequests.map(r => r.id === updated.id ? updated : r)
+                });
+                toast({ title: "Solicitud Enviada", description: `Tu solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} ha sido enviada para revisión.` });
+            } catch (error: any) {
+                logError(`Failed to request ${action}`, { error: error.message });
+                toast({ title: "Error al Solicitar", description: `No se pudo enviar la solicitud. ${error.message}`, variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+        handleOpenHistory: async (request: PurchaseRequest) => {
+            updateState({ historyRequest: request, isHistoryDialogOpen: true, isHistoryLoading: true });
+            try {
+                updateState({ history: await getRequestHistory(request.id) });
+            } catch (error: any) {
+                logError("Failed to get history", {error: error.message});
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isHistoryLoading: false });
+            }
+        },
+        handleReopenRequest: async () => {
+            if (!state.requestToUpdate || !currentUser || state.reopenStep !== 2 || state.reopenConfirmationText !== 'REABRIR') return;
+            updateState({ isSubmitting: true });
+            try {
+                await updatePurchaseRequestStatus({ requestId: state.requestToUpdate.id, status: 'pending', notes: 'Solicitud reabierta.', updatedBy: currentUser.name, reopen: true });
+                toast({ title: "Solicitud Reabierta" });
+                updateState({ isReopenDialogOpen: false });
+                await loadInitialData();
+            } catch (error: any) {
+                logError("Failed to reopen request", { error: error.message });
+                toast({ title: "Error", variant: "destructive" });
+                await loadInitialData();
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+        handleSelectItem: (value: string) => {
+            updateState({ isItemSearchOpen: false });
+            const product = authProducts.find(p => p.id === value);
+            if (product) {
+                const stock = authStockLevels.find(s => s.itemId === product.id)?.totalStock ?? 0;
+                const dataToUpdate = { itemId: product.id, itemDescription: product.description || '', inventory: stock };
+                if (state.requestToEdit) {
+                     updateState({
+                        requestToEdit: state.requestToEdit ? { ...state.requestToEdit, ...dataToUpdate } : null
+                    });
+                } else {
+                    updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
+                }
+                updateState({ itemSearchTerm: `[${product.id}] - ${product.description}` });
+            } else {
+                 updateState({ itemSearchTerm: '' });
+            }
+        },
+        handleSelectClient: (value: string) => {
+            updateState({ isClientSearchOpen: false });
+            const client = authCustomers.find(c => c.id === value);
+            if (client) {
+                const dataToUpdate = { clientId: client.id, clientName: client.name, clientTaxId: client.taxId };
+                if (state.requestToEdit) {
+                     updateState({
+                        requestToEdit: state.requestToEdit ? { ...state.requestToEdit, ...dataToUpdate } : null
+                    });
+                } else {
+                    updateState({ newRequest: { ...state.newRequest, ...dataToUpdate }});
+                }
+                updateState({ clientSearchTerm: `[${client.id}] ${client.name} (${client.taxId})` });
+            } else {
+                updateState({ clientSearchTerm: '' });
+            }
+        },
+        handleFetchErpOrder: async () => {
+            if (!state.erpOrderNumber) return;
+            updateState({ isErpLoading: true });
+            
+            try {
+                const { headers } = await getErpOrderData(state.erpOrderNumber);
+                
+                const enrichedHeaders = headers.map((h: ErpOrderHeader) => {
+                    const client = authCustomers.find(c => c.id === h.CLIENTE);
+                    return { ...h, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
+                }).sort((a: ErpOrderHeader, b: ErpOrderHeader) => {
+                    if (a.PEDIDO === state.erpOrderNumber) return -1;
+                    if (b.PEDIDO === state.erpOrderNumber) return 1;
+                    return a.PEDIDO.localeCompare(b.PEDIDO);
+                });
+
+                if (enrichedHeaders.length === 1) {
+                    await actions.processSingleErpOrder(enrichedHeaders[0]);
+                } else if (enrichedHeaders.length > 1) {
+                    updateState({ erpOrderHeaders: enrichedHeaders });
+                } else {
+                     toast({ title: "Pedido no encontrado", description: `No se encontró ningún pedido con el número: ${state.erpOrderNumber}`, variant: "destructive" });
+                }
+                
+            } catch (error: any) {
+                logError('Failed to fetch ERP order data', { error: error.message, orderNumber: state.erpOrderNumber });
+                toast({ title: "Error al Cargar Pedido", description: error.message, variant: "destructive" });
+            } finally {
+                updateState({ isErpLoading: false });
+            }
+        },
+        processSingleErpOrder: async (header: ErpOrderHeader) => {
+            const client = authCustomers.find(c => c.id === header.CLIENTE);
+            const enrichedHeader = { ...header, CLIENTE_NOMBRE: client?.name || 'Cliente no encontrado' };
+            
+            const { lines, inventory } = await getErpOrderData(header.PEDIDO);
+
+            const enrichedLines: UIErpOrderLine[] = lines.map(line => {
+                const product = authProducts.find(p => p.id === line.ARTICULO) || {id: line.ARTICULO, description: `Artículo ${line.ARTICULO} no encontrado`, active: 'N', cabys: '', classification: '', isBasicGood: 'N', lastEntry: '', notes: '', unit: ''};
+                const stock = inventory.find(s => s.itemId === line.ARTICULO) || null;
+                const needsBuying = stock ? line.CANTIDAD_PEDIDA > stock.totalStock : true;
+                return {
+                    ...line,
+                    product,
+                    stock,
+                    selected: needsBuying,
+                    displayQuantity: String(line.CANTIDAD_PEDIDA),
+                    displayPrice: String(line.PRECIO_UNITARIO),
+                };
+            }).sort((a, b) => (a.selected === b.selected) ? 0 : a.selected ? -1 : 1);
+
+            updateState({
+                selectedErpOrderHeader: enrichedHeader,
+                erpOrderLines: enrichedLines,
+                isErpOrderModalOpen: false,
+                isErpItemsModalOpen: true,
+            });
+        },
+        handleSelectErpOrderHeader: async (header: ErpOrderHeader) => {
+            updateState({ isErpLoading: true, isErpOrderModalOpen: false });
+            
+            try {
+                await actions.processSingleErpOrder(header);
+            } catch (error: any) {
+                logError('Failed to fetch lines for selected ERP order', { error: error.message, orderNumber: header.PEDIDO });
+                toast({ title: "Error al Cargar Líneas", description: error.message, variant: "destructive" });
+            } finally {
+                updateState({ isErpLoading: false });
+            }
+        },
+        handleCancelErpFetch: () => {
+            updateState({
+                isErpLoading: false,
+                isErpOrderModalOpen: false,
+                erpOrderHeaders: [],
+                erpOrderNumber: ''
+            });
+        },
+        handleErpLineChange: (lineIndex: number, field: keyof UIErpOrderLine, value: string | boolean) => {
+            if (lineIndex === -1) { // Select/Deselect all
+                 updateState({ erpOrderLines: state.erpOrderLines.map(line => ({ ...line, selected: !!value })) });
+            } else {
+                updateState({
+                    erpOrderLines: state.erpOrderLines.map((line, index) => 
+                        index === lineIndex ? { ...line, [field]: value } : line
+                    )
+                });
+            }
+        },
+        handleCreateRequestsFromErp: async () => {
+            if (!state.selectedErpOrderHeader || !currentUser) return;
+            const erpHeader = state.selectedErpOrderHeader;
+
+            const selectedLines = state.erpOrderLines.filter(line => line.selected);
+            if (selectedLines.length === 0) {
+                toast({ title: "No hay artículos seleccionados", description: "Marque al menos un artículo para crear solicitudes.", variant: "destructive" });
+                return;
+            }
+
+            updateState({ isSubmitting: true });
+            try {
+                for (const line of selectedLines) {
+                    const requestPayload = {
+                        requiredDate: new Date(erpHeader.FECHA_PROMETIDA).toISOString().split('T')[0],
+                        clientId: erpHeader.CLIENTE,
+                        clientName: erpHeader.CLIENTE_NOMBRE || '',
+                        clientTaxId: authCustomers.find(c => c.id === erpHeader.CLIENTE)?.taxId || '',
+                        itemId: line.ARTICULO,
+                        itemDescription: line.product.description,
+                        quantity: parseFloat(line.displayQuantity) || 0,
+                        notes: `Generado desde Pedido ERP: ${erpHeader.PEDIDO}`,
+                        unitSalePrice: parseFloat(line.displayPrice) || 0,
+                        purchaseOrder: erpHeader.ORDEN_COMPRA || '',
+                        erpOrderNumber: erpHeader.PEDIDO,
+                        erpOrderLine: line.PEDIDO_LINEA,
+                        priority: 'medium' as PurchaseRequestPriority,
+                        purchaseType: 'single' as const,
+                        route: '',
+                        shippingMethod: '',
+                        inventory: 0,
+                        manualSupplier: '',
+                        arrivalDate: '',
+                        pendingAction: 'none' as const,
+                    };
+                    await savePurchaseRequest(requestPayload, currentUser.name);
+                }
+                toast({ title: "Solicitudes Creadas", description: `Se crearon ${selectedLines.length} solicitudes de compra.` });
+                updateState({ isErpItemsModalOpen: false, erpOrderNumber: '' });
+                await loadInitialData();
+            } catch (error: any) {
+                logError("Failed to create requests from ERP order", { error: error.message });
+                toast({ title: "Error al Crear Solicitudes", description: error.message, variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+        handleExportExcel: () => {
+            if (!state.requestSettings) return;
+            
+            const dataToExport = selectors.filteredRequests.map(request => [
+                request.consecutive,
+                request.itemDescription,
+                request.clientName,
+                request.quantity,
+                format(parseISO(request.requiredDate), 'dd/MM/yyyy'),
+                statusConfig[request.status]?.label || request.status,
+                request.requestedBy,
+                request.purchaseOrder,
+                request.manualSupplier,
+            ]);
+
+            exportToExcel({
+                fileName: 'solicitudes_compra',
+                sheetName: 'Solicitudes',
+                headers: ['Solicitud', 'Artículo', 'Cliente', 'Cant.', 'Fecha Req.', 'Estado', 'Solicitante', 'OC Cliente', 'Proveedor'],
+                data: dataToExport,
+                columnWidths: [12, 40, 25, 8, 12, 15, 15, 15, 20],
+            });
+        },
+        handleExportPDF: async (orientation: 'portrait' | 'landscape' = 'portrait') => {
+            if (!authCompanyData || !state.requestSettings) return;
+
+            let logoDataUrl: string | null = null;
+            if (authCompanyData.logoUrl) {
+                try {
+                    const response = await fetch(authCompanyData.logoUrl);
+                    const blob = await response.blob();
+                    logoDataUrl = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.readAsDataURL(blob);
+                    });
+                } catch (e) {
+                    console.error("Error processing logo for PDF:", e);
+                }
+            }
+
+            const allPossibleColumns: { id: string; header: string; width?: number }[] = [
+                { id: 'consecutive', header: 'SC', width: 45 },
+                { id: 'itemDescription', header: 'Artículo' },
+                { id: 'clientName', header: 'Cliente' },
+                { id: 'quantity', header: 'Cant.', width: 35 },
+                { id: 'requiredDate', header: 'F. Req.', width: 55 },
+                { id: 'status', header: 'Estado', width: 75 },
+                { id: 'requestedBy', header: 'Solicita', width: 65 },
+                { id: 'purchaseOrder', header: 'OC Cliente' },
+                { id: 'manualSupplier', header: 'Proveedor' },
+            ];
+            
+            const selectedColumnIds = state.requestSettings.pdfExportColumns || [];
+            const tableHeaders = selectedColumnIds.map(id => allPossibleColumns.find(c => c.id === id)?.header || id);
+            
+            const tableRows: RowInput[] = selectors.filteredRequests.map(request => {
+                return selectedColumnIds.map(id => {
+                    switch (id) {
+                        case 'consecutive': return request.consecutive;
+                        case 'itemDescription': return `[${request.itemId}] ${request.itemDescription}`;
+                        case 'clientName': return request.clientName;
+                        case 'quantity': return request.quantity.toLocaleString('es-CR');
+                        case 'requiredDate': return format(parseISO(request.requiredDate), 'dd/MM/yy');
+                        case 'status': return statusConfig[request.status]?.label || request.status;
+                        case 'requestedBy': return request.requestedBy;
+                        case 'purchaseOrder': return request.purchaseOrder || 'N/A';
+                        case 'manualSupplier': return request.manualSupplier || 'N/A';
+                        default: return '';
+                    }
+                });
+            });
+
+            const doc = generateDocument({
+                docTitle: `Solicitudes de Compra (${state.viewingArchived ? 'Archivadas' : 'Activas'})`,
+                docId: '',
+                companyData: authCompanyData,
+                logoDataUrl,
+                meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
+                blocks: [],
+                table: {
+                    columns: tableHeaders,
+                    rows: tableRows,
+                    columnStyles: selectedColumnIds.reduce((acc, id, index) => {
+                        const col = allPossibleColumns.find(c => c.id === id);
+                        if (col?.width) { acc[index] = { cellWidth: col.width }; }
+                        if (id === 'quantity') { acc[index] = { ...acc[index], halign: 'right' }; }
+                        return acc;
+                    }, {} as { [key: number]: any })
+                },
+                totals: [],
+                topLegend: state.requestSettings.pdfTopLegend,
+                paperSize: state.requestSettings.pdfPaperSize,
+                orientation: orientation,
+            });
+        
+            doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);
+        },
+        handleExportSingleRequestPDF: async (request: PurchaseRequest) => {
+            // Implementation remains the same
+        },
+        openAddNoteDialog: (request: PurchaseRequest) => {
+            updateState({ notePayload: { requestId: request.id, notes: '' }, isAddNoteDialogOpen: true });
+        },
+        handleAddNote: async () => {
+            if (!state.notePayload || !state.notePayload.notes.trim() || !currentUser) return;
+            updateState({ isSubmitting: true });
+            try {
+                const payload = { ...state.notePayload, updatedBy: currentUser.name };
+                const updatedRequest = await addNoteToRequest(payload);
+                toast({ title: "Nota Añadida" });
+                setState(prevState => ({
+                    ...prevState,
+                    isAddNoteDialogOpen: false,
+                    activeRequests: prevState.activeRequests.map(o => o.id === updatedRequest.id ? updatedRequest : o),
+                    archivedRequests: prevState.archivedRequests.map(o => o.id === updatedRequest.id ? updatedRequest : o)
+                }));
+            } catch(error: any) {
+                logError("Failed to add note to request", { error: error.message });
+                toast({ title: "Error", variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+        // setters
         setNewRequestDialogOpen: (isOpen: boolean) => updateState({ isNewRequestDialogOpen: isOpen, newRequest: emptyRequest, clientSearchTerm: '', itemSearchTerm: '' }),
         setEditRequestDialogOpen: (isOpen: boolean) => updateState({ isEditRequestDialogOpen: isOpen }),
         setViewingArchived: (isArchived: boolean) => updateState({ viewingArchived: isArchived, archivedPage: 0 }),
