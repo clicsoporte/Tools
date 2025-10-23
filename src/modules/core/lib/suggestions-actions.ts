@@ -5,17 +5,16 @@
 "use server";
 
 import { 
-    connectDb, 
     getSuggestions as dbGetSuggestions, 
     markSuggestionAsRead as dbMarkSuggestionAsRead, 
     deleteSuggestion as dbDeleteSuggestion, 
     getUnreadSuggestions as dbGetUnreadSuggestions,
     getUnreadSuggestionsCount as dbGetUnreadSuggestionsCount,
-    addSuggestion as dbAddSuggestion,
 } from './db';
 import type { Suggestion } from '../types';
 import { revalidatePath } from 'next/cache';
-import { logInfo } from './logger';
+import { logInfo, logError } from './logger';
+import { connectDb } from './db';
 
 
 /**
@@ -67,9 +66,18 @@ export async function getUnreadSuggestionsCount(): Promise<number> {
  * @param userName - The name of the user submitting the suggestion.
  */
 export async function addSuggestion(content: string, userId: number, userName: string): Promise<void> {
-    await dbAddSuggestion(content, userId, userName);
-    await logInfo('New suggestion submitted', { user: userName });
-    // Revalidate the admin page to show the new suggestion immediately.
-    revalidatePath('/dashboard/admin/suggestions');
+    const db = await connectDb();
+    try {
+        db.prepare(`
+            INSERT INTO suggestions (content, userId, userName, isRead, timestamp)
+            VALUES (?, ?, ?, 0, ?)
+        `).run(content, userId, userName, new Date().toISOString());
+        
+        await logInfo('New suggestion submitted', { user: userName });
+        // Revalidate the admin page to show the new suggestion immediately.
+        revalidatePath('/dashboard/admin/suggestions');
+    } catch (error: any) {
+        logError("Failed to add suggestion to DB", { error: error.message });
+        throw error;
+    }
 }
-
