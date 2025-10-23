@@ -25,6 +25,7 @@ La revisión de los archivos de ejemplo del proyecto "Novu" valida nuestro enfoq
 - **Capa de Acceso a Datos (DAL):** Nuestro enfoque de tener archivos `db.ts` por módulo se alinea con la idea de una DAL, aislando la lógica de la base de datos.
 - **Entidades Clave:** El análisis de la especificación de la API de Novu (`5.txt`) confirma que nuestro modelo de entidades es correcto. Conceptos como `Subscribers` (nuestros `Users`), `Events` (los disparadores) y `Workflows` (nuestros flujos de estado) son el estándar de la industria.
 - **Concepto de "Topics":** La idea de Novu de usar "Topics" para agrupar suscriptores es una versión más avanzada de nuestra idea de "notificar a un rol". Lo incorporaremos como una posible mejora futura.
+- **Concepto de "Layouts" (Plantillas Maestras):** El análisis de `3.5.txt` revela el uso de "Layouts" reutilizables. Esta es una idea clave que adoptaremos: tendremos una plantilla de correo maestra y el contenido dinámico de cada notificación se inyectará en ella. Esto asegura consistencia y facilita el mantenimiento.
 
 **Conclusión:** Seguiremos con nuestro plan adaptado a Next.js y `better-sqlite3`, pero usando los conceptos de Novu como una referencia de arquitectura de alta calidad.
 
