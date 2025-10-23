@@ -1,7 +1,7 @@
 # Plan de Acción y Lluvia de Ideas: Sistema de Notificaciones Unificado
-# Versión 1.1 - 2024-10-27
+# Versión 2.0 - 2024-10-27
 
-Este documento es nuestra guía maestra para el diseño e implementación del nuevo centro de notificaciones de Clic-Tools.
+Este documento es nuestra guía maestra para el diseño e implementación del nuevo centro de notificaciones de Clic-Tools, enriquecida con conceptos de la industria observados en el proyecto de ejemplo "Novu".
 
 ---
 
@@ -28,6 +28,7 @@ La revisión de los archivos de ejemplo del proyecto "Novu" valida nuestro enfoq
 - **Concepto de "Topics":** La idea de Novu de usar "Topics" para agrupar suscriptores es una versión más avanzada de nuestra idea de "notificar a un rol". Lo incorporaremos como una posible mejora futura.
 - **Concepto de "Layouts" (Plantillas Maestras):** El análisis de `3.5.txt` revela el uso de "Layouts" reutilizables. Esta es una idea clave que adoptaremos: tendremos una plantilla de correo maestra y el contenido dinámico de cada notificación se inyectará en ella. Esto asegura consistencia y facilita el mantenimiento.
 - **Gestión del Ciclo de Vida:** El análisis de `3.6.txt` muestra funcionalidades avanzadas como "posponer" (snooze) y **acciones dentro de la notificación**. Adoptaremos la idea de las acciones para hacer el sistema más interactivo.
+- **Robustez y Escalabilidad (Rate Limiting, Idempotencia):** El análisis de `4.txt` revela que "Novu" utiliza sistemas avanzados de `Rate Limiting` e `Idempotencia` para garantizar que su API sea robusta y escalable. Para nuestra aplicación interna en una red LAN, esta complejidad no es necesaria en la primera versión, pero es una excelente referencia de buenas prácticas si alguna vez la aplicación necesita escalar.
 
 **Conclusión:** Seguiremos con nuestro plan adaptado a Next.js y `better-sqlite3`, pero usando los conceptos de Novu como una referencia de arquitectura de alta calidad, incorporando las "notificaciones accionables" desde el inicio.
 
