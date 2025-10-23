@@ -346,7 +346,7 @@ export const adminTools: Tool[] = [
         name: "Config. Asist. Costos",
         description: "Gestionar ajustes para el asistente de costos.",
         href: "/dashboard/admin/cost-assistant",
-        icon: Calculator,
+        icon: BookMarked,
         bgColor: "bg-orange-600",
         textColor: "text-white",
       },
