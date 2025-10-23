@@ -280,14 +280,8 @@ export default function MaintenancePage() {
 
     const oldBackupsCount = uniqueTimestamps.length > 1 ? uniqueTimestamps.length - 1 : 0;
     
-    if (isAuthorized === null || (isProcessing && processingAction === 'load')) {
-        return (
-             <main className="flex-1 p-4 md:p-6 lg:p-8">
-                <div className="mx-auto max-w-4xl space-y-8">
-                    <Skeleton className="h-96 w-full" />
-                </div>
-            </main>
-        )
+    if (isAuthorized === null) {
+        return null;
     }
 
     if (!isAuthorized) {
