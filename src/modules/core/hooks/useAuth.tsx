@@ -113,8 +113,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       
       if (!currentUser) {
           setUser(null);
-          setIsLoading(false);
-          setIsReady(false);
+          // No need to set isReady to false here, isLoading false is enough signal for layout
           return;
       }
       
