@@ -6,7 +6,7 @@
  */
 "use server";
 
-import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getDbModules, getUnreadSuggestions } from './db';
+import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getDbModules, getUnreadSuggestions, getEmailSettings as getEmailSettingsFromDb } from './db';
 import { sendEmail } from './email-service';
 import type { User, ExchangeRateApiResponse, EmailSettings } from '../types';
 import bcrypt from 'bcryptjs';
@@ -23,7 +23,7 @@ const SALT_ROUNDS = 10;
  * @param {string} passwordProvided - The password provided by the user.
  * @returns {Promise<{ user: User | null, forcePasswordChange: boolean }>} The user object and a flag indicating if a password change is required.
  */
-export async function login(email: string, passwordProvided: string, clientInfo: { ip: string, host: string }): Promise<{ user: User | null, forcePasswordChange: boolean }> {
+export async function login(email: string, passwordProvided: string, clientInfo: { ip: string; host: string; }): Promise<{ user: User | null, forcePasswordChange: boolean }> {
   const db = await connectDb();
   const logMeta = { email, ...clientInfo };
   try {
@@ -292,18 +292,19 @@ export async function sendPasswordRecoveryEmail(email: string, clientInfo: { ip:
       .run(hashedPassword, user.id);
 
     try {
-        const emailSettings = await getEmailSettings() as EmailSettings;
+        // Fetch settings directly from the main database
+        const emailSettings = await getEmailSettingsFromDb();
         if (!emailSettings.smtpHost) {
             throw new Error("La configuración de SMTP no está establecida. No se puede enviar el correo.");
         }
         
-        const emailBody = emailSettings.recoveryEmailBody
+        const emailBody = (emailSettings.recoveryEmailBody || '')
             .replace('[NOMBRE_USUARIO]', user.name)
             .replace('[CLAVE_TEMPORAL]', tempPassword);
             
         await sendEmail({
             to: user.email,
-            subject: emailSettings.recoveryEmailSubject,
+            subject: emailSettings.recoveryEmailSubject || 'Recuperación de Contraseña',
             html: emailBody
         });
 
