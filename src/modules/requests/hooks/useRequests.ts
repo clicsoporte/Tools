@@ -140,7 +140,7 @@ type State = {
     isContextInfoOpen: boolean;
     contextInfoData: PurchaseRequest | null;
     isAddNoteDialogOpen: boolean;
-    notePayload: { requestId: number; notes: string } | null;
+    notePayload: RequestNotePayload | null;
 };
 
 
@@ -148,7 +148,7 @@ export const useRequests = () => {
     const { isAuthorized, hasPermission } = useAuthorization(['requests:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user: currentUser, customers: authCustomers, products: authProducts, stockLevels: authStockLevels, companyData: authCompanyData } = useAuth();
+    const { user: currentUser, customers: authCustomers, products: authProducts, stockLevels: authStockLevels, companyData: authCompanyData, isReady: isAuthReady } = useAuth();
     
     const [state, setState] = useState<State>({
         isLoading: true,
@@ -256,17 +256,17 @@ export const useRequests = () => {
     
     useEffect(() => {
         setTitle("Solicitud de Compra");
-        if (isAuthorized) {
+        if (isAuthReady) { // Depend on isAuthReady
             loadInitialData(state.archivedPage);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthorized]);
+    }, [setTitle, isAuthReady]); // Use isAuthReady
 
      useEffect(() => {
-        if (!isAuthorized || state.isLoading) return;
+        if (!isAuthReady || state.isLoading) return; // Depend on isAuthReady
         loadInitialData(state.archivedPage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthorized]);
+    }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthReady]);
 
     useEffect(() => {
         updateState({ companyData: authCompanyData });
@@ -809,7 +809,7 @@ export const useRequests = () => {
         setShowOnlyShortageItems: (show: boolean) => updateState({ showOnlyShortageItems: show }),
         setContextInfoOpen: (request: PurchaseRequest | null) => updateState({ isContextInfoOpen: !!request, contextInfoData: request }),
         setAddNoteDialogOpen: (isOpen: boolean) => updateState({ isAddNoteDialogOpen: isOpen }),
-        setNotePayload: (payload: { requestId: number; notes: string } | null) => updateState({ notePayload: payload }),
+        setNotePayload: (payload: RequestNotePayload | null) => updateState({ notePayload: payload }),
     };
 
     const selectors = {

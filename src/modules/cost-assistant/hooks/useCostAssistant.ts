@@ -60,7 +60,7 @@ export const useCostAssistant = () => {
     useAuthorization(['dashboard:access', 'cost-assistant:access']); // Permissions
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, isReady: isAuthReady } = useAuth(); // Use isAuthReady
     
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,8 +79,10 @@ export const useCostAssistant = () => {
                 }));
             }
         };
-        loadSettings();
-    }, [setTitle, user]);
+        if (isAuthReady) { // Load settings only when auth context is fully ready
+            loadSettings();
+        }
+    }, [setTitle, user, isAuthReady]);
 
     const updateLine = (id: string, updatedFields: Partial<CostAssistantLine>) => {
         setState(prevState => ({

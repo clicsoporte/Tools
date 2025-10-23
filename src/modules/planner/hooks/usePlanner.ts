@@ -83,7 +83,7 @@ export const usePlanner = () => {
     const { isAuthorized, hasPermission } = useAuthorization(['planner:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user: currentUser, companyData: authCompanyData, customers, products, stockLevels } = useAuth();
+    const { user: currentUser, companyData: authCompanyData, customers, products, stockLevels, isReady: isAuthReady } = useAuth();
 
     const [state, setState] = useState({
         isLoading: true,
@@ -187,14 +187,14 @@ export const usePlanner = () => {
     
     useEffect(() => {
         setTitle("Planificador OP");
-        if (isAuthorized) {
+        if (isAuthReady) { // Use isAuthReady instead of isAuthorized
             loadInitialData(0);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthorized]);
+    }, [setTitle, isAuthReady]); // Depend on isAuthReady
     
     useEffect(() => {
-        if (!isAuthorized || state.isLoading) return;
+        if (!isAuthReady || state.isLoading) return; // Use isAuthReady
         let isMounted = true;
         const reload = async () => {
             await loadInitialData(state.archivedPage);
@@ -204,7 +204,7 @@ export const usePlanner = () => {
         }
         return () => { isMounted = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthorized]);
+    }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthReady]);
 
     const getOrderPermissions = useCallback((order: ProductionOrder) => {
         const isPending = order.status === 'pending';

@@ -26,6 +26,7 @@ interface AuthContextType {
   allExemptions: Exemption[];
   exemptionLaws: ExemptionLaw[];
   isLoading: boolean;
+  isReady: boolean; // New flag to signal when ALL auth-related data is loaded
   exchangeRateData: {
       rate: number | null;
       date: string | null;
@@ -67,6 +68,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReady, setIsReady] = useState(false); // New ready state
 
   const fetchExchangeRate = useCallback(async () => {
     try {
@@ -105,12 +107,14 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const loadAuthData = useCallback(async () => {
     setIsLoading(true);
+    setIsReady(false); // Reset readiness on load
     try {
       const currentUser = await getCurrentUserClient();
       
       if (!currentUser) {
           setUser(null);
           setIsLoading(false);
+          setIsReady(false);
           return;
       }
       
@@ -133,11 +137,13 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       } else {
         setUserRole(null);
       }
+      setIsReady(true); // Signal that all data is loaded
     } catch (error) {
       console.error("Failed to load authentication context data:", error);
       setUser(null);
       setUserRole(null);
       setCompanyData(null);
+      setIsReady(false);
     } finally {
       setIsLoading(false);
     }
@@ -183,6 +189,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     allExemptions,
     exemptionLaws,
     isLoading,
+    isReady, // Expose the new flag
     exchangeRateData,
     unreadSuggestions,
     unreadSuggestionsCount,
