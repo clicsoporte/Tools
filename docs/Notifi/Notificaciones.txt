@@ -30,6 +30,7 @@ La revisión de los archivos de ejemplo del proyecto "Novu" valida nuestro enfoq
 - **Concepto de "Layouts" (Plantillas Maestras):** El análisis de `3.5.txt` revela el uso de "Layouts" reutilizables. Esta es una idea clave que adoptaremos: tendremos una plantilla de correo maestra y el contenido dinámico de cada notificación se inyectará en ella. Esto asegura consistencia y facilita el mantenimiento.
 - **Gestión del Ciclo de Vida:** El análisis de `3.6.txt` muestra funcionalidades avanzadas como "posponer" (snooze) y **acciones dentro de la notificación**. Adoptaremos la idea de las acciones para hacer el sistema más interactivo.
 - **Robustez y Escalabilidad (Rate Limiting, Idempotencia):** El análisis de `4.txt` revela que "Novu" utiliza sistemas avanzados de `Rate Limiting` e `Idempotencia` para garantizar que su API sea robusta y escalable. Para nuestra aplicación interna en una red LAN, esta complejidad no es necesaria en la primera versión, pero es una excelente referencia de buenas prácticas si alguna vez la aplicación necesita escalar.
+- **Nueva Funcionalidad Inspirada: Centro de Ayuda Integrado:** El análisis de `2.txt` muestra cómo "Novu" renderiza su documentación directamente en la aplicación. Esto inspira la creación de un nuevo módulo `/dashboard/help` para Clic-Tools, que contendrá una guía de usuario completa y con capacidad de búsqueda, mejorando la autonomía del usuario.
 
 **Conclusión:** Seguiremos con nuestro plan adaptado a Next.js y `better-sqlite3`, pero usando los conceptos de Novu como una referencia de arquitectura de alta calidad, incorporando las "notificaciones accionables" desde el inicio.
 
@@ -77,6 +78,7 @@ La revisión de los archivos de ejemplo del proyecto "Novu" valida nuestro enfoq
   - Mostrará un `Badge` con el contador de notificaciones no leídas.
   - Cada notificación será un `Link` que al hacer clic llamará a `markNotificationAsRead` y navegará al `href`.
   - **(Nuevo)** Si una notificación tiene un `taskType` (ej: 'approve'), mostrará botones de acción. Al hacer clic en un botón, se llamará a `executeNotificationAction`.
+  - **(Mejora UX)** La fecha de la notificación se mostrará en formato relativo (ej. "hace 5 min") y con la fecha exacta al pasar el mouse encima.
 - **Modificar `useAuth`:** El hook `useAuth` se encargará de obtener periódicamente (ej. cada 30 segundos) las notificaciones del usuario y el contador de no leídas para que estén disponibles globalmente.
 - **Modificar `header.tsx`:** Se añadirá el componente `NotificationBell` a la cabecera.
 
