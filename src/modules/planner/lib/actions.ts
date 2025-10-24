@@ -4,9 +4,9 @@
  */
 'use client';
 
-import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, UpdateProductionOrderPayload, DateRange, PlannerNotePayload, AdministrativeActionPayload } from '../../core/types';
-import { logInfo } from '@/modules/core/lib/logger';
-import { createNotificationForRole } from '@/modules/core/lib/notifications-actions';
+import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, UpdateProductionOrderPayload, DateRange, PlannerNotePayload, AdministrativeActionPayload, User } from '../../core/types';
+import { logInfo, logError } from '@/modules/core/lib/logger';
+import { createNotificationForRole, createNotification } from '@/modules/core/lib/notifications-actions';
 import { 
     getOrders, 
     addOrder, 
@@ -21,6 +21,8 @@ import {
     getUserByName,
     getRolesWithPermission,
 } from './db';
+import { getStatusConfig } from './utils';
+
 
 /**
  * Fetches production orders from the server.
@@ -54,7 +56,7 @@ export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'c
     for (const roleId of approverRoles) {
         await createNotificationForRole(
             roleId,
-            `Nueva orden ${createdOrder.consecutive} requiere aprobación.`,
+            `Nueva orden ${createdOrder.consecutive} para "${createdOrder.customerName}" requiere aprobación.`,
             `/dashboard/planner?search=${createdOrder.consecutive}`,
             createdOrder.id,
             'production-order',
@@ -88,14 +90,15 @@ export async function updateProductionOrderStatus(payload: UpdateStatusPayload):
     // --- Create Notification ---
     if (updatedOrder.requestedBy !== payload.updatedBy) {
         const targetUser = await getUserByName(updatedOrder.requestedBy);
+        const settings = await getSettingsServer();
+        const statusConfig = getStatusConfig(settings);
+
         if (targetUser) {
-            await createNotificationForRole(
-                targetUser.role,
-                `La orden ${updatedOrder.consecutive} ha sido actualizada a: ${updatedOrder.status}.`,
+            const statusLabel = statusConfig[payload.status]?.label || payload.status;
+            await createNotification(
+                targetUser.id,
+                `La orden ${updatedOrder.consecutive} ha sido actualizada a: ${statusLabel}.`,
                 `/dashboard/planner?search=${updatedOrder.consecutive}`,
-                updatedOrder.id,
-                'production-order',
-                'status-change'
             );
         }
     }

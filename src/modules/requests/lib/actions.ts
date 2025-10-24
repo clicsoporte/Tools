@@ -6,7 +6,7 @@
 
 import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User, RequestNotePayload } from '../../core/types';
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import { createNotificationForRole } from '@/modules/core/lib/notifications-actions';
+import { createNotificationForRole, createNotification } from '@/modules/core/lib/notifications-actions';
 import { 
     getRequests, 
     addRequest,
@@ -21,7 +21,7 @@ import {
     getRolesWithPermission,
     addNote as addNoteServer
 } from './db';
-import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions.tsx';
+import type { PurchaseSuggestion } from '../hooks/useRequestSuggestions';
 import { getAllProducts, getAllStock, getAllCustomers } from '@/modules/core/lib/db';
 
 /**
@@ -56,7 +56,7 @@ export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 
     for (const roleId of reviewRoles) {
         await createNotificationForRole(
             roleId,
-            `Nueva solicitud ${createdRequest.consecutive} requiere revisión.`,
+            `Nueva solicitud ${createdRequest.consecutive} para "${createdRequest.clientName}" requiere revisión.`,
             `/dashboard/requests?search=${createdRequest.consecutive}`,
             createdRequest.id,
             'purchase-request',
@@ -103,13 +103,10 @@ export async function updatePurchaseRequestStatus(payload: UpdateRequestStatusPa
                 'canceled': 'Cancelada'
              };
              const statusLabel = statusConfig[payload.status] || payload.status;
-            await createNotificationForRole(
-                targetUser.role,
+            await createNotification(
+                targetUser.id,
                 `La solicitud ${updatedRequest.consecutive} ha sido actualizada a: ${statusLabel}.`,
-                `/dashboard/requests?search=${updatedRequest.consecutive}`,
-                updatedRequest.id,
-                'purchase-request',
-                'status-change'
+                `/dashboard/requests?search=${updatedRequest.consecutive}`
             );
         }
     }
