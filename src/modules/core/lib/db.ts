@@ -141,6 +141,25 @@ export async function checkAndApplyMigrations(db: import('better-sqlite3').Datab
              console.log("Migration check skipped: Main database not initialized yet.");
              return;
         }
+
+        const notificationsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'`).get();
+        if (!notificationsTable) {
+            console.log("MIGRATION: Creating notifications table.");
+            db.exec(`
+                CREATE TABLE notifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    userId INTEGER NOT NULL,
+                    message TEXT NOT NULL,
+                    href TEXT,
+                    isRead INTEGER DEFAULT 0,
+                    timestamp TEXT NOT NULL,
+                    entityId INTEGER,
+                    entityType TEXT,
+                    taskType TEXT,
+                    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+                );
+            `);
+        }
         
         const userPrefsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='user_preferences'`).get();
         if (!userPrefsTable) {
