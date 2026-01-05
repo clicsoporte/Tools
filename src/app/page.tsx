@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview The main entry point of the application.
  * This component now acts as a simple Server Component wrapper, delegating the

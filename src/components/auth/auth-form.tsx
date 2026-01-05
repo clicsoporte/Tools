@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client component for handling the authentication form,
  * now also responsible for determining whether to show the login form or the setup wizard.
@@ -25,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Loader2, Network, UserPlus, AlertTriangle } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import type { User } from "@/modules/core/types";
@@ -57,8 +56,6 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { user, isReady, refreshAuth, redirectAfterLogin } = useAuth();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   // Initial page state
   const [hasUsers, setHasUsers] = useState<boolean | null>(null);

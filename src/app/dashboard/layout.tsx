@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Main layout for the authenticated dashboard section of the application.
  * It handles session verification, ensuring only logged-in users can access this area.

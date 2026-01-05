@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file defines a central authentication context and hook.
  * It provides a single source of truth for the current user, their role, companyData,
@@ -8,7 +7,7 @@
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification, Suggestion } from "../types";
+import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification } from "../types";
 import { getCurrentUser as getCurrentUserClient, getInitialAuthData, logout as clientLogout } from '../lib/auth-client';
 import { getUnreadSuggestionsCount as getUnreadSuggestionsCountAction } from "@/modules/core/lib/suggestions-actions";
 import { getExchangeRate } from "../lib/api-actions";
