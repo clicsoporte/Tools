@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
@@ -30,6 +31,25 @@ const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
 const UPDATE_BACKUP_DIR = 'update_backups';
 const VERSION_FILE_PATH = path.join(process.cwd(), 'package.json');
+
+
+/**
+ * Runs a WAL checkpoint on all module databases to flush changes to the main file.
+ */
+export async function runWalCheckpoint() {
+    for (const dbModule of DB_MODULES) {
+        try {
+            const db = await connectDb(dbModule.dbFile);
+            // TRUNCATE is the most aggressive checkpoint mode.
+            db.pragma('wal_checkpoint(TRUNCATE)');
+            await logInfo(`INICIANDO punto de control WAL para ${dbModule.dbFile}. Este mensaje se escribió antes del volcado.`);
+            await logInfo(`Punto de control WAL completado para ${dbModule.dbFile}.`);
+        } catch (error: any) {
+            await logError(`Error ejecutando WAL checkpoint en ${dbModule.dbFile}`, { error: error.message });
+        }
+    }
+}
+
 
 /**
  * Initializes the main database with all core system tables.
@@ -92,7 +112,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE IF NOT EXISTS erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT, TOTAL_UNIDADES REAL, MONEDA_PEDIDO TEXT, USUARIO TEXT);
         CREATE TABLE IF NOT EXISTS erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));
         CREATE TABLE IF NOT EXISTS erp_purchase_order_headers (ORDEN_COMPRA TEXT PRIMARY KEY, PROVEEDOR TEXT, FECHA_HORA TEXT, ESTADO TEXT, CreatedBy TEXT);
-        CREATE TABLE IF NOT EXISTS erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY (ORDEN_COMPRA, ARTICULO));
+        CREATE TABLE IF NOT EXISTS erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY(ORDEN_COMPRA, ARTICULO));
         CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);
     `;
     db.exec(schema);
@@ -209,33 +229,19 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
         // Always run migrations on an existing DB to check for updates.
         await runMigrations(dbModule, db);
     }
+
+    try {
+        db.pragma('journal_mode = WAL');
+    } catch(error: any) {
+        console.error(`Could not set PRAGMA on ${dbFile}.`, error);
+        if (error.code !== 'SQLITE_CORRUPT') {
+            await logError(`Failed to set PRAGMA on ${dbFile}`, { error: (error as Error).message });
+        }
+    }
     
     dbConnections.set(dbFile, db);
     return db;
 }
-
-
-/**
- * Forces a WAL (Write-Ahead Logging) checkpoint on all active database connections.
- * This function consolidates data from the temporary '-wal' file into the main '.db' file,
- * which is crucial for long-running server environments where connections are not frequently closed.
- * It now logs the success or failure of the operation.
- */
-export async function runWalCheckpoint() {
-    console.log('Attempting to run WAL checkpoint for all databases...');
-    for (const dbModule of DB_MODULES) {
-        const db = await connectDb(dbModule.dbFile);
-        try {
-            await logInfo(`INICIANDO punto de control WAL para ${dbModule.dbFile}. Este mensaje se escribió antes del volcado.`);
-            db.pragma('wal_checkpoint(TRUNCATE)');
-            await logInfo(`Punto de control WAL completado para ${dbModule.dbFile}.`);
-        } catch (error: any) {
-            await logError(`Fallo al ejecutar punto de control WAL para ${dbModule.dbFile}`, { error: error.message });
-            console.error(`Failed to run WAL checkpoint for ${dbModule.dbFile}`, error);
-        }
-    }
-}
-
 
 /**
  * Checks the database schema and applies necessary alterations (migrations).
@@ -1248,12 +1254,13 @@ export async function getCurrentVersion(): Promise<string | null> {
 const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
 
 export async function backupAllForUpdate(): Promise<void> {
+    // Force a WAL checkpoint on all databases before backing up.
     await runWalCheckpoint();
 
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
     
-    // Create a Windows-compatible timestamp
-    const timestamp = new Date().toISOString().replace(/:/g, '-');
+    // Create a standard, parsable ISO timestamp
+    const timestamp = new Date().toISOString();
     const version = await getCurrentVersion() || 'unknown';
     
     for (const dbModule of DB_MODULES) {
@@ -1269,20 +1276,41 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
     if (!fs.existsSync(backupDir)) return [];
     const files = fs.readdirSync(backupDir);
     const backupInfo = files.map(file => {
-        const parts = file.split('_');
-        const datePart = parts[0]?.replace(/-/g, ':') || ''; // Corrected this line
-        const versionPart = parts[1]?.startsWith('v') ? parts[1].substring(1) : 'unknown';
-        const dbFilePart = parts.slice(parts[1]?.startsWith('v') ? 2 : 1).join('_');
-        
-        const dbModule = DB_MODULES.find(m => m.dbFile === dbFilePart);
-        return {
-            moduleId: dbModule?.id || 'unknown',
-            moduleName: dbModule?.name || 'Base de Datos Desconocida',
-            fileName: file,
-            date: datePart,
-            version: versionPart
-        };
-    }).sort((a, b) => b.date.localeCompare(a.date));
+        try {
+            const parts = file.split('_');
+            if (parts.length < 3) return null; // Invalid filename format
+            
+            const dateString = parts[0];
+            const version = parts[1]?.startsWith('v') ? parts[1].substring(1) : 'unknown';
+            const dbFile = version !== 'unknown' ? parts.slice(2).join('_') : parts.slice(1).join('_');
+            
+            // Validate that the dateString is a valid ISO 8601 string before creating a Date object.
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(dateString)) {
+                 // Try to fix common issue with colons replaced by hyphens
+                const correctedDateString = dateString.replace(/(\d{2})-(\d{2})-(\d{2}\.\d{3}Z)$/, ':$1:$2.$3');
+                 if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(correctedDateString)) {
+                    console.warn(`Skipping backup file with invalid timestamp format: ${file}`);
+                    return null;
+                 }
+            }
+
+            const dbModule = DB_MODULES.find(m => m.dbFile === dbFile);
+            return {
+                moduleId: dbModule?.id || 'unknown',
+                moduleName: dbModule?.name || 'Base de Datos Desconocida',
+                fileName: file,
+                date: dateString,
+                version: version
+            };
+        } catch (e) {
+            console.warn(`Could not parse backup file name: ${file}`, e);
+            return null;
+        }
+    }).filter(Boolean) as UpdateBackupInfo[];
+    
+    // Sort by date descending
+    backupInfo.sort((a, b) => b.date.localeCompare(a.date));
+    
     return JSON.parse(JSON.stringify(backupInfo));
 }
 
@@ -1349,7 +1377,7 @@ export async function deleteOldUpdateBackups(): Promise<number> {
     const timestampsToDelete = uniqueTimestamps.slice(1);
     let deletedCount = 0;
     for (const timestamp of timestampsToDelete) {
-        const filesToDelete = fs.readdirSync(backupDir).filter(file => file.startsWith(timestamp.replace(/:/g, '-')));
+        const filesToDelete = fs.readdirSync(backupDir).filter(file => file.startsWith(timestamp));
         for (const file of filesToDelete) {
             fs.unlinkSync(path.join(backupDir, file));
             deletedCount++;
