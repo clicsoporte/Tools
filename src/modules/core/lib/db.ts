@@ -224,10 +224,11 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
 export async function runWalCheckpoint() {
     console.log('Attempting to run WAL checkpoint for all databases...');
     for (const dbModule of DB_MODULES) {
+        const db = await connectDb(dbModule.dbFile);
         try {
-            const db = await connectDb(dbModule.dbFile);
+            await logInfo(`INICIANDO punto de control WAL para ${dbModule.dbFile}. Este mensaje se escribió antes del volcado.`);
             db.pragma('wal_checkpoint(TRUNCATE)');
-            await logInfo(`Punto de control WAL ejecutado con éxito para ${dbModule.dbFile}`);
+            await logInfo(`Punto de control WAL completado para ${dbModule.dbFile}.`);
         } catch (error: any) {
             await logError(`Fallo al ejecutar punto de control WAL para ${dbModule.dbFile}`, { error: error.message });
             console.error(`Failed to run WAL checkpoint for ${dbModule.dbFile}`, error);
