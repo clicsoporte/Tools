@@ -509,12 +509,14 @@ export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'created
     const db = await connectDb(WAREHOUSE_DB_FILE);
     
     const transaction = db.transaction(() => {
+        // Step 1: Get the current settings to read the prefix and counter
         const settingsRow = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string };
         const parsedSettings: WarehouseSettings = JSON.parse(settingsRow.value);
         const prefix = parsedSettings.unitPrefix || 'U';
         const nextNumber = parsedSettings.nextUnitNumber || 1;
         const unitCode = `${prefix}${String(nextNumber).padStart(5, '0')}`;
         
+        // Step 2: Create the new unit with the generated code
         const newUnitData = {
             ...unit,
             createdAt: new Date().toISOString(),
@@ -529,15 +531,21 @@ export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'created
         
         const newId = info.lastInsertRowid as number;
         
+        // Step 3: Increment and save the counter for the next operation
         parsedSettings.nextUnitNumber = nextNumber + 1;
         db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(parsedSettings));
 
+        // Step 4: Return the newly created unit
         return db.prepare('SELECT * FROM inventory_units WHERE id = ?').get(newId) as InventoryUnit;
     });
 
-    return transaction();
+    try {
+      return transaction();
+    } catch (error: any) {
+        logError("Failed to create inventory unit transactionally", { error: error.message, details: unit });
+        throw error; // Re-throw to be caught by the calling action
+    }
 }
-
 
 export async function getInventoryUnits(dateRange?: DateRange): Promise<InventoryUnit[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
