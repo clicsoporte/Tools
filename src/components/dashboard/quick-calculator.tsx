@@ -3,8 +3,9 @@
  */
 "use client";
 
-import { useState, useReducer } from "react";
+import { useReducer } from "react";
 import { Button } from "@/components/ui/button";
+import { Backspace } from "lucide-react";
 
 type State = {
   currentOperand: string;
@@ -76,6 +77,16 @@ function reducer(state: State, action: Action): State {
         ...state,
         currentOperand: `${state.currentOperand || ""}${action.payload.digit}`,
       };
+
+    case "delete-digit":
+        if (state.overwrite) {
+            return { ...state, currentOperand: "", overwrite: false };
+        }
+        if (state.currentOperand === "") return state;
+        return {
+            ...state,
+            currentOperand: state.currentOperand.slice(0, -1),
+        };
 
     case "choose-operation":
       if (state.currentOperand === "" && state.previousOperand == null)
@@ -153,10 +164,17 @@ export function QuickCalculator() {
 
       <Button
         variant="destructive"
-        className={`${buttonClass} col-span-2`}
+        className={buttonClass}
         onClick={() => dispatch({ type: "clear" })}
       >
         AC
+      </Button>
+       <Button
+        variant="destructive"
+        className={buttonClass}
+        onClick={() => dispatch({ type: "delete-digit" })}
+      >
+        <Backspace />
       </Button>
       <Button
         variant="secondary"
@@ -229,7 +247,7 @@ export function QuickCalculator() {
       >
         6
       </Button>
-      <Button
+       <Button
         variant="secondary"
         className={buttonClass}
         onClick={() =>
