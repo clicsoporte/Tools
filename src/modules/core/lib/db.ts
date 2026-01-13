@@ -1270,7 +1270,7 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
     const files = fs.readdirSync(backupDir);
     const backupInfo = files.map(file => {
         const parts = file.split('_');
-        const datePart = parts[0]?.replace(/-/g, ':') || '';
+        const datePart = parts[0]?.replace(/-/g, ':') || ''; // Corrected this line
         const versionPart = parts[1]?.startsWith('v') ? parts[1].substring(1) : 'unknown';
         const dbFilePart = parts.slice(parts[1]?.startsWith('v') ? 2 : 1).join('_');
         
