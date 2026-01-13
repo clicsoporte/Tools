@@ -18,9 +18,6 @@ import React from "react";
 export const dynamic = 'force-dynamic';
 
 export default function InitialPage() {
-  // Extracting client info on the server side.
-  // Note: In a typical server environment behind proxies, you'd need to check
-  // 'x-forwarded-for' headers. For a LAN app, this is generally sufficient.
   const headerList = headers();
   const clientInfo = {
     ip: headerList.get("x-forwarded-for") || "N/A",

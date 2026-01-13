@@ -62,6 +62,10 @@ export const useCorrectionTool = () => {
         allLocations: [],
     });
 
+    const updateState = useCallback((newState: Partial<State>) => {
+        setState(prevState => ({ ...prevState, ...newState }));
+    }, []);
+
     useEffect(() => {
         const loadInitialData = async () => {
             try {
@@ -73,13 +77,9 @@ export const useCorrectionTool = () => {
             }
         };
         loadInitialData();
-    }, []);
+    }, [updateState]);
 
     const [debouncedNewProductSearch] = useDebounce(state.newProductSearch, 300);
-
-    const updateState = useCallback((newState: Partial<State>) => {
-        setState(prevState => ({ ...prevState, ...newState }));
-    }, []);
 
     const handleSearch = async () => {
         if (!state.searchTerm.trim()) return;
