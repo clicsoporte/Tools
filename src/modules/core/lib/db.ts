@@ -230,7 +230,7 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
  * which is crucial for long-running server environments where connections are not frequently closed.
  */
 export async function runWalCheckpoint() {
-    console.log('Running scheduled WAL checkpoint...');
+    console.log('Running WAL checkpoint...');
     for (const dbModule of DB_MODULES) {
         try {
             // Ensure the DB is connected before trying to run a command on it.
@@ -1280,34 +1280,17 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
     if (!fs.existsSync(backupDir)) return [];
     const files = fs.readdirSync(backupDir);
     const backupInfo = files.map(file => {
-        // Robust parsing for filenames with or without version
         const parts = file.split('_');
-        let datePart: string, versionPart: string, dbFilePart: string;
-
-        datePart = parts[0];
-        
-        // This is a more robust way to handle timestamps that might contain hyphens
-        // It replaces hyphens with colons only in the time part of the ISO string.
-        if (datePart.includes('T')) {
-            const [date, time] = datePart.split('T');
-            const correctedTime = time.replace(/-/g, ':');
-            datePart = `${date}T${correctedTime}`;
-        }
-        
-        if (parts[1]?.startsWith('v')) {
-            versionPart = parts[1].substring(1);
-            dbFilePart = parts.slice(2).join('_');
-        } else {
-            versionPart = 'unknown';
-            dbFilePart = parts.slice(1).join('_');
-        }
+        const datePart = parts[0]?.replace(/-/g, ':') || '';
+        const versionPart = parts[1]?.startsWith('v') ? parts[1].substring(1) : 'unknown';
+        const dbFilePart = parts.slice(parts[1]?.startsWith('v') ? 2 : 1).join('_');
         
         const dbModule = DB_MODULES.find(m => m.dbFile === dbFilePart);
         return {
             moduleId: dbModule?.id || 'unknown',
             moduleName: dbModule?.name || 'Base de Datos Desconocida',
             fileName: file,
-            date: datePart, // Use the corrected, valid ISO string
+            date: datePart,
             version: versionPart
         };
     }).sort((a, b) => b.date.localeCompare(a.date));
