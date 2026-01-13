@@ -107,8 +107,8 @@ export function QuickCalculator() {
 
     return (
         <div className="grid grid-cols-4 gap-1 p-2 bg-popover rounded-lg shadow-lg">
-            <div className="col-span-4 bg-muted h-20 rounded-md flex flex-col justify-around items-end p-4">
-                <div className="text-muted-foreground text-sm truncate">
+            <div className="col-span-4 bg-muted h-20 rounded-md flex flex-col justify-around items-end p-4 overflow-hidden">
+                <div className="text-muted-foreground text-sm">
                     {previousOperand} {operation}
                 </div>
                 <div className="text-foreground text-3xl font-bold">
