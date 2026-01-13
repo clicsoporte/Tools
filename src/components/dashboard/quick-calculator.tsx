@@ -5,7 +5,7 @@
 
 import { useReducer } from "react";
 import { Button } from "@/components/ui/button";
-import { Backspace } from "lucide-react";
+import { Delete } from "lucide-react";
 
 type State = {
   currentOperand: string;
@@ -163,7 +163,7 @@ export function QuickCalculator() {
         </div>
 
         <Button variant="destructive" className={buttonClass} onClick={() => dispatch({ type: "clear" })} >AC</Button>
-        <Button variant="destructive" className={buttonClass} onClick={() => dispatch({ type: "delete-digit" })}><Backspace /></Button>
+        <Button variant="destructive" className={buttonClass} onClick={() => dispatch({ type: "delete-digit" })}><Delete /></Button>
         <Button variant="secondary" className={buttonClass} onClick={() => dispatch({ type: "choose-operation", payload: { operation: "/" } })}>/</Button>
         <Button variant="secondary" className={buttonClass} onClick={() => dispatch({ type: "choose-operation", payload: { operation: "*" } })}>×</Button>
 
