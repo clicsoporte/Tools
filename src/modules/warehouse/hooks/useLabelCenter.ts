@@ -30,6 +30,20 @@ interface State {
     isRackSearchOpen: boolean;
 }
 
+const renderLocationPathAsString = (locationId: number, locations: WarehouseLocation[]): string => {
+    if (!locationId) return '';
+    const path: WarehouseLocation[] = [];
+    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
+    while (current) {
+        path.unshift(current);
+        const parentId = current.parentId;
+        if (!parentId) break;
+        current = locations.find(l => l.id === parentId);
+    }
+    return path.map(l => l.name).join(' > ');
+};
+
+
 export const useLabelCenter = () => {
     const { isAuthorized } = useAuthorization(['warehouse:labels:generate']);
     const { toast } = useToast();
@@ -91,56 +105,71 @@ export const useLabelCenter = () => {
 
     const rackChildren = useMemo(() => {
         if (!state.selectedRack) return [];
-        return getChildLocations([state.selectedRack.id], state.allLocations);
+        
+        const getChildrenRecursive = (parentId: number): WarehouseLocation[] => {
+            const directChildren = state.allLocations.filter(l => l.parentId === parentId);
+            if (directChildren.length === 0) {
+                 const parentItself = state.allLocations.find(l => l.id === parentId);
+                 return parentItself ? [parentItself] : [];
+            }
+            return directChildren.flatMap(child => getChildrenRecursive(child.id));
+        };
+
+        return getChildrenRecursive(state.selectedRack.id);
     }, [state.selectedRack, state.allLocations]);
 
     const levelOptions = useMemo(() => {
-        if (!state.selectedRack) return [];
-        const levelType = companyData?.locationLevels?.[3]?.type || 'shelf';
-        return state.allLocations
-            .filter(l => l.parentId === state.selectedRack?.id && l.type === levelType)
-            .map(l => ({ value: String(l.id), label: l.name }));
+        if (!state.selectedRack || !companyData?.locationLevels) return [];
+        const levelType = companyData.locationLevels[3]?.type || 'shelf';
+        const children = state.allLocations.filter(l => l.parentId === state.selectedRack?.id && l.type === levelType);
+        return children.map(l => ({ value: String(l.id), label: l.name }));
     }, [state.selectedRack, state.allLocations, companyData]);
     
     const positionOptions = useMemo(() => {
-        if (!state.selectedRack) return [];
-        const positionType = companyData?.locationLevels?.[4]?.type || 'bin';
-        const childrenOfLevels = state.allLocations.filter(l => l.parentId === state.selectedRack?.id).flatMap(level => getChildLocations([level.id], state.allLocations));
+        if (!state.selectedRack || !companyData?.locationLevels) return [];
+        const levelType = companyData.locationLevels[3]?.type || 'shelf';
+        const positionType = companyData.locationLevels[4]?.type || 'bin';
         
-        const uniquePositions = Array.from(new Set(childrenOfLevels.filter(l => l.type === positionType).map(l => l.name)));
+        const levels = state.allLocations.filter(l => l.parentId === state.selectedRack?.id && l.type === levelType);
+        const positions = levels.flatMap(level => state.allLocations.filter(l => l.parentId === level.id && l.type === positionType));
         
-        return uniquePositions.map(name => ({ value: name, label: name }));
+        const uniquePositionNames = Array.from(new Set(positions.map(p => p.name))).sort();
+
+        return uniquePositionNames.map(name => ({ value: name, label: name }));
     }, [state.selectedRack, state.allLocations, companyData]);
 
     const filteredLocations = useMemo(() => {
         if (!state.selectedRack) return [];
 
-        let locations = rackChildren;
+        let locationsToFilter = rackChildren;
 
         if (state.levelFilter.length > 0) {
-            const levelIds = new Set(state.levelFilter.map(Number));
-            locations = locations.filter(l => {
+            const levelIdsAsNumbers = new Set(state.levelFilter.map(Number));
+            locationsToFilter = locationsToFilter.filter(l => {
                 let current = l;
-                while(current.parentId !== state.selectedRack?.id && current.parentId) {
+                while (current.parentId) {
+                    if (current.parentId === state.selectedRack?.id) {
+                        return levelIdsAsNumbers.has(current.id);
+                    }
                     const parent = state.allLocations.find(p => p.id === current.parentId);
-                    if(!parent) return false;
+                    if (!parent || parent.id === state.selectedRack.id) break;
                     current = parent;
                 }
-                return levelIds.has(current.id);
+                return false;
             });
         }
         
         if (state.positionFilter.length > 0) {
             const positionNames = new Set(state.positionFilter);
-            locations = locations.filter(l => positionNames.has(l.name));
+            locationsToFilter = locationsToFilter.filter(l => positionNames.has(l.name));
         }
 
         if (state.labelType === 'product_location') {
             const assignedLocationIds = new Set(state.itemLocations.map(il => il.locationId));
-            return locations.filter(l => assignedLocationIds.has(l.id));
+            return locationsToFilter.filter(l => assignedLocationIds.has(l.id));
         }
 
-        return locations;
+        return locationsToFilter;
     }, [state.selectedRack, state.levelFilter, state.positionFilter, state.labelType, rackChildren, state.itemLocations, state.allLocations]);
     
     const handleGeneratePdf = async () => {
@@ -205,4 +234,3 @@ export const useLabelCenter = () => {
         }
     };
 };
-```
