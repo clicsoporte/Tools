@@ -49,9 +49,10 @@ export const useReceivingWizard = () => {
         suggestedLocations: [] as WarehouseLocation[],
         selectedLocationId: null as number | null,
         newLocationId: null as number | null,
-        quantity: '1',
+        quantity: '',
         humanReadableId: '',
         documentId: '',
+        erpDocumentId: '',
         lastCreatedUnit: null as InventoryUnit | null,
         productSearchTerm: '',
         isProductSearchOpen: false,
@@ -173,9 +174,10 @@ export const useReceivingWizard = () => {
             selectedLocationId: null,
             newLocationId: null,
             locationSearchTerm: '',
-            quantity: '1',
+            quantity: '',
             humanReadableId: '',
             documentId: '',
+            erpDocumentId: '',
             lastCreatedUnit: null,
             saveAsDefault: true,
         });
@@ -222,6 +224,8 @@ export const useReceivingWizard = () => {
             doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Lote/ID: ${unit.humanReadableId || 'N/A'}`, rightColX, currentY);
             currentY += 0.15;
             doc.text(`Documento: ${unit.documentId || 'N/A'}`, rightColX, currentY);
+            currentY += 0.15;
+            doc.text(`Doc. ERP: ${unit.erpDocumentId || 'N/A'}`, rightColX, currentY);
             currentY += 0.25;
 
             doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Ubicación:`, rightColX, currentY);
@@ -258,6 +262,7 @@ export const useReceivingWizard = () => {
                 quantity: parseFloat(state.quantity) || 1,
                 humanReadableId: state.humanReadableId,
                 documentId: state.documentId,
+                erpDocumentId: state.erpDocumentId,
                 createdBy: user.name,
                 notes: `Recibido vía asistente: ${state.quantity} unidades.`,
             };
@@ -301,6 +306,7 @@ export const useReceivingWizard = () => {
             setQuantity: (qty: string) => updateState({ quantity: qty }),
             setHumanReadableId: (id: string) => updateState({ humanReadableId: id }),
             setDocumentId: (id: string) => updateState({ documentId: id }),
+            setErpDocumentId: (id: string) => updateState({ erpDocumentId: id }),
             setSaveAsDefault: (save: boolean) => updateState({ saveAsDefault: save }),
             handleProductSearchKeyDown,
             handlePrintLabel,

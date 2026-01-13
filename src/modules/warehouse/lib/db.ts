@@ -53,6 +53,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
             productId TEXT NOT NULL,
             humanReadableId TEXT,
             documentId TEXT,
+            erpDocumentId TEXT,
             locationId INTEGER,
             quantity REAL DEFAULT 1,
             notes TEXT,
@@ -160,14 +161,15 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
         
         const unitsTableExists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='inventory_units'`).get();
         if (!unitsTableExists) {
-            db.exec(`CREATE TABLE inventory_units (id INTEGER PRIMARY KEY AUTOINCREMENT, unitCode TEXT UNIQUE, productId TEXT NOT NULL, humanReadableId TEXT, documentId TEXT, locationId INTEGER, quantity REAL DEFAULT 1, notes TEXT, createdAt TEXT NOT NULL, createdBy TEXT NOT NULL, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE);`);
+            db.exec(`CREATE TABLE inventory_units (id INTEGER PRIMARY KEY AUTOINCREMENT, unitCode TEXT UNIQUE, productId TEXT NOT NULL, humanReadableId TEXT, documentId TEXT, erpDocumentId TEXT, locationId INTEGER, quantity REAL DEFAULT 1, notes TEXT, createdAt TEXT NOT NULL, createdBy TEXT NOT NULL, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE);`);
         } else {
              checkAndRecreateForeignKey('inventory_units', 'locationId',
-                `CREATE TABLE inventory_units (id INTEGER PRIMARY KEY AUTOINCREMENT, unitCode TEXT UNIQUE, productId TEXT NOT NULL, humanReadableId TEXT, documentId TEXT, locationId INTEGER, quantity REAL DEFAULT 1, notes TEXT, createdAt TEXT NOT NULL, createdBy TEXT NOT NULL, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE);`,
-                'id, unitCode, productId, humanReadableId, documentId, locationId, quantity, notes, createdAt, createdBy');
+                `CREATE TABLE inventory_units (id INTEGER PRIMARY KEY AUTOINCREMENT, unitCode TEXT UNIQUE, productId TEXT NOT NULL, humanReadableId TEXT, documentId TEXT, erpDocumentId TEXT, locationId INTEGER, quantity REAL DEFAULT 1, notes TEXT, createdAt TEXT NOT NULL, createdBy TEXT NOT NULL, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE);`,
+                'id, unitCode, productId, humanReadableId, documentId, erpDocumentId, locationId, quantity, notes, createdAt, createdBy');
             const unitsTableInfo = db.prepare(`PRAGMA table_info(inventory_units)`).all() as { name: string }[];
             if (!unitsTableInfo.some(c => c.name === 'documentId')) db.exec('ALTER TABLE inventory_units ADD COLUMN documentId TEXT');
             if (!unitsTableInfo.some(c => c.name === 'quantity')) db.exec('ALTER TABLE inventory_units ADD COLUMN quantity REAL DEFAULT 1');
+            if (!unitsTableInfo.some(c => c.name === 'erpDocumentId')) db.exec('ALTER TABLE inventory_units ADD COLUMN erpDocumentId TEXT');
         }
 
         const configTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='warehouse_config'`).get();
@@ -529,10 +531,11 @@ export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'created
             unitCode: unitCode,
             humanReadableId: unit.humanReadableId || null,
             documentId: unit.documentId || null,
+            erpDocumentId: unit.erpDocumentId || null,
             quantity: unit.quantity ?? 1,
         };
         const info = db.prepare(
-            'INSERT INTO inventory_units (unitCode, productId, humanReadableId, documentId, locationId, quantity, notes, createdAt, createdBy) VALUES (@unitCode, @productId, @humanReadableId, @documentId, @locationId, @quantity, @notes, @createdAt, @createdBy)'
+            'INSERT INTO inventory_units (unitCode, productId, humanReadableId, documentId, erpDocumentId, locationId, quantity, notes, createdAt, createdBy) VALUES (@unitCode, @productId, @humanReadableId, @documentId, @erpDocumentId, @locationId, @quantity, @notes, @createdAt, @createdBy)'
         ).run(newUnitData);
         
         const newId = info.lastInsertRowid as number;

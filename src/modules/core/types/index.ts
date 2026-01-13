@@ -442,9 +442,9 @@ export type UpdateRequestStatusPayload = {
     reopen: boolean;
     manualSupplier?: string;
     erpOrderNumber?: string;
+    erpEntryNumber?: string;
     deliveredQuantity?: number;
     arrivalDate?: string;
-    erpEntryNumber?: string;
 };
 
 export type RejectCancellationPayload = {
@@ -514,6 +514,7 @@ export type InventoryUnit = {
     productId: string;
     humanReadableId?: string; // e.g. a lot number
     documentId?: string; // e.g. a delivery note
+    erpDocumentId?: string; // The corresponding document in the ERP
     locationId: number | null;
     quantity: number;
     notes?: string;
