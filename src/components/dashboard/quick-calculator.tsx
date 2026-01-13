@@ -6,7 +6,6 @@
 import { useReducer } from "react";
 import { Button } from "@/components/ui/button";
 import { Backspace } from "lucide-react";
-import { PopoverContent } from "@/components/ui/popover"; // Corrected this line
 
 type State = {
   currentOperand: string;
@@ -153,41 +152,39 @@ export function QuickCalculator() {
   const buttonClass = "h-16 text-xl";
 
   return (
-    <PopoverContent className="w-80 p-0" side="bottom" align="end">
-        <div className="grid grid-cols-4 gap-1 p-2">
-            <div className="col-span-4 bg-muted h-20 rounded-md flex flex-col justify-around items-end p-4 overflow-hidden">
-                <div className="text-muted-foreground text-sm h-6 self-end w-full truncate text-right">
-                {previousOperand} {operation}
-                </div>
-                <div className="text-foreground text-3xl font-bold">
-                {formatOperand(currentOperand)}
-                </div>
+    <div className="grid grid-cols-4 gap-1 p-2">
+        <div className="col-span-4 bg-muted h-20 rounded-md flex flex-col justify-around items-end p-4 overflow-hidden">
+            <div className="text-muted-foreground text-sm h-6 self-end w-full truncate text-right">
+            {previousOperand} {operation}
             </div>
-
-            <Button variant="destructive" className={buttonClass} onClick={() => dispatch({ type: "clear" })} >AC</Button>
-            <Button variant="destructive" className={buttonClass} onClick={() => dispatch({ type: "delete-digit" })}><Backspace /></Button>
-            <Button variant="secondary" className={buttonClass} onClick={() => dispatch({ type: "choose-operation", payload: { operation: "/" } })}>/</Button>
-            <Button variant="secondary" className={buttonClass} onClick={() => dispatch({ type: "choose-operation", payload: { operation: "*" } })}>×</Button>
-
-            <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "7" } })}>7</Button>
-            <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "8" } })}>8</Button>
-            <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "9" } })}>9</Button>
-            <Button variant="secondary" className={buttonClass} onClick={() => dispatch({ type: "choose-operation", payload: { operation: "-" } })}>-</Button>
-            
-            <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "4" } })}>4</Button>
-            <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "5" } })}>5</Button>
-            <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "6" } })}>6</Button>
-            <Button variant="secondary" className={buttonClass} onClick={() => dispatch({ type: "choose-operation", payload: { operation: "+" } })}>+</Button>
-            
-            <div className="col-span-3 grid grid-cols-3 gap-1">
-                <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "1" } })}>1</Button>
-                <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "2" } })}>2</Button>
-                <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "3" } })}>3</Button>
-                <Button variant="outline" className={`${buttonClass} col-span-2`} onClick={() => dispatch({ type: "add-digit", payload: { digit: "0" } })}>0</Button>
-                <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "." } })}>.</Button>
+            <div className="text-foreground text-3xl font-bold">
+            {formatOperand(currentOperand)}
             </div>
-            <Button variant="secondary" className="row-span-2 h-full text-2xl" onClick={() => dispatch({ type: "evaluate" })}>=</Button>
         </div>
-    </PopoverContent>
+
+        <Button variant="destructive" className={buttonClass} onClick={() => dispatch({ type: "clear" })} >AC</Button>
+        <Button variant="destructive" className={buttonClass} onClick={() => dispatch({ type: "delete-digit" })}><Backspace /></Button>
+        <Button variant="secondary" className={buttonClass} onClick={() => dispatch({ type: "choose-operation", payload: { operation: "/" } })}>/</Button>
+        <Button variant="secondary" className={buttonClass} onClick={() => dispatch({ type: "choose-operation", payload: { operation: "*" } })}>×</Button>
+
+        <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "7" } })}>7</Button>
+        <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "8" } })}>8</Button>
+        <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "9" } })}>9</Button>
+        <Button variant="secondary" className={buttonClass} onClick={() => dispatch({ type: "choose-operation", payload: { operation: "-" } })}>-</Button>
+        
+        <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "4" } })}>4</Button>
+        <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "5" } })}>5</Button>
+        <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "6" } })}>6</Button>
+        <Button variant="secondary" className={buttonClass} onClick={() => dispatch({ type: "choose-operation", payload: { operation: "+" } })}>+</Button>
+        
+        <div className="col-span-3 grid grid-cols-3 gap-1">
+            <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "1" } })}>1</Button>
+            <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "2" } })}>2</Button>
+            <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "3" } })}>3</Button>
+            <Button variant="outline" className={`${buttonClass} col-span-2`} onClick={() => dispatch({ type: "add-digit", payload: { digit: "0" } })}>0</Button>
+            <Button variant="outline" className={buttonClass} onClick={() => dispatch({ type: "add-digit", payload: { digit: "." } })}>.</Button>
+        </div>
+        <Button variant="secondary" className="row-span-2 h-full text-2xl" onClick={() => dispatch({ type: "evaluate" })}>=</Button>
+    </div>
   );
 }
