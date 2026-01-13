@@ -45,6 +45,10 @@ export default function WarehouseDashboardPage() {
                     return hasPermission('warehouse:locations:create') || hasPermission('warehouse:locations:update') || hasPermission('warehouse:locations:delete');
                  case 'lock-management':
                     return hasPermission('warehouse:locks:manage');
+                case 'label-center':
+                    return hasPermission('warehouse:labels:generate');
+                case 'correction-tool':
+                    return hasPermission('warehouse:correction:execute');
                 default:
                     // Fallback for general access if specific permission is not defined for a new tool
                     return hasPermission('warehouse:access');

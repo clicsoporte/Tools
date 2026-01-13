@@ -25,9 +25,12 @@ const INTEGER_FORMATTER = new Intl.NumberFormat("es-CR", {
 });
 
 function formatOperand(operand: string | null) {
-  if (operand == null) return "";
+  if (operand == null || operand === "") return "0"; // <-- CORRECCIÓN: Devolver "0" si está vacío.
   const [integer, decimal] = operand.split(".");
-  if (decimal == null) return INTEGER_FORMATTER.format(parseInt(integer));
+  if (decimal == null) {
+    if(integer === "") return "0"; // Evita NaN si solo hay un punto.
+    return INTEGER_FORMATTER.format(parseInt(integer));
+  }
   return `${INTEGER_FORMATTER.format(parseInt(integer))}.${decimal}`;
 }
 
@@ -106,10 +109,10 @@ export function QuickCalculator() {
         <div className="grid grid-cols-4 gap-1 p-2 bg-popover rounded-lg shadow-lg">
             <div className="col-span-4 bg-muted h-20 rounded-md flex flex-col justify-around items-end p-4">
                 <div className="text-muted-foreground text-sm truncate">
-                    {formatOperand(previousOperand)} {operation}
+                    {previousOperand} {operation}
                 </div>
                 <div className="text-foreground text-3xl font-bold">
-                    {formatOperand(currentOperand) || "0"}
+                    {formatOperand(currentOperand)}
                 </div>
             </div>
             

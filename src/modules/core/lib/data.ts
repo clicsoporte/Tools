@@ -39,6 +39,8 @@ import {
   Lock,
   PackageCheck,
   ClipboardList,
+  Tags,
+  RotateCcw,
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -189,6 +191,22 @@ export const warehouseTools: Tool[] = [
         href: "/dashboard/warehouse/inventory-count",
         icon: ClipboardCheck,
         bgColor: 'bg-lime-600',
+    },
+    {
+        id: 'correction-tool',
+        name: 'Administración de Ingresos',
+        description: 'Corregir un producto mal ingresado, moviendo su unidad de inventario.',
+        href: '/dashboard/warehouse/correction',
+        icon: RotateCcw,
+        bgColor: 'bg-red-500'
+    },
+    {
+        id: 'label-center',
+        name: 'Centro de Etiquetas',
+        description: 'Generar e imprimir etiquetas de ubicación o de productos por lotes.',
+        href: '/dashboard/warehouse/labels',
+        icon: Tags,
+        bgColor: 'bg-orange-500'
     },
     {
         id: "warehouse-units",
