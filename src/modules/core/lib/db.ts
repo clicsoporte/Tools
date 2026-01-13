@@ -212,9 +212,6 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
 
     try {
         db.pragma('journal_mode = WAL');
-        // This is the fix. It forces a checkpoint to consolidate the WAL file into the main DB.
-        // TRUNCATE is the most aggressive mode, ensuring the WAL file is reset.
-        db.pragma('wal_checkpoint(TRUNCATE)');
     } catch(error: any) {
         console.error(`Could not set PRAGMA on ${dbFile}.`, error);
         if (error.code !== 'SQLITE_CORRUPT') {
@@ -225,6 +222,30 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
     dbConnections.set(dbFile, db);
     return db;
 }
+
+
+/**
+ * Forces a WAL (Write-Ahead Logging) checkpoint on all active database connections.
+ * This function consolidates data from the temporary '-wal' file into the main '.db' file,
+ * which is crucial for long-running server environments where connections are not frequently closed.
+ */
+export async function runWalCheckpoint() {
+    console.log('Running scheduled WAL checkpoint...');
+    for (const dbModule of DB_MODULES) {
+        try {
+            // Ensure the DB is connected before trying to run a command on it.
+            const db = await connectDb(dbModule.dbFile);
+            // TRUNCATE is the most aggressive mode, ensuring the WAL file is reset.
+            db.pragma('wal_checkpoint(TRUNCATE)');
+            console.log(`✅ WAL checkpoint successful for ${dbModule.dbFile}`);
+        } catch (error: any) {
+            // Log error but don't throw, as one failing checkpoint shouldn't stop others.
+            logError(`Failed to run WAL checkpoint for ${dbModule.dbFile}`, { error: error.message });
+            console.error(`Failed to run WAL checkpoint for ${dbModule.dbFile}`, error);
+        }
+    }
+}
+
 
 /**
  * Checks the database schema and applies necessary alterations (migrations).
@@ -1237,6 +1258,9 @@ export async function getCurrentVersion(): Promise<string | null> {
 const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
 
 export async function backupAllForUpdate(): Promise<void> {
+    // This is the critical step for WAL mode. It ensures all data is in the main .db file.
+    await runWalCheckpoint();
+
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
     
     // Create a Windows-compatible timestamp
