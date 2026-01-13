@@ -22,8 +22,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, RefreshCw, Clock, DollarSign, Send, MessageSquare, PanelLeft, Calculator } from "lucide-react";
-import { QuickCalculator } from "../dashboard/quick-calculator";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { QuickCalculator } from "@/components/dashboard/quick-calculator";
 
 interface HeaderProps {
   title: string;
