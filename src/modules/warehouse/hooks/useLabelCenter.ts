@@ -3,7 +3,7 @@
  */
 'use client';
 
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
@@ -64,7 +64,7 @@ export const useLabelCenter = () => {
     const [debouncedRackSearch] = useDebounce(state.rackSearchTerm, 300);
 
     const updateState = useCallback((newState: Partial<State>) => {
-        setState(prevState => ({ ...prevState, ...newState }));
+        setState((prevState: State) => ({ ...prevState, ...newState }));
     }, []);
 
     useEffect(() => {
@@ -84,7 +84,7 @@ export const useLabelCenter = () => {
 
     const handleSelectRack = (rackIdStr: string) => {
         const rackId = Number(rackIdStr);
-        const rack = state.allLocations.find(l => l.id === rackId);
+        const rack = state.allLocations.find((l: WarehouseLocation) => l.id === rackId);
         if (rack) {
             updateState({
                 selectedRack: rack,
@@ -98,20 +98,20 @@ export const useLabelCenter = () => {
     
     const rackOptions = useMemo(() => {
         return state.allLocations
-            .filter(l => l.type === 'rack' && (l.name.toLowerCase().includes(debouncedRackSearch.toLowerCase()) || l.code.toLowerCase().includes(debouncedRackSearch.toLowerCase())))
-            .map(r => ({ value: String(r.id), label: `${r.name} (${r.code})` }));
+            .filter((l: WarehouseLocation) => l.type === 'rack' && (l.name.toLowerCase().includes(debouncedRackSearch.toLowerCase()) || l.code.toLowerCase().includes(debouncedRackSearch.toLowerCase())))
+            .map((r: WarehouseLocation) => ({ value: String(r.id), label: `${r.name} (${r.code})` }));
     }, [state.allLocations, debouncedRackSearch]);
 
     const rackChildren = useMemo(() => {
         if (!state.selectedRack) return [];
         
         const getChildrenRecursive = (parentId: number): WarehouseLocation[] => {
-            const directChildren = state.allLocations.filter(l => l.parentId === parentId);
+            const directChildren = state.allLocations.filter((l: WarehouseLocation) => l.parentId === parentId);
             if (directChildren.length === 0) {
-                 const parentItself = state.allLocations.find(l => l.id === parentId);
+                 const parentItself = state.allLocations.find((l: WarehouseLocation) => l.id === parentId);
                  return parentItself ? [parentItself] : [];
             }
-            return directChildren.flatMap(child => getChildrenRecursive(child.id));
+            return directChildren.flatMap((child: WarehouseLocation) => getChildrenRecursive(child.id));
         };
 
         return getChildrenRecursive(state.selectedRack.id);
@@ -120,8 +120,8 @@ export const useLabelCenter = () => {
     const levelOptions = useMemo(() => {
         if (!state.selectedRack || !state.warehouseSettings?.locationLevels) return [];
         const levelType = state.warehouseSettings.locationLevels[3]?.type || 'shelf';
-        const children = state.allLocations.filter(l => l.parentId === state.selectedRack?.id && l.type === levelType);
-        return children.map(l => ({ value: String(l.id), label: l.name }));
+        const children = state.allLocations.filter((l: WarehouseLocation) => l.parentId === state.selectedRack?.id && l.type === levelType);
+        return children.map((l: WarehouseLocation) => ({ value: String(l.id), label: l.name }));
     }, [state.selectedRack, state.allLocations, state.warehouseSettings]);
     
     const positionOptions = useMemo(() => {
@@ -129,10 +129,10 @@ export const useLabelCenter = () => {
         const levelType = state.warehouseSettings.locationLevels[3]?.type || 'shelf';
         const positionType = state.warehouseSettings.locationLevels[4]?.type || 'bin';
         
-        const levels = state.allLocations.filter(l => l.parentId === state.selectedRack?.id && l.type === levelType);
-        const positions = levels.flatMap(level => state.allLocations.filter(l => l.parentId === level.id && l.type === positionType));
+        const levels = state.allLocations.filter((l: WarehouseLocation) => l.parentId === state.selectedRack?.id && l.type === levelType);
+        const positions = levels.flatMap((level: WarehouseLocation) => state.allLocations.filter((l: WarehouseLocation) => l.parentId === level.id && l.type === positionType));
         
-        const uniquePositionNames = Array.from(new Set(positions.map(p => p.name))).sort();
+        const uniquePositionNames = Array.from(new Set(positions.map((p: WarehouseLocation) => p.name))).sort();
 
         return uniquePositionNames.map(name => ({ value: name, label: name }));
     }, [state.selectedRack, state.allLocations, state.warehouseSettings]);
@@ -148,8 +148,8 @@ export const useLabelCenter = () => {
                 let current = l;
                 while (current.parentId) {
                     if (levelIdsAsNumbers.has(current.id)) return true;
-                    const parent = state.allLocations.find(p => p.id === current.parentId);
-                    if (!parent || parent.id === state.selectedRack.id) break;
+                    const parent = state.allLocations.find((p: WarehouseLocation) => p.id === current.parentId);
+                    if (!parent || !state.selectedRack || parent.id === state.selectedRack.id) break;
                     current = parent;
                 }
                 return false;
@@ -162,7 +162,7 @@ export const useLabelCenter = () => {
         }
 
         if (state.labelType === 'product_location') {
-            const assignedLocationIds = new Set(state.itemLocations.map(il => il.locationId));
+            const assignedLocationIds = new Set(state.itemLocations.map((il: ItemLocation) => il.locationId));
             return locationsToFilter.filter(l => assignedLocationIds.has(l.id));
         }
 
@@ -185,7 +185,7 @@ export const useLabelCenter = () => {
             
             let qrContent = String(location.id);
             if (state.labelType === 'product_location') {
-                const itemAssignment = state.itemLocations.find(il => il.locationId === location.id);
+                const itemAssignment = state.itemLocations.find((il: ItemLocation) => il.locationId === location.id);
                 if (itemAssignment) {
                     qrContent = `${location.id}>${itemAssignment.itemId}`;
                 }

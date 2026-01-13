@@ -269,11 +269,11 @@ export type ProductionOrder = {
   defectiveQuantity?: number;
   erpPackageNumber?: string;
   erpTicketNumber?: string;
-  erpOrderNumber?: string;
   reopened?: boolean;
   machineId?: string | null;
   shiftId?: string | null;
   previousStatus?: ProductionOrderStatus | null;
+  erpOrderNumber?: string;
 };
 
 export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified' | 'pendingAction'>> & {
