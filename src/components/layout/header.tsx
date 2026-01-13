@@ -21,7 +21,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, RefreshCw, Clock, DollarSign, Send, MessageSquare, PanelLeft } from "lucide-react";
+import { Loader2, RefreshCw, Clock, DollarSign, Send, MessageSquare, PanelLeft, Calculator } from "lucide-react";
+import { QuickCalculator } from "../dashboard/quick-calculator";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 interface HeaderProps {
   title: string;
@@ -141,6 +143,16 @@ function HeaderActions() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                        <Calculator className="h-5 w-5" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 mr-4 p-0">
+                    <QuickCalculator />
+                </PopoverContent>
+            </Popover>
             <NotificationBell />
             <UserNav />
              {(isSyncing || isRateRefreshing) && (

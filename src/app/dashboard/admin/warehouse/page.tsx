@@ -16,7 +16,7 @@ import { logError, logInfo } from '@/modules/core/lib/logger';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { getWarehouseSettings, saveWarehouseSettings, getLocations, addLocation, deleteLocation, updateLocation, addBulkLocations, getStockSettings, saveStockSettings } from '@/modules/warehouse/lib/actions';
-import { Save, PlusCircle, Trash2, Palette } from 'lucide-react';
+import { Save, PlusCircle, Trash2, Palette, Mail } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WarehouseSettings, StockSettings, Warehouse } from '@/modules/core/types';
 import { Separator } from '@/components/ui/separator';
@@ -24,6 +24,8 @@ import { useRouter } from 'next/navigation';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const defaultColors = [ '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#ff7300', '#0088fe', '#00c49f', '#ffbb28', '#F44336', '#9C27B0', '#3F51B5', '#009688' ];
 
@@ -124,7 +126,7 @@ export default function WarehouseSettingsPage() {
     if (isLoading || !warehouseSettings || !stockSettings) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
-                <div className="mx-auto max-w-2xl space-y-6">
+                <div className="mx-auto max-w-4xl space-y-6">
                     <Skeleton className="h-64 w-full" />
                     <Skeleton className="h-64 w-full" />
                 </div>
@@ -164,76 +166,105 @@ export default function WarehouseSettingsPage() {
                             </div>
                          </div>
                         <Separator />
-                        <div className="space-y-4 rounded-lg border p-4">
-                            <h3 className="font-semibold">Gestión de Bodegas (para desglose de stock ERP)</h3>
-                            <CardDescription className="mb-4">
-                                Define las bodegas que existen en tu ERP para que el sistema pueda mostrar el desglose de inventario correctamente. Asigna un color para una fácil identificación visual.
-                            </CardDescription>
-                            <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
-                            {stockSettings.warehouses.map(wh => (
-                                    <div key={wh.id} className="grid grid-cols-[1fr_auto] items-center gap-4 rounded-lg border p-3">
-                                        <div>
-                                            <p className="font-medium flex items-center gap-2">
-                                                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: wh.color }}></span>
-                                                {wh.name} (<span className="font-mono">{wh.id}</span>)
-                                            </p>
-                                            <div className="flex items-center gap-4 mt-2">
-                                                <div className="flex items-center space-x-2">
-                                                    <Checkbox id={`default-${wh.id}`} checked={wh.isDefault} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isDefault', checked)} />
-                                                    <Label htmlFor={`default-${wh.id}`} className="text-xs">Predeterm.</Label>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <Checkbox id={`visible-${wh.id}`} checked={wh.isVisible} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isVisible', checked)} />
-                                                    <Label htmlFor={`visible-${wh.id}`} className="text-xs">Visible</Label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                type="text"
-                                                value={wh.color}
-                                                onChange={(e) => handleWarehouseChange(wh.id, 'color', e.target.value)}
-                                                className="w-24 h-8"
-                                            />
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="outline" size="icon" className="h-8 w-8"><Palette className="h-4 w-4" /></Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-48 p-2">
-                                                    <div className="grid grid-cols-4 gap-2">
-                                                        {defaultColors.map(color => (
-                                                            <button
-                                                                key={color}
-                                                                className={cn("h-8 w-8 rounded-full border", color === wh.color && "ring-2 ring-ring")}
-                                                                style={{ backgroundColor: color }}
-                                                                onClick={() => handleWarehouseChange(wh.id, 'color', color)}
-                                                            />
-                                                        ))}
+                        <Accordion type="multiple" className="w-full space-y-6">
+                            <Card className="border-0 shadow-none">
+                                <AccordionItem value="warehouses" className="border-b-0">
+                                    <AccordionTrigger className="p-4 rounded-lg border hover:no-underline">
+                                        <h3 className="font-semibold">Gestión de Bodegas (para desglose de stock ERP)</h3>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="p-4 pt-4 border rounded-b-lg">
+                                        <CardDescription className="mb-4">
+                                            Define las bodegas que existen en tu ERP para que el sistema pueda mostrar el desglose de inventario correctamente. Asigna un color para una fácil identificación visual.
+                                        </CardDescription>
+                                        <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
+                                        {stockSettings.warehouses.map(wh => (
+                                                <div key={wh.id} className="grid grid-cols-[1fr_auto] items-center gap-4 rounded-lg border p-3">
+                                                    <div>
+                                                        <p className="font-medium flex items-center gap-2">
+                                                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: wh.color }}></span>
+                                                            {wh.name} (<span className="font-mono">{wh.id}</span>)
+                                                        </p>
+                                                        <div className="flex items-center gap-4 mt-2">
+                                                            <div className="flex items-center space-x-2">
+                                                                <Checkbox id={`default-${wh.id}`} checked={wh.isDefault} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isDefault', checked)} />
+                                                                <Label htmlFor={`default-${wh.id}`} className="text-xs">Predeterm.</Label>
+                                                            </div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <Checkbox id={`visible-${wh.id}`} checked={wh.isVisible} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isVisible', checked)} />
+                                                                <Label htmlFor={`visible-${wh.id}`} className="text-xs">Visible</Label>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </PopoverContent>
-                                            </Popover>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteWarehouse(wh.id)}>
-                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                                    <div className="flex items-center gap-2">
+                                                        <Input
+                                                            type="text"
+                                                            value={wh.color}
+                                                            onChange={(e) => handleWarehouseChange(wh.id, 'color', e.target.value)}
+                                                            className="w-24 h-8"
+                                                        />
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <Button variant="outline" size="icon" className="h-8 w-8"><Palette className="h-4 w-4" /></Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-48 p-2">
+                                                                <div className="grid grid-cols-4 gap-2">
+                                                                    {defaultColors.map(color => (
+                                                                        <button
+                                                                            key={color}
+                                                                            className={cn("h-8 w-8 rounded-full border", color === wh.color && "ring-2 ring-ring")}
+                                                                            style={{ backgroundColor: color }}
+                                                                            onClick={() => handleWarehouseChange(wh.id, 'color', color)}
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteWarehouse(wh.id)}>
+                                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <Separator />
+                                        <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 pt-4">
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="warehouse-id">ID Bodega (desde ERP)</Label>
+                                                <Input id="warehouse-id" value={newWarehouse.id} onChange={(e) => setNewWarehouse(prev => ({ ...prev, id: e.target.value }))} placeholder="Ej: 01" />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="warehouse-name">Nombre Bodega</Label>
+                                                <Input id="warehouse-name" value={newWarehouse.name} onChange={(e) => setNewWarehouse(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Bodega Principal" />
+                                            </div>
+                                            <Button size="icon" onClick={handleAddWarehouse}>
+                                                <PlusCircle className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <Separator />
-                            <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 pt-2">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="warehouse-id">ID Bodega (desde ERP)</Label>
-                                    <Input id="warehouse-id" value={newWarehouse.id} onChange={(e) => setNewWarehouse(prev => ({ ...prev, id: e.target.value }))} placeholder="Ej: 01" />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="warehouse-name">Nombre Bodega</Label>
-                                    <Input id="warehouse-name" value={newWarehouse.name} onChange={(e) => setNewWarehouse(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Bodega Principal" />
-                                </div>
-                                <Button size="icon" onClick={handleAddWarehouse}>
-                                    <PlusCircle className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Card>
+                             <Card className="border-0 shadow-none">
+                                <AccordionItem value="notifications" className="border-b-0">
+                                     <AccordionTrigger className="p-4 rounded-lg border hover:no-underline">
+                                        <h3 className="font-semibold">Notificaciones Automáticas de Despacho</h3>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="p-4 pt-4 border rounded-b-lg">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="dispatch-notification-emails">Correos para Notificación de Despacho</Label>
+                                            <Textarea
+                                                id="dispatch-notification-emails"
+                                                value={warehouseSettings.dispatchNotificationEmails || ''}
+                                                onChange={(e) => setWarehouseSettings(prev => prev ? { ...prev, dispatchNotificationEmails: e.target.value } : null)}
+                                                placeholder="ejemplo@correo.com, otro@correo.com"
+                                            />
+                                            <p className="text-sm text-muted-foreground">
+                                                Ingresa una lista de correos separados por comas. Cada vez que un despacho sea finalizado, se enviará una copia del comprobante a estas direcciones.
+                                            </p>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                             </Card>
+                        </Accordion>
                     </CardContent>
                     <CardFooter>
                          <Button onClick={handleSaveAllSettings}><Save className="mr-2"/> Guardar Configuración</Button>
