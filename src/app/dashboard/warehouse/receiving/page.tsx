@@ -38,6 +38,7 @@ export default function ReceivingWizardPage() {
         quantity,
         humanReadableId,
         documentId,
+        erpDocumentId,
         saveAsDefault,
     } = state;
 
@@ -151,9 +152,13 @@ export default function ReceivingWizardPage() {
                                     <Label htmlFor="humanReadableId">Nº Lote / ID Físico (Opcional)</Label>
                                     <Input id="humanReadableId" value={humanReadableId} onChange={e => actions.setHumanReadableId(e.target.value)} placeholder="Ej: LOTE-A123" />
                                 </div>
-                                 <div className="space-y-2 col-span-2">
+                                 <div className="space-y-2">
                                     <Label htmlFor="documentId">Documento (Boleta, etc. Opcional)</Label>
                                     <Input id="documentId" value={documentId} onChange={e => actions.setDocumentId(e.target.value)} placeholder="Ej: Boleta de entrega #5543" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="erpDocumentId">Documento ERP (Opcional)</Label>
+                                    <Input id="erpDocumentId" value={erpDocumentId} onChange={e => actions.setErpDocumentId(e.target.value)} placeholder="Ej: ENTR-12345" />
                                 </div>
                             </div>
                              {step === 'confirm_new' && (

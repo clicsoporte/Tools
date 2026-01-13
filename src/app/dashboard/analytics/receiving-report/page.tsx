@@ -130,6 +130,7 @@ export default function ReceivingReportPage() {
                                             {visibleColumns.includes('humanReadableId') && <TableCell className="font-mono">{item.humanReadableId || 'N/A'}</TableCell>}
                                             {visibleColumns.includes('unitCode') && <TableCell className="font-mono text-xs">{item.unitCode}</TableCell>}
                                             {visibleColumns.includes('documentId') && <TableCell>{item.documentId || 'N/A'}</TableCell>}
+                                            {visibleColumns.includes('erpDocumentId') && <TableCell>{item.erpDocumentId || 'N/A'}</TableCell>}
                                             {visibleColumns.includes('locationPath') && <TableCell className="text-xs">{selectors.getLocationPath(item.locationId)}</TableCell>}
                                             {visibleColumns.includes('quantity') && <TableCell className="font-bold">{item.quantity}</TableCell>}
                                             {visibleColumns.includes('createdBy') && <TableCell>{item.createdBy}</TableCell>}

@@ -30,6 +30,7 @@ const availableColumns = [
     { id: 'humanReadableId', label: 'Nº Lote / ID' },
     { id: 'unitCode', label: 'ID Unidad' },
     { id: 'documentId', label: 'Documento' },
+    { id: 'erpDocumentId', label: 'Documento ERP' },
     { id: 'locationPath', label: 'Ubicación' },
     { id: 'quantity', label: 'Cantidad' },
     { id: 'createdBy', label: 'Usuario' },
@@ -139,6 +140,7 @@ export function useReceivingReport() {
                     normalizeText(product?.description).includes(searchLower) ||
                     normalizeText(item.humanReadableId).includes(searchLower) ||
                     normalizeText(item.documentId).includes(searchLower) ||
+                    normalizeText(item.erpDocumentId).includes(searchLower) ||
                     normalizeText(item.unitCode).includes(searchLower)
                 );
             });
@@ -206,6 +208,7 @@ export function useReceivingReport() {
                     case 'humanReadableId': return item.humanReadableId || 'N/A';
                     case 'unitCode': return item.unitCode;
                     case 'documentId': return item.documentId || 'N/A';
+                    case 'erpDocumentId': return item.erpDocumentId || 'N/A';
                     case 'locationPath': return getLocationPath(item.locationId);
                     case 'quantity': return (item as any).quantity ?? 1;
                     case 'createdBy': return item.createdBy;
@@ -234,6 +237,7 @@ export function useReceivingReport() {
                     case 'humanReadableId': cellValue = item.humanReadableId || 'N/A'; break;
                     case 'unitCode': cellValue = item.unitCode || 'N/A'; break;
                     case 'documentId': cellValue = item.documentId || 'N/A'; break;
+                    case 'erpDocumentId': cellValue = item.erpDocumentId || 'N/A'; break;
                     case 'locationPath': cellValue = getLocationPath(item.locationId); break;
                     case 'quantity': return String((item as any).quantity ?? 1);
                     case 'createdBy': cellValue = item.createdBy; break;

@@ -174,8 +174,14 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
 
         const configTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='warehouse_config'`).get();
         if (configTable) {
-            const configTableInfo = db.prepare(`PRAGMA table_info(warehouse_config)`).all() as { name: string }[];
-            // No column migrations for this table yet, but prepared for the future.
+             const settingsRow = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string } | undefined;
+             if (settingsRow) {
+                 const settings = JSON.parse(settingsRow.value);
+                 if (settings.dispatchNotificationEmails === undefined) {
+                     settings.dispatchNotificationEmails = '';
+                     db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(settings));
+                 }
+             }
         }
 
     } catch (error) {
