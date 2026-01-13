@@ -152,7 +152,7 @@ export function QuickCalculator() {
   const buttonClass = "h-16 text-xl";
 
   return (
-    <div className="grid grid-cols-4 gap-1 p-2">
+    <div className="grid grid-cols-4 gap-1">
         <div className="col-span-4 bg-muted h-20 rounded-md flex flex-col justify-around items-end p-4 overflow-hidden">
             <div className="text-muted-foreground text-sm h-6 self-end w-full truncate text-right">
             {previousOperand} {operation}

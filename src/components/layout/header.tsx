@@ -149,7 +149,7 @@ function HeaderActions() {
                         <Calculator className="h-5 w-5" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 mr-4 p-0">
+                <PopoverContent className="w-80 mr-4 p-1">
                     <QuickCalculator />
                 </PopoverContent>
             </Popover>
