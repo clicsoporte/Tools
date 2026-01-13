@@ -209,15 +209,6 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
         // Always run migrations on an existing DB to check for updates.
         await runMigrations(dbModule, db);
     }
-
-    try {
-        db.pragma('journal_mode = WAL');
-    } catch(error: any) {
-        console.error(`Could not set PRAGMA on ${dbFile}.`, error);
-        if (error.code !== 'SQLITE_CORRUPT') {
-            await logError(`Failed to set PRAGMA on ${dbFile}`, { error: (error as Error).message });
-        }
-    }
     
     dbConnections.set(dbFile, db);
     return db;
@@ -228,19 +219,17 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
  * Forces a WAL (Write-Ahead Logging) checkpoint on all active database connections.
  * This function consolidates data from the temporary '-wal' file into the main '.db' file,
  * which is crucial for long-running server environments where connections are not frequently closed.
+ * It now logs the success or failure of the operation.
  */
 export async function runWalCheckpoint() {
-    console.log('Running WAL checkpoint...');
+    console.log('Attempting to run WAL checkpoint for all databases...');
     for (const dbModule of DB_MODULES) {
         try {
-            // Ensure the DB is connected before trying to run a command on it.
             const db = await connectDb(dbModule.dbFile);
-            // TRUNCATE is the most aggressive mode, ensuring the WAL file is reset.
             db.pragma('wal_checkpoint(TRUNCATE)');
-            console.log(`✅ WAL checkpoint successful for ${dbModule.dbFile}`);
+            await logInfo(`Punto de control WAL ejecutado con éxito para ${dbModule.dbFile}`);
         } catch (error: any) {
-            // Log error but don't throw, as one failing checkpoint shouldn't stop others.
-            logError(`Failed to run WAL checkpoint for ${dbModule.dbFile}`, { error: error.message });
+            await logError(`Fallo al ejecutar punto de control WAL para ${dbModule.dbFile}`, { error: error.message });
             console.error(`Failed to run WAL checkpoint for ${dbModule.dbFile}`, error);
         }
     }
