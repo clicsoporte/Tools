@@ -1280,18 +1280,35 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
     if (!fs.existsSync(backupDir)) return [];
     const files = fs.readdirSync(backupDir);
     const backupInfo = files.map(file => {
+        // Robust parsing for filenames with or without version
         const parts = file.split('_');
-        const date = parts[0];
-        const version = parts[1]?.startsWith('v') ? parts[1].substring(1) : 'unknown';
-        const dbFile = version !== 'unknown' ? parts.slice(2).join('_') : parts.slice(1).join('_');
+        let datePart: string, versionPart: string, dbFilePart: string;
+
+        datePart = parts[0];
         
-        const dbModule = DB_MODULES.find(m => m.dbFile === dbFile);
+        // This is a more robust way to handle timestamps that might contain hyphens
+        // It replaces hyphens with colons only in the time part of the ISO string.
+        if (datePart.includes('T')) {
+            const [date, time] = datePart.split('T');
+            const correctedTime = time.replace(/-/g, ':');
+            datePart = `${date}T${correctedTime}`;
+        }
+        
+        if (parts[1]?.startsWith('v')) {
+            versionPart = parts[1].substring(1);
+            dbFilePart = parts.slice(2).join('_');
+        } else {
+            versionPart = 'unknown';
+            dbFilePart = parts.slice(1).join('_');
+        }
+        
+        const dbModule = DB_MODULES.find(m => m.dbFile === dbFilePart);
         return {
             moduleId: dbModule?.id || 'unknown',
             moduleName: dbModule?.name || 'Base de Datos Desconocida',
             fileName: file,
-            date: date,
-            version: version
+            date: datePart, // Use the corrected, valid ISO string
+            version: versionPart
         };
     }).sort((a, b) => b.date.localeCompare(a.date));
     return JSON.parse(JSON.stringify(backupInfo));
@@ -1360,7 +1377,7 @@ export async function deleteOldUpdateBackups(): Promise<number> {
     const timestampsToDelete = uniqueTimestamps.slice(1);
     let deletedCount = 0;
     for (const timestamp of timestampsToDelete) {
-        const filesToDelete = fs.readdirSync(backupDir).filter(file => file.startsWith(timestamp));
+        const filesToDelete = fs.readdirSync(backupDir).filter(file => file.startsWith(timestamp.replace(/:/g, '-')));
         for (const file of filesToDelete) {
             fs.unlinkSync(path.join(backupDir, file));
             deletedCount++;
