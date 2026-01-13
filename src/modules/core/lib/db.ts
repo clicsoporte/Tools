@@ -92,7 +92,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE IF NOT EXISTS erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT, TOTAL_UNIDADES REAL, MONEDA_PEDIDO TEXT, USUARIO TEXT);
         CREATE TABLE IF NOT EXISTS erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));
         CREATE TABLE IF NOT EXISTS erp_purchase_order_headers (ORDEN_COMPRA TEXT PRIMARY KEY, PROVEEDOR TEXT, FECHA_HORA TEXT, ESTADO TEXT, CreatedBy TEXT);
-        CREATE TABLE IF NOT EXISTS erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY(ORDEN_COMPRA, ARTICULO));
+        CREATE TABLE IF NOT EXISTS erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY (ORDEN_COMPRA, ARTICULO));
         CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);
     `;
     db.exec(schema);
@@ -212,6 +212,9 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
 
     try {
         db.pragma('journal_mode = WAL');
+        // This is the fix. It forces a checkpoint to consolidate the WAL file into the main DB.
+        // TRUNCATE is the most aggressive mode, ensuring the WAL file is reset.
+        db.pragma('wal_checkpoint(TRUNCATE)');
     } catch(error: any) {
         console.error(`Could not set PRAGMA on ${dbFile}.`, error);
         if (error.code !== 'SQLITE_CORRUPT') {
