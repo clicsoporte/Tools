@@ -8,10 +8,11 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getLocations, getAllItemLocations, getWarehouseSettings } from '@/modules/warehouse/lib/actions';
-import type { WarehouseLocation, ItemLocation, WarehouseSettings } from '@/modules/core/types';
+import type { WarehouseLocation, ItemLocation, WarehouseSettings, Product } from '@/modules/core/types';
 import { useDebounce } from 'use-debounce';
 import jsPDF from "jspdf";
 import QRCode from 'qrcode';
+import { useAuth } from '@/modules/core/hooks/useAuth';
 
 type LabelType = 'location' | 'product_location';
 
@@ -46,6 +47,7 @@ const renderLocationPathAsString = (locationId: number, locations: WarehouseLoca
 export const useLabelCenter = () => {
     const { isAuthorized } = useAuthorization(['warehouse:labels:generate']);
     const { toast } = useToast();
+    const { products } = useAuth();
 
     const [state, setState] = useState<State>({
         isLoading: true,
@@ -176,39 +178,62 @@ export const useLabelCenter = () => {
         }
         updateState({ isSubmitting: true });
         
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 2] });
-        doc.deletePage(1); // Start with a blank slate
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+        doc.deletePage(1);
 
         for (const location of filteredLocations) {
             doc.addPage();
             const locationPath = renderLocationPathAsString(location.id, state.allLocations);
             
             let qrContent = String(location.id);
+            let mainText = location.code;
+            let secondaryText = locationPath;
+            let footerText = ``;
+
             if (state.labelType === 'product_location') {
                 const itemAssignment = state.itemLocations.find((il: ItemLocation) => il.locationId === location.id);
                 if (itemAssignment) {
                     qrContent = `${location.id}>${itemAssignment.itemId}`;
+                    const product = products.find(p => p.id === itemAssignment.itemId);
+                    mainText = product?.id || 'N/A';
+                    secondaryText = product?.description || 'Producto no encontrado';
+                    footerText = locationPath;
+                } else {
+                    // Skip this label if no product is assigned in this mode
+                    continue; 
                 }
             }
 
             try {
-                const qrCodeDataUrl = await QRCode.toDataURL(qrContent, { errorCorrectionLevel: 'M', width: 150 });
-                doc.addImage(qrCodeDataUrl, 'PNG', 0.2, 0.25, 1.5, 1.5);
+                const qrCodeDataUrl = await QRCode.toDataURL(qrContent, { errorCorrectionLevel: 'M', width: 200 });
+                doc.addImage(qrCodeDataUrl, 'PNG', 40, 40, 150, 150);
 
-                doc.setFontSize(24).setFont('Helvetica', 'bold');
-                const pathLines = doc.splitTextToSize(locationPath, 2);
-                doc.text(pathLines, 1.9, 0.6);
-                
-                doc.setFontSize(10).setFont('Helvetica', 'normal');
-                doc.text(`Código: ${location.code}`, 1.9, 1.6);
-                doc.text(`Tipo: ${location.type}`, 1.9, 1.75);
+                doc.setFontSize(150).setFont('Helvetica', 'bold');
+                const mainTextLines = doc.splitTextToSize(mainText, doc.internal.pageSize.getWidth() - 240);
+                doc.text(mainTextLines, 220, 150);
+
+                doc.setFontSize(40).setFont('Helvetica', 'normal');
+                const secondaryTextLines = doc.splitTextToSize(secondaryText, doc.internal.pageSize.getWidth() - 240);
+                doc.text(secondaryTextLines, 220, 200 + (mainTextLines.length - 1) * 100);
+
+                if (footerText) {
+                    doc.setFontSize(28).setFont('Helvetica', 'normal');
+                    const footerLines = doc.splitTextToSize(footerText, doc.internal.pageSize.getWidth() - 80);
+                    doc.text(footerLines, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 80, { align: 'center' });
+                }
                 
             } catch (err: any) {
                 logError('PDF Generation Error', { error: err.message, locationId: location.id });
             }
         }
         
-        doc.save(`etiquetas_almacen_${Date.now()}.pdf`);
+        // If all pages were skipped (e.g. no products assigned), don't save an empty doc
+        if (doc.getNumberOfPages() > 0) {
+            doc.save(`etiquetas_almacen_${Date.now()}.pdf`);
+        } else {
+            toast({ title: 'Sin Etiquetas', description: 'No se encontraron productos asignados para las ubicaciones filtradas.', variant: 'destructive'});
+        }
+
         updateState({ isSubmitting: false });
     };
 
