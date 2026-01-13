@@ -3,17 +3,15 @@
  */
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getLocations, getChildLocations, getAllItemLocations } from '@/modules/warehouse/lib/actions';
-import type { WarehouseLocation, ItemLocation } from '@/modules/core/types';
-import { useAuth } from '@/modules/core/hooks/useAuth';
+import { getLocations, getAllItemLocations, getWarehouseSettings } from '@/modules/warehouse/lib/actions';
+import type { WarehouseLocation, ItemLocation, WarehouseSettings } from '@/modules/core/types';
 import { useDebounce } from 'use-debounce';
 import jsPDF from "jspdf";
 import QRCode from 'qrcode';
-import { format } from 'date-fns';
 
 type LabelType = 'location' | 'product_location';
 
@@ -22,6 +20,7 @@ interface State {
     isSubmitting: boolean;
     allLocations: WarehouseLocation[];
     itemLocations: ItemLocation[];
+    warehouseSettings: WarehouseSettings | null;
     selectedRack: WarehouseLocation | null;
     levelFilter: string[];
     positionFilter: string[];
@@ -47,13 +46,13 @@ const renderLocationPathAsString = (locationId: number, locations: WarehouseLoca
 export const useLabelCenter = () => {
     const { isAuthorized } = useAuthorization(['warehouse:labels:generate']);
     const { toast } = useToast();
-    const { companyData } = useAuth();
 
     const [state, setState] = useState<State>({
         isLoading: true,
         isSubmitting: false,
         allLocations: [],
         itemLocations: [],
+        warehouseSettings: null,
         selectedRack: null,
         levelFilter: [],
         positionFilter: [],
@@ -72,8 +71,8 @@ export const useLabelCenter = () => {
         const loadData = async () => {
             if (!isAuthorized) return;
             try {
-                const [locs, itemLocs] = await Promise.all([getLocations(), getAllItemLocations()]);
-                updateState({ allLocations: locs, itemLocations: itemLocs, isLoading: false });
+                const [locs, itemLocs, settings] = await Promise.all([getLocations(), getAllItemLocations(), getWarehouseSettings()]);
+                updateState({ allLocations: locs, itemLocations: itemLocs, warehouseSettings: settings, isLoading: false });
             } catch (error: any) {
                 logError("Failed to load data for label center", { error: error.message });
                 toast({ title: "Error de Carga", variant: "destructive" });
@@ -119,16 +118,16 @@ export const useLabelCenter = () => {
     }, [state.selectedRack, state.allLocations]);
 
     const levelOptions = useMemo(() => {
-        if (!state.selectedRack || !companyData?.locationLevels) return [];
-        const levelType = companyData.locationLevels[3]?.type || 'shelf';
+        if (!state.selectedRack || !state.warehouseSettings?.locationLevels) return [];
+        const levelType = state.warehouseSettings.locationLevels[3]?.type || 'shelf';
         const children = state.allLocations.filter(l => l.parentId === state.selectedRack?.id && l.type === levelType);
         return children.map(l => ({ value: String(l.id), label: l.name }));
-    }, [state.selectedRack, state.allLocations, companyData]);
+    }, [state.selectedRack, state.allLocations, state.warehouseSettings]);
     
     const positionOptions = useMemo(() => {
-        if (!state.selectedRack || !companyData?.locationLevels) return [];
-        const levelType = companyData.locationLevels[3]?.type || 'shelf';
-        const positionType = companyData.locationLevels[4]?.type || 'bin';
+        if (!state.selectedRack || !state.warehouseSettings?.locationLevels) return [];
+        const levelType = state.warehouseSettings.locationLevels[3]?.type || 'shelf';
+        const positionType = state.warehouseSettings.locationLevels[4]?.type || 'bin';
         
         const levels = state.allLocations.filter(l => l.parentId === state.selectedRack?.id && l.type === levelType);
         const positions = levels.flatMap(level => state.allLocations.filter(l => l.parentId === level.id && l.type === positionType));
@@ -136,7 +135,7 @@ export const useLabelCenter = () => {
         const uniquePositionNames = Array.from(new Set(positions.map(p => p.name))).sort();
 
         return uniquePositionNames.map(name => ({ value: name, label: name }));
-    }, [state.selectedRack, state.allLocations, companyData]);
+    }, [state.selectedRack, state.allLocations, state.warehouseSettings]);
 
     const filteredLocations = useMemo(() => {
         if (!state.selectedRack) return [];
@@ -148,9 +147,7 @@ export const useLabelCenter = () => {
             locationsToFilter = locationsToFilter.filter(l => {
                 let current = l;
                 while (current.parentId) {
-                    if (current.parentId === state.selectedRack?.id) {
-                        return levelIdsAsNumbers.has(current.id);
-                    }
+                    if (levelIdsAsNumbers.has(current.id)) return true;
                     const parent = state.allLocations.find(p => p.id === current.parentId);
                     if (!parent || parent.id === state.selectedRack.id) break;
                     current = parent;

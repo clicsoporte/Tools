@@ -14,8 +14,8 @@ type State = {
 };
 
 type Action =
-  | { type: 'add-digit'; payload: string }
-  | { type: 'choose-operation'; payload: string }
+  | { type: 'add-digit'; payload: { digit: string } }
+  | { type: 'choose-operation'; payload: { operation: string } }
   | { type: 'clear' }
   | { type: 'delete-digit' }
   | { type: 'evaluate' };
@@ -25,10 +25,10 @@ const INTEGER_FORMATTER = new Intl.NumberFormat("es-CR", {
 });
 
 function formatOperand(operand: string | null) {
-  if (operand == null || operand === "") return "0"; // <-- CORRECCIÓN: Devolver "0" si está vacío.
+  if (operand == null || operand === "") return "0"; 
   const [integer, decimal] = operand.split(".");
   if (decimal == null) {
-    if(integer === "") return "0"; // Evita NaN si solo hay un punto.
+    if(integer === "") return "0"; 
     return INTEGER_FORMATTER.format(parseInt(integer));
   }
   return `${INTEGER_FORMATTER.format(parseInt(integer))}.${decimal}`;
@@ -49,33 +49,33 @@ function evaluate({ currentOperand, previousOperand, operation }: State): string
     return computation.toString();
 }
 
-function reducer(state: State, { type, payload }: Action): State {
-    switch (type) {
+function reducer(state: State, action: Action): State {
+    switch (action.type) {
         case 'add-digit':
             if (state.overwrite) {
-                return { ...state, currentOperand: payload, overwrite: false };
+                return { ...state, currentOperand: action.payload.digit, overwrite: false };
             }
-            if (payload === "0" && state.currentOperand === "0") return state;
-            if (payload === "." && state.currentOperand.includes(".")) return state;
-            return { ...state, currentOperand: `${state.currentOperand || ""}${payload}` };
+            if (action.payload.digit === "0" && state.currentOperand === "0") return state;
+            if (action.payload.digit === "." && state.currentOperand.includes(".")) return state;
+            return { ...state, currentOperand: `${state.currentOperand || ""}${action.payload.digit}` };
         
         case 'choose-operation':
             if (state.currentOperand === "" && state.previousOperand == null) return state;
             if (state.previousOperand == null) {
                 return {
                     ...state,
-                    operation: payload,
+                    operation: action.payload.operation,
                     previousOperand: state.currentOperand,
                     currentOperand: "",
                 };
             }
             if (state.currentOperand === "") {
-                return { ...state, operation: payload };
+                return { ...state, operation: action.payload.operation };
             }
             return {
                 ...state,
                 previousOperand: evaluate(state),
-                operation: payload,
+                operation: action.payload.operation,
                 currentOperand: "",
             };
 
@@ -108,7 +108,7 @@ export function QuickCalculator() {
     return (
         <div className="grid grid-cols-4 gap-1 p-2 bg-popover rounded-lg shadow-lg">
             <div className="col-span-4 bg-muted h-20 rounded-md flex flex-col justify-around items-end p-4 overflow-hidden">
-                <div className="text-muted-foreground text-sm">
+                <div className="text-muted-foreground text-sm h-6">
                     {previousOperand} {operation}
                 </div>
                 <div className="text-foreground text-3xl font-bold">
@@ -117,25 +117,25 @@ export function QuickCalculator() {
             </div>
             
             <Button variant="destructive" className="col-span-2 h-16 text-xl" onClick={() => dispatch({ type: 'clear' })}>AC</Button>
-            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'choose-operation', payload: '*' })} >×</Button>
-            <Button variant="secondary" className="h-16 text-xl" onClick={() => dispatch({ type: 'choose-operation', payload: '/' })} >/</Button>
+            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'choose-operation', payload: { operation: '*' } })} >×</Button>
+            <Button variant="secondary" className="h-16 text-xl" onClick={() => dispatch({ type: 'choose-operation', payload: { operation: '/' } })} >/</Button>
             
-            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: '7' })}>7</Button>
-            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: '8' })}>8</Button>
-            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: '9' })}>9</Button>
-            <Button variant="secondary" className="h-16 text-xl" onClick={() => dispatch({ type: 'choose-operation', payload: '-' })}>-</Button>
+            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '7' } })}>7</Button>
+            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '8' } })}>8</Button>
+            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '9' } })}>9</Button>
+            <Button variant="secondary" className="h-16 text-xl" onClick={() => dispatch({ type: 'choose-operation', payload: { operation: '-' } })}>-</Button>
             
-            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: '4' })}>4</Button>
-            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: '5' })}>5</Button>
-            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: '6' })}>6</Button>
-            <Button variant="secondary" className="h-16 text-xl" onClick={() => dispatch({ type: 'choose-operation', payload: '+' })}>+</Button>
+            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '4' } })}>4</Button>
+            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '5' } })}>5</Button>
+            <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '6' } })}>6</Button>
+            <Button variant="secondary" className="h-16 text-xl" onClick={() => dispatch({ type: 'choose-operation', payload: { operation: '+' } })}>+</Button>
 
             <div className="col-span-3 grid grid-cols-3 gap-1">
-                <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: '1' })}>1</Button>
-                <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: '2' })}>2</Button>
-                <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: '3' })}>3</Button>
-                <Button variant="outline" className="h-16 text-xl col-span-2" onClick={() => dispatch({ type: 'add-digit', payload: '0' })}>0</Button>
-                <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: '.' })}>.</Button>
+                <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '1' } })}>1</Button>
+                <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '2' } })}>2</Button>
+                <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '3' } })}>3</Button>
+                <Button variant="outline" className="h-16 text-xl col-span-2" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '0' } })}>0</Button>
+                <Button variant="outline" className="h-16 text-xl" onClick={() => dispatch({ type: 'add-digit', payload: { digit: '.' } })}>.</Button>
             </div>
             <Button variant="secondary" className="row-span-2 h-full text-2xl" onClick={() => dispatch({ type: 'evaluate' })}>=</Button>
         </div>

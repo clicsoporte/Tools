@@ -474,6 +474,7 @@ export type WarehouseSettings = {
     locationLevels: WarehouseLocationLevel[];
     unitPrefix: string;
     nextUnitNumber: number;
+    dispatchNotificationEmails?: string;
 };
 
 export type WarehouseLocation = {

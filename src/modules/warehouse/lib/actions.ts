@@ -30,6 +30,7 @@ import {
     releaseLock as releaseLockServer,
     forceReleaseLock as forceReleaseLockServer,
     getChildLocations as getChildLocationsServer,
+    correctInventoryUnit as correctInventoryUnitServer,
 } from './db';
 import { getStockSettings as getStockSettingsDb, saveStockSettings as saveStockSettingsDb } from '@/modules/core/lib/db';
 import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User } from '@/modules/core/types';
@@ -103,6 +104,8 @@ export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'created
 export const getInventoryUnits = async (): Promise<InventoryUnit[]> => getInventoryUnitsServer();
 export const deleteInventoryUnit = async (id: number): Promise<void> => deleteInventoryUnitServer(id);
 export const getInventoryUnitById = async (id: string | number): Promise<InventoryUnit | null> => getInventoryUnitByIdServer(id);
+export const correctInventoryUnit = async (payload: { unitId: number; newProductId: string; userId: number; userName: string; }): Promise<void> => correctInventoryUnitServer(payload);
+
 
 // --- Wizard Lock Actions ---
 export const getActiveLocks = async (): Promise<WarehouseLocation[]> => getActiveLocksServer();

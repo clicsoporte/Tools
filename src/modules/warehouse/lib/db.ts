@@ -170,6 +170,11 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
             if (!unitsTableInfo.some(c => c.name === 'quantity')) db.exec('ALTER TABLE inventory_units ADD COLUMN quantity REAL DEFAULT 1');
         }
 
+        const configTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='warehouse_config'`).get();
+        if (configTable) {
+            const configTableInfo = db.prepare(`PRAGMA table_info(warehouse_config)`).all() as { name: string }[];
+            // No column migrations for this table yet, but prepared for the future.
+        }
 
     } catch (error) {
         console.error("Error during warehouse migrations:", error);
@@ -190,6 +195,7 @@ export async function getWarehouseSettings(): Promise<WarehouseSettings> {
         ],
         unitPrefix: 'U',
         nextUnitNumber: 1,
+        dispatchNotificationEmails: '',
     };
     try {
         const row = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string } | undefined;
@@ -572,9 +578,11 @@ export async function getInventoryUnitById(id: string | number): Promise<Invento
     
     let unit: InventoryUnit | null | undefined;
     
-    if (searchTerm.startsWith('U')) {
-        unit = db.prepare('SELECT * FROM inventory_units WHERE UPPER(unitCode) = ?').get(searchTerm) as InventoryUnit | undefined;
-    } else {
+    // First, try to find by the unique unitCode (e.g., 'U00001') or human-readable ID
+    unit = db.prepare('SELECT * FROM inventory_units WHERE UPPER(unitCode) = ? OR UPPER(humanReadableId) = ?').get(searchTerm, searchTerm) as InventoryUnit | undefined;
+
+    // If not found and the ID is numeric, try searching by the primary key
+    if (!unit && !isNaN(Number(id))) {
         unit = db.prepare('SELECT * FROM inventory_units WHERE id = ?').get(id) as InventoryUnit | undefined;
     }
     return unit ? JSON.parse(JSON.stringify(unit)) : null;
@@ -661,4 +669,52 @@ export async function getChildLocations(parentIds: number[]): Promise<WarehouseL
     // De-duplicate in case of complex structures
     const uniqueChildren = Array.from(new Map(allChildren.map(item => [item.id, item])).values());
     return JSON.parse(JSON.stringify(uniqueChildren));
+}
+
+export async function correctInventoryUnit(payload: { unitId: number; newProductId: string; userId: number; userName: string; }): Promise<void> {
+    const { unitId, newProductId, userId, userName } = payload;
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+
+    const transaction = db.transaction(() => {
+        const unit = db.prepare('SELECT * FROM inventory_units WHERE id = ?').get(unitId) as InventoryUnit | undefined;
+        if (!unit) {
+            throw new Error("La unidad de inventario a corregir no existe.");
+        }
+        if (unit.productId === newProductId) {
+             throw new Error("El nuevo producto es el mismo que el original.");
+        }
+
+        // 1. Anular la unidad original (poniendo cantidad en 0 para mantener el histórico del código)
+        db.prepare('UPDATE inventory_units SET quantity = 0, notes = ? WHERE id = ?').run(`CORREGIDO. Reemplazado por ${newProductId}. Anulado por ${userName}. Nota original: ${unit.notes || ''}`, unitId);
+
+        // 2. Registrar movimiento de SALIDA del producto incorrecto
+        db.prepare(
+            'INSERT INTO movements (itemId, quantity, fromLocationId, toLocationId, timestamp, userId, notes) VALUES (?, ?, ?, ?, datetime(\'now\'), ?, ?)'
+        ).run(unit.productId, -unit.quantity, unit.locationId, null, userId, `Corrección de ingreso. Salida de unidad ${unit.unitCode}.`);
+
+        // 3. Crear NUEVA unidad de inventario con el producto correcto
+        const settings = db.prepare("SELECT value FROM warehouse_config WHERE key = 'settings'").get() as { value: string };
+        const parsedSettings: WarehouseSettings = JSON.parse(settings.value);
+        const newUnitCode = `${parsedSettings.unitPrefix || 'U'}${(parsedSettings.nextUnitNumber || 1).toString().padStart(5, '0')}`;
+
+        const newUnitInfo = db.prepare(
+            'INSERT INTO inventory_units (unitCode, productId, humanReadableId, documentId, locationId, quantity, notes, createdAt, createdBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).run(newUnitCode, newProductId, unit.humanReadableId, unit.documentId, unit.locationId, unit.quantity, `CORRECCIÓN desde ${unit.unitCode}. Nota original: ${unit.notes || ''}`, unit.createdAt, userName);
+        
+        db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify({ ...parsedSettings, nextUnitNumber: (parsedSettings.nextUnitNumber || 1) + 1 }));
+
+        // 4. Registrar movimiento de ENTRADA para el producto correcto
+        db.prepare(
+            'INSERT INTO movements (itemId, quantity, fromLocationId, toLocationId, timestamp, userId, notes) VALUES (?, ?, ?, ?, datetime(\'now\'), ?, ?)'
+        ).run(newProductId, unit.quantity, null, unit.locationId, userId, `Corrección de ingreso. Nueva unidad ${newUnitCode}.`);
+
+        logInfo('Inventory unit corrected successfully', { oldUnit: unit, newProductId, newUnitCode, user: userName });
+    });
+
+    try {
+        transaction();
+    } catch (error: any) {
+        logError('Failed to correct inventory unit', { error: error.message, payload });
+        throw error;
+    }
 }

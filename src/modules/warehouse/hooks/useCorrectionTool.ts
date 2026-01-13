@@ -7,8 +7,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getInventoryUnitById, correctInventoryUnit } from '@/modules/warehouse/lib/actions';
-import type { InventoryUnit, Product } from '@/modules/core/types';
+import { getInventoryUnitById, correctInventoryUnit, getLocations } from '@/modules/warehouse/lib/actions';
+import type { InventoryUnit, Product, WarehouseLocation } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 
@@ -25,7 +25,21 @@ interface State {
     newSelectedProduct: Product | null;
     confirmStep: number;
     confirmText: string;
+    allLocations: WarehouseLocation[];
 }
+
+const renderLocationPathAsString = (locationId: number | null, locations: WarehouseLocation[]): string => {
+    if (!locationId) return 'N/A';
+    const path: WarehouseLocation[] = [];
+    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
+    while (current) {
+        path.unshift(current);
+        const parentId = current.parentId;
+        if (!parentId) break;
+        current = locations.find(l => l.id === parentId);
+    }
+    return path.map(l => l.name).join(' > ');
+};
 
 export const useCorrectionTool = () => {
     const { isAuthorized } = useAuthorization(['warehouse:correction:execute']);
@@ -33,7 +47,7 @@ export const useCorrectionTool = () => {
     const { user, products: authProducts } = useAuth();
 
     const [state, setState] = useState<State>({
-        isLoading: false,
+        isLoading: true,
         isSearching: false,
         isSubmitting: false,
         searchTerm: '',
@@ -45,7 +59,21 @@ export const useCorrectionTool = () => {
         newSelectedProduct: null,
         confirmStep: 0,
         confirmText: '',
+        allLocations: [],
     });
+
+    useEffect(() => {
+        const loadInitialData = async () => {
+            try {
+                const locations = await getLocations();
+                updateState({ allLocations: locations, isLoading: false });
+            } catch (error) {
+                logError('Failed to load locations for correction tool', { error });
+                updateState({ isLoading: false });
+            }
+        };
+        loadInitialData();
+    }, []);
 
     const [debouncedNewProductSearch] = useDebounce(state.newProductSearch, 300);
 
@@ -145,8 +173,7 @@ export const useCorrectionTool = () => {
             return authProducts.find(p => p.id === state.unitToCorrect?.productId)?.description || state.unitToCorrect?.productId;
         },
         getOriginalLocationPath: () => {
-            // Placeholder - this would need allLocations from a context or another fetch
-            return `ID: ${state.unitToCorrect?.locationId}`;
+            return renderLocationPathAsString(state.searchResult?.unit.locationId || null, state.allLocations);
         },
     };
 

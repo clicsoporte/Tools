@@ -4,14 +4,13 @@
  */
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { SearchInput } from '@/components/ui/search-input';
 import { Loader2, Printer, List, Tags } from 'lucide-react';
@@ -23,7 +22,11 @@ import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 
 export default function LabelCenterPage() {
     const { isAuthorized } = useAuthorization(['warehouse:labels:generate']);
-    usePageTitle("Centro de Etiquetas");
+    const { setTitle } = usePageTitle();
+    
+    useEffect(() => {
+        setTitle("Centro de Etiquetas");
+    }, [setTitle]);
     
     const { state, actions, selectors } = useLabelCenter();
 
