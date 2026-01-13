@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
@@ -1249,8 +1248,6 @@ export async function getCurrentVersion(): Promise<string | null> {
 const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
 
 export async function backupAllForUpdate(): Promise<void> {
-    // Critical patch for old versions: checkpoint before backup.
-    // This is the key change.
     await runWalCheckpoint();
 
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
