@@ -139,7 +139,7 @@ export const useCorrectionTool = () => {
             handleModalOpenChange(false);
             await handleSearch(); // Refresh search results after correction
         } catch (error: any) {
-            logError("Error executing inventory correction", { error: error.message });
+            logError('Error executing inventory correction', { error: error.message, payload: { unitId: state.unitToCorrect.id, newProductId: state.newSelectedProduct.id, newQuantity: state.editableUnit.quantity, userId: user.id } });
             toast({ title: "Error en la Corrección", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isSubmitting: false });
@@ -151,17 +151,11 @@ export const useCorrectionTool = () => {
     };
 
     const resetEditableUnit = () => {
-        if (state.unitToCorrect) {
-            const originalProduct = authProducts.find(p => p.id === state.unitToCorrect?.productId);
-            // Explicitly set each field to ensure re-render
+        const { unitToCorrect } = state;
+        if (unitToCorrect) {
+            const originalProduct = authProducts.find(p => p.id === unitToCorrect.productId);
             updateState({
-                editableUnit: {
-                    productId: state.unitToCorrect.productId,
-                    quantity: state.unitToCorrect.quantity,
-                    humanReadableId: state.unitToCorrect.humanReadableId,
-                    documentId: state.unitToCorrect.documentId,
-                    erpDocumentId: state.unitToCorrect.erpDocumentId,
-                },
+                editableUnit: { ...unitToCorrect },
                 newSelectedProduct: originalProduct || null,
                 newProductSearch: originalProduct ? `[${originalProduct.id}] ${originalProduct.description}` : '',
             });
