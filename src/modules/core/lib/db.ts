@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
@@ -96,7 +95,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         );
         CREATE TABLE IF NOT EXISTS api_settings (id INTEGER PRIMARY KEY, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
         CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT, creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT);
-        CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT, notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT);
+        CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT, notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT, barcode TEXT);
         CREATE TABLE IF NOT EXISTS exemptions (code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT, endDate TEXT, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT);
         CREATE TABLE IF NOT EXISTS quote_drafts (id TEXT PRIMARY KEY, createdAt TEXT NOT NULL, userId INTEGER, customerId TEXT, customerDetails TEXT, lines TEXT, totals TEXT, notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT, deliveryAddress TEXT, deliveryDate TEXT, sellerName TEXT, sellerType TEXT, quoteDate TEXT, validUntilDate TEXT, paymentTerms TEXT, creditDays INTEGER);
         CREATE TABLE IF NOT EXISTS exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT, authNumber TEXT);
@@ -348,6 +347,11 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         if (!companyColumns.has('searchDebounceTime')) db.exec(`ALTER TABLE company_settings ADD COLUMN searchDebounceTime INTEGER DEFAULT 500`);
         if (!companyColumns.has('lastSyncTimestamp')) db.exec(`ALTER TABLE company_settings ADD COLUMN lastSyncTimestamp TEXT`);
 
+        const productsTableInfo = db.prepare(`PRAGMA table_info(products)`).all() as { name: string }[];
+        if (!productsTableInfo.some(col => col.name === 'barcode')) {
+            console.log("MIGRATION: Adding barcode to products table.");
+            db.exec(`ALTER TABLE products ADD COLUMN barcode TEXT`);
+        }
 
         const adminUser = db.prepare('SELECT role FROM users WHERE id = 1').get() as { role: string } | undefined;
         if (adminUser && adminUser.role !== 'admin') {
@@ -700,7 +704,7 @@ export async function getAllProducts(): Promise<Product[]> {
 
 export async function saveAllProducts(products: Product[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood, cabys) VALUES (@id, @description, @classification, @lastEntry, @active, @notes, @unit, @isBasicGood, @cabys)');
+    const insert = db.prepare('INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood, cabys, barcode) VALUES (@id, @description, @classification, @lastEntry, @active, @notes, @unit, @isBasicGood, @cabys, @barcode)');
     
     const transaction = db.transaction((productsToSave) => {
         db.prepare('DELETE FROM products').run();
@@ -888,7 +892,7 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'schema'>[]> 
 const createHeaderMapping = (type: ImportQuery['type']) => {
     switch (type) {
         case 'customers': return {'CLIENTE': 'id', 'NOMBRE': 'name', 'DIRECCION': 'address', 'TELEFONO1': 'phone', 'CONTRIBUYENTE': 'taxId', 'MONEDA': 'currency', 'LIMITE_CREDITO': 'creditLimit', 'CONDICION_PAGO': 'paymentCondition', 'VENDEDOR': 'salesperson', 'ACTIVO': 'active', 'E_MAIL': 'email', 'EMAIL_DOC_ELECTRONICO': 'electronicDocEmail'};
-        case 'products': return {'ARTICULO': 'id', 'DESCRIPCION': 'description', 'CLASIFICACION_2': 'classification', 'ULTIMO_INGRESO': 'lastEntry', 'ACTIVO': 'active', 'NOTAS': 'notes', 'UNIDAD_VENTA': 'unit', 'CANASTA_BASICA': 'isBasicGood', 'CODIGO_HACIENDA': 'cabys'};
+        case 'products': return {'ARTICULO': 'id', 'DESCRIPCION': 'description', 'CLASIFICACION_2': 'classification', 'ULTIMO_INGRESO': 'lastEntry', 'ACTIVO': 'active', 'NOTAS': 'notes', 'UNIDAD_VENTA': 'unit', 'CANASTA_BASICA': 'isBasicGood', 'CODIGO_HACIENDA': 'cabys', 'CODIGO_BARRAS_VENT': 'barcode'};
         case 'exemptions': return {'CODIGO': 'code', 'DESCRIPCION': 'description', 'CLIENTE': 'customer', 'NUM_AUTOR': 'authNumber', 'FECHA_RIGE': 'startDate', 'FECHA_VENCE': 'endDate', 'PORCENTAJE': 'percentage', 'TIPO_DOC': 'docType', 'NOMBRE_INSTITUCION': 'institutionName', 'CODIGO_INSTITUCION': 'institutionCode'};
         case 'stock': return {'ARTICULO': 'itemId', 'BODEGA': 'warehouseId', 'CANT_DISPONIBLE': 'stock'};
         case 'locations': return {'CODIGO': 'itemId', 'P. HORIZONTAL': 'hPos', 'P. VERTICAL': 'vPos', 'RACK': 'rack', 'CLIENTE': 'client', 'DESCRIPCION': 'description'};

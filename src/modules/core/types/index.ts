@@ -110,6 +110,7 @@ export type Product = {
     unit: string;           // UNIDAD_VENTA
     isBasicGood: 'S' | 'N'; // CANASTA_BASICA
     cabys: string;          // CODIGO_HACIENDA
+    barcode?: string;       // CODIGO_BARRAS_VENT
 };
 
 /**

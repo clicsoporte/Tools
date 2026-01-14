@@ -127,8 +127,23 @@ export default function SimpleWarehouseSearchPage() {
     // This effect triggers the automatic search when the debounced term changes.
     useEffect(() => {
         if (debouncedSearchTerm) {
-            const searchLower = debouncedSearchTerm.toLowerCase();
-            const exactMatch = products.find(p => p.id.toLowerCase() === searchLower);
+            const trimmedSearch = debouncedSearchTerm.trim();
+            const searchLower = trimmedSearch.toLowerCase();
+            
+            let exactMatch: Product | undefined;
+
+            if (searchLower.includes('>')) {
+                // QR Code Format: LOCATION_ID>PRODUCT_ID
+                const parts = searchLower.split('>');
+                const productId = parts[1];
+                exactMatch = products.find(p => p.id.toLowerCase() === productId);
+            } else {
+                // Normal search by product ID or barcode
+                exactMatch = products.find(p => 
+                    p.id.toLowerCase() === searchLower || 
+                    p.barcode?.toLowerCase() === searchLower
+                );
+            }
             
             if (exactMatch) {
                 setLastSearchedItem(exactMatch);
@@ -138,8 +153,6 @@ export default function SimpleWarehouseSearchPage() {
                     inputRef.current?.focus();
                 }, 500);
             } else {
-                // Only clear the result if the user typed something that yielded no match.
-                // This prevents clearing the result when the input is just empty.
                 setLastSearchedItem(null);
             }
         }
@@ -150,8 +163,19 @@ export default function SimpleWarehouseSearchPage() {
             e.preventDefault();
             // The useEffect with debouncedSearchTerm will handle the logic.
             // This just ensures enter key can also trigger it if needed.
-            const searchLower = searchTerm.toLowerCase();
-            const exactMatch = products.find(p => p.id.toLowerCase() === searchLower);
+            const searchLower = searchTerm.trim().toLowerCase();
+            let exactMatch: Product | undefined;
+
+            if (searchLower.includes('>')) {
+                const parts = searchLower.split('>');
+                const productId = parts[1];
+                exactMatch = products.find(p => p.id.toLowerCase() === productId);
+            } else {
+                 exactMatch = products.find(p => 
+                    p.id.toLowerCase() === searchLower || 
+                    p.barcode?.toLowerCase() === searchLower
+                );
+            }
             if (exactMatch) {
                 setLastSearchedItem(exactMatch);
             }
@@ -263,6 +287,7 @@ export default function SimpleWarehouseSearchPage() {
                                     </div>
                                     <div className="text-sm text-muted-foreground pt-2 space-y-1">
                                         <p><strong>Unidad de Venta:</strong> {searchResult.product.unit}</p>
+                                        {searchResult.product.barcode && <p><strong>Código de Barras:</strong> {searchResult.product.barcode}</p>}
                                         {searchResult.product.notes && <p><strong>Notas:</strong> {searchResult.product.notes}</p>}
                                     </div>
                                 </CardHeader>

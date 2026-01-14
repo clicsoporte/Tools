@@ -177,10 +177,11 @@ export const useInventoryCount = () => {
 
     // --- SCANNER MODE ACTIONS ---
     const handleScanInput = async (scanValue: string) => {
-        updateState({ scanInput: scanValue, scannerLoadedData: null });
-        if (!scanValue.includes('>')) return;
+        const trimmedValue = scanValue.trim();
+        updateState({ scanInput: trimmedValue, scannerLoadedData: null });
+        if (!trimmedValue.includes('>')) return;
 
-        const [locationIdStr, productId] = scanValue.split('>');
+        const [locationIdStr, productId] = trimmedValue.split('>');
         const locationId = parseInt(locationIdStr, 10);
 
         if (!locationId || !productId) {

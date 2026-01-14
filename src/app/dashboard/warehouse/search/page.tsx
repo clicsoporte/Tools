@@ -187,33 +187,37 @@ export default function WarehouseSearchPage() {
     );
 
     const filteredItems = useMemo((): SearchResultItem[] => {
-        // Do not render anything if no filters are active.
-        if (!hasActiveFilters) {
-            return [];
-        }
+        if (!hasActiveFilters) return [];
 
         let results: Product[] = [...products];
-
-        // 1. Apply global text search
+        const searchLower = normalizeText(debouncedSearchTerm);
+        
+        // QR Code detection
+        if (searchLower.includes('>')) {
+            const parts = searchLower.split('>');
+            const productId = parts[1];
+            if (productId) {
+                const product = products.find(p => p.id.toLowerCase() === productId);
+                return product ? [product] : [];
+            }
+        }
+        
         if (debouncedSearchTerm) {
-            const searchLower = normalizeText(debouncedSearchTerm);
             const customerItemIds = new Set(
                 itemLocations
                     .filter(il => customers.some(c => c.id === il.clientId && normalizeText(c.name).includes(searchLower)))
                     .map(il => il.itemId)
             );
             results = results.filter(p =>
-                normalizeText(`${p.id} ${p.description}`).includes(searchLower) ||
+                normalizeText(`${p.id} ${p.description} ${p.barcode}`).includes(searchLower) ||
                 customerItemIds.has(p.id)
             );
         }
 
-        // 2. Apply classification filter
         if (classificationFilter.length > 0) {
             results = results.filter(p => classificationFilter.includes(p.classification));
         }
 
-        // 3. Map to SearchResultItem and prepare for final filters
         let searchResultItems = results.map(product => {
             const productInventory = inventory.filter(inv => inv.itemId === product.id);
             const productItemLocations = itemLocations.filter(il => il.itemId === product.id);
@@ -232,14 +236,12 @@ export default function WarehouseSearchPage() {
             };
         });
 
-        // 4. Apply ERP warehouse filter
         if (warehouseFilter.length > 0) {
             searchResultItems = searchResultItems.filter(item => 
                 item.erpStock && Object.keys(item.erpStock.stockByWarehouse).some(whId => warehouseFilter.includes(whId) && item.erpStock!.stockByWarehouse[whId] > 0)
             );
         }
 
-        // 5. Apply physical location filter
         if (locationFilter.length > 0) {
             searchResultItems = searchResultItems.filter(item => 
                 item.physicalLocations.some(loc => loc.location && locationFilter.includes(String(loc.location.id)))
@@ -429,6 +431,7 @@ export default function WarehouseSearchPage() {
                                         </div>
                                          <div className="text-sm text-muted-foreground pt-2 space-y-1">
                                             <p><strong>Unidad de Venta:</strong> {item.product.unit}</p>
+                                            {item.product.barcode && <p><strong>Código de Barras:</strong> {item.product.barcode}</p>}
                                             {item.product.notes && <p><strong>Notas:</strong> {item.product.notes}</p>}
                                         </div>
                                          {item.client && (
