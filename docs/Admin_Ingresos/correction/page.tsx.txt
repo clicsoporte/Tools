@@ -32,7 +32,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 
 
 export default function CorrectionPage() {
-    const { isAuthorized } = useAuthorization(['warehouse:correction:execute']);
+    const { isAuthorized } = useAuthorization(['warehouse:correction:use']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user, products: authProducts } = useAuth();
@@ -122,12 +122,7 @@ export default function CorrectionPage() {
 
         setIsSubmitting(true);
         try {
-            await correctInventoryUnit({
-                unitId: unitToCorrect.id, 
-                newProductId: newProductId,
-                userId: user.id,
-                userName: user.name
-            });
+            await correctInventoryUnit(unitToCorrect, newProductId, user.id);
             toast({ title: 'Corrección Exitosa', description: `La unidad ${unitToCorrect.unitCode} ha sido anulada y reemplazada con el nuevo producto.` });
             logInfo('Inventory unit corrected', { oldUnit: unitToCorrect.unitCode, newProduct: newProductId, user: user.name });
             setIsCorrectionModalOpen(false);
@@ -160,7 +155,7 @@ export default function CorrectionPage() {
                         <CardDescription>Usa los filtros para encontrar la unidad de inventario que necesitas corregir.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label>Rango de Fechas</Label>
                                 <Popover>
