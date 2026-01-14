@@ -31,9 +31,10 @@ import {
     forceReleaseLock as forceReleaseLockServer,
     getChildLocations as getChildLocationsServer,
     correctInventoryUnit as correctInventoryUnitServer,
+    searchInventoryUnits as searchInventoryUnitsServer,
 } from './db';
 import { getStockSettings as getStockSettingsDb, saveStockSettings as saveStockSettingsDb } from '@/modules/core/lib/db';
-import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User } from '@/modules/core/types';
+import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User, DateRange } from '@/modules/core/types';
 import { logInfo, logWarn } from '@/modules/core/lib/logger';
 
 export const getWarehouseSettings = async (): Promise<WarehouseSettings> => getWarehouseSettingsServer();
@@ -105,6 +106,14 @@ export const getInventoryUnits = async (): Promise<InventoryUnit[]> => getInvent
 export const deleteInventoryUnit = async (id: number): Promise<void> => deleteInventoryUnitServer(id);
 export const getInventoryUnitById = async (id: string | number): Promise<InventoryUnit | null> => getInventoryUnitByIdServer(id);
 export const correctInventoryUnit = async (payload: { unitId: number; newProductId: string; userId: number; userName: string; }): Promise<void> => correctInventoryUnitServer(payload);
+export const searchInventoryUnits = async (filters: {
+    dateRange?: DateRange;
+    productId?: string;
+    humanReadableId?: string;
+    unitCode?: string;
+    documentId?: string;
+}): Promise<InventoryUnit[]> => searchInventoryUnitsServer(filters);
+
 
 
 // --- Wizard Lock Actions ---
