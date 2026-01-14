@@ -749,7 +749,7 @@ export async function correctInventoryUnit(payload: {
         }
 
         // --- ATOMIC COUNTER LOGIC ---
-        // 1. Get the settings to read the counter
+        // 1. Get the current settings to read the prefix and counter
         const settingsRow = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string };
         const parsedSettings: WarehouseSettings = JSON.parse(settingsRow.value);
         const nextNumber = parsedSettings.nextUnitNumber || 1;
