@@ -6,33 +6,20 @@
 // This forces the page to be dynamically rendered, avoiding client-side caching issues.
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError, logInfo } from '@/modules/core/lib/logger';
-import { correctInventoryUnit, searchInventoryUnits } from '@/modules/warehouse/lib/actions';
-import type { InventoryUnit, Product, DateRange } from '@/modules/core/types';
-import { useAuth } from '@/modules/core/hooks/useAuth';
-import { SearchInput } from '@/components/ui/search-input';
-import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX } from 'lucide-react';
-import { useDebounce } from 'use-debounce';
-import { Skeleton } from '@/components/ui/skeleton';
-import { format, parseISO, startOfDay, subDays } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { useCorrectionTool } from '@/modules/warehouse/hooks/useCorrectionTool';
+import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from '@/components/ui/dialog';
+import { SearchInput } from '@/components/ui/search-input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function CorrectionPage() {
     const { isAuthorized } = useAuthorization(['warehouse:correction:execute']);
@@ -42,8 +29,10 @@ export default function CorrectionPage() {
 
     const { 
         isLoading, isSearching, isSubmitting, searchTerm, searchResult,
-        unitToCorrect, isConfirmModalOpen, newProductSearch, isNewProductSearchOpen,
-        newSelectedProduct, confirmStep, confirmText
+        isConfirmModalOpen, 
+        newProductSearch, isNewProductSearchOpen,
+        newSelectedProduct, confirmStep, confirmText,
+        editableUnit, setEditableUnit
     } = state;
 
     useEffect(() => {
@@ -95,12 +84,13 @@ export default function CorrectionPage() {
                                 <div><strong>Ubicación:</strong> {selectors.getOriginalLocationPath()}</div>
                                 <div><strong>ID Físico:</strong> {searchResult.unit.humanReadableId || 'N/A'}</div>
                                 <div><strong>Documento:</strong> {searchResult.unit.documentId || 'N/A'}</div>
+                                <div><strong>Doc. ERP:</strong> {searchResult.unit.erpDocumentId || 'N/A'}</div>
                             </div>
                         </CardContent>
                         <CardFooter>
                             <Button onClick={() => actions.setUnitToCorrect(searchResult.unit)}>
                                 <RotateCcw className="mr-2 h-4 w-4"/>
-                                Corregir Producto de esta Unidad
+                                Corregir esta Unidad
                             </Button>
                         </CardFooter>
                     </Card>
@@ -109,14 +99,14 @@ export default function CorrectionPage() {
                 <Dialog open={isConfirmModalOpen} onOpenChange={actions.handleModalOpenChange}>
                     <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
-                            <DialogTitle>Corregir Producto de Ingreso</DialogTitle>
+                            <DialogTitle>Corregir Datos de Ingreso</DialogTitle>
                             <DialogDescription>
-                                Se anulará el ingreso de <strong>{selectors.getOriginalProductName()}</strong> y se creará uno nuevo con el producto correcto.
+                                Modifica los campos necesarios para la unidad <strong className="font-mono">{state.unitToCorrect?.unitCode}</strong>.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="py-4 space-y-6">
+                        <div className="py-4 space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="new-product" className="font-semibold">Seleccionar Producto Correcto</Label>
+                                <Label htmlFor="new-product" className="font-semibold">1. Producto</Label>
                                 <SearchInput
                                     options={selectors.productOptions}
                                     onSelect={actions.handleSelectNewProduct}
@@ -127,13 +117,31 @@ export default function CorrectionPage() {
                                     onOpenChange={actions.setNewProductSearchOpen}
                                 />
                             </div>
-                            <Alert variant="destructive">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-quantity">2. Cantidad</Label>
+                                    <Input id="new-quantity" type="number" value={editableUnit.quantity} onChange={(e) => setEditableUnit({ ...editableUnit, quantity: Number(e.target.value) })}/>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-hr-id">3. Nº Lote / ID Físico</Label>
+                                    <Input id="new-hr-id" value={editableUnit.humanReadableId} onChange={(e) => setEditableUnit({ ...editableUnit, humanReadableId: e.target.value })}/>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-doc-id">4. Nº Documento</Label>
+                                    <Input id="new-doc-id" value={editableUnit.documentId} onChange={(e) => setEditableUnit({ ...editableUnit, documentId: e.target.value })}/>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-erp-id">5. Nº Documento ERP</Label>
+                                    <Input id="new-erp-id" value={editableUnit.erpDocumentId} onChange={(e) => setEditableUnit({ ...editableUnit, erpDocumentId: e.target.value })}/>
+                                </div>
+                            </div>
+                             <Alert variant="destructive">
                                 <AlertTriangle className="h-4 w-4" />
                                 <AlertTitle>Confirmación de Seguridad Requerida</AlertTitle>
                                 <AlertDescription>
                                     <p className="mb-2">Esta es una acción irreversible que afecta el inventario. Para continuar, por favor, sigue estos pasos:</p>
                                     <div className="flex items-center space-x-2 my-2">
-                                        <Checkbox id="confirm-step1" checked={confirmStep > 0} onCheckedChange={(checked) => actions.setConfirmStep(checked ? 1 : 0)} />
+                                        <Checkbox id="confirm-step1" checked={confirmStep > 0} onCheckedChange={(checked: boolean) => actions.setConfirmStep(checked ? 1 : 0)} />
                                         <Label htmlFor="confirm-step1" className="font-normal">Entiendo que esto anulará la unidad original.</Label>
                                     </div>
                                     {confirmStep > 0 && (
