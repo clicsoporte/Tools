@@ -189,7 +189,6 @@ export default function WarehouseSearchPage() {
     const filteredItems = useMemo((): SearchResultItem[] => {
         if (!hasActiveFilters) return [];
 
-        let results: Product[] = [...products];
         const searchLower = normalizeText(debouncedSearchTerm);
         
         // QR Code detection
@@ -198,10 +197,27 @@ export default function WarehouseSearchPage() {
             const productId = parts[1];
             if (productId) {
                 const product = products.find(p => p.id.toLowerCase() === productId);
-                return product ? [product] : [];
+                if (product) {
+                    const productInventory = inventory.filter(inv => inv.itemId === product.id);
+                    const productItemLocations = itemLocations.filter(il => il.itemId === product.id);
+                    const physicalLocations = [
+                        ...productInventory.map(inv => ({ path: renderLocationPath(inv.locationId, locations), quantity: inv.quantity, location: locations.find(l => l.id === inv.locationId) })),
+                        ...productItemLocations.map(il => ({ path: renderLocationPath(il.locationId, locations), clientId: il.clientId || undefined, location: locations.find(l => l.id === il.locationId) }))
+                    ];
+                    const uniqueLocations = Array.from(new Map(physicalLocations.map(item => [item.location?.id, item])).values());
+                    const client = customers.find(c => productItemLocations.some(il => il.clientId === c.id));
+                    return [{
+                        product: product,
+                        physicalLocations: uniqueLocations,
+                        erpStock: stock.find(s => s.itemId === product.id) || null,
+                        client: client,
+                    }];
+                }
+                return [];
             }
         }
         
+        let results: Product[] = [...products];
         if (debouncedSearchTerm) {
             const customerItemIds = new Set(
                 itemLocations

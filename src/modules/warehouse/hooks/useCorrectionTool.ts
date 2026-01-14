@@ -146,6 +146,11 @@ export const useCorrectionTool = () => {
             await correctInventoryUnit({
                 unitId: state.unitToCorrect.id,
                 newProductId: state.newSelectedProduct.id,
+                // Pass all fields, even if not changed, to satisfy the new signature
+                newQuantity: state.unitToCorrect.quantity,
+                newHumanReadableId: state.unitToCorrect.humanReadableId || '',
+                newDocumentId: state.unitToCorrect.documentId || '',
+                newErpDocumentId: state.unitToCorrect.erpDocumentId || '',
                 userId: user.id,
                 userName: user.name,
             });
