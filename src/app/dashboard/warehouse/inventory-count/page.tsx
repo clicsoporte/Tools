@@ -64,7 +64,7 @@ const ManualMode = () => {
 };
 
 const ScannerMode = () => {
-    const { state, actions, refs } = useInventoryCount();
+    const { state, actions, refs, selectors } = useInventoryCount();
     const { isSubmitting, scanInput, scannerQuantityInput, scannerLoadedData, lastCountInfo } = state;
     return (
         <Card className="w-full max-w-lg">
@@ -94,7 +94,7 @@ const ScannerMode = () => {
                         </div>
                          <div>
                             <Label className="text-xs text-muted-foreground">Ubicación</Label>
-                            <p className="font-semibold">{scannerLoadedData.location.name} ({scannerLoadedData.location.code})</p>
+                            <p className="font-semibold">{selectors.getLocationPathString(scannerLoadedData.location.id)}</p>
                         </div>
                         <div className="space-y-2 pt-2">
                              <Label htmlFor="scanner-quantity" className="text-lg font-semibold">2. Ingresar Cantidad</Label>

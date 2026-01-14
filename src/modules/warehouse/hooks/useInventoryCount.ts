@@ -283,6 +283,7 @@ export const useInventoryCount = () => {
         selectors: {
             productOptions,
             locationOptions,
+            getLocationPathString: (locationId: number | null) => renderLocationPathAsString(locationId, state.allLocations),
         },
         refs: {
             quantityInputRef,
