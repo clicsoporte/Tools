@@ -90,7 +90,7 @@ const ScannerMode = () => {
                     <div className="space-y-4 rounded-md border p-4 bg-muted/50">
                         <div>
                             <Label className="text-xs text-muted-foreground">Producto</Label>
-                            <p className="font-semibold">{scannerLoadedData.product.description}</p>
+                            <p className="font-semibold">[{scannerLoadedData.product.id}] {scannerLoadedData.product.description}</p>
                         </div>
                          <div>
                             <Label className="text-xs text-muted-foreground">Ubicación</Label>
@@ -106,7 +106,7 @@ const ScannerMode = () => {
                                 onChange={(e) => actions.setScannerQuantityInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && actions.handleSaveScannerCount()}
                                 placeholder="0"
-                                className="text-2xl h-16"
+                                className="text-2xl h-16 hide-number-arrows"
                             />
                         </div>
                     </div>
