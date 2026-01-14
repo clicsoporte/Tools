@@ -41,8 +41,7 @@ export async function runWalCheckpoint() {
             const db = await connectDb(dbModule.dbFile);
             // TRUNCATE is the most aggressive checkpoint mode.
             db.pragma('wal_checkpoint(TRUNCATE)');
-            await logInfo(`INICIANDO punto de control WAL para ${dbModule.dbFile}. Este mensaje se escribió antes del volcado.`);
-            await logInfo(`Punto de control WAL completado para ${dbModule.dbFile}.`);
+            await logInfo(`Punto de control WAL para ${dbModule.dbFile} completado. Los datos están consolidados en el archivo .db.`);
         } catch (error: any) {
             await logError(`Error ejecutando WAL checkpoint en ${dbModule.dbFile}`, { error: error.message });
         }
