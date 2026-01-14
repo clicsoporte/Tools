@@ -166,7 +166,7 @@ export default function CorrectionPage() {
                                         </div>
                                          <div className="space-y-2">
                                             <Label htmlFor="edit-quantity">Cantidad</Label>
-                                            <Input id="edit-quantity" type="number" value={editableUnit.quantity} onChange={e => actions.setEditableUnitField('quantity', Number(e.target.value))} />
+                                            <Input id="edit-quantity" type="number" value={editableUnit.quantity || ''} onChange={e => actions.setEditableUnitField('quantity', Number(e.target.value))} />
                                         </div>
                                          <div className="space-y-2">
                                             <Label htmlFor="edit-lote">Nº Lote / ID Físico</Label>

@@ -34,7 +34,7 @@ interface State {
 
 const emptyEditableUnit: Partial<InventoryUnit> = {
     productId: '',
-    quantity: 1,
+    quantity: undefined, // Changed from 1 to undefined
     humanReadableId: '',
     documentId: '',
     erpDocumentId: '',
