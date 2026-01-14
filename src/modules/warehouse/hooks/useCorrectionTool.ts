@@ -26,6 +26,7 @@ interface State {
     confirmStep: number;
     confirmText: string;
     allLocations: WarehouseLocation[];
+    editableUnit: Partial<InventoryUnit>;
 }
 
 const renderLocationPathAsString = (locationId: number | null, locations: WarehouseLocation[]): string => {
@@ -60,11 +61,16 @@ export const useCorrectionTool = () => {
         confirmStep: 0,
         confirmText: '',
         allLocations: [],
+        editableUnit: {},
     });
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
+
+    const setEditableUnit = (unit: Partial<InventoryUnit>) => {
+        updateState({ editableUnit: unit });
+    };
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -125,6 +131,7 @@ export const useCorrectionTool = () => {
                 newSelectedProduct: null,
                 confirmStep: 0,
                 confirmText: '',
+                editableUnit: {},
             });
         } else {
              updateState({ isConfirmModalOpen: true });
@@ -136,21 +143,16 @@ export const useCorrectionTool = () => {
              toast({ title: "Error", description: "Faltan datos para la corrección.", variant: "destructive" });
              return;
         }
-        if (state.unitToCorrect.productId === state.newSelectedProduct.id) {
-            toast({ title: "Sin cambios", description: "El nuevo producto es el mismo que el original.", variant: "default" });
-            return;
-        }
         
         updateState({ isSubmitting: true });
         try {
             await correctInventoryUnit({
                 unitId: state.unitToCorrect.id,
                 newProductId: state.newSelectedProduct.id,
-                // Pass all fields, even if not changed, to satisfy the new signature
-                newQuantity: state.unitToCorrect.quantity,
-                newHumanReadableId: state.unitToCorrect.humanReadableId || '',
-                newDocumentId: state.unitToCorrect.documentId || '',
-                newErpDocumentId: state.unitToCorrect.erpDocumentId || '',
+                newQuantity: state.editableUnit.quantity ?? state.unitToCorrect.quantity,
+                newHumanReadableId: state.editableUnit.humanReadableId ?? state.unitToCorrect.humanReadableId ?? '',
+                newDocumentId: state.editableUnit.documentId ?? state.unitToCorrect.documentId ?? '',
+                newErpDocumentId: state.editableUnit.erpDocumentId ?? state.unitToCorrect.erpDocumentId ?? '',
                 userId: user.id,
                 userName: user.name,
             });
@@ -164,6 +166,19 @@ export const useCorrectionTool = () => {
             updateState({ isSubmitting: false });
         }
     };
+    
+    const setUnitToCorrect = (unit: InventoryUnit | null) => {
+        if (unit) {
+            const product = authProducts.find(p => p.id === unit.productId);
+            updateState({ 
+                unitToCorrect: unit,
+                editableUnit: { ...unit },
+                newSelectedProduct: product || null,
+                newProductSearch: product ? `[${product.id}] ${product.description}`: '',
+                isConfirmModalOpen: true 
+            });
+        }
+    }
 
     const selectors = {
         productOptions: useMemo(() => {
@@ -187,9 +202,7 @@ export const useCorrectionTool = () => {
         actions: {
             setSearchTerm: (term: string) => updateState({ searchTerm: term }),
             handleSearch,
-            setUnitToCorrect: (unit: InventoryUnit | null) => {
-                if (unit) updateState({ unitToCorrect: unit, isConfirmModalOpen: true });
-            },
+            setUnitToCorrect,
             handleModalOpenChange,
             setNewProductSearch: (term: string) => updateState({ newProductSearch: term }),
             setNewProductSearchOpen: (isOpen: boolean) => updateState({ isNewProductSearchOpen: isOpen }),
@@ -197,6 +210,7 @@ export const useCorrectionTool = () => {
             setConfirmStep: (step: number) => updateState({ confirmStep: step }),
             setConfirmText: (text: string) => updateState({ confirmText: text }),
             handleConfirmCorrection,
+            setEditableUnit,
         },
         selectors,
     };

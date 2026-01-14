@@ -6,7 +6,7 @@
 // This forces the page to be dynamically rendered, avoiding client-side caching issues.
 export const dynamic = 'force-dynamic';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,8 +32,10 @@ export default function CorrectionPage() {
         isConfirmModalOpen, 
         newProductSearch, isNewProductSearchOpen,
         newSelectedProduct, confirmStep, confirmText,
-        editableUnit, setEditableUnit
+        editableUnit,
     } = state;
+
+    const { setEditableUnit } = actions;
 
     useEffect(() => {
         setTitle("Administración de Ingresos");
@@ -120,19 +122,19 @@ export default function CorrectionPage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="new-quantity">2. Cantidad</Label>
-                                    <Input id="new-quantity" type="number" value={editableUnit.quantity} onChange={(e) => setEditableUnit({ ...editableUnit, quantity: Number(e.target.value) })}/>
+                                    <Input id="new-quantity" type="number" value={editableUnit?.quantity || ''} onChange={(e) => setEditableUnit({ ...editableUnit, quantity: Number(e.target.value) })}/>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="new-hr-id">3. Nº Lote / ID Físico</Label>
-                                    <Input id="new-hr-id" value={editableUnit.humanReadableId} onChange={(e) => setEditableUnit({ ...editableUnit, humanReadableId: e.target.value })}/>
+                                    <Input id="new-hr-id" value={editableUnit?.humanReadableId || ''} onChange={(e) => setEditableUnit({ ...editableUnit, humanReadableId: e.target.value })}/>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="new-doc-id">4. Nº Documento</Label>
-                                    <Input id="new-doc-id" value={editableUnit.documentId} onChange={(e) => setEditableUnit({ ...editableUnit, documentId: e.target.value })}/>
+                                    <Input id="new-doc-id" value={editableUnit?.documentId || ''} onChange={(e) => setEditableUnit({ ...editableUnit, documentId: e.target.value })}/>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="new-erp-id">5. Nº Documento ERP</Label>
-                                    <Input id="new-erp-id" value={editableUnit.erpDocumentId} onChange={(e) => setEditableUnit({ ...editableUnit, erpDocumentId: e.target.value })}/>
+                                    <Input id="new-erp-id" value={editableUnit?.erpDocumentId || ''} onChange={(e) => setEditableUnit({ ...editableUnit, erpDocumentId: e.target.value })}/>
                                 </div>
                             </div>
                              <Alert variant="destructive">
