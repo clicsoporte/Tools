@@ -96,7 +96,7 @@ export function useProductionReport() {
         machineFilter: [],
     });
 
-    const [debouncedProductSearch] = useDebounce(state.productSearchTerm, 500);
+    const [debouncedProductSearch] = useDebounce(state.productSearchTerm, authCompanyData?.searchDebounceTime ?? 500);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));

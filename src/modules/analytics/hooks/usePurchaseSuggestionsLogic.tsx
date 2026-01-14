@@ -67,7 +67,7 @@ interface State {
 export function usePurchaseSuggestionsLogic() {
     const { isAuthorized, hasPermission } = useAuthorization(['analytics:purchase-report:read']);
     const { toast } = useToast();
-    const { user: currentUser, products } = useAuth();
+    const { user: currentUser, products, companyData } = useAuth();
     const router = useRouter();
     
     const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -95,7 +95,7 @@ export function usePurchaseSuggestionsLogic() {
         erpPoLines: [],
     });
 
-    const [debouncedSearchTerm] = useDebounce(state.searchTerm, 500);
+    const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
