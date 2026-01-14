@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook to manage the state and logic for the Label Center page.
  */
@@ -13,6 +14,7 @@ import { useDebounce } from 'use-debounce';
 import jsPDF from "jspdf";
 import QRCode from 'qrcode';
 import { useAuth } from '@/modules/core/hooks/useAuth';
+import { format } from 'date-fns';
 
 type LabelType = 'location' | 'product_location';
 
@@ -47,7 +49,7 @@ const renderLocationPathAsString = (locationId: number, locations: WarehouseLoca
 export const useLabelCenter = () => {
     const { isAuthorized } = useAuthorization(['warehouse:labels:generate']);
     const { toast } = useToast();
-    const { products } = useAuth();
+    const { user, products } = useAuth();
 
     const [state, setState] = useState<State>({
         isLoading: true,
@@ -183,12 +185,12 @@ export const useLabelCenter = () => {
 
         for (const location of filteredLocations) {
             doc.addPage();
-            const locationPath = renderLocationPathAsString(location.id, state.allLocations);
             
             let qrContent = String(location.id);
             let mainText = location.code;
-            let secondaryText = locationPath;
-            let footerText = ``;
+            let secondaryText = renderLocationPathAsString(location.id, state.allLocations);
+            let footerText = '';
+            let clientText = '';
 
             if (state.labelType === 'product_location') {
                 const itemAssignment = state.itemLocations.find((il: ItemLocation) => il.locationId === location.id);
@@ -197,29 +199,57 @@ export const useLabelCenter = () => {
                     const product = products.find(p => p.id === itemAssignment.itemId);
                     mainText = product?.id || 'N/A';
                     secondaryText = product?.description || 'Producto no encontrado';
-                    footerText = locationPath;
+                    footerText = renderLocationPathAsString(location.id, state.allLocations);
                 } else {
-                    // Skip this label if no product is assigned in this mode
                     continue; 
                 }
             }
 
             try {
                 const qrCodeDataUrl = await QRCode.toDataURL(qrContent, { errorCorrectionLevel: 'M', width: 200 });
-                doc.addImage(qrCodeDataUrl, 'PNG', 40, 40, 150, 150);
+                const margin = 40;
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
 
-                doc.setFontSize(150).setFont('Helvetica', 'bold');
-                const mainTextLines = doc.splitTextToSize(mainText, doc.internal.pageSize.getWidth() - 240);
-                doc.text(mainTextLines, 220, 150);
+                // QR Code
+                doc.addImage(qrCodeDataUrl, 'PNG', margin, margin, 100, 100);
 
-                doc.setFontSize(40).setFont('Helvetica', 'normal');
-                const secondaryTextLines = doc.splitTextToSize(secondaryText, doc.internal.pageSize.getWidth() - 240);
-                doc.text(secondaryTextLines, 220, 200 + (mainTextLines.length - 1) * 100);
+                // Metadata
+                doc.setFontSize(9);
+                doc.setFont('Helvetica', 'normal');
+                doc.setTextColor('#666');
+                doc.text(`Creado: ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - margin, margin, { align: 'right' });
+                if (user) {
+                    doc.text(`por ${user.name}`, pageWidth - margin, margin + 12, { align: 'right' });
+                }
 
+                // Main Content
+                doc.setTextColor('#000');
+                doc.setFontSize(150);
+                doc.setFont('Helvetica', 'bold');
+                const mainTextWidth = doc.getTextWidth(mainText);
+                const mainTextX = (pageWidth - mainTextWidth) / 2;
+                doc.text(mainText, pageWidth/2, pageHeight/2 - 40, { align: 'center'});
+
+                doc.setFontSize(52);
+                doc.setFont('Helvetica', 'normal');
+                const secondaryTextLines = doc.splitTextToSize(secondaryText, pageWidth - margin * 2);
+                doc.text(secondaryTextLines, pageWidth / 2, pageHeight / 2 + 50, { align: 'center' });
+
+                // Footer
                 if (footerText) {
-                    doc.setFontSize(28).setFont('Helvetica', 'normal');
-                    const footerLines = doc.splitTextToSize(footerText, doc.internal.pageSize.getWidth() - 80);
-                    doc.text(footerLines, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 80, { align: 'center' });
+                    const itemAssignment = state.itemLocations.find(il => il.locationId === location.id);
+                    if (itemAssignment?.clientId) {
+                        // We need to fetch customer name from main context or pass it down
+                    }
+
+                    doc.setFontSize(24);
+                    doc.setFont('Helvetica', 'bold');
+                    doc.text('Ubicación:', margin, pageHeight - 80);
+                    doc.setFontSize(28);
+                    doc.setFont('Helvetica', 'normal');
+                    const footerLines = doc.splitTextToSize(footerText, pageWidth - margin * 2);
+                    doc.text(footerLines, margin, pageHeight - 50);
                 }
                 
             } catch (err: any) {
@@ -227,7 +257,6 @@ export const useLabelCenter = () => {
             }
         }
         
-        // If all pages were skipped (e.g. no products assigned), don't save an empty doc
         if (doc.getNumberOfPages() > 0) {
             doc.save(`etiquetas_almacen_${Date.now()}.pdf`);
         } else {
