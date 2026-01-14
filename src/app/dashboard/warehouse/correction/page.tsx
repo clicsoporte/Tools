@@ -3,6 +3,9 @@
  */
 'use client';
 
+// This forces the page to be dynamically rendered, avoiding client-side caching issues.
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
