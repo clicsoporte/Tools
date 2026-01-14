@@ -32,6 +32,14 @@ interface State {
     editableUnit: Partial<InventoryUnit>; // The state for the form inputs
 }
 
+const emptyEditableUnit: Partial<InventoryUnit> = {
+    productId: '',
+    quantity: 1,
+    humanReadableId: '',
+    documentId: '',
+    erpDocumentId: '',
+};
+
 export const useCorrectionTool = () => {
     const { isAuthorized } = useAuthorization(['warehouse:correction:execute']);
     const { toast } = useToast();
@@ -162,6 +170,14 @@ export const useCorrectionTool = () => {
         }
     };
     
+    const handleClearForm = () => {
+        updateState({
+            editableUnit: { ...emptyEditableUnit, locationId: state.unitToCorrect?.locationId },
+            newSelectedProduct: null,
+            newProductSearch: '',
+        });
+    }
+    
     const setUnitToCorrect = (unit: InventoryUnit | null) => {
         if (unit) {
             const product = authProducts.find(p => p.id === unit.productId);
@@ -208,6 +224,7 @@ export const useCorrectionTool = () => {
             handleConfirmCorrection,
             setEditableUnitField,
             resetEditableUnit,
+            handleClearForm,
         },
         selectors,
     };

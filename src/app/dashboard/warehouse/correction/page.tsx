@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX, RotateCw } from 'lucide-react';
+import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX } from 'lucide-react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -193,10 +193,14 @@ export default function CorrectionPage() {
                             </div>
                         )}
                         <DialogFooter className="justify-between">
-                            <div>
-                                <Button variant="ghost" onClick={actions.resetEditableUnit}>
-                                    <RotateCw className="mr-2 h-4 w-4" />
-                                    Limpiar Cambios
+                            <div className='flex gap-2'>
+                                <Button variant="ghost" onClick={actions.handleClearForm}>
+                                    <FilterX className="mr-2 h-4 w-4" />
+                                    Limpiar Formulario
+                                </Button>
+                                <Button variant="outline" onClick={actions.resetEditableUnit}>
+                                    <RotateCcw className="mr-2 h-4 w-4" />
+                                    Restaurar Original
                                 </Button>
                             </div>
                             <div className="flex gap-2">
