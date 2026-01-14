@@ -4,211 +4,164 @@
  */
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/modules/core/hooks/use-toast';
-import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getLocations, updateInventory, getSelectableLocations } from '@/modules/warehouse/lib/actions';
-import type { Product, WarehouseLocation, User } from '@/modules/core/types';
-import { useAuth } from '@/modules/core/hooks/useAuth';
-import { SearchInput } from '@/components/ui/search-input';
-import { Loader2, Save, List } from 'lucide-react';
-import { useDebounce } from 'use-debounce';
+import { Loader2, Save, List, ScanLine, CheckCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { useInventoryCount, CountMode } from '@/modules/warehouse/hooks/useInventoryCount';
+import { SearchInput } from '@/components/ui/search-input';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-const renderLocationPathAsString = (locationId: number, locations: WarehouseLocation[]): string => {
-    if (!locationId) return '';
-    const path: WarehouseLocation[] = [];
-    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
-    
-    while (current) {
-        path.unshift(current);
-        const parentId = current.parentId;
-        if (!parentId) break;
-        current = locations.find(l => l.id === parentId);
-    }
-    return path.map(l => l.name).join(' > ');
+const ManualMode = () => {
+    const { state, actions, selectors } = useInventoryCount();
+    const { 
+        isSubmitting, keepLocation, locationSearchTerm, isLocationSearchOpen, 
+        productSearchTerm, isProductSearchOpen, countedQuantity 
+    } = state;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Toma de Inventario Físico</CardTitle>
+                <CardDescription>Selecciona un producto y una ubicación para registrar la cantidad contada físicamente.</CardDescription>
+                <div className="flex items-center space-x-2 pt-4">
+                    <Switch id="keep-location" checked={keepLocation} onCheckedChange={actions.setKeepLocation} />
+                    <Label htmlFor="keep-location">Mantener Ubicación Seleccionada</Label>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="space-y-2">
+                    <Label>1. Seleccione una Ubicación</Label>
+                    <div className="flex items-center gap-2">
+                        <SearchInput options={selectors.locationOptions} onSelect={actions.handleSelectLocation} value={locationSearchTerm} onValueChange={actions.setLocationSearchTerm} placeholder="Buscar... ('*' o vacío para ver todas)" open={isLocationSearchOpen} onOpenChange={actions.setLocationSearchOpen} />
+                        <Button type="button" variant="outline" size="icon" onClick={() => { actions.setLocationSearchTerm('*'); actions.setLocationSearchOpen(true); }}>
+                            <List className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label>2. Seleccione un Producto</Label>
+                    <SearchInput options={selectors.productOptions} onSelect={actions.handleSelectProduct} value={productSearchTerm} onValueChange={actions.setProductSearchTerm} placeholder="Buscar producto..." open={isProductSearchOpen} onOpenChange={actions.setProductSearchOpen} />
+                </div>
+                <div className="space-y-2">
+                    <Label>3. Ingrese la Cantidad Contada</Label>
+                    <Input type="number" value={countedQuantity} onChange={(e) => actions.setCountedQuantity(e.target.value)} placeholder="0" className="text-lg h-12" />
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button onClick={actions.handleSaveManualCount} disabled={isSubmitting || !state.selectedProductId || !state.selectedLocationId || countedQuantity === ''}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar Conteo
+                </Button>
+            </CardFooter>
+        </Card>
+    );
 };
 
+const ScannerMode = () => {
+    const { state, actions, refs } = useInventoryCount();
+    const { isSubmitting, scanInput, scannerQuantityInput, scannerLoadedData, lastCountInfo } = state;
+    return (
+        <Card className="w-full max-w-lg">
+            <CardHeader>
+                <CardTitle>Modo Escáner</CardTitle>
+                <CardDescription>Escanea una etiqueta QR de producto en ubicación para cargar los datos automáticamente.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="space-y-2">
+                    <Label htmlFor="scan-input" className="text-lg font-semibold">1. Escanear Etiqueta</Label>
+                     <Input
+                        ref={refs.scanInputRef}
+                        id="scan-input"
+                        placeholder="Esperando escaneo de QR..."
+                        value={scanInput}
+                        onChange={(e) => actions.handleScanInput(e.target.value)}
+                        className="text-lg h-14"
+                        autoFocus
+                    />
+                </div>
+                {scannerLoadedData && (
+                    <div className="space-y-4 rounded-md border p-4 bg-muted/50">
+                        <div>
+                            <Label className="text-xs text-muted-foreground">Producto</Label>
+                            <p className="font-semibold">{scannerLoadedData.product.description}</p>
+                        </div>
+                         <div>
+                            <Label className="text-xs text-muted-foreground">Ubicación</Label>
+                            <p className="font-semibold">{scannerLoadedData.location.name} ({scannerLoadedData.location.code})</p>
+                        </div>
+                        <div className="space-y-2 pt-2">
+                             <Label htmlFor="scanner-quantity" className="text-lg font-semibold">2. Ingresar Cantidad</Label>
+                             <Input
+                                ref={refs.quantityInputRef}
+                                id="scanner-quantity"
+                                type="number"
+                                value={scannerQuantityInput}
+                                onChange={(e) => actions.setScannerQuantityInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && actions.handleSaveScannerCount()}
+                                placeholder="0"
+                                className="text-2xl h-16"
+                            />
+                        </div>
+                    </div>
+                )}
+                 {lastCountInfo && (
+                    <Alert>
+                        <CheckCircle className="h-4 w-4" />
+                        <AlertTitle>Último Conteo Guardado</AlertTitle>
+                        <AlertDescription className="text-xs">
+                           Se registraron <strong>{lastCountInfo.quantity}</strong> unidades de <strong>{lastCountInfo.product}</strong> en <strong>{lastCountInfo.location}</strong>.
+                        </AlertDescription>
+                    </Alert>
+                )}
+            </CardContent>
+            <CardFooter>
+                 <Button onClick={actions.handleSaveScannerCount} disabled={isSubmitting || !scannerLoadedData || !scannerQuantityInput} className="w-full">
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Save className="mr-2 h-4 w-4"/>
+                    Guardar Conteo
+                </Button>
+            </CardFooter>
+        </Card>
+    )
+}
+
 export default function InventoryCountPage() {
-    const { isAuthorized } = useAuthorization(['warehouse:inventory-count:create']);
-    const { setTitle } = usePageTitle();
-    const { toast } = useToast();
-    const { user, companyData, products: authProducts } = useAuth();
+    const { state, actions, isAuthorized } = useInventoryCount();
+    const { isLoading, mode } = state;
 
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    const [allLocations, setAllLocations] = useState<WarehouseLocation[]>([]);
-    const [selectableLocations, setSelectableLocations] = useState<WarehouseLocation[]>([]);
-    
-    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-    const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-    const [countedQuantity, setCountedQuantity] = useState<string>('');
-
-    const [productSearchTerm, setProductSearchTerm] = useState('');
-    const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
-    const [locationSearchTerm, setLocationSearchTerm] = useState('');
-    const [isLocationSearchOpen, setIsLocationSearchOpen] = useState(false);
-
-    const [keepLocation, setKeepLocation] = useState(false);
-
-    const [debouncedProductSearch] = useDebounce(productSearchTerm, companyData?.searchDebounceTime ?? 500);
-    const [debouncedLocationSearch] = useDebounce(locationSearchTerm, 300);
-
-    const loadInitialData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const locs = await getLocations();
-            setAllLocations(locs);
-            setSelectableLocations(getSelectableLocations(locs));
-        } catch (error) {
-            logError("Failed to load data for inventory count page", { error });
-            toast({ title: "Error de Carga", description: "No se pudieron cargar las ubicaciones.", variant: "destructive" });
-        } finally {
-            setIsLoading(false);
-        }
-    }, [toast]);
-    
-    useEffect(() => {
-        setTitle("Toma de Inventario Físico");
-        if (isAuthorized) {
-            loadInitialData();
-            if (user) {
-                 logInfo(`User ${user.name} accessed Inventory Count page.`);
-            }
-        }
-    }, [setTitle, loadInitialData, isAuthorized, user]);
-
-    const productOptions = useMemo(() =>
-        debouncedProductSearch.length < 2 ? [] : authProducts
-            .filter(p => p.id.toLowerCase().includes(debouncedProductSearch.toLowerCase()) || p.description.toLowerCase().includes(debouncedProductSearch.toLowerCase()))
-            .map(p => ({ value: p.id, label: `[${p.id}] ${p.description}` })),
-        [authProducts, debouncedProductSearch]
-    );
-
-    const locationOptions = useMemo(() => {
-        const searchTerm = debouncedLocationSearch.trim().toLowerCase();
-        if (searchTerm === '*' || searchTerm === '') {
-            return selectableLocations.map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, allLocations) }));
-        }
-        return selectableLocations
-            .filter(l => renderLocationPathAsString(l.id, allLocations).toLowerCase().includes(searchTerm))
-            .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, allLocations) }));
-    }, [allLocations, selectableLocations, debouncedLocationSearch]);
-
-    const handleSelectProduct = (value: string) => {
-        setIsProductSearchOpen(false);
-        const product = authProducts.find(p => p.id === value);
-        if (product) {
-            setSelectedProductId(value);
-            setProductSearchTerm(`[${product.id}] ${product.description}`);
-        }
-    };
-    
-    const handleSelectLocation = (value: string) => {
-        setIsLocationSearchOpen(false);
-        const location = allLocations.find(l => String(l.id) === value);
-        if (location) {
-            setSelectedLocationId(value);
-            setLocationSearchTerm(renderLocationPathAsString(location.id, allLocations));
-        }
-    };
-
-    const handleSaveCount = async () => {
-        if (!selectedProductId || !selectedLocationId || countedQuantity === '') {
-            toast({ title: "Datos Incompletos", description: "Debe seleccionar un producto, una ubicación e ingresar una cantidad.", variant: "destructive" });
-            return;
-        }
-        if (!user) return;
-
-        const quantity = parseFloat(countedQuantity);
-        if (isNaN(quantity)) {
-             toast({ title: "Cantidad Inválida", description: "La cantidad debe ser un número.", variant: "destructive" });
-            return;
-        }
-
-        setIsSubmitting(true);
-        try {
-            await updateInventory(selectedProductId, parseInt(selectedLocationId, 10), quantity, user.id);
-            
-            toast({ title: "Conteo Guardado", description: `Se registró un inventario de ${quantity} para el producto.` });
-            
-            // Reset fields for next count
-            setSelectedProductId(null);
-            setProductSearchTerm('');
-            setCountedQuantity('');
-
-            if (!keepLocation) {
-                setSelectedLocationId(null);
-                setLocationSearchTerm('');
-            }
-
-        } catch(e: any) {
-            logError('Failed to save inventory count', { error: e.message });
-            toast({ title: "Error", description: `No se pudo guardar el conteo. ${e.message}`, variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+    if (isLoading) {
+        return (
+            <main className="flex-1 p-4 md:p-6 lg:p-8 flex items-center justify-center">
+                <Skeleton className="h-96 w-full max-w-2xl" />
+            </main>
+        );
+    }
     
     if (isAuthorized === false) {
         return null;
     }
     
-    if (isLoading) {
-        return (
-            <main className="flex-1 p-4 md:p-6 lg:p-8">
-                 <Skeleton className="h-96 w-full max-w-2xl mx-auto" />
-            </main>
-        )
-    }
-
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="mx-auto max-w-2xl space-y-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Toma de Inventario Físico</CardTitle>
-                        <CardDescription>Selecciona un producto y una ubicación para registrar la cantidad contada físicamente.</CardDescription>
-                         <div className="flex items-center space-x-2 pt-4">
-                            <Switch id="keep-location" checked={keepLocation} onCheckedChange={setKeepLocation} />
-                            <Label htmlFor="keep-location">Mantener Ubicación Seleccionada</Label>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                            <Label>1. Seleccione una Ubicación</Label>
-                            <div className="flex items-center gap-2">
-                                <SearchInput options={locationOptions} onSelect={handleSelectLocation} value={locationSearchTerm} onValueChange={setLocationSearchTerm} placeholder="Buscar... ('*' o vacío para ver todas)" open={isLocationSearchOpen} onOpenChange={setIsLocationSearchOpen} />
-                                <Button type="button" variant="outline" size="icon" onClick={() => {setLocationSearchTerm('*'); setIsLocationSearchOpen(true);}}>
-                                    <List className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>2. Seleccione un Producto</Label>
-                            <SearchInput options={productOptions} onSelect={handleSelectProduct} value={productSearchTerm} onValueChange={setProductSearchTerm} placeholder="Buscar producto..." open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label>3. Ingrese la Cantidad Contada</Label>
-                            <Input type="number" value={countedQuantity} onChange={(e) => setCountedQuantity(e.target.value)} placeholder="0" className="text-lg h-12" />
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                        <Button onClick={handleSaveCount} disabled={isSubmitting || !selectedProductId || !selectedLocationId || countedQuantity === ''}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            <Save className="mr-2 h-4 w-4" />
-                            Guardar Conteo
-                        </Button>
-                    </CardFooter>
-                </Card>
+            <div className="mx-auto max-w-2xl space-y-4">
+                 <div className="flex items-center justify-center space-x-2 mb-6">
+                    <Label htmlFor="mode-switch" className={mode === 'manual' ? 'font-bold' : ''}>Modo Manual</Label>
+                    <Switch
+                        id="mode-switch"
+                        checked={mode === 'scanner'}
+                        onCheckedChange={(checked) => actions.setMode(checked ? 'scanner' : 'manual')}
+                    />
+                    <Label htmlFor="mode-switch" className={mode === 'scanner' ? 'font-bold' : ''}>Modo Escáner</Label>
+                </div>
+                 <div className="flex items-center justify-center">
+                    {mode === 'manual' ? <ManualMode /> : <ScannerMode />}
+                </div>
             </div>
         </main>
     );
