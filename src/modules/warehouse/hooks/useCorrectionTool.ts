@@ -7,17 +7,23 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getInventoryUnitById, correctInventoryUnit, getLocations } from '@/modules/warehouse/lib/actions';
-import type { InventoryUnit, Product, WarehouseLocation } from '@/modules/core/types';
+import { correctInventoryUnit, searchInventoryUnits } from '@/modules/warehouse/lib/actions';
+import type { InventoryUnit, Product, DateRange } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
+import { subDays } from 'date-fns';
 
 interface State {
-    isLoading: boolean;
     isSearching: boolean;
     isSubmitting: boolean;
-    searchTerm: string;
-    searchResult: { unit: InventoryUnit; product: Product; } | null;
+    filters: {
+        dateRange?: DateRange;
+        productId: string;
+        humanReadableId: string;
+        unitCode: string;
+        documentId: string;
+    };
+    searchResults: InventoryUnit[];
     unitToCorrect: InventoryUnit | null;
     isConfirmModalOpen: boolean;
     newProductSearch: string;
@@ -25,22 +31,8 @@ interface State {
     newSelectedProduct: Product | null;
     confirmStep: number;
     confirmText: string;
-    allLocations: WarehouseLocation[];
     editableUnit: Partial<InventoryUnit>;
 }
-
-const renderLocationPathAsString = (locationId: number | null, locations: WarehouseLocation[]): string => {
-    if (!locationId) return 'N/A';
-    const path: WarehouseLocation[] = [];
-    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
-    while (current) {
-        path.unshift(current);
-        const parentId = current.parentId;
-        if (!parentId) break;
-        current = locations.find(l => l.id === parentId);
-    }
-    return path.map(l => l.name).join(' > ');
-};
 
 export const useCorrectionTool = () => {
     const { isAuthorized } = useAuthorization(['warehouse:correction:execute']);
@@ -48,11 +40,16 @@ export const useCorrectionTool = () => {
     const { user, products: authProducts } = useAuth();
 
     const [state, setState] = useState<State>({
-        isLoading: true,
         isSearching: false,
         isSubmitting: false,
-        searchTerm: '',
-        searchResult: null,
+        filters: {
+            dateRange: { from: subDays(new Date(), 7), to: new Date() },
+            productId: '',
+            humanReadableId: '',
+            unitCode: '',
+            documentId: '',
+        },
+        searchResults: [],
         unitToCorrect: null,
         isConfirmModalOpen: false,
         newProductSearch: '',
@@ -60,56 +57,44 @@ export const useCorrectionTool = () => {
         newSelectedProduct: null,
         confirmStep: 0,
         confirmText: '',
-        allLocations: [],
         editableUnit: {},
     });
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
-
-    const setEditableUnit = (unit: Partial<InventoryUnit>) => {
-        updateState({ editableUnit: unit });
-    };
-
-    useEffect(() => {
-        const loadInitialData = async () => {
-            try {
-                const locations = await getLocations();
-                updateState({ allLocations: locations, isLoading: false });
-            } catch (error) {
-                logError('Failed to load locations for correction tool', { error });
-                updateState({ isLoading: false });
-            }
-        };
-        loadInitialData();
-    }, [updateState]);
-
+    
     const [debouncedNewProductSearch] = useDebounce(state.newProductSearch, 300);
 
     const handleSearch = async () => {
-        if (!state.searchTerm.trim()) return;
-        updateState({ isSearching: true, searchResult: null });
+        updateState({ isSearching: true, searchResults: [] });
         try {
-            const unit = await getInventoryUnitById(state.searchTerm.trim());
-            if (unit) {
-                const product = authProducts.find(p => p.id === unit.productId);
-                if (product) {
-                    updateState({ searchResult: { unit, product } });
-                } else {
-                    toast({ title: "Producto no encontrado", description: `No se encontró el producto con ID ${unit.productId} en el sistema.`, variant: "destructive" });
-                }
-            } else {
-                toast({ title: "No encontrado", description: "No se encontró ninguna unidad de inventario con ese ID.", variant: "destructive" });
+            const results = await searchInventoryUnits(state.filters);
+            updateState({ searchResults: results });
+            if (results.length === 0) {
+                toast({ title: 'Sin Resultados', description: 'No se encontraron ingresos con los filtros especificados.' });
             }
         } catch (error: any) {
-            logError("Error searching for inventory unit", { error: error.message });
+            logError("Error searching for inventory units", { error: error.message });
             toast({ title: "Error de Búsqueda", variant: "destructive" });
         } finally {
             updateState({ isSearching: false });
         }
     };
     
+    const handleClearFilters = () => {
+        updateState({
+            filters: {
+                dateRange: { from: subDays(new Date(), 7), to: new Date() },
+                productId: '',
+                humanReadableId: '',
+                unitCode: '',
+                documentId: '',
+            },
+            searchResults: [],
+        });
+    };
+
     const handleSelectNewProduct = (productId: string) => {
         const product = authProducts.find(p => p.id === productId);
         if (product) {
@@ -123,7 +108,6 @@ export const useCorrectionTool = () => {
 
     const handleModalOpenChange = (open: boolean) => {
         if (!open) {
-            // Reset modal state when closing
             updateState({
                 unitToCorrect: null,
                 isConfirmModalOpen: false,
@@ -158,7 +142,7 @@ export const useCorrectionTool = () => {
             });
             toast({ title: "Corrección Exitosa", description: `La unidad ${state.unitToCorrect.unitCode} ha sido actualizada.` });
             handleModalOpenChange(false);
-            updateState({ searchResult: null, searchTerm: '' }); // Clear search after correction
+            await handleSearch(); // Refresh search results after correction
         } catch (error: any) {
             logError("Error executing inventory correction", { error: error.message });
             toast({ title: "Error en la Corrección", description: error.message, variant: "destructive" });
@@ -192,16 +176,19 @@ export const useCorrectionTool = () => {
             if (!state.unitToCorrect) return '';
             return authProducts.find(p => p.id === state.unitToCorrect?.productId)?.description || state.unitToCorrect?.productId;
         },
-        getOriginalLocationPath: () => {
-            return renderLocationPathAsString(state.searchResult?.unit.locationId || null, state.allLocations);
-        },
+        getProductName: (productId: string) => {
+             return authProducts.find(p => p.id === productId)?.description || 'Desconocido';
+        }
     };
 
     return {
         state,
         actions: {
-            setSearchTerm: (term: string) => updateState({ searchTerm: term }),
+            setFilter: (field: keyof State['filters'], value: any) => {
+                updateState({ filters: { ...state.filters, [field]: value } });
+            },
             handleSearch,
+            handleClearFilters,
             setUnitToCorrect,
             handleModalOpenChange,
             setNewProductSearch: (term: string) => updateState({ newProductSearch: term }),
@@ -210,7 +197,7 @@ export const useCorrectionTool = () => {
             setConfirmStep: (step: number) => updateState({ confirmStep: step }),
             setConfirmText: (text: string) => updateState({ confirmText: text }),
             handleConfirmCorrection,
-            setEditableUnit,
+            setEditableUnit: (unit: Partial<InventoryUnit>) => updateState({ editableUnit: unit }),
         },
         selectors,
     };
