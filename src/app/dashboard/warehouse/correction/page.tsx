@@ -3,7 +3,7 @@
  */
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -166,19 +166,19 @@ export default function CorrectionPage() {
                                         </div>
                                          <div className="space-y-2">
                                             <Label htmlFor="edit-quantity">Cantidad</Label>
-                                            <Input id="edit-quantity" type="number" value={editableUnit.quantity} onChange={e => actions.setEditableUnit({ ...editableUnit, quantity: Number(e.target.value) })} />
+                                            <Input id="edit-quantity" type="number" value={editableUnit.quantity} onChange={e => actions.setEditableUnitField('quantity', Number(e.target.value))} />
                                         </div>
                                          <div className="space-y-2">
                                             <Label htmlFor="edit-lote">Nº Lote / ID Físico</Label>
-                                            <Input id="edit-lote" value={editableUnit.humanReadableId || ''} onChange={e => actions.setEditableUnit({ ...editableUnit, humanReadableId: e.target.value })} />
+                                            <Input id="edit-lote" value={editableUnit.humanReadableId || ''} onChange={e => actions.setEditableUnitField('humanReadableId', e.target.value)} />
                                         </div>
                                          <div className="space-y-2">
                                             <Label htmlFor="edit-doc">Nº Documento</Label>
-                                            <Input id="edit-doc" value={editableUnit.documentId || ''} onChange={e => actions.setEditableUnit({ ...editableUnit, documentId: e.target.value })} />
+                                            <Input id="edit-doc" value={editableUnit.documentId || ''} onChange={e => actions.setEditableUnitField('documentId', e.target.value)} />
                                         </div>
                                         <div className="space-y-2 sm:col-span-2">
                                             <Label htmlFor="edit-erp-doc">Nº Documento ERP</Label>
-                                            <Input id="edit-erp-doc" value={editableUnit.erpDocumentId || ''} onChange={e => actions.setEditableUnit({ ...editableUnit, erpDocumentId: e.target.value })} />
+                                            <Input id="edit-erp-doc" value={editableUnit.erpDocumentId || ''} onChange={e => actions.setEditableUnitField('erpDocumentId', e.target.value)} />
                                         </div>
                                     </div>
                                 </div>

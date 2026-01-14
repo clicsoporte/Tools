@@ -29,7 +29,7 @@ interface State {
     newProductSearch: string;
     isNewProductSearchOpen: boolean;
     newSelectedProduct: Product | null;
-    editableUnit: Partial<InventoryUnit>;
+    editableUnit: Partial<InventoryUnit>; // The state for the form inputs
 }
 
 export const useCorrectionTool = () => {
@@ -146,15 +146,22 @@ export const useCorrectionTool = () => {
         }
     };
 
-    const setEditableUnit = (newEditableUnit: Partial<InventoryUnit>) => {
-        updateState({ editableUnit: newEditableUnit });
+    const setEditableUnitField = (field: keyof InventoryUnit, value: any) => {
+        updateState({ editableUnit: { ...state.editableUnit, [field]: value } });
     };
 
     const resetEditableUnit = () => {
         if (state.unitToCorrect) {
             const originalProduct = authProducts.find(p => p.id === state.unitToCorrect?.productId);
+            // Explicitly set each field to ensure re-render
             updateState({
-                editableUnit: { ...state.unitToCorrect },
+                editableUnit: {
+                    productId: state.unitToCorrect.productId,
+                    quantity: state.unitToCorrect.quantity,
+                    humanReadableId: state.unitToCorrect.humanReadableId,
+                    documentId: state.unitToCorrect.documentId,
+                    erpDocumentId: state.unitToCorrect.erpDocumentId,
+                },
                 newSelectedProduct: originalProduct || null,
                 newProductSearch: originalProduct ? `[${originalProduct.id}] ${originalProduct.description}` : '',
             });
@@ -205,7 +212,7 @@ export const useCorrectionTool = () => {
             setNewProductSearchOpen: (isOpen: boolean) => updateState({ isNewProductSearchOpen: isOpen }),
             handleSelectNewProduct,
             handleConfirmCorrection,
-            setEditableUnit,
+            setEditableUnitField,
             resetEditableUnit,
         },
         selectors,
