@@ -176,19 +176,31 @@ export const useInventoryCount = () => {
     }
 
     // --- SCANNER MODE ACTIONS ---
-    const handleScanInput = async (scanValue: string) => {
+    const processScan = (scanValue: string) => {
         const trimmedValue = scanValue.trim();
-        updateState({ scanInput: trimmedValue, scannerLoadedData: null });
-        if (!trimmedValue.includes('>')) return;
+        if (!trimmedValue) return;
 
-        const [locationIdStr, productId] = trimmedValue.split('>');
-        const locationId = parseInt(locationIdStr, 10);
+        let locationId: number | null = null;
+        let productId: string | null = null;
 
-        if (!locationId || !productId) {
-            toast({ title: 'Código QR Inválido', description: 'El formato debe ser ID_UBICACION>ID_PRODUCTO.', variant: 'destructive' });
-            return;
+        if (trimmedValue.includes('>')) {
+            const parts = trimmedValue.split('>');
+            locationId = parseInt(parts[0], 10);
+            productId = parts[1];
+        } else {
+            // Assume it's a product code and try to find its designated location
+            productId = trimmedValue;
+            const itemLoc = state.itemLocations.find(il => il.itemId === productId);
+            if (itemLoc) {
+                locationId = itemLoc.locationId;
+            }
         }
 
+        if (!locationId || !productId) {
+            toast({ title: 'Código Inválido', description: 'No se pudo determinar el producto y la ubicación.', variant: 'destructive' });
+            return;
+        }
+        
         const product = authProducts.find(p => p.id === productId);
         const location = state.allLocations.find(l => l.id === locationId);
 
@@ -199,7 +211,18 @@ export const useInventoryCount = () => {
             });
             setTimeout(() => quantityInputRef.current?.focus(), 100);
         } else {
-            toast({ title: 'No Encontrado', description: 'No se encontró el producto o la ubicación para este QR.', variant: 'destructive' });
+            toast({ title: 'No Encontrado', description: 'No se encontró el producto o la ubicación para este código.', variant: 'destructive' });
+        }
+    };
+    
+    const handleScanInput = (scanValue: string) => {
+        updateState({ scanInput: scanValue, scannerLoadedData: null });
+    };
+
+    const handleScanKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            processScan(state.scanInput);
         }
     };
     
@@ -253,6 +276,7 @@ export const useInventoryCount = () => {
             setKeepLocation,
             // Scanner
             handleScanInput,
+            handleScanKeyDown,
             handleSaveScannerCount,
             setScannerQuantityInput: (qty: string) => updateState({ scannerQuantityInput: qty }),
         },

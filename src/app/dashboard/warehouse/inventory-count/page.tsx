@@ -81,6 +81,7 @@ const ScannerMode = () => {
                         placeholder="Esperando escaneo de QR..."
                         value={scanInput}
                         onChange={(e) => actions.handleScanInput(e.target.value)}
+                        onKeyDown={actions.handleScanKeyDown}
                         className="text-lg h-14"
                         autoFocus
                     />
