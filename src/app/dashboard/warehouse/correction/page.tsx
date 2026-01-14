@@ -162,7 +162,7 @@ export default function CorrectionPage() {
                         <CardDescription>Usa los filtros para encontrar la unidad de inventario que necesitas corregir.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             <div className="space-y-2">
                                 <Label>Rango de Fechas</Label>
                                 <Popover>
@@ -312,3 +312,4 @@ export default function CorrectionPage() {
         </main>
     );
 }
+    
