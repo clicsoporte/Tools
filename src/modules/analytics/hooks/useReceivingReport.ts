@@ -69,7 +69,7 @@ export function useReceivingReport() {
         visibleColumns: availableColumns.map(c => c.id),
     });
 
-    const [debouncedSearchTerm] = useDebounce(state.searchTerm, 500);
+    const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
