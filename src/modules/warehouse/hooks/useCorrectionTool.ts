@@ -29,8 +29,6 @@ interface State {
     newProductSearch: string;
     isNewProductSearchOpen: boolean;
     newSelectedProduct: Product | null;
-    confirmStep: number;
-    confirmText: string;
     editableUnit: Partial<InventoryUnit>;
 }
 
@@ -55,8 +53,6 @@ export const useCorrectionTool = () => {
         newProductSearch: '',
         isNewProductSearchOpen: false,
         newSelectedProduct: null,
-        confirmStep: 0,
-        confirmText: '',
         editableUnit: {},
     });
 
@@ -102,6 +98,7 @@ export const useCorrectionTool = () => {
                 newSelectedProduct: product,
                 newProductSearch: `[${product.id}] ${product.description}`,
                 isNewProductSearchOpen: false,
+                editableUnit: { ...state.editableUnit, productId: product.id }
             });
         }
     };
@@ -113,8 +110,6 @@ export const useCorrectionTool = () => {
                 isConfirmModalOpen: false,
                 newProductSearch: '',
                 newSelectedProduct: null,
-                confirmStep: 0,
-                confirmText: '',
                 editableUnit: {},
             });
         } else {
@@ -148,6 +143,21 @@ export const useCorrectionTool = () => {
             toast({ title: "Error en la Corrección", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isSubmitting: false });
+        }
+    };
+
+    const setEditableUnit = (unit: Partial<InventoryUnit>) => {
+        updateState({ editableUnit: unit });
+    };
+
+    const resetEditableUnit = () => {
+        if (state.unitToCorrect) {
+            const product = authProducts.find(p => p.id === state.unitToCorrect?.productId);
+            updateState({
+                editableUnit: { ...state.unitToCorrect },
+                newSelectedProduct: product || null,
+                newProductSearch: product ? `[${product.id}] ${product.description}` : '',
+            });
         }
     };
     
@@ -194,10 +204,9 @@ export const useCorrectionTool = () => {
             setNewProductSearch: (term: string) => updateState({ newProductSearch: term }),
             setNewProductSearchOpen: (isOpen: boolean) => updateState({ isNewProductSearchOpen: isOpen }),
             handleSelectNewProduct,
-            setConfirmStep: (step: number) => updateState({ confirmStep: step }),
-            setConfirmText: (text: string) => updateState({ confirmText: text }),
             handleConfirmCorrection,
-            setEditableUnit: (unit: Partial<InventoryUnit>) => updateState({ editableUnit: unit }),
+            setEditableUnit,
+            resetEditableUnit,
         },
         selectors,
     };

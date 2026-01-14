@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX } from 'lucide-react';
+import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX, RotateCw } from 'lucide-react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -30,7 +30,6 @@ export default function CorrectionPage() {
     const {
         isSearching,
         isSubmitting,
-        searchTerm,
         filters,
         searchResults,
         unitToCorrect,
@@ -38,8 +37,6 @@ export default function CorrectionPage() {
         newProductSearch,
         isNewProductSearchOpen,
         newSelectedProduct,
-        confirmStep,
-        confirmText,
         editableUnit,
     } = state;
 
@@ -195,31 +192,39 @@ export default function CorrectionPage() {
                                 </Alert>
                             </div>
                         )}
-                        <DialogFooter>
-                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button disabled={!newSelectedProduct || isSubmitting}>
-                                        <Save className="mr-2 h-4 w-4"/>
-                                        Aplicar Corrección
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Confirmar Corrección?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Se va a generar un movimiento de anulación para el ingreso original y se creará un nuevo ingreso con los datos corregidos. ¿Estás seguro?
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>No, cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={actions.handleConfirmCorrection} disabled={isSubmitting}>
-                                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                            Sí, Corregir
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                        <DialogFooter className="justify-between">
+                            <div>
+                                <Button variant="ghost" onClick={actions.resetEditableUnit}>
+                                    <RotateCw className="mr-2 h-4 w-4" />
+                                    Limpiar Cambios
+                                </Button>
+                            </div>
+                            <div className="flex gap-2">
+                                <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button disabled={!newSelectedProduct || isSubmitting}>
+                                            <Save className="mr-2 h-4 w-4"/>
+                                            Aplicar Corrección
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Confirmar Corrección?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Se va a generar un movimiento de anulación para el ingreso original y se creará un nuevo ingreso con los datos corregidos. ¿Estás seguro?
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>No, cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={actions.handleConfirmCorrection} disabled={isSubmitting}>
+                                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                Sí, Corregir
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
