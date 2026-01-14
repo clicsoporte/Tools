@@ -729,44 +729,69 @@ export async function getChildLocations(parentIds: number[]): Promise<WarehouseL
     return JSON.parse(JSON.stringify(uniqueChildren));
 }
 
-export async function correctInventoryUnit(payload: { unitId: number; newProductId: string; userId: number; userName: string; }): Promise<void> {
-    const { unitId, newProductId, userId, userName } = payload;
+export async function correctInventoryUnit(payload: {
+    unitId: number;
+    newProductId: string;
+    newQuantity: number;
+    newHumanReadableId: string;
+    newDocumentId: string;
+    newErpDocumentId: string;
+    userId: number;
+    userName: string;
+}): Promise<void> {
+    const { unitId, newProductId, newQuantity, newHumanReadableId, newDocumentId, newErpDocumentId, userId, userName } = payload;
     const db = await connectDb(WAREHOUSE_DB_FILE);
 
     const transaction = db.transaction(() => {
-        const unit = db.prepare('SELECT * FROM inventory_units WHERE id = ?').get(unitId) as InventoryUnit | undefined;
-        if (!unit) {
+        const originalUnit = db.prepare('SELECT * FROM inventory_units WHERE id = ?').get(unitId) as InventoryUnit | undefined;
+        if (!originalUnit) {
             throw new Error("La unidad de inventario a corregir no existe.");
-        }
-        if (unit.productId === newProductId) {
-             throw new Error("El nuevo producto es el mismo que el original.");
         }
 
         // 1. Anular la unidad original (poniendo cantidad en 0 para mantener el histórico del código)
-        db.prepare('UPDATE inventory_units SET quantity = 0, notes = ? WHERE id = ?').run(`CORREGIDO. Reemplazado por ${newProductId}. Anulado por ${userName}. Nota original: ${unit.notes || ''}`, unitId);
+        db.prepare('UPDATE inventory_units SET quantity = 0, notes = ? WHERE id = ?').run(`CORREGIDO. Reemplazado por producto ${newProductId}. Anulado por ${userName}. Nota original: ${originalUnit.notes || ''}`, unitId);
 
-        // 2. Registrar movimiento de SALIDA del producto incorrecto
+        // 2. Registrar movimiento de SALIDA del producto incorrecto con la cantidad original
         db.prepare(
             'INSERT INTO movements (itemId, quantity, fromLocationId, toLocationId, timestamp, userId, notes) VALUES (?, ?, ?, ?, datetime(\'now\'), ?, ?)'
-        ).run(unit.productId, -unit.quantity, unit.locationId, null, userId, `Corrección de ingreso. Salida de unidad ${unit.unitCode}.`);
+        ).run(originalUnit.productId, -originalUnit.quantity, originalUnit.locationId, null, userId, `Corrección de ingreso (Anulación). Salida de unidad ${originalUnit.unitCode}.`);
 
-        // 3. Crear NUEVA unidad de inventario con el producto correcto
+        // 3. Crear NUEVA unidad de inventario con los datos corregidos
         const settings = db.prepare("SELECT value FROM warehouse_config WHERE key = 'settings'").get() as { value: string };
         const parsedSettings: WarehouseSettings = JSON.parse(settings.value);
         const newUnitCode = `${parsedSettings.unitPrefix || 'U'}${(parsedSettings.nextUnitNumber || 1).toString().padStart(5, '0')}`;
 
-        const newUnitInfo = db.prepare(
-            'INSERT INTO inventory_units (unitCode, productId, humanReadableId, documentId, locationId, quantity, notes, createdAt, createdBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ).run(newUnitCode, newProductId, unit.humanReadableId, unit.documentId, unit.locationId, unit.quantity, `CORRECCIÓN desde ${unit.unitCode}. Nota original: ${unit.notes || ''}`, unit.createdAt, userName);
+        db.prepare(
+            'INSERT INTO inventory_units (unitCode, productId, humanReadableId, documentId, erpDocumentId, locationId, quantity, notes, createdAt, createdBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).run(
+            newUnitCode,
+            newProductId,
+            newHumanReadableId || null,
+            newDocumentId || null,
+            newErpDocumentId || null,
+            originalUnit.locationId,
+            newQuantity,
+            `CORRECCIÓN desde ${originalUnit.unitCode}.`,
+            originalUnit.createdAt,
+            userName
+        );
         
+        // 4. Incrementar el contador de unidades
         db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify({ ...parsedSettings, nextUnitNumber: (parsedSettings.nextUnitNumber || 1) + 1 }));
 
-        // 4. Registrar movimiento de ENTRADA para el producto correcto
+        // 5. Registrar movimiento de ENTRADA para el producto y cantidad correctos
         db.prepare(
             'INSERT INTO movements (itemId, quantity, fromLocationId, toLocationId, timestamp, userId, notes) VALUES (?, ?, ?, ?, datetime(\'now\'), ?, ?)'
-        ).run(newProductId, unit.quantity, null, unit.locationId, userId, `Corrección de ingreso. Nueva unidad ${newUnitCode}.`);
+        ).run(newProductId, newQuantity, null, originalUnit.locationId, userId, `Corrección de ingreso. Nueva unidad ${newUnitCode}.`);
 
-        logInfo('Inventory unit corrected successfully', { oldUnit: unit, newProductId, newUnitCode, user: userName });
+        logInfo('Inventory unit corrected successfully', {
+            oldUnitId: unitId,
+            oldProductId: originalUnit.productId,
+            newProductId,
+            newQuantity,
+            newUnitCode,
+            user: userName,
+        });
     });
 
     try {

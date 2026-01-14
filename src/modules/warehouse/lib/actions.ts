@@ -105,7 +105,16 @@ export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'created
 export const getInventoryUnits = async (): Promise<InventoryUnit[]> => getInventoryUnitsServer();
 export const deleteInventoryUnit = async (id: number): Promise<void> => deleteInventoryUnitServer(id);
 export const getInventoryUnitById = async (id: string | number): Promise<InventoryUnit | null> => getInventoryUnitByIdServer(id);
-export const correctInventoryUnit = async (payload: { unitId: number; newProductId: string; userId: number; userName: string; }): Promise<void> => correctInventoryUnitServer(payload);
+export const correctInventoryUnit = async (payload: {
+    unitId: number;
+    newProductId: string;
+    newQuantity: number;
+    newHumanReadableId: string;
+    newDocumentId: string;
+    newErpDocumentId: string;
+    userId: number;
+    userName: string;
+}): Promise<void> => correctInventoryUnitServer(payload);
 export const searchInventoryUnits = async (filters: {
     dateRange?: DateRange;
     productId?: string;

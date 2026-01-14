@@ -33,6 +33,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose, DialogFooter } from '@/components/ui/dialog';
 
+// Represents the state of the form within the correction modal
+type CorrectionFormState = {
+    productId: string;
+    quantity: number;
+    humanReadableId: string;
+    documentId: string;
+    erpDocumentId: string;
+};
 
 export default function CorrectionPage() {
     const { isAuthorized } = useAuthorization(['warehouse:correction:execute']);
@@ -55,15 +63,21 @@ export default function CorrectionPage() {
     const [unitToCorrect, setUnitToCorrect] = useState<InventoryUnit | null>(null);
     const [isCorrectionModalOpen, setIsCorrectionModalOpen] = useState(false);
     
-    const [newProductSearchTerm, setNewProductSearchTerm] = useState('');
-    const [newProductId, setNewProductId] = useState<string | null>(null);
+    const [correctionForm, setCorrectionForm] = useState<CorrectionFormState>({
+        productId: '', quantity: 1, humanReadableId: '', documentId: '', erpDocumentId: ''
+    });
+    const [productSearchTerm, setProductSearchTerm] = useState('');
     const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
     
-    const [debouncedProductSearch] = useDebounce(newProductSearchTerm, 300);
+    const [debouncedProductSearch] = useDebounce(productSearchTerm, 300);
 
     const originalProduct = useMemo(() => 
         unitToCorrect ? authProducts.find(p => p.id === unitToCorrect.productId) : null, 
     [unitToCorrect, authProducts]);
+    
+    const correctedProduct = useMemo(() =>
+        authProducts.find(p => p.id === correctionForm.productId),
+    [authProducts, correctionForm.productId]);
 
     useEffect(() => {
         setTitle("Corrección de Ingresos");
@@ -103,36 +117,52 @@ export default function CorrectionPage() {
     
     const openCorrectionModal = (unit: InventoryUnit) => {
         setUnitToCorrect(unit);
-        setNewProductId(null);
-        setNewProductSearchTerm('');
+        // Pre-fill the form with original data
+        const product = authProducts.find(p => p.id === unit.productId);
+        setCorrectionForm({
+            productId: unit.productId,
+            quantity: unit.quantity,
+            humanReadableId: unit.humanReadableId || '',
+            documentId: unit.documentId || '',
+            erpDocumentId: unit.erpDocumentId || '',
+        });
+        setProductSearchTerm(product ? `[${product.id}] ${product.description}` : unit.productId);
         setIsCorrectionModalOpen(true);
+    };
+
+    const handleFormChange = (field: keyof CorrectionFormState, value: any) => {
+        setCorrectionForm(prev => ({ ...prev, [field]: value }));
     };
 
     const handleSelectNewProduct = (productId: string) => {
         const product = authProducts.find(p => p.id === productId);
         if (product) {
-            setNewProductId(productId);
-            setNewProductSearchTerm(`[${product.id}] ${product.description}`);
+            handleFormChange('productId', productId);
+            setProductSearchTerm(`[${product.id}] ${product.description}`);
         }
         setIsProductSearchOpen(false);
     };
 
     const handleCorrection = async () => {
-        if (!unitToCorrect || !newProductId || !user) {
-            toast({ title: 'Datos Incompletos', description: 'Se requiere una unidad y un nuevo producto para la corrección.', variant: 'destructive'});
+        if (!unitToCorrect || !correctionForm.productId || !user) {
+            toast({ title: 'Datos Incompletos', description: 'Se requiere una unidad y un producto para la corrección.', variant: 'destructive'});
             return;
         }
 
         setIsSubmitting(true);
         try {
             await correctInventoryUnit({
-                unitId: unitToCorrect.id, 
-                newProductId: newProductId,
+                unitId: unitToCorrect.id,
+                newProductId: correctionForm.productId,
+                newQuantity: correctionForm.quantity,
+                newHumanReadableId: correctionForm.humanReadableId,
+                newDocumentId: correctionForm.documentId,
+                newErpDocumentId: correctionForm.erpDocumentId,
                 userId: user.id,
                 userName: user.name
             });
-            toast({ title: 'Corrección Exitosa', description: `La unidad ${unitToCorrect.unitCode} ha sido anulada y reemplazada con el nuevo producto.` });
-            logInfo('Inventory unit corrected', { oldUnit: unitToCorrect.unitCode, newProduct: newProductId, user: user.name });
+            toast({ title: 'Corrección Exitosa', description: `La unidad ${unitToCorrect.unitCode} ha sido anulada y una nueva unidad ha sido creada con los datos corregidos.` });
+            logInfo('Inventory unit corrected', { oldUnit: unitToCorrect.unitCode, correctedData: correctionForm, user: user.name });
             setIsCorrectionModalOpen(false);
             setUnitToCorrect(null);
             await handleSearch(); // Refresh search results
@@ -242,41 +272,54 @@ export default function CorrectionPage() {
                 )}
 
                  <Dialog open={isCorrectionModalOpen} onOpenChange={setIsCorrectionModalOpen}>
-                    <DialogContent>
+                    <DialogContent className="sm:max-w-2xl">
                         <DialogHeader>
                             <DialogTitle>Corregir Ingreso</DialogTitle>
                             <DialogDescription>
-                                Estás a punto de anular la unidad <strong>{unitToCorrect?.unitCode}</strong> y crear una nueva con el producto correcto.
+                                Modifica los campos incorrectos de la unidad <strong>{unitToCorrect?.unitCode}</strong>.
                             </DialogDescription>
                         </DialogHeader>
                         {unitToCorrect && (
                              <div className="py-4 space-y-6">
-                                <Alert>
-                                    <Package className="h-4 w-4" />
-                                    <AlertTitle>Ingreso Original</AlertTitle>
-                                    <AlertDescription className="text-sm">
-                                        <p><strong>Producto:</strong> {originalProduct?.description || unitToCorrect.productId}</p>
-                                        <p><strong>Cantidad:</strong> {unitToCorrect.quantity}</p>
-                                        <p><strong>Lote:</strong> {unitToCorrect.humanReadableId || 'N/A'}</p>
-                                    </AlertDescription>
-                                </Alert>
-                                <div className="space-y-2">
-                                    <Label htmlFor="new-product" className="font-semibold">Seleccionar Producto Correcto</Label>
-                                    <SearchInput
-                                        options={productOptions}
-                                        onSelect={handleSelectNewProduct}
-                                        value={newProductSearchTerm}
-                                        onValueChange={setNewProductSearchTerm}
-                                        placeholder="Buscar por código o descripción..."
-                                        open={isProductSearchOpen}
-                                        onOpenChange={setIsProductSearchOpen}
-                                    />
+                                <div className="space-y-4 rounded-lg border p-4">
+                                     <h3 className="font-semibold text-lg">Datos a Corregir</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2 md:col-span-2">
+                                            <Label htmlFor="new-product">Producto</Label>
+                                            <SearchInput
+                                                id="new-product"
+                                                options={productOptions}
+                                                onSelect={handleSelectNewProduct}
+                                                value={productSearchTerm}
+                                                onValueChange={setProductSearchTerm}
+                                                placeholder="Buscar por código o descripción..."
+                                                open={isProductSearchOpen}
+                                                onOpenChange={setIsProductSearchOpen}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="new-quantity">Cantidad</Label>
+                                            <Input id="new-quantity" type="number" value={correctionForm.quantity} onChange={e => handleFormChange('quantity', Number(e.target.value))}/>
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="new-humanReadableId">Nº Lote / ID Físico</Label>
+                                            <Input id="new-humanReadableId" value={correctionForm.humanReadableId} onChange={e => handleFormChange('humanReadableId', e.target.value)}/>
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="new-documentId">Nº Documento</Label>
+                                            <Input id="new-documentId" value={correctionForm.documentId} onChange={e => handleFormChange('documentId', e.target.value)}/>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="new-erpDocumentId">Nº Documento ERP</Label>
+                                            <Input id="new-erpDocumentId" value={correctionForm.erpDocumentId} onChange={e => handleFormChange('erpDocumentId', e.target.value)}/>
+                                        </div>
+                                    </div>
                                 </div>
                                 <Alert variant="destructive">
                                     <AlertTriangle className="h-4 w-4" />
                                     <AlertTitle>¡Acción Irreversible!</AlertTitle>
                                     <AlertDescription>
-                                        Al continuar, la unidad original será anulada (su cantidad se pondrá en cero) y se creará una nueva unidad con el producto correcto. Esta acción quedará registrada en el historial de movimientos.
+                                        Al continuar, la unidad original será anulada y se creará una nueva con los datos corregidos. Esta acción quedará registrada en el historial de movimientos.
                                     </AlertDescription>
                                 </Alert>
                             </div>
@@ -285,7 +328,7 @@ export default function CorrectionPage() {
                             <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button disabled={!newProductId || isSubmitting}>
+                                    <Button disabled={!correctionForm.productId || isSubmitting}>
                                         <Save className="mr-2 h-4 w-4"/>
                                         Aplicar Corrección
                                     </Button>
@@ -294,7 +337,7 @@ export default function CorrectionPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>¿Confirmar Corrección?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            Vas a anular el ingreso de <strong>{unitToCorrect?.quantity}x {originalProduct?.description}</strong> y registrar un nuevo ingreso para <strong>{authProducts.find(p => p.id === newProductId)?.description}</strong>. ¿Estás seguro?
+                                            Vas a anular el ingreso de <strong>{unitToCorrect?.quantity}x {originalProduct?.description}</strong> y registrar un nuevo ingreso para <strong>{correctionForm.quantity}x {correctedProduct?.description}</strong>. ¿Estás seguro?
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
