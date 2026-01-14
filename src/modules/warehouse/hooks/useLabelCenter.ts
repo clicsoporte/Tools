@@ -49,7 +49,7 @@ const renderLocationPathAsString = (locationId: number, locations: WarehouseLoca
 export const useLabelCenter = () => {
     const { isAuthorized } = useAuthorization(['warehouse:labels:generate']);
     const { toast } = useToast();
-    const { user, products } = useAuth();
+    const { user, products, companyData } = useAuth();
 
     const [state, setState] = useState<State>({
         isLoading: true,
@@ -65,7 +65,7 @@ export const useLabelCenter = () => {
         isRackSearchOpen: false,
     });
 
-    const [debouncedRackSearch] = useDebounce(state.rackSearchTerm, 300);
+    const [debouncedRackSearch] = useDebounce(state.rackSearchTerm, companyData?.searchDebounceTime ?? 500);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState((prevState: State) => ({ ...prevState, ...newState }));

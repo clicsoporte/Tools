@@ -55,10 +55,11 @@ interface LocationFormProps {
 }
 
 function LocationForm({ initialLocation, allLocations, settings, onSave, onCancel, isEditing }: LocationFormProps) {
+    const { companyData } = useAuth();
     const [formData, setFormData] = useState(initialLocation);
     const [parentSearchTerm, setParentSearchTerm] = useState('');
     const [isParentSearchOpen, setIsParentSearchOpen] = useState(false);
-    const [debouncedParentSearch] = useDebounce(parentSearchTerm, 300);
+    const [debouncedParentSearch] = useDebounce(parentSearchTerm, companyData?.searchDebounceTime ?? 500);
 
     useEffect(() => {
         setFormData(initialLocation);
@@ -586,5 +587,3 @@ export default function ManageLocationsPage() {
         </main>
     );
 }
-
-    

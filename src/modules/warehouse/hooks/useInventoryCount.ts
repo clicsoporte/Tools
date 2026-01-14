@@ -62,8 +62,8 @@ export const useInventoryCount = () => {
     const quantityInputRef = useRef<HTMLInputElement>(null);
     const scanInputRef = useRef<HTMLInputElement>(null);
 
-    const [debouncedProductSearch] = useDebounce(state.productSearchTerm, 300);
-    const [debouncedLocationSearch] = useDebounce(state.locationSearchTerm, 300);
+    const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);
+    const [debouncedLocationSearch] = useDebounce(state.locationSearchTerm, companyData?.searchDebounceTime ?? 500);
 
     const updateState = useCallback((newState: Partial<typeof state>) => {
         setState(prevState => ({ ...prevState, ...newState }));
