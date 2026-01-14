@@ -146,17 +146,17 @@ export const useCorrectionTool = () => {
         }
     };
 
-    const setEditableUnit = (unit: Partial<InventoryUnit>) => {
-        updateState({ editableUnit: unit });
+    const setEditableUnit = (newEditableUnit: Partial<InventoryUnit>) => {
+        updateState({ editableUnit: newEditableUnit });
     };
 
     const resetEditableUnit = () => {
         if (state.unitToCorrect) {
-            const product = authProducts.find(p => p.id === state.unitToCorrect?.productId);
+            const originalProduct = authProducts.find(p => p.id === state.unitToCorrect?.productId);
             updateState({
                 editableUnit: { ...state.unitToCorrect },
-                newSelectedProduct: product || null,
-                newProductSearch: product ? `[${product.id}] ${product.description}` : '',
+                newSelectedProduct: originalProduct || null,
+                newProductSearch: originalProduct ? `[${originalProduct.id}] ${originalProduct.description}` : '',
             });
         }
     };
