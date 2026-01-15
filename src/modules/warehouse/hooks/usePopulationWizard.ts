@@ -16,6 +16,20 @@ import { useDebounce } from 'use-debounce';
 
 export type WizardStep = 'setup' | 'populating' | 'finished' | 'resume';
 
+const renderLocationPathAsString = (locationId: number, locations: WarehouseLocation[]): string => {
+    if (!locationId) return '';
+    const path: WarehouseLocation[] = [];
+    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
+    while (current) {
+        path.unshift(current);
+        const parentId = current.parentId;
+        if (!parentId) break;
+        current = locations.find(l => l.id === parentId);
+    }
+    return path.map(l => l.name).join(' > ');
+};
+
+
 export const usePopulationWizard = () => {
     useAuthorization(['warehouse:access']);
     const { toast } = useToast();
