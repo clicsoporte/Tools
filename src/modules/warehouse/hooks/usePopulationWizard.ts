@@ -53,7 +53,7 @@ export const usePopulationWizard = () => {
     const [isRackSearchOpen, setIsRackSearchOpen] = useState(false);
 
     const [debouncedProductSearch] = useDebounce(productSearch, companyData?.searchDebounceTime ?? 300);
-    const [debouncedRackSearch] = useDebounce(rackSearchTerm, companyData?.searchDebounceTime ?? 300);
+    const [debouncedRackSearch] = useDebounce(rackSearchTerm, companyData?.searchDebounceTime ?? 500);
     const [existingSession, setExistingSession] = useState<WizardSession | null>(null);
 
     const rackOptions = useMemo(() => {
@@ -177,7 +177,12 @@ export const usePopulationWizard = () => {
         const currentLocation = locationsToPopulate[currentIndex];
         if (productId && user) {
             try {
-                await assignItemToLocation(productId, currentLocation.id, null, user.name);
+                await assignItemToLocation({
+                    itemId: productId,
+                    locationId: currentLocation.id,
+                    clientId: null,
+                    updatedBy: user.name,
+                });
                 const product = authProducts.find(p => p.id === productId);
                 const productName = product?.description || productId;
                 const productCode = product?.id || productId;

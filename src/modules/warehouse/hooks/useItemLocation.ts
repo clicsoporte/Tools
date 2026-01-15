@@ -187,7 +187,7 @@ export function useItemLocation() {
         setIsSubmitting(true);
         try {
             const payload = {
-                id: editingAssignmentId, // Will be null for new assignments
+                id: isEditing ? editingAssignmentId! : undefined,
                 itemId: formData.selectedProductId,
                 locationId: parseInt(formData.selectedLocationId, 10),
                 clientId: formData.selectedClientId,

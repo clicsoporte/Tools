@@ -31,6 +31,7 @@ export interface SearchInputProps {
   className?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  disabled?: boolean;
 }
 
 const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({ 
@@ -42,7 +43,8 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
     onKeyDown,
     className,
     open,
-    onOpenChange
+    onOpenChange,
+    disabled = false,
   }, ref) => {
     
     const showPopover = open && options.length > 0;
@@ -81,6 +83,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                         onKeyDown={onKeyDown}
                         className="pl-9"
                         autoComplete="off"
+                        disabled={disabled}
                     />
                 </PopoverTrigger>
             </div>

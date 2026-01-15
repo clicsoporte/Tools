@@ -269,7 +269,12 @@ export const useReceivingWizard = () => {
             const newUnit = await addInventoryUnit(unitData);
             
             if (state.saveAsDefault) {
-                await assignItemToLocation(unitData.productId, unitData.locationId, null, user.name);
+                await assignItemToLocation({
+                    itemId: unitData.productId,
+                    locationId: unitData.locationId,
+                    clientId: null,
+                    updatedBy: user.name,
+                });
                 // After saving, re-fetch the item locations to update the local state
                 const updatedItemLocations = await getAllItemLocations();
                 updateState({ allItemLocations: updatedItemLocations });

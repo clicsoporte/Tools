@@ -41,6 +41,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
             itemId TEXT NOT NULL,
             locationId INTEGER NOT NULL,
             clientId TEXT,
+            isExclusive INTEGER DEFAULT 0,
             updatedBy TEXT,
             updatedAt TEXT,
             FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE,
@@ -137,8 +138,8 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
             'id, itemId, locationId, quantity, lastUpdated, updatedBy');
         
         checkAndRecreateForeignKey('item_locations', 'locationId',
-            `CREATE TABLE item_locations (id INTEGER PRIMARY KEY AUTOINCREMENT, itemId TEXT NOT NULL, locationId INTEGER NOT NULL, clientId TEXT, updatedBy TEXT, updatedAt TEXT, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE, UNIQUE (itemId, locationId, clientId));`,
-            'id, itemId, locationId, clientId, updatedBy, updatedAt');
+            `CREATE TABLE item_locations (id INTEGER PRIMARY KEY AUTOINCREMENT, itemId TEXT NOT NULL, locationId INTEGER NOT NULL, clientId TEXT, isExclusive INTEGER DEFAULT 0, updatedBy TEXT, updatedAt TEXT, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE, UNIQUE (itemId, locationId, clientId));`,
+            'id, itemId, locationId, clientId, isExclusive, updatedBy, updatedAt');
         
         const movementsCreateSql = `CREATE TABLE movements (id INTEGER PRIMARY KEY AUTOINCREMENT, itemId TEXT NOT NULL, quantity REAL NOT NULL, fromLocationId INTEGER, toLocationId INTEGER, timestamp TEXT NOT NULL, userId INTEGER NOT NULL, notes TEXT, FOREIGN KEY (fromLocationId) REFERENCES locations(id) ON DELETE CASCADE, FOREIGN KEY (toLocationId) REFERENCES locations(id) ON DELETE CASCADE);`;
         
@@ -153,6 +154,7 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
         const itemLocationsTableInfo = db.prepare(`PRAGMA table_info(item_locations)`).all() as { name: string }[];
         if (!itemLocationsTableInfo.some(c => c.name === 'updatedBy')) db.exec('ALTER TABLE item_locations ADD COLUMN updatedBy TEXT');
         if (!itemLocationsTableInfo.some(c => c.name === 'updatedAt')) db.exec('ALTER TABLE item_locations ADD COLUMN updatedAt TEXT');
+        if (!itemLocationsTableInfo.some(c => c.name === 'isExclusive')) db.exec('ALTER TABLE item_locations ADD COLUMN isExclusive INTEGER DEFAULT 0');
         
         const locationsTableInfo = db.prepare(`PRAGMA table_info(locations)`).all() as { name: string }[];
         if (!locationsTableInfo.some(c => c.name === 'isLocked')) db.exec('ALTER TABLE locations ADD COLUMN isLocked INTEGER DEFAULT 0');
@@ -506,13 +508,23 @@ export async function getAllItemLocations(): Promise<ItemLocation[]> {
     return JSON.parse(JSON.stringify(itemLocations));
 }
 
-export async function assignItemToLocation(itemId: string, locationId: number, clientId: string | null, updatedBy: string): Promise<ItemLocation> {
+export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }): Promise<ItemLocation> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
-    const info = db.prepare('INSERT OR REPLACE INTO item_locations (itemId, locationId, clientId, updatedBy, updatedAt) VALUES (?, ?, ?, ?, datetime(\'now\'))').run(itemId, locationId, clientId, updatedBy);
-    const newId = info.lastInsertRowid;
-    const newItemLocation = db.prepare('SELECT * FROM item_locations WHERE id = ?').get(newId) as ItemLocation;
-    return newItemLocation;
+    const { id, itemId, locationId, clientId, isExclusive, updatedBy } = payload;
+    
+    if (id) { // Update existing
+        db.prepare('UPDATE item_locations SET clientId = ?, isExclusive = ?, updatedBy = ?, updatedAt = datetime(\'now\') WHERE id = ?')
+          .run(clientId || null, isExclusive, updatedBy, id);
+        const updatedItem = db.prepare('SELECT * FROM item_locations WHERE id = ?').get(id) as ItemLocation;
+        return updatedItem;
+    } else { // Insert new
+        const info = db.prepare('INSERT INTO item_locations (itemId, locationId, clientId, isExclusive, updatedBy, updatedAt) VALUES (?, ?, ?, ?, ?, datetime(\'now\'))')
+          .run(itemId, locationId, clientId || null, isExclusive, updatedBy);
+        const newItem = db.prepare('SELECT * FROM item_locations WHERE id = ?').get(info.lastInsertRowid) as ItemLocation;
+        return newItem;
+    }
 }
+
 
 export async function unassignItemFromLocation(itemLocationId: number): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
