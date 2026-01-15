@@ -7,10 +7,10 @@
 import React from 'react';
 import { useItemAssignmentsReport, type ItemAssignmentRow, type SortKey } from '@/modules/analytics/hooks/useItemAssignmentsReport';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
-import { Loader2, FileDown, FileSpreadsheet, Search, FilterX, ArrowUp, ArrowDown } from 'lucide-react';
+import { Loader2, FileDown, FileSpreadsheet, Search, FilterX, ArrowUp, ArrowDown, CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,10 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 export default function ItemAssignmentsReportPage() {
     const {
@@ -28,8 +32,8 @@ export default function ItemAssignmentsReportPage() {
         isInitialLoading,
     } = useItemAssignmentsReport();
 
-    const { isLoading, searchTerm, sortKey, sortDirection, typeFilter, classificationFilter } = state;
-    const { filteredData, classifications } = selectors;
+    const { isLoading, searchTerm, sortKey, sortDirection, typeFilter, classificationFilter, dateRange, rowsPerPage, currentPage } = state;
+    const { paginatedData, classifications } = selectors;
 
     if (isInitialLoading) {
         return (
@@ -59,6 +63,15 @@ export default function ItemAssignmentsReportPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-4 items-center">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto sm:min-w-[260px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y", { locale: es })} - ${format(dateRange.to, "LLL dd, y", { locale: es })}`) : format(dateRange.from, "LLL dd, y", { locale: es })) : (<span>Filtrar por fecha</span>)}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={actions.setDateRange} numberOfMonths={2} locale={es} /></PopoverContent>
+                    </Popover>
                     <div className="relative flex-1 min-w-[240px]">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 
@@ -81,7 +94,7 @@ export default function ItemAssignmentsReportPage() {
                     </Select>
                      <MultiSelectFilter
                         title="Clasificación"
-                        options={classifications.map((c: string) => ({ value: c, label: c }))}
+                        options={classifications.map(c => ({ value: c, label: c }))}
                         selectedValues={classificationFilter}
                         onSelectedChange={actions.setClassificationFilter}
                     />
@@ -95,10 +108,10 @@ export default function ItemAssignmentsReportPage() {
             <Card>
                 <CardHeader>
                     <div className="flex justify-between items-center">
-                        <CardTitle>Listado de Asignaciones ({filteredData.length})</CardTitle>
+                        <CardTitle>Listado de Asignaciones ({selectors.filteredData.length})</CardTitle>
                          <div className="flex items-center gap-2">
-                            <Button variant="outline" onClick={actions.handleExportPDF} disabled={isLoading || filteredData.length === 0}><FileDown className="mr-2"/>Exportar PDF</Button>
-                            <Button variant="outline" onClick={actions.handleExportExcel} disabled={isLoading || filteredData.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
+                            <Button variant="outline" onClick={actions.handleExportPDF} disabled={isLoading || paginatedData.length === 0}><FileDown className="mr-2"/>Exportar PDF</Button>
+                            <Button variant="outline" onClick={actions.handleExportExcel} disabled={isLoading || paginatedData.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
                         </div>
                     </div>
                 </CardHeader>
@@ -129,8 +142,8 @@ export default function ItemAssignmentsReportPage() {
                                             <TableCell colSpan={5}><Skeleton className="h-8 w-full" /></TableCell>
                                         </TableRow>
                                     ))
-                                ) : filteredData.length > 0 ? (
-                                    filteredData.map((item: ItemAssignmentRow) => (
+                                ) : paginatedData.length > 0 ? (
+                                    paginatedData.map((item: ItemAssignmentRow) => (
                                         <TableRow key={item.id}>
                                             <TableCell className="font-medium">
                                                 <p>{item.productName}</p>
@@ -160,6 +173,22 @@ export default function ItemAssignmentsReportPage() {
                         </Table>
                     </ScrollArea>
                 </CardContent>
+                 <CardFooter className="flex w-full items-center justify-end pt-4">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="rows-per-page">Filas por página:</Label>
+                            <Select value={String(rowsPerPage)} onValueChange={(value) => actions.setRowsPerPage(Number(value))}>
+                                <SelectTrigger id="rows-per-page" className="w-20"><SelectValue /></SelectTrigger>
+                                <SelectContent>{[10, 25, 50, 100].map(size => <SelectItem key={size} value={String(size)}>{size}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <span className="text-sm text-muted-foreground">Página {currentPage + 1} de {selectors.totalPages}</span>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => actions.setCurrentPage(currentPage - 1)} disabled={currentPage === 0}><ChevronLeft className="h-4 w-4" /></Button>
+                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => actions.setCurrentPage(currentPage + 1)} disabled={currentPage >= selectors.totalPages - 1}><ChevronRight className="h-4 w-4" /></Button>
+                        </div>
+                    </div>
+                </CardFooter>
             </Card>
         </main>
     );

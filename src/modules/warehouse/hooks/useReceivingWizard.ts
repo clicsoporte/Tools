@@ -273,6 +273,7 @@ export const useReceivingWizard = () => {
                     itemId: unitData.productId,
                     locationId: unitData.locationId,
                     clientId: null,
+                    isExclusive: 0,
                     updatedBy: user.name,
                 });
                 // After saving, re-fetch the item locations to update the local state

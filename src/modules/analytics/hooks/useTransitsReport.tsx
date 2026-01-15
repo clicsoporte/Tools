@@ -69,7 +69,7 @@ export function useTransitsReport() {
     const [state, setState] = useState<State>({
         isLoading: true,
         dateRange: {
-            from: startOfDay(subDays(new Date(), 90)),
+            from: new Date(),
             to: new Date(),
         },
         data: [],

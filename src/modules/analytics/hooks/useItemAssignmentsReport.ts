@@ -9,12 +9,12 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getAllItemLocations, getLocations } from '@/modules/warehouse/lib/actions';
-import type { ItemLocation, WarehouseLocation } from '@/modules/core/types';
+import type { ItemLocation, WarehouseLocation, DateRange } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export interface ItemAssignmentRow extends ItemLocation {
@@ -38,9 +38,12 @@ interface State {
     sortDirection: SortDirection;
     typeFilter: TypeFilter;
     classificationFilter: string[];
+    dateRange: DateRange;
+    currentPage: number;
+    rowsPerPage: number;
 }
 
-const renderLocationPathAsString = (locationId: number, locations: WarehouseLocation[]): string => {
+const renderLocationPathAsString = (locationId: number | null, locations: WarehouseLocation[]): string => {
     if (!locationId) return "N/A";
     const path: WarehouseLocation[] = [];
     let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
@@ -70,6 +73,9 @@ export function useItemAssignmentsReport() {
         sortDirection: 'asc',
         typeFilter: 'all',
         classificationFilter: [],
+        dateRange: { from: new Date(), to: new Date() },
+        currentPage: 0,
+        rowsPerPage: 25,
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
@@ -138,6 +144,16 @@ export function useItemAssignmentsReport() {
                 return product && state.classificationFilter.includes(product.classification);
             });
         }
+
+        if (state.dateRange?.from) {
+            const fromDate = startOfDay(state.dateRange.from);
+            filtered = filtered.filter(item => item.updatedAt && new Date(item.updatedAt) >= fromDate);
+        }
+        if (state.dateRange?.to) {
+            const toDate = startOfDay(state.dateRange.to);
+            toDate.setHours(23, 59, 59, 999);
+            filtered = filtered.filter(item => item.updatedAt && new Date(item.updatedAt) <= toDate);
+        }
         
         filtered.sort((a, b) => {
             const dir = state.sortDirection === 'asc' ? 1 : -1;
@@ -153,8 +169,14 @@ export function useItemAssignmentsReport() {
         });
 
         return filtered;
-    }, [state.data, debouncedSearchTerm, state.sortKey, state.sortDirection, state.typeFilter, state.classificationFilter, products]);
+    }, [state.data, debouncedSearchTerm, state.sortKey, state.sortDirection, state.typeFilter, state.classificationFilter, products, state.dateRange]);
     
+    const paginatedData = useMemo(() => {
+        const start = state.currentPage * state.rowsPerPage;
+        const end = start + state.rowsPerPage;
+        return filteredData.slice(start, end);
+    }, [filteredData, state.currentPage, state.rowsPerPage]);
+
     const handleSort = (key: SortKey) => {
         let direction: SortDirection = 'asc';
         if (state.sortKey === key && state.sortDirection === 'asc') {
@@ -210,16 +232,27 @@ export function useItemAssignmentsReport() {
     return {
         state,
         actions: {
-            setSearchTerm: (term: string) => updateState({ searchTerm: term }),
+            setSearchTerm: (term: string) => updateState({ searchTerm: term, currentPage: 0 }),
             handleSort,
             handleExportExcel,
             handleExportPDF,
-            setTypeFilter: (filter: TypeFilter) => updateState({ typeFilter: filter }),
-            setClassificationFilter: (filter: string[]) => updateState({ classificationFilter: filter }),
-            handleClearFilters: () => updateState({ searchTerm: '', typeFilter: 'all', classificationFilter: [] }),
+            setTypeFilter: (filter: TypeFilter) => updateState({ typeFilter: filter, currentPage: 0 }),
+            setClassificationFilter: (filter: string[]) => updateState({ classificationFilter: filter, currentPage: 0 }),
+            setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined }, currentPage: 0 }),
+            setCurrentPage: (page: number) => updateState({ currentPage: page }),
+            setRowsPerPage: (size: number) => updateState({ rowsPerPage: size, currentPage: 0 }),
+            handleClearFilters: () => updateState({ 
+                searchTerm: '', 
+                typeFilter: 'all', 
+                classificationFilter: [],
+                dateRange: { from: new Date(), to: new Date() },
+                currentPage: 0
+            }),
         },
         selectors: {
             filteredData,
+            paginatedData,
+            totalPages: Math.ceil(filteredData.length / state.rowsPerPage),
             classifications: useMemo(() => Array.from(new Set(products.map(p => p.classification).filter(Boolean))), [products]),
         },
         isAuthorized,

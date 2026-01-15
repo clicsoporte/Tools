@@ -66,7 +66,7 @@ export function usePhysicalInventoryReport() {
         reportData: [],
         allSelectableLocations: [],
         dateRange: {
-            from: startOfDay(subDays(new Date(), 7)),
+            from: new Date(),
             to: new Date(),
         },
         searchTerm: '',

@@ -83,8 +83,8 @@ export function useProductionReport() {
     const [state, setState] = useState<State>({
         isLoading: false,
         dateRange: {
-            from: startOfDay(subDays(new Date(), 30)),
-            to: startOfDay(new Date()),
+            from: new Date(),
+            to: new Date(),
         },
         reportData: { details: [] },
         plannerSettings: null,
