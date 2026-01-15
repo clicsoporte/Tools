@@ -58,7 +58,7 @@ export default function PopulationWizardPage() {
     const [locationsToPopulate, setLocationsToPopulate] = useState<WarehouseLocation[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [productSearch, setProductSearch] = useState('');
-    const [isProductSearchOpen, setProductSearchOpen] = useState(false);
+    const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
     const [lastAssignment, setLastAssignment] = useState<{ location: string; product: string; code: string; } | null>(null);
     
     const [rackSearchTerm, setRackSearchTerm] = useState('');
