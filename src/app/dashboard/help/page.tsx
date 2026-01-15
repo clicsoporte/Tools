@@ -643,7 +643,10 @@ export default function HelpPage() {
                 </div>
                  <ul className="list-disc space-y-3 pl-6 mt-4">
                     <li>
-                        <strong>Corrección de Ingresos (<RotateCcw className="inline h-4 w-4 text-red-500"/>):</strong> Si se recibió un producto con un código incorrecto, esta herramienta permite buscar esa unidad de inventario y cambiarla por el producto correcto, generando los movimientos de inventario de anulación y nuevo ingreso automáticamente.
+                        <strong>Búsqueda Rápida (<QrCode className="inline h-4 w-4"/>):</strong> Ideal para dispositivos con escáner. Simplemente escanea el código de un artículo para ver instantáneamente su información, existencias y ubicaciones físicas y del ERP. El campo de búsqueda se limpia automáticamente, listo para el siguiente escaneo.
+                    </li>
+                    <li>
+                        <strong>Corrección de Ingresos (<RotateCcw className="inline h-4 w-4 text-red-500"/>):</strong> Si se recibió un producto con un código incorrecto, esta herramienta permite buscar esa unidad de inventario por múltiples criterios (fecha, lote, producto, etc.) y cambiarla por el producto correcto. El sistema anula la unidad original y crea una nueva con los datos corregidos, generando los movimientos de inventario de entrada y salida para una auditoría completa.
                     </li>
                      <li>
                         <strong>Catálogo Clientes y Artículos (<PackagePlus className="inline h-4 w-4 text-teal-600"/>):</strong> Esta es la herramienta central para definir qué producto va en qué ubicación y si pertenece a un cliente en específico.
@@ -660,7 +663,7 @@ export default function HelpPage() {
                         <strong>Asistente de Recepción (<PackageCheck className="inline h-4 w-4 text-emerald-600"/>):</strong> Registra producto terminado o compras y genera etiquetas QR para las nuevas unidades.
                     </li>
                      <li>
-                        <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite a los bodegueros registrar conteos físicos de un producto en una ubicación específica. Estos datos se pueden usar luego para generar reportes y ajustar el inventario en el ERP.
+                        <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite a los bodegueros registrar conteos físicos de un producto en una ubicación específica. Ahora incluye un **&quot;Modo Escáner&quot;** que, al leer una etiqueta QR con formato `ID_UBICACION>ID_PRODUCTO`, carga automáticamente ambos campos, agilizando el proceso.
                     </li>
                      <li>
                         <strong>Reporte de Inventario Físico (<ClipboardList className="inline h-4 w-4"/>):</strong> (En Analíticas) Es la contraparte de la toma de inventario. Muestra una tabla comparando la `Cantidad Contada` vs. el `Stock del ERP` y resalta las diferencias.
