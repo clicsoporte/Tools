@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
@@ -1101,9 +1102,16 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
 export async function saveSqlConfig(config: SqlConfig): Promise<void> {
     const db = await connectDb();
     const insert = db.prepare('INSERT OR REPLACE INTO sql_config (key, value) VALUES (@key, @value)');
+    
     const transaction = db.transaction((cfg: any) => {
-        for(const key in cfg) if (cfg[key as keyof SqlConfig] !== undefined) insert.run({ key, value: cfg[key as keyof SqlConfig] });
+        db.pragma('busy_timeout = 1000'); // Wait 1 second if DB is busy
+        for(const key in cfg) {
+            if (cfg[key as keyof SqlConfig] !== undefined) {
+                insert.run({ key, value: cfg[key as keyof SqlConfig] });
+            }
+        }
     });
+
     try {
         transaction(config);
     } catch (error) {
@@ -1124,7 +1132,12 @@ export async function getImportQueries(): Promise<ImportQuery[]> {
 export async function saveImportQueries(queries: ImportQuery[]): Promise<void> {
     const db = await connectDb();
     const insert = db.prepare('INSERT OR REPLACE INTO import_queries (type, query) VALUES (@type, @query)');
-    const transaction = db.transaction((qs) => { for (const q of qs) insert.run(q); });
+    
+    const transaction = db.transaction((qs) => {
+        db.pragma('busy_timeout = 1000'); // Wait 1 second if DB is busy
+        for (const q of qs) insert.run(q);
+    });
+
     try {
         transaction(queries);
     } catch (error) {
@@ -1700,3 +1713,5 @@ export async function getActiveWizardSession(userId: number): Promise<WizardSess
     const row = db.prepare(`SELECT activeWizardSession FROM users WHERE id = ?`).get(userId) as { activeWizardSession: string | null } | undefined;
     return row?.activeWizardSession ? JSON.parse(row.activeWizardSession) : null;
 }
+
+    
