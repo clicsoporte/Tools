@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { Tool } from "@/modules/core/types";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 
 interface ToolCardProps {

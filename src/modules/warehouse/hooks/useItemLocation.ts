@@ -36,6 +36,7 @@ const emptyFormData = {
     selectedClientId: null as string | null,
     selectedLocationId: null as string | null,
     isExclusive: false,
+    requiresCertificate: false,
 };
 
 export function useItemLocation() {
@@ -166,6 +167,7 @@ export function useItemLocation() {
             selectedClientId: assignment.clientId || null,
             selectedLocationId: String(assignment.locationId),
             isExclusive: assignment.isExclusive === 1,
+            requiresCertificate: assignment.requiresCertificate === 1,
         });
 
         setProductSearchTerm(product ? `[${product.id}] ${product.description}` : '');
@@ -192,6 +194,7 @@ export function useItemLocation() {
                 locationId: parseInt(formData.selectedLocationId, 10),
                 clientId: formData.selectedClientId,
                 isExclusive: (formData.isExclusive ? 1 : 0) as 0 | 1,
+                requiresCertificate: (formData.requiresCertificate ? 1 : 0) as 0 | 1,
                 updatedBy: user.name,
             };
 

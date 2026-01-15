@@ -35,6 +35,7 @@ type SearchResultItem = {
     }[];
     erpStock: StockInfo | null;
     client?: Customer | null;
+    requiresCertificate?: boolean;
 }
 
 const LocationIcon = ({ type }: { type: WarehouseLocation['type'] }) => {
@@ -210,10 +211,13 @@ export default function SimpleWarehouseSearchPage() {
         const allPhysical = [...physicalLocations, ...designatedLocations];
         const uniqueLocations = Array.from(new Map(allPhysical.map(item => [item.location?.id, item])).values());
         
+        const requiresCertificate = itemLocations.some(il => il.itemId === lastSearchedItem.id && il.requiresCertificate === 1);
+
         return {
             product: lastSearchedItem,
             physicalLocations: uniqueLocations,
             erpStock: erpStock,
+            requiresCertificate: requiresCertificate,
         };
     }, [lastSearchedItem, inventory, itemLocations, stock, locations]);
 
@@ -283,6 +287,7 @@ export default function SimpleWarehouseSearchPage() {
                                                 {searchResult.product.active === 'S' ? 'Activo' : 'Inactivo'}
                                             </Badge>
                                             <Badge variant="secondary">{searchResult.product.classification}</Badge>
+                                            {searchResult.requiresCertificate && <Badge variant="outline" className="border-blue-600 text-blue-600 font-semibold">Certificado</Badge>}
                                         </div>
                                     </div>
                                     <div className="text-sm text-muted-foreground pt-2 space-y-1">

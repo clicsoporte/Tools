@@ -226,11 +226,19 @@ export default function AssignItemPage() {
                                     </Button>
                                 </div>
                             </div>
-                            <div className="space-y-2 md:col-span-2 flex items-center gap-2 pt-2">
-                                <Checkbox id="is-exclusive-check" checked={formData.isExclusive} onCheckedChange={(checked) => actions.setFormData({...formData, isExclusive: !!checked})} disabled={!formData.selectedClientId} />
-                                <Label htmlFor="is-exclusive-check" className="font-normal">
-                                    Asignación exclusiva para este cliente (no es de venta general)
-                                </Label>
+                            <div className="md:col-span-2 space-y-3 pt-2">
+                                <div className="flex items-center gap-2">
+                                    <Checkbox id="is-exclusive-check" checked={formData.isExclusive} onCheckedChange={(checked) => actions.setFormData({...formData, isExclusive: !!checked})} disabled={!formData.selectedClientId} />
+                                    <Label htmlFor="is-exclusive-check" className="font-normal">
+                                        Asignación exclusiva para este cliente (no es de venta general)
+                                    </Label>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Checkbox id="requires-certificate-check" checked={formData.requiresCertificate} onCheckedChange={(checked) => actions.setFormData({...formData, requiresCertificate: !!checked})} />
+                                    <Label htmlFor="requires-certificate-check" className="font-normal">
+                                        Requiere Certificado de Calidad
+                                    </Label>
+                                </div>
                             </div>
                         </div>
                         <DialogFooter>

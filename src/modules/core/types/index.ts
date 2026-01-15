@@ -277,7 +277,7 @@ export type ProductionOrder = {
   erpOrderNumber?: string;
 };
 
-export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified' | 'pendingAction'>> & {
+export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified' | 'pendingAction'>> & {
     orderId: number;
     updatedBy: string;
 };
@@ -505,6 +505,7 @@ export type ItemLocation = {
     locationId: number;
     clientId?: string | null;
     isExclusive: 0 | 1; // 0 for false (general), 1 for true (exclusive)
+    requiresCertificate?: 0 | 1;
     updatedBy?: string;
     updatedAt?: string;
 };

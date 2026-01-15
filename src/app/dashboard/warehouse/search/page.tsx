@@ -42,6 +42,7 @@ type SearchResultItem = {
     }[];
     erpStock: StockInfo | null;
     client?: Customer | null;
+    requiresCertificate?: boolean;
 }
 
 const normalizeText = (text: string | null | undefined): string => {
@@ -200,6 +201,7 @@ export default function WarehouseSearchPage() {
                 if (product) {
                     const productInventory = inventory.filter(inv => inv.itemId === product.id);
                     const productItemLocations = itemLocations.filter(il => il.itemId === product.id);
+                    const requiresCertificate = productItemLocations.some(il => il.requiresCertificate === 1);
                     const physicalLocations = [
                         ...productInventory.map(inv => ({ path: renderLocationPath(inv.locationId, locations), quantity: inv.quantity, location: locations.find(l => l.id === inv.locationId) })),
                         ...productItemLocations.map(il => ({ path: renderLocationPath(il.locationId, locations), clientId: il.clientId || undefined, location: locations.find(l => l.id === il.locationId) }))
@@ -211,6 +213,7 @@ export default function WarehouseSearchPage() {
                         physicalLocations: uniqueLocations,
                         erpStock: stock.find(s => s.itemId === product.id) || null,
                         client: client,
+                        requiresCertificate: requiresCertificate,
                     }];
                 }
                 return [];
@@ -237,6 +240,7 @@ export default function WarehouseSearchPage() {
         let searchResultItems = results.map(product => {
             const productInventory = inventory.filter(inv => inv.itemId === product.id);
             const productItemLocations = itemLocations.filter(il => il.itemId === product.id);
+            const requiresCertificate = productItemLocations.some(il => il.requiresCertificate === 1);
             const physicalLocations = [
                 ...productInventory.map(inv => ({ path: renderLocationPath(inv.locationId, locations), quantity: inv.quantity, location: locations.find(l => l.id === inv.locationId) })),
                 ...productItemLocations.map(il => ({ path: renderLocationPath(il.locationId, locations), clientId: il.clientId || undefined, location: locations.find(l => l.id === il.locationId) }))
@@ -249,6 +253,7 @@ export default function WarehouseSearchPage() {
                 physicalLocations: uniqueLocations,
                 erpStock: stock.find(s => s.itemId === product.id) || null,
                 client: client,
+                requiresCertificate: requiresCertificate,
             };
         });
 
@@ -443,6 +448,7 @@ export default function WarehouseSearchPage() {
                                                     {item.product.active === 'S' ? 'Activo' : 'Inactivo'}
                                                 </Badge>
                                                 <Badge variant="secondary">{item.product?.classification}</Badge>
+                                                {item.requiresCertificate && <Badge variant="outline" className="border-blue-600 text-blue-600 font-semibold">Certificado</Badge>}
                                             </div>
                                         </div>
                                          <div className="text-sm text-muted-foreground pt-2 space-y-1">
