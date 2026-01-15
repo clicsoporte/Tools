@@ -1,48 +1,23 @@
 /**
- * @fileoverview New page for the guided rack population wizard.
+ * @fileoverview Hook for the guided rack population wizard.
+ * This has been converted from a page component to a hook to centralize logic.
  */
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
-import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getLocations, getChildLocations, lockEntity, releaseLock, assignItemToLocation } from '@/modules/warehouse/lib/actions';
 import { getActiveWizardSession, saveWizardSession, clearWizardSession } from '@/modules/core/lib/db';
 import type { Product, WarehouseLocation, WizardSession } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import { SearchInput } from '@/components/ui/search-input';
-import { Loader2, CheckCircle, Play, ArrowRight, ArrowLeft, LogOut } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
 
-type WizardStep = 'setup' | 'populating' | 'finished' | 'resume';
+export type WizardStep = 'setup' | 'populating' | 'finished' | 'resume';
 
-const renderLocationPathAsString = (locationId: number, locations: WarehouseLocation[]): string => {
-    if (!locationId) return '';
-    const path: WarehouseLocation[] = [];
-    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
-    
-    while (current) {
-        path.unshift(current);
-        const parentId = current.parentId;
-        if (!parentId) break;
-        current = locations.find(l => l.id === parentId);
-    }
-    return path.map(l => l.name).join(' > ');
-};
-
-export default function PopulationWizardPage() {
+export const usePopulationWizard = () => {
     useAuthorization(['warehouse:access']);
-    const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user, companyData, products: authProducts } = useAuth();
 
@@ -63,8 +38,8 @@ export default function PopulationWizardPage() {
     const [rackSearchTerm, setRackSearchTerm] = useState('');
     const [isRackSearchOpen, setIsRackSearchOpen] = useState(false);
 
-    const [debouncedProductSearch] = useDebounce(productSearch, companyData?.searchDebounceTime ?? 500);
-    const [debouncedRackSearch] = useDebounce(rackSearchTerm, companyData?.searchDebounceTime ?? 500);
+    const [debouncedProductSearch] = useDebounce(productSearch, companyData?.searchDebounceTime ?? 300);
+    const [debouncedRackSearch] = useDebounce(rackSearchTerm, companyData?.searchDebounceTime ?? 300);
     const [existingSession, setExistingSession] = useState<WizardSession | null>(null);
 
     const rackOptions = useMemo(() => {
@@ -88,18 +63,19 @@ export default function PopulationWizardPage() {
     }, [authProducts, debouncedProductSearch]);
 
     useEffect(() => {
-        setTitle("Asistente de Poblado de Racks");
         const loadInitial = async () => {
             setIsLoading(true);
             try {
-                const [locs, session] = await Promise.all([
-                    getLocations(),
-                    user ? getActiveWizardSession(user.id) : Promise.resolve(null)
-                ]);
-                setAllLocations(locs);
-                if (session) {
-                    setExistingSession(session);
-                    setWizardStep('resume');
+                if (user) {
+                    const [locs, session] = await Promise.all([
+                        getLocations(),
+                        getActiveWizardSession(user.id)
+                    ]);
+                    setAllLocations(locs);
+                    if (session) {
+                        setExistingSession(session);
+                        setWizardStep('resume');
+                    }
                 }
             } catch (err: any) {
                 toast({ title: 'Error', description: 'No se pudieron cargar los datos iniciales.', variant: 'destructive' });
@@ -110,7 +86,7 @@ export default function PopulationWizardPage() {
         if (user) {
             loadInitial();
         }
-    }, [setTitle, toast, user]);
+    }, [toast, user]);
 
     const handleSelectRack = async (rackIdStr: string) => {
         const id = Number(rackIdStr);
@@ -163,7 +139,7 @@ export default function PopulationWizardPage() {
             if (locked) {
                  toast({ title: 'Niveles ya en uso', description: 'Algunos de los niveles seleccionados están siendo poblados por otro usuario.', variant: 'destructive' });
                  setIsLoading(false);
-                 handleSelectRack(String(selectedRackId)); // Re-fetch to update lock status display
+                 await handleSelectRack(String(selectedRackId)); // Re-fetch to update lock status display
                  return;
             }
 
@@ -216,7 +192,7 @@ export default function PopulationWizardPage() {
     
     const handleProductSelect = (productId: string) => {
         setProductSearch(productId);
-        setProductSearchOpen(false);
+        setIsProductSearchOpen(false);
         assignAndNext(productId);
     };
 
@@ -264,7 +240,6 @@ export default function PopulationWizardPage() {
         if (!user || !existingSession) return;
         setIsLoading(true);
 
-        // --- VALIDATION LOGIC ---
         const locationMap = new Map(allLocations.map(l => [l.id, l]));
         const rackExists = locationMap.has(existingSession.rackId);
         const allLevelsExist = existingSession.levelIds.every(id => locationMap.has(id));
@@ -280,7 +255,6 @@ export default function PopulationWizardPage() {
             setIsLoading(false);
             return;
         }
-        // --- END VALIDATION ---
 
         try {
             await handleSelectRack(String(existingSession.rackId));
@@ -304,147 +278,19 @@ export default function PopulationWizardPage() {
         }
     };
     
-    if (isLoading && wizardStep === 'setup') {
-        return <main className="flex-1 p-4 md:p-6 lg:p-8"><Skeleton className="h-80 w-full max-w-2xl mx-auto"/></main>
-    }
-
-    return (
-        <main className="flex-1 p-4 md:p-6 lg:p-8 flex items-center justify-center">
-            {wizardStep === 'setup' && (
-                 <Card className="w-full max-w-2xl">
-                    <CardHeader>
-                        <CardTitle>Asistente de Poblado de Racks</CardTitle>
-                        <CardDescription>Selecciona el rack y los niveles que deseas poblar de forma guiada.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                            <Label>1. Selecciona el Rack</Label>
-                            <SearchInput
-                                options={rackOptions}
-                                onSelect={handleSelectRack}
-                                placeholder="Busca un rack por nombre o código..."
-                                value={rackSearchTerm}
-                                onValueChange={setRackSearchTerm}
-                                open={isRackSearchOpen}
-                                onOpenChange={setIsRackSearchOpen}
-                            />
-                        </div>
-                        {rackLevels.length > 0 && (
-                            <div className="space-y-2">
-                                <Label>2. Selecciona los Niveles a Poblar</Label>
-                                <div className="p-4 border rounded-md max-h-60 overflow-y-auto space-y-2">
-                                    {rackLevels.map(level => (
-                                        <div key={level.id} className="flex items-center space-x-2">
-                                            <Checkbox
-                                                id={`level-${level.id}`}
-                                                onCheckedChange={() => handleToggleLevel(level.id)}
-                                                checked={selectedLevelIds.has(level.id)}
-                                                disabled={!!level.isLocked}
-                                            />
-                                            <Label htmlFor={`level-${level.id}`} className={`font-normal ${!!level.isLocked ? 'text-muted-foreground italic' : ''}`}>
-                                                {level.name}
-                                                {level.isCompleted && <span className="ml-2 text-xs text-green-600 font-semibold">(Finalizado)</span>}
-                                                {!!level.isLocked && <span className="ml-2 text-xs text-destructive font-semibold">(En uso por {level.lockedBy || 'otro usuario'})</span>}
-                                            </Label>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                    <CardFooter>
-                        <Button onClick={handleStartWizard} disabled={selectedLevelIds.size === 0 || isLoading}>
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            <Play className="mr-2 h-4 w-4"/>
-                            Comenzar Poblado Guiado
-                        </Button>
-                    </CardFooter>
-                 </Card>
-            )}
-
-            {wizardStep === 'resume' && (
-                <Card className="w-full max-w-md">
-                    <CardHeader>
-                        <CardTitle>Sesión en Progreso</CardTitle>
-                        <CardDescription>
-                            Tienes una sesión de poblado sin terminar.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p>¿Deseas continuar donde la dejaste o abandonarla para empezar de nuevo?</p>
-                    </CardContent>
-                    <CardFooter className="justify-between">
-                        <Button variant="destructive" onClick={abandonSession}>Abandonar</Button>
-                        <Button onClick={resumeSession}>Continuar Sesión</Button>
-                    </CardFooter>
-                </Card>
-            )}
-
-            {wizardStep === 'populating' && (
-                <Card className="w-full max-w-lg">
-                    <CardHeader>
-                        <CardTitle>Poblando Ubicaciones...</CardTitle>
-                        <Progress value={((currentIndex + 1) / locationsToPopulate.length) * 100} className="mt-2" />
-                        <CardDescription className="text-center pt-2">
-                            Ubicación {currentIndex + 1} de {locationsToPopulate.length}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6 text-center">
-                        <div>
-                            <Label className="text-muted-foreground">Ubicación Actual</Label>
-                            <p className="text-2xl font-bold">{renderLocationPathAsString(locationsToPopulate[currentIndex]?.id, allLocations)}</p>
-                        </div>
-                         <div className="flex flex-col gap-4">
-                            <SearchInput
-                                options={productOptions}
-                                onSelect={handleProductSelect}
-                                value={productSearch}
-                                onValueChange={setProductSearch}
-                                placeholder="Escanear o buscar producto..."
-                                onKeyDown={handleKeyDown}
-                                open={isProductSearchOpen}
-                                onOpenChange={setIsProductSearchOpen}
-                                className="text-lg h-14"
-                            />
-                             <div className="flex justify-center gap-2">
-                                <Button className="w-1/2" variant="outline" onClick={handlePrevious} disabled={currentIndex === 0}><ArrowLeft className="mr-2"/> Anterior</Button>
-                                <Button className="w-1/2" variant="secondary" onClick={handleSkip}>Omitir <ArrowRight className="ml-2"/></Button>
-                            </div>
-                        </div>
-                        {lastAssignment && (
-                             <Alert variant="default">
-                                <AlertTitle className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-500"/>Asignación Anterior</AlertTitle>
-                                <AlertDescription className="text-xs text-left">
-                                    <span className="font-semibold">[{lastAssignment.code}]</span> {lastAssignment.product} en <span className="italic">{lastAssignment.location}</span>
-                                </AlertDescription>
-                            </Alert>
-                        )}
-                    </CardContent>
-                    <CardFooter className="justify-center">
-                        <Button variant="destructive" onClick={handleFinishWizard}>Finalizar Sesión</Button>
-                    </CardFooter>
-                </Card>
-            )}
-            
-            {wizardStep === 'finished' && (
-                 <Card className="w-full max-w-md text-center">
-                    <CardHeader>
-                        <CheckCircle className="mx-auto h-16 w-16 text-green-500"/>
-                        <CardTitle className="mt-4 text-2xl">Sesión Finalizada</CardTitle>
-                        <CardDescription>
-                            El poblado guiado ha terminado y los niveles han sido liberados.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {lastAssignment && (
-                             <p className="text-sm text-muted-foreground">Última asignación: [{lastAssignment.code}] {lastAssignment.product} en {lastAssignment.location}.</p>
-                        )}
-                    </CardContent>
-                    <CardFooter className="justify-center">
-                        <Button onClick={resetWizard}>Iniciar Nuevo Poblado</Button>
-                    </CardFooter>
-                </Card>
-            )}
-        </main>
-    );
-}
+    return {
+        state: {
+            isLoading, wizardStep, allLocations, selectedRackId, rackLevels, selectedLevelIds,
+            locationsToPopulate, currentIndex, productSearch, isProductSearchOpen,
+            lastAssignment, rackSearchTerm, isRackSearchOpen, existingSession
+        },
+        actions: {
+            handleSelectRack, handleToggleLevel, handleStartWizard, handleProductSelect, handleKeyDown,
+            handleSkip, handlePrevious, handleFinishWizard, resetWizard, abandonSession, resumeSession,
+            setProductSearch, setIsProductSearchOpen, setRackSearchTerm, setIsRackSearchOpen
+        },
+        selectors: {
+            rackOptions, productOptions, renderLocationPathAsString
+        }
+    };
+};
