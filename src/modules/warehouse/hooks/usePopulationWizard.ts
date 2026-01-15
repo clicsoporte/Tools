@@ -1,6 +1,5 @@
 /**
- * @fileoverview Hook to manage the logic for the population wizard.
- * This is now the main component file for the Population Wizard page.
+ * @fileoverview New page for the guided rack population wizard.
  */
 'use client';
 
