@@ -191,7 +191,7 @@ export function useItemLocation() {
                 itemId: formData.selectedProductId,
                 locationId: parseInt(formData.selectedLocationId, 10),
                 clientId: formData.selectedClientId,
-                isExclusive: formData.isExclusive ? 1 : 0,
+                isExclusive: (formData.isExclusive ? 1 : 0) as 0 | 1,
                 updatedBy: user.name,
             };
 
