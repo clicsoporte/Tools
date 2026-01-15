@@ -57,10 +57,18 @@ export default function ItemAssignmentsReportPage() {
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Reporte de Catálogo de Clientes por Producto</CardTitle>
-                    <CardDescription>
-                        Audita qué productos están asignados a qué clientes, sus ubicaciones y si son de venta general o exclusiva.
-                    </CardDescription>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <CardTitle>Reporte de Catálogo de Clientes por Producto</CardTitle>
+                            <CardDescription>
+                                Audita qué productos están asignados a qué clientes, sus ubicaciones y si son de venta general o exclusiva.
+                            </CardDescription>
+                        </div>
+                         <Button onClick={actions.fetchData} disabled={isLoading}>
+                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                            Generar Reporte
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-4 items-center">
                     <Popover>
@@ -165,7 +173,7 @@ export default function ItemAssignmentsReportPage() {
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={5} className="h-32 text-center">
-                                            No se encontraron asignaciones para los filtros seleccionados.
+                                            No se han generado datos. Haz clic en &quot;Generar Reporte&quot; para empezar.
                                         </TableCell>
                                     </TableRow>
                                 )}

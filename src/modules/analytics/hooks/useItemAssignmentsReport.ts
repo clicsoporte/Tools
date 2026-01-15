@@ -66,7 +66,7 @@ export function useItemAssignmentsReport() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: true,
+        isLoading: false,
         data: [],
         searchTerm: '',
         sortKey: 'product',
@@ -106,16 +106,15 @@ export function useItemAssignmentsReport() {
             toast({ title: "Error al Generar Reporte", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isLoading: false });
-            if (isInitialLoading) setIsInitialLoading(false);
         }
-    }, [isAuthorized, toast, updateState, isInitialLoading, products, customers]);
+    }, [isAuthorized, toast, updateState, products, customers]);
     
     useEffect(() => {
         setTitle("Reporte de Catálogo de Clientes");
         if (isAuthorized) {
-            fetchData();
+            setIsInitialLoading(false);
         }
-    }, [setTitle, isAuthorized, fetchData]);
+    }, [setTitle, isAuthorized]);
 
     const filteredData = useMemo(() => {
         let filtered = state.data;
@@ -232,6 +231,7 @@ export function useItemAssignmentsReport() {
     return {
         state,
         actions: {
+            fetchData,
             setSearchTerm: (term: string) => updateState({ searchTerm: term, currentPage: 0 }),
             handleSort,
             handleExportExcel,
