@@ -1272,7 +1272,7 @@ const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
 export async function backupAllForUpdate(): Promise<void> {
     // Force a WAL checkpoint on all databases before backing up.
     await runWalCheckpoint();
-
+    
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
     
     // Create a standard, parsable ISO timestamp
@@ -1713,5 +1713,7 @@ export async function getActiveWizardSession(userId: number): Promise<WizardSess
     const row = db.prepare(`SELECT activeWizardSession FROM users WHERE id = ?`).get(userId) as { activeWizardSession: string | null } | undefined;
     return row?.activeWizardSession ? JSON.parse(row.activeWizardSession) : null;
 }
+
+    
 
     
