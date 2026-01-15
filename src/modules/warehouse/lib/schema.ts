@@ -6,9 +6,9 @@
 import type { ExpectedSchema } from '@/modules/core/types';
 
 export const warehouseSchema: ExpectedSchema = {
-    'locations': ['id', 'name', 'code', 'type', 'parentId', 'isLocked', 'lockedBy', 'lockedBySessionId'],
+    'locations': ['id', 'name', 'code', 'type', 'parentId', 'isLocked', 'lockedBy'],
     'inventory': ['id', 'itemId', 'locationId', 'quantity', 'lastUpdated', 'updatedBy'],
-    'item_locations': ['id', 'itemId', 'locationId', 'clientId', 'updatedBy', 'updatedAt'],
+    'item_locations': ['id', 'itemId', 'locationId', 'clientId', 'isExclusive', 'updatedBy', 'updatedAt'],
     'inventory_units': ['id', 'unitCode', 'productId', 'humanReadableId', 'documentId', 'erpDocumentId', 'locationId', 'quantity', 'notes', 'createdAt', 'createdBy'],
     'movements': ['id', 'itemId', 'quantity', 'fromLocationId', 'toLocationId', 'timestamp', 'userId', 'notes'],
     'warehouse_config': ['key', 'value'],

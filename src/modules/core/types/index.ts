@@ -504,6 +504,7 @@ export type ItemLocation = {
     itemId: string;
     locationId: number;
     clientId?: string | null;
+    isExclusive: 0 | 1; // 0 for false (general), 1 for true (exclusive)
     updatedBy?: string;
     updatedAt?: string;
 };

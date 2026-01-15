@@ -41,6 +41,7 @@ import {
   ClipboardList,
   Tags,
   RotateCcw,
+  BookUser,
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -178,8 +179,8 @@ export const warehouseTools: Tool[] = [
     },
      {
         id: "assign-item",
-        name: "Ubicaciones por Producto",
-        description: "Asociar productos a clientes y ubicaciones de forma permanente.",
+        name: "Catálogo de Clientes",
+        description: "Asociar productos a clientes y marcar si son de venta general o exclusivos.",
         href: "/dashboard/warehouse/assign",
         icon: PackagePlus,
         bgColor: 'bg-teal-600',
@@ -413,6 +414,14 @@ export const analyticsTools: Tool[] = [
         href: "/dashboard/analytics/receiving-report",
         icon: ClipboardList,
         bgColor: "bg-teal-600",
+    },
+    {
+        id: 'analytics:item-assignments-report:read',
+        name: 'Reporte de Catálogo',
+        description: 'Auditar qué productos están asociados a qué clientes y si son exclusivos.',
+        href: '/dashboard/analytics/item-assignments-report',
+        icon: BookUser,
+        bgColor: 'bg-rose-600'
     },
     {
         id: "analytics:user-permissions:read",
