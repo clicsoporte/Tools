@@ -5,7 +5,7 @@
 'use client';
 
 import React from 'react';
-import { useItemAssignmentsReport } from '@/modules/analytics/hooks/useItemAssignmentsReport';
+import { useItemAssignmentsReport, type ItemAssignmentRow, type SortKey } from '@/modules/analytics/hooks/useItemAssignmentsReport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,7 +18,6 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 
 export default function ItemAssignmentsReportPage() {
     const {
@@ -30,7 +29,7 @@ export default function ItemAssignmentsReportPage() {
     } = useItemAssignmentsReport();
 
     const { isLoading, searchTerm, sortKey, sortDirection, typeFilter, classificationFilter } = state;
-    const { filteredData } = selectors;
+    const { filteredData, classifications } = selectors;
 
     if (isInitialLoading) {
         return (
@@ -45,7 +44,7 @@ export default function ItemAssignmentsReportPage() {
     
     if (isAuthorized === false) return null;
     
-    const renderSortIcon = (key: typeof sortKey) => {
+    const renderSortIcon = (key: SortKey) => {
         if (sortKey !== key) return null;
         return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
     };
@@ -82,7 +81,7 @@ export default function ItemAssignmentsReportPage() {
                     </Select>
                      <MultiSelectFilter
                         title="Clasificación"
-                        options={selectors.classifications.map(c => ({ value: c, label: c }))}
+                        options={classifications.map((c: string) => ({ value: c, label: c }))}
                         selectedValues={classificationFilter}
                         onSelectedChange={actions.setClassificationFilter}
                     />
@@ -131,7 +130,7 @@ export default function ItemAssignmentsReportPage() {
                                         </TableRow>
                                     ))
                                 ) : filteredData.length > 0 ? (
-                                    filteredData.map(item => (
+                                    filteredData.map((item: ItemAssignmentRow) => (
                                         <TableRow key={item.id}>
                                             <TableCell className="font-medium">
                                                 <p>{item.productName}</p>
@@ -146,7 +145,7 @@ export default function ItemAssignmentsReportPage() {
                                             </TableCell>
                                             <TableCell className="text-xs text-muted-foreground">
                                                 <p>{item.updatedBy}</p>
-                                                <p>{item.updatedAt ? format(parseISO(item.updatedAt), 'dd/MM/yy HH:mm') : 'N/A'}</p>
+                                                <p>{item.updatedAt ? format(parseISO(item.updatedAt), 'dd/MM/yy HH:mm', {locale: es}) : 'N/A'}</p>
                                             </TableCell>
                                         </TableRow>
                                     ))

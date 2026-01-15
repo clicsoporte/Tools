@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Page for proactive purchase suggestions.
  * This component now correctly uses the centralized `usePurchaseSuggestionsLogic` hook
@@ -35,7 +34,7 @@ const CellContent: React.FC<{ item: PurchaseSuggestion; colId: string; selectors
     const { data, type, className } = selectors.getColumnContent(item, colId);
 
     if (type === 'reactNode') {
-        if (colId === 'activeRequests' && data && data.requests && Array.isArray(data.requests)) {
+        if (colId === 'activeRequests' && data && Array.isArray(data.requests)) {
             return (
                  <Tooltip>
                     <TooltipTrigger asChild>
