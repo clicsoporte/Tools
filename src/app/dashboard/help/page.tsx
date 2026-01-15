@@ -89,6 +89,8 @@ import {
   Wand2,
   Lock,
   LockKeyhole,
+  RotateCcw,
+  BookUser,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -261,7 +263,7 @@ export default function HelpPage() {
         content: (
             <div className="space-y-4">
                 <p>
-                Esta es una de las funcionalidades más importantes. Permite que la aplicación se mantenga al día con los datos maestros de tu sistema ERP (clientes, productos, inventario, etc.). Se gestiona desde <strong>Administración &gt; Importar Datos</strong> y tiene dos modos de funcionamiento.
+                Esta es una de las funcionalidades más importantes. Permite que la aplicación se mantenga al día con los datos maestros de tu sistema ERP (clientes, productos, inventario, etc.). Se gestiona desde <strong>Administración > Importar Datos</strong> y tiene dos modos de funcionamiento.
                 </p>
 
                 <h4 className="font-semibold text-lg pt-2 border-t">Modo 1: Importación desde Archivos</h4>
@@ -280,7 +282,7 @@ export default function HelpPage() {
                         <strong>¿Cómo funciona?:</strong> En lugar de archivos, la aplicación se conecta directamente a la base de datos de tu ERP (usando un usuario de **solo lectura**) y ejecuta consultas `SELECT` para traer los datos.
                     </li>
                      <li>
-                        <strong>¿Cómo se configura?:</strong> Un administrador debe ir a <strong>Administración &gt; Importar Datos</strong> y:
+                        <strong>¿Cómo se configura?:</strong> Un administrador debe ir a <strong>Administración > Importar Datos</strong> y:
                         <ol className="list-decimal space-y-2 pl-5 mt-2">
                             <li>Activar el interruptor a &quot;Importar desde SQL Server&quot;.</li>
                             <li>Ingresar las credenciales de la base de datos (servidor, usuario, contraseña, etc.).</li>
@@ -296,7 +298,7 @@ export default function HelpPage() {
                  <ul className="list-disc space-y-3 pl-6">
                     <li>Este botón, visible en el encabezado para usuarios con permisos, ejecuta el proceso de importación completo (ya sea desde archivos o SQL) en segundo plano.</li>
                     <li>
-                        <strong>Alerta de Sincronización Antigua (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si ha pasado mucho tiempo desde la última sincronización (el tiempo es configurable en Administración &gt; General), el indicador &quot;Última Sinc&quot; y el botón de sincronización se pondrán en **rojo y parpadearán**. Esto es una alerta visual crítica que te indica que los datos de la aplicación (como precios o inventario) pueden estar desactualizados.
+                        <strong>Alerta de Sincronización Antigua (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si ha pasado mucho tiempo desde la última sincronización (el tiempo es configurable en Administración > General), el indicador &quot;Última Sinc&quot; y el botón de sincronización se pondrán en **rojo y parpadearán**. Esto es una alerta visual crítica que te indica que los datos de la aplicación (como precios o inventario) pueden estar desactualizados.
                     </li>
                 </ul>
             </div>
@@ -321,7 +323,7 @@ export default function HelpPage() {
                 <h4 className="font-semibold text-lg pt-2 border-t">Configuración para Administradores</h4>
                 <ul className="list-disc space-y-3 pl-6">
                     <li>
-                        <strong>Paso 1: Configurar el SMTP.</strong> Para que el sistema pueda enviar correos, un administrador debe ir a <strong>Administración &gt; Configuración de Correo</strong>.
+                        <strong>Paso 1: Configurar el SMTP.</strong> Para que el sistema pueda enviar correos, un administrador debe ir a <strong>Administración > Configuración de Correo</strong>.
                     </li>
                     <li>
                         <strong>Campos Requeridos:</strong> Se deben ingresar los datos del servidor de correo de la empresa (Host, Puerto, Usuario, Contraseña y Seguridad). Estos datos se guardan de forma segura.
@@ -371,7 +373,7 @@ export default function HelpPage() {
                         <strong>Gestión para Administradores:</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>Los usuarios con permiso `admin:suggestions:read` verán un contador de sugerencias no leídas en el botón de &quot;Configuración&quot; del menú lateral.</li>
-                            <li>Dentro de <strong>Administración &gt; Buzón de Sugerencias</strong>, podrán ver todas las sugerencias enviadas, quién las envió y cuándo.</li>
+                            <li>Dentro de <strong>Administración > Buzón de Sugerencias</strong>, podrán ver todas las sugerencias enviadas, quién las envió y cuándo.</li>
                             <li>Las sugerencias nuevas aparecen resaltadas. Pueden marcarlas como leídas (<CheckCircle className="inline h-4 w-4 text-green-600"/>) o eliminarlas (<Trash2 className="inline h-4 w-4 text-red-600"/>).</li>
                         </ul>
                     </li>
@@ -443,7 +445,7 @@ export default function HelpPage() {
                     <li>
                         <strong>Paso 2: Agregar Productos y Consultar Detalles.</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li>En el campo &quot;Agregar Producto&quot;, busca por código o descripción. El sistema te sugerirá productos y te mostrará el **inventario actual del ERP** entre paréntesis.</li>
+                            <li>En el campo &quot;Agregar Producto&quot;, busca por código, descripción o **código de barras**. El sistema te sugerirá productos y te mostrará el **inventario actual del ERP** entre paréntesis.</li>
                             <li>Presiona `Enter` o haz clic para añadir el producto a la cotización. El sistema aplicará el impuesto automáticamente (13% por defecto, 1% para canasta básica, o 0% si el cliente tiene una exoneración válida).</li>
                             <li><strong>Consultar Info del Producto (<BadgeInfo className="inline h-4 w-4"/>):</strong> Haz clic en cualquier parte de la fila de un producto ya agregado. Aparecerá una tarjeta con información detallada del ERP: su <strong>clasificación</strong>, la <strong>fecha del último ingreso</strong> y notas importantes.</li>
                         </ul>
@@ -510,7 +512,7 @@ export default function HelpPage() {
                     <strong>Tooltips Informativos:</strong> Si un botón de acción (como &quot;Aprobar&quot; o &quot;Reabrir&quot;) está desactivado, ahora puedes pasar el cursor sobre él para ver un mensaje que explica por qué no está disponible (ej: &quot;Solo para solicitudes aprobadas&quot;).
                 </li>
                 <li>
-                    <strong>Pasos Opcionales:</strong> En <strong>Administración &gt; Config. Compras</strong>, puedes activar el paso de &quot;Recibido en Bodega&quot; y el paso final &quot;Ingresado en ERP&quot; para un control más detallado del proceso logístico.
+                    <strong>Pasos Opcionales:</strong> En <strong>Administración > Config. Compras</strong>, puedes activar el paso de &quot;Recibido en Bodega&quot; y el paso final &quot;Ingresado en ERP&quot; para un control más detallado del proceso logístico.
                 </li>
                 <li>
                     <strong>Exportación:</strong> Puedes generar un archivo **PDF** o **Excel (.xlsx)** del reporte actual, incluyendo los filtros que hayas aplicado.
@@ -608,6 +610,22 @@ export default function HelpPage() {
                         </ul>
                     </li>
                 </ol>
+                 <h4 className="font-semibold text-lg pt-2 border-t">Reporte de Catálogo de Clientes por Producto (<BookUser className="inline h-5 w-5 text-rose-600"/>)</h4>
+                <ol className="list-decimal space-y-3 pl-6">
+                    <li>
+                        <strong>¿Qué hace?:</strong> Permite auditar todas las asignaciones de producto-cliente-ubicación que se han configurado en el sistema.
+                    </li>
+                    <li>
+                        <strong>¿Cómo se usa?:</strong>
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                           <li>Accede al reporte para ver una tabla con todas las asignaciones.</li>
+                            <li>Utiliza el nuevo **filtro de fecha** para acotar la búsqueda por cuándo se actualizó la asignación.</li>
+                            <li>Filtra por **tipo de asignación** para ver solo las que son de venta General, Exclusivas para un cliente, o las que no tienen cliente asignado.</li>
+                            <li>Usa la búsqueda de texto y el filtro de clasificación para encontrar rápidamente lo que necesitas.</li>
+                            <li>La tabla tiene paginación para un rendimiento óptimo. Puedes exportar la vista actual a PDF o Excel.</li>
+                        </ul>
+                    </li>
+                </ol>
             </div>
         )
     },
@@ -616,25 +634,7 @@ export default function HelpPage() {
         icon: <Warehouse className="mr-4 h-6 w-6 text-cyan-600" />,
         content: (
             <div className="space-y-4">
-                <p>Este módulo te da control total sobre la localización y conteo de tu inventario. Incluye herramientas para mapear tu bodega, registrar conteos y generar etiquetas QR.</p>
-                
-                <h4 className="font-semibold text-lg pt-4 border-t">Configuraciones Clave (Para Administradores)</h4>
-                <p>Antes de poder usar el módulo de búsqueda eficazmente, un administrador debe realizar una configuración crítica desde <strong>Administración &gt; Config. Almacenes e Inventario</strong>:</p>
-                <ol className="list-decimal space-y-3 pl-6">
-                    <li>
-                        <strong>Registrar las Bodegas del ERP:</strong> En la sección &quot;Gestión de Bodegas&quot;, debes registrar cada bodega que existe en tu ERP con su código y un nombre descriptivo (ej: ID `01`, Nombre `Bodega Principal`).
-                       <Alert variant="destructive" className="mt-2">
-                           <AlertTriangle className="h-4 w-4" />
-                           <AlertTitle>¡Paso Crítico!</AlertTitle>
-                           <AlertDescription>
-                                Si no registras las bodegas aquí, el desglose de inventario del ERP en las búsquedas **no aparecerá**, y solo verás un &quot;Total ERP&quot;, lo cual puede ser confuso.
-                           </AlertDescription>
-                       </Alert>
-                    </li>
-                    <li>
-                        <strong>Asistente de Creación de Racks (<Wand2 className="inline h-4 w-4 text-purple-600"/>):</strong> En <strong>Administración &gt; Gestión de Ubicaciones</strong>, usa el botón &quot;Crear con Asistente&quot; para generar masivamente la estructura de un rack (niveles, posiciones, fondos) o para clonar un rack ya existente, ahorrando horas de trabajo manual.
-                    </li>
-                </ol>
+                <p>Este módulo te da control total sobre la localización y conteo de tu inventario. Incluye herramientas para mapear tu bodega, registrar conteos y generar etiquetas.</p>
                 
                 <h4 className="font-semibold text-lg pt-4 border-t">Herramientas Operativas</h4>
                  <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800">
@@ -643,31 +643,30 @@ export default function HelpPage() {
                 </div>
                  <ul className="list-disc space-y-3 pl-6 mt-4">
                     <li>
-                        <strong>Búsqueda Rápida (<QrCode className="inline h-4 w-4"/>):</strong> Una interfaz simple, ideal para celulares, que permite escanear un código QR o buscar rápidamente un artículo para ver su ubicación e inventario. **Mejora:** Ahora el cursor se re-enfoca automáticamente para permitir escaneos continuos.
+                        <strong>Corrección de Ingresos (<RotateCcw className="inline h-4 w-4 text-red-500"/>):</strong> Si se recibió un producto con un código incorrecto, esta herramienta permite buscar esa unidad de inventario y cambiarla por el producto correcto, generando los movimientos de inventario de anulación y nuevo ingreso automáticamente.
                     </li>
                      <li>
+                        <strong>Catálogo Clientes y Artículos (<PackagePlus className="inline h-4 w-4 text-teal-600"/>):</strong> Esta es la herramienta central para definir qué producto va en qué ubicación y si pertenece a un cliente en específico.
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                            <li>Usa el botón **&quot;Asociar Producto a Cliente&quot;** para abrir un diálogo donde puedes buscar un producto, una ubicación y, opcionalmente, un cliente.</li>
+                            <li>Si asignas un cliente, puedes marcar la casilla **&quot;Asignación exclusiva&quot;**. Esto indica que ese producto en esa ubicación es solo para ese cliente y no para venta general.</li>
+                            <li>Toda la tabla se puede filtrar y tienes botones para **editar o eliminar** cada asignación.</li>
+                        </ul>
+                    </li>
+                    <li>
                         <strong>Asistente de Poblado (<Wand2 className="inline h-4 w-4 text-indigo-500" />):</strong> Permite poblar masivamente las ubicaciones de un rack de forma guiada, ideal para el ingreso de mercadería nueva. Incluye un sistema para retomar sesiones interrumpidas y ahora muestra un indicador de `(Finalizado)` en los niveles que ya se completaron.
                     </li>
                     <li>
-                        <strong>Asignar Ubicación a Producto (<PackagePlus className="inline h-4 w-4" />):</strong> Permite crear un &quot;catálogo&quot; indicando en qué ubicación física se almacena un producto específico de un cliente. Es ideal para productos que siempre van en el mismo lugar.
+                        <strong>Asistente de Recepción (<PackageCheck className="inline h-4 w-4 text-emerald-600"/>):</strong> Registra producto terminado o compras y genera etiquetas QR para las nuevas unidades.
                     </li>
                      <li>
                         <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite a los bodegueros registrar conteos físicos de un producto en una ubicación específica. Estos datos se pueden usar luego para generar reportes y ajustar el inventario en el ERP.
                     </li>
                      <li>
-                        <strong>Reporte de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> (En Analíticas) Es la contraparte de la toma de inventario. Muestra una tabla comparando la `Cantidad Contada` vs. el `Stock del ERP` y resalta las diferencias, lista para exportar y realizar ajustes.
+                        <strong>Reporte de Inventario Físico (<ClipboardList className="inline h-4 w-4"/>):</strong> (En Analíticas) Es la contraparte de la toma de inventario. Muestra una tabla comparando la `Cantidad Contada` vs. el `Stock del ERP` y resalta las diferencias.
                     </li>
                     <li>
-                        <strong>Consulta de Almacén (<Search className="inline h-4 w-4"/>):</strong> Herramienta completa y responsiva para buscar artículos y ver sus ubicaciones y stock del ERP desglosado por bodega.
-                    </li>
-                    <li>
-                        <strong>Gestión de Ubicaciones (<Map className="inline h-4 w-4"/>):</strong> Aquí es donde se construye el &quot;árbol&quot; real de tu almacén, creando las ubicaciones físicas (ej: &quot;Rack 01&quot;) y anidándolas según la jerarquía que un administrador haya definido.
-                    </li>
-                    <li>
-                        <strong>Gestión de Unidades (QR) (<QrCode className="inline h-4 w-4"/>):</strong> Úsalo para crear identificadores únicos para unidades físicas (ej. una tarima, un lote). El sistema genera un código QR que puedes imprimir y pegar en la unidad para rastrearla fácilmente.
-                    </li>
-                     <li>
-                        <strong>Gestión de Bloqueos (<Lock className="inline h-4 w-4"/>):</strong> Una herramienta administrativa para ver qué ubicaciones están siendo pobladas con el asistente y liberar bloqueos si un usuario deja una sesión abandonada.
+                        <strong>Gestión de Bloqueos (<Lock className="inline h-4 w-4"/>):</strong> Una herramienta administrativa para ver qué ubicaciones o contenedores están siendo usados y liberar bloqueos si un usuario deja una sesión abandonada.
                     </li>
                 </ul>
             </div>
@@ -736,6 +735,10 @@ export default function HelpPage() {
                         <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo.</p></div>
                     </div>
                      <div className="flex items-start gap-4">
+                        <BellRing className="mt-1 h-6 w-6 text-yellow-500 shrink-0" />
+                        <div><h4 className="font-semibold">Gestor de Automatización</h4><p>Define reglas de notificación automática (ej: enviar un correo cuando un despacho se completa) y tareas programadas (ej: sincronizar el ERP todas las noches).</p></div>
+                    </div>
+                    <div className="flex items-start gap-4">
                         <Mail className="mt-1 h-6 w-6 text-purple-600 shrink-0" />
                         <div><h4 className="font-semibold">Configuración de Correo</h4><p>Configura tu servidor de correo (SMTP) para habilitar el envío de notificaciones y la recuperación de contraseñas. Permite personalizar las plantillas de los correos.</p></div>
                     </div>
@@ -765,7 +768,7 @@ export default function HelpPage() {
                     </div>
                     <div className="flex items-start gap-4">
                         <Map className="mt-1 h-6 w-6 text-teal-700 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Almacenes e Inventario</h4><p>Define la jerarquía de ubicaciones, gestiona las bodegas del ERP y ajusta los prefijos para las etiquetas de unidades de inventario.</p></div>
+                        <div><h4 className="font-semibold">Config. Almacenes e Inventario</h4><p>Define la jerarquía de ubicaciones, gestiona las bodegas del ERP, ajusta los prefijos para las etiquetas de unidades de inventario y configura las notificaciones de despacho.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <FileUp className="mt-1 h-6 w-6 text-cyan-500 shrink-0" />
@@ -807,7 +810,7 @@ export default function HelpPage() {
                  <h4 className="font-semibold text-lg">Proceso de Actualización Seguro</h4>
                 <ol className="list-decimal space-y-3 pl-6">
                     <li>
-                        <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve a <strong>Administración &gt; Mantenimiento</strong> y haz clic en <strong>&quot;Crear Punto de Restauración&quot;</strong>. Esto generará una copia segura de todas las bases de datos del sistema.
+                        <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve a <strong>Administración > Mantenimiento</strong> y haz clic en <strong>&quot;Crear Punto de Restauración&quot;</strong>. Esto generará una copia segura de todas las bases de datos del sistema.
                     </li>
                     <li>
                         <strong>Paso 2: Reemplazar Archivos.</strong> Detén la aplicación (por ejemplo, usando `pm2 stop clic-tools` en Linux o deteniendo el sitio en IIS). Luego, borra todos los archivos y carpetas de la versión anterior **excepto** la carpeta `dbs/` y, si existe, el archivo `.env.local`. Después, copia todos los archivos de la nueva versión en su lugar.
@@ -816,7 +819,7 @@ export default function HelpPage() {
                         <strong>Paso 3: Actualizar y Reconstruir.</strong> Abre una terminal en la carpeta del proyecto, ejecuta `npm install --omit=dev` para instalar cualquier nueva dependencia y luego `npm run build` para compilar la nueva versión.
                     </li>
                     <li>
-                        <strong>Paso 4: Reiniciar y Verificar.</strong> Vuelve a iniciar la aplicación (ej: `pm2 start clic-tools`). Al arrancar, el sistema detectará las diferencias y añadirá las nuevas tablas o columnas automáticamente. Luego, ve a <strong>Administración &gt; Mantenimiento &gt; Centro de Verificación</strong> y ejecuta la auditoría para confirmar que todas las bases de datos tienen la estructura correcta.
+                        <strong>Paso 4: Reiniciar y Verificar.</strong> Vuelve a iniciar la aplicación (ej: `pm2 start clic-tools`). Al arrancar, el sistema detectará las diferencias y añadirá las nuevas tablas o columnas automáticamente. Luego, ve a <strong>Administración > Mantenimiento > Centro de Verificación</strong> y ejecuta la auditoría para confirmar que todas las bases de datos tienen la estructura correcta.
                     </li>
                 </ol>
                 <Alert variant="destructive">
