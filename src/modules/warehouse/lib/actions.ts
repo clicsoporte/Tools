@@ -89,7 +89,10 @@ export const updateInventory = async(itemId: string, locationId: number, quantit
 // --- Simple Mode Actions ---
 export const getItemLocations = async (itemId: string): Promise<ItemLocation[]> => getItemLocationsServer(itemId);
 export const getAllItemLocations = async (): Promise<ItemLocation[]> => getAllItemLocationsServer();
-export const assignItemToLocation = async (itemId: string, locationId: number, clientId: string | null, updatedBy: string): Promise<ItemLocation> => assignItemToLocationServer(itemId, locationId, clientId, updatedBy);
+
+export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }): Promise<ItemLocation> {
+    return assignItemToLocationServer(payload);
+}
 
 export async function unassignItemFromLocation(itemLocationId: number): Promise<void> {
     await logInfo(`Item location mapping with ID ${itemLocationId} was removed.`);
