@@ -649,7 +649,7 @@ export default function HelpPage() {
                         <strong>Corrección de Ingresos (<RotateCcw className="inline h-4 w-4 text-red-500"/>):</strong> Si se recibió un producto con un código incorrecto, esta herramienta permite buscar esa unidad de inventario por múltiples criterios (fecha, lote, producto, etc.) y cambiarla por el producto correcto. El sistema anula la unidad original y crea una nueva con los datos corregidos, generando los movimientos de inventario de entrada y salida para una auditoría completa.
                     </li>
                      <li>
-                        <strong>Catálogo Clientes y Artículos (<PackagePlus className="inline h-4 w-4 text-teal-600"/>):</strong> Esta es la herramienta central para definir qué producto va en qué ubicación y si pertenece a un cliente en específico.
+                        <strong>Catálogo Clientes y Artículos (<BookUser className="inline h-4 w-4 text-teal-600"/>):</strong> Esta es la herramienta central para definir qué producto va en qué ubicación y si pertenece a un cliente en específico.
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>Usa el botón **&quot;Asociar Producto a Cliente&quot;** para abrir un diálogo donde puedes buscar un producto, una ubicación y, opcionalmente, un cliente.</li>
                             <li>Si asignas un cliente, puedes marcar la casilla **&quot;Asignación exclusiva&quot;**. Esto indica que ese producto en esa ubicación es solo para ese cliente y no para venta general.</li>
@@ -735,11 +735,11 @@ export default function HelpPage() {
                     </div>
                     <div className="flex items-start gap-4">
                         <ShieldCheck className="mt-1 h-6 w-6 text-green-500 shrink-0" />
-                        <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo.</p></div>
+                        <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo. Al marcar un permiso &quot;padre&quot; (como &quot;Compras: Lectura y Creación&quot;), se marcarán automáticamente todos sus permisos hijos.</p></div>
                     </div>
                      <div className="flex items-start gap-4">
                         <BellRing className="mt-1 h-6 w-6 text-yellow-500 shrink-0" />
-                        <div><h4 className="font-semibold">Gestor de Automatización</h4><p>Define reglas de notificación automática (ej: enviar un correo cuando un despacho se completa) y tareas programadas (ej: sincronizar el ERP todas las noches).</p></div>
+                        <div><h4 className="font-semibold">Gestor de Automatización (En Desarrollo)</h4><p>Actualmente en desarrollo, esta sección permitirá en el futuro definir reglas de notificación automática y tareas programadas (Cron Jobs).</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Mail className="mt-1 h-6 w-6 text-purple-600 shrink-0" />
@@ -747,23 +747,23 @@ export default function HelpPage() {
                     </div>
                     <div className="flex items-start gap-4">
                         <Briefcase className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
-                        <div><h4 className="font-semibold">Configuración General</h4><p>Establece la identidad de tu empresa (nombre, logo, etc.) y ajusta parámetros globales como el tiempo de espera de la búsqueda o las horas para la alerta de sincronización.</p></div>
+                        <div><h4 className="font-semibold">Configuración General</h4><p>Establece la identidad de tu empresa (nombre, logo), el nombre del sistema y ajusta parámetros globales como el tiempo de espera de la búsqueda o las horas para la alerta de sincronización del ERP.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <MessageSquare className="mt-1 h-6 w-6 text-green-600 shrink-0" />
-                        <div><h4 className="font-semibold">Buzón de Sugerencias</h4><p>Revisa el feedback enviado por los usuarios a través del botón &quot;Sugerencias y Mejoras&quot;.</p></div>
+                        <div><h4 className="font-semibold">Buzón de Sugerencias</h4><p>Revisa el feedback enviado por los usuarios a través del botón &quot;Sugerencias y Mejoras&quot; en el panel principal.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <DollarSign className="mt-1 h-6 w-6 text-emerald-600 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el comportamiento del Cotizador, definiendo el prefijo y el número con el que iniciará la siguiente cotización.</p></div>
+                        <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el comportamiento del Cotizador, definiendo el prefijo y el número con el que iniciará la siguiente cotización, y si se debe mostrar la cédula del cliente.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Calculator className="mt-1 h-6 w-6 text-orange-600 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Asist. Costos</h4><p>Gestionar ajustes para el asistente de costos.</p></div>
+                        <div><h4 className="font-semibold">Config. Asist. Costos</h4><p>Gestiona los consecutivos y prefijos para los borradores del Asistente de Costos.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador, incluyendo los nombres de &quot;máquinas&quot;, los turnos de trabajo y las columnas a exportar en PDF.</p></div>
+                        <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador, incluyendo los nombres de &quot;máquinas&quot;, los turnos de trabajo, los estados personalizados, los campos que disparan la alerta de &quot;Modificado&quot;, y el formato de exportación a PDF.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Store className="mt-1 h-6 w-6 text-amber-700 shrink-0" />
@@ -771,13 +771,13 @@ export default function HelpPage() {
                     </div>
                     <div className="flex items-start gap-4">
                         <Map className="mt-1 h-6 w-6 text-teal-700 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Almacenes e Inventario</h4><p>Define la jerarquía de ubicaciones, gestiona las bodegas del ERP, ajusta los prefijos para las etiquetas de unidades de inventario y configura las notificaciones de despacho.</p></div>
+                        <div><h4 className="font-semibold">Config. Almacenes</h4><p>Define la jerarquía de ubicaciones (el &quot;molde&quot;), gestiona las bodegas del ERP para el desglose de stock, ajusta los prefijos para las etiquetas de unidades de inventario y configura las notificaciones de despacho.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <FileUp className="mt-1 h-6 w-6 text-cyan-500 shrink-0" />
                         <div>
                             <h4 className="font-semibold">Importar Datos</h4>
-                            <p>Sincroniza los datos maestros (clientes, productos, etc.) desde tu ERP. Tienes dos modos: por <strong>Archivos</strong> (cargando .txt o .csv) o por <strong>SQL Server</strong> (conectando directamente a la base de datos de tu ERP).</p>
+                            <p>Sincroniza los datos maestros (clientes, productos, etc.) desde tu ERP. Tienes dos modos: por <strong>Archivos</strong> (cargando .txt o .csv) o por <strong>SQL Server</strong> (conectando directamente a la base de datos de tu ERP, usando el Gestor de Consultas para definir cada `SELECT`).</p>
                         </div>
                     </div>
                     <div className="flex items-start gap-4">
@@ -785,9 +785,9 @@ export default function HelpPage() {
                         <div><h4 className="font-semibold">Mantenimiento</h4>
                             <p>Herramientas críticas, ahora separadas en secciones para mayor claridad y seguridad:</p>
                             <ul className="list-disc pl-5 text-sm space-y-1 mt-2">
-                                <li><strong>Centro de Verificación:</strong> Audita la integridad y estructura de todas las bases de datos para asegurar que las tablas y columnas sean correctas, una herramienta vital después de una actualización.</li>
-                                <li><strong>Backups y Puntos de Restauración:</strong> Gestiona backups de **todo el sistema**. Crea un &quot;Punto de Restauración&quot; antes de una actualización y restáuralo si algo sale mal.</li>
-                                <li><strong>Zona de Peligro:</strong> Acciones que afectan módulos **individuales**. Aquí puedes restaurar la base de datos de un solo módulo (ej: `planner.db`) desde un archivo que subas, o resetear un módulo a su estado de fábrica. Estas acciones requieren confirmación estricta para evitar accidentes.</li>
+                                <li><strong>Centro de Verificación:</strong> Audita la integridad y estructura de todas las bases de datos para asegurar que las tablas y columnas sean correctas, una herramienta vital después de una actualización. Si encuentra un error, permite intentar una reparación automática.</li>
+                                <li><strong>Backups y Puntos de Restauración:</strong> Gestiona backups de **todo el sistema**. Permite crear un &quot;Punto de Restauración&quot; antes de una actualización y restaurar el sistema a ese punto si algo sale mal.</li>
+                                <li><strong>Zona de Peligro:</strong> Contiene acciones que afectan módulos **individuales**. Aquí puedes restaurar la base de datos de un solo módulo (ej: `planner.db`) desde un archivo que subas, o resetear un módulo a su estado de fábrica si está corrupto. Estas acciones requieren confirmación estricta para evitar accidentes.</li>
                             </ul>
                         </div>
                     </div>
@@ -798,7 +798,7 @@ export default function HelpPage() {
                     <div className="flex items-start gap-4">
                         <FileTerminal className="mt-1 h-6 w-6 text-slate-500 shrink-0" />
                         <div><h4 className="font-semibold">Visor de Eventos</h4>
-                            <p>Un registro (log) de todo lo que sucede en el sistema. Es una herramienta invaluable para diagnosticar problemas. Permite filtrar y limpiar los registros de forma granular (Operativos vs. Sistema) y conserva por defecto los últimos 30 días, a menos que se indique lo contrario.</p>
+                            <p>Un registro (log) de todo lo que sucede en el sistema. Es una herramienta invaluable para diagnosticar problemas. Permite filtrar por tipo de evento (Operativo vs. Sistema), fecha y texto. También permite limpiar los registros de forma granular.</p>
                         </div>
                     </div>
                 </div>
