@@ -404,7 +404,7 @@ export default function PopulationWizardPage() {
                                 placeholder="Escanear o buscar producto..."
                                 onKeyDown={handleKeyDown}
                                 open={isProductSearchOpen}
-                                onOpenChange={setProductSearchOpen}
+                                onOpenChange={setIsProductSearchOpen}
                                 className="text-lg h-14"
                             />
                              <div className="flex justify-center gap-2">
