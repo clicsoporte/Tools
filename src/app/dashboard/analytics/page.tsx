@@ -47,7 +47,7 @@ export default function AnalyticsDashboardPage() {
              if (tool.id === 'receiving-report') {
                 return hasPermission('analytics:receiving-report:read');
             }
-            if (tool.id === 'analytics:item-assignments-report:read') {
+            if (tool.id === 'item-assignments-report') {
                 return hasPermission('analytics:item-assignments-report:read');
             }
             // Add other tool checks here as they are created
