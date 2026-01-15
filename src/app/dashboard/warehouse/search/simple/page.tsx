@@ -287,7 +287,7 @@ export default function SimpleWarehouseSearchPage() {
                                                 {searchResult.product.active === 'S' ? 'Activo' : 'Inactivo'}
                                             </Badge>
                                             <Badge variant="secondary">{searchResult.product.classification}</Badge>
-                                            {searchResult.requiresCertificate && <Badge variant="outline" className="border-blue-600 text-blue-600 font-semibold">Certificado</Badge>}
+                                            {searchResult.requiresCertificate && <Badge className="bg-orange-500 text-white font-semibold">Certificado</Badge>}
                                         </div>
                                     </div>
                                     <div className="text-sm text-muted-foreground pt-2 space-y-1">

@@ -448,7 +448,7 @@ export default function WarehouseSearchPage() {
                                                     {item.product.active === 'S' ? 'Activo' : 'Inactivo'}
                                                 </Badge>
                                                 <Badge variant="secondary">{item.product?.classification}</Badge>
-                                                {item.requiresCertificate && <Badge variant="outline" className="border-blue-600 text-blue-600 font-semibold">Certificado</Badge>}
+                                                {item.requiresCertificate && <Badge className="bg-orange-500 text-white font-semibold">Certificado</Badge>}
                                             </div>
                                         </div>
                                          <div className="text-sm text-muted-foreground pt-2 space-y-1">
