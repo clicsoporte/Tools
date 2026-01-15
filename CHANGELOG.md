@@ -23,6 +23,35 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [2.2.0] - Publicado
+
+### Funcionalidades y Mejoras Principales
+
+-   **[Funcionalidad Clave] Nuevo Módulo "Catálogo de Clientes y Artículos":**
+    -   Se ha evolucionado la herramienta "Asignar Ubicación" a un módulo de catálogo completo.
+    -   Permite crear una asociación entre un **producto**, una **ubicación** y, opcionalmente, un **cliente**.
+    -   **Exclusividad:** Se puede marcar una asignación como "Exclusiva" para un cliente, indicando que ese producto en esa ubicación es solo para él.
+    -   La interfaz ha sido rediseñada con una tabla principal que muestra todas las asignaciones y un diálogo simplificado para crear o editar estas asociaciones.
+
+-   **[Funcionalidad Clave] Nueva Herramienta "Corrección de Ingresos":**
+    -   Se ha añadido una potente herramienta en **Almacén > Administración de Ingresos**.
+    -   Permite a un supervisor buscar una unidad de inventario (lote/tarima) por múltiples criterios (fecha, producto, lote, etc.).
+    -   Al seleccionar una unidad, se abre un modal que permite **corregir el producto o la cantidad** del ingreso original.
+    -   Internamente, el sistema anula la unidad incorrecta y crea una nueva con los datos corregidos, generando los movimientos de inventario de entrada y salida correspondientes para una trazabilidad completa.
+
+-   **[Funcionalidad Clave] Nuevo "Reporte de Catálogo":**
+    -   Se ha añadido un nuevo reporte en **Analíticas > Reporte de Catálogo**.
+    -   Permite auditar todas las asignaciones de producto-cliente-ubicación.
+    -   Incluye filtros estándar por **rango de fechas**, búsqueda de texto, **clasificación de producto** y un nuevo filtro por **tipo de asignación** (General, Exclusivo, Sin Cliente).
+    -   Cuenta con paginación y exportación a PDF y Excel.
+
+### Mejoras de Experiencia de Usuario (UX)
+
+-   **[UX] Fechas por Defecto en Reportes:** Todos los reportes de Analíticas ahora inician con el rango de fechas establecido en el día actual, facilitando la consulta de la información más reciente.
+-   **[UX] Nomenclatura Intuitiva:** Se ha renombrado la tarjeta de acceso a la herramienta de asignaciones a "Catálogo Clientes y Artículos" para reflejar mejor su nueva funcionalidad.
+
+---
+
 ## [2.1.1] - Publicado
 
 ### Mejoras Funcionales y de Experiencia de Usuario (UX)

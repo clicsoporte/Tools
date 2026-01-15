@@ -179,7 +179,7 @@ export const warehouseTools: Tool[] = [
     },
      {
         id: "assign-item",
-        name: "Catálogo de Clientes",
+        name: "Catálogo Clientes y Artículos",
         description: "Asociar productos a clientes y marcar si son de venta general o exclusivos.",
         href: "/dashboard/warehouse/assign",
         icon: PackagePlus,
