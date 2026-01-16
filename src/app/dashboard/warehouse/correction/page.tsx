@@ -23,8 +23,10 @@ import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useCorrectionTool } from '@/modules/warehouse/hooks/useCorrectionTool';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
 export default function CorrectionPage() {
+    useAuthorization(['warehouse:correction:execute']);
     const { setTitle } = usePageTitle();
     const { state, actions, selectors } = useCorrectionTool();
     const {

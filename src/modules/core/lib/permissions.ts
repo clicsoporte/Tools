@@ -89,35 +89,6 @@ export const permissionTranslations: { [key: string]: string } = {
     "admin:maintenance:backup": "Admin: Mantenimiento (Backup)", "admin:maintenance:restore": "Admin: Mantenimiento (Restaurar)", "admin:maintenance:reset": "Admin: Mantenimiento (Resetear)",
 };
 
-/**
- * List of all permissions that grant access to the admin section.
- */
-export const adminPermissions = [
-    "admin:access",
-    "users:create", "users:read", "users:update", "users:delete",
-    "roles:create", "roles:read", "roles:update", "roles:delete",
-    "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant",
-    "admin:suggestions:read",
-    "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
-    "admin:logs:read", "admin:logs:clear",
-    "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset",
-];
-
-/**
- * List of all permissions that grant access to the analytics section.
- */
-export const analyticsPermissions = [
-    "analytics:read",
-    "analytics:purchase-suggestions:read",
-    "analytics:purchase-report:read",
-    "analytics:production-report:read",
-    "analytics:transits-report:read",
-    "analytics:user-permissions:read",
-    "analytics:physical-inventory-report:read",
-    "analytics:receiving-report:read",
-    "analytics:item-assignments-report:read",
-];
-
 export const permissionTree: Record<string, string[]> = {
     // Top-level Access
     "admin:access": ["users:read", "roles:read", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:maintenance:backup"],
