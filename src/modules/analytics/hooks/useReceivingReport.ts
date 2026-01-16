@@ -200,11 +200,23 @@ export function useReceivingReport() {
         const dataToExport = sortedData.map(item => 
             selectors.visibleColumnsData.map(col => {
                 const { content } = selectors.getColumnContent(item, col.id);
-                // Simple conversion from ReactNode to string for Excel
-                if (typeof content === 'object' && content !== null) {
-                    return React.Children.toArray((content as React.ReactElement).props.children).join('');
+                
+                if (typeof content === 'string' || typeof content === 'number' || content === null || content === undefined) {
+                    return content;
                 }
-                return content;
+
+                if (React.isValidElement(content)) {
+                    const children = (content.props as { children: any }).children;
+                    if (typeof children === 'string' || typeof children === 'number') {
+                        return children;
+                    }
+                    if(children){
+                        return React.Children.toArray(children).join('');
+                    }
+                    return '';
+                }
+                
+                return String(content);
             })
         );
         exportToExcel({
