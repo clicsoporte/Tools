@@ -106,70 +106,34 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
 
 export async function runWarehouseMigrations(db: import('better-sqlite3').Database) {
     try {
-        const recreateTableWithCascade = (tableName: string, createSql: string, columns: string) => {
-            db.transaction(() => {
-                db.exec(`CREATE TABLE ${tableName}_temp_migration AS SELECT * FROM ${tableName};`);
-                db.exec(`DROP TABLE ${tableName};`);
-                db.exec(createSql);
-                db.exec(`INSERT INTO ${tableName} (${columns}) SELECT ${columns} FROM ${tableName}_temp_migration;`);
-                db.exec(`DROP TABLE ${tableName}_temp_migration;`);
-                console.log(`MIGRATION (warehouse.db): Successfully recreated '${tableName}' table with ON DELETE CASCADE.`);
-            })();
-        };
-
-        const checkAndRecreateForeignKey = (tableName: string, columnName: string, createSql: string, columnsCsv: string) => {
-            const tableExists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='${tableName}'`).get();
-            if (!tableExists) return;
-
-            const foreignKeyList = db.prepare(`PRAGMA foreign_key_list(${tableName})`).all() as any[];
-            const fk = foreignKeyList.find(f => f.from === columnName);
-            
-            if ((fk && fk.on_delete !== 'CASCADE') || (fk && fk.table !== 'locations')) {
-                recreateTableWithCascade(tableName, createSql, columnsCsv);
-            }
-        };
-
-        // Run these first
-        checkAndRecreateForeignKey('locations', 'parentId', 
-            `CREATE TABLE locations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, code TEXT UNIQUE NOT NULL, type TEXT NOT NULL, parentId INTEGER, isLocked INTEGER DEFAULT 0, lockedBy TEXT, lockedBySessionId TEXT, FOREIGN KEY (parentId) REFERENCES locations(id) ON DELETE CASCADE);`,
-            'id, name, code, type, parentId, isLocked, lockedBy, lockedBySessionId');
-        
-        checkAndRecreateForeignKey('inventory', 'locationId',
-            `CREATE TABLE inventory (id INTEGER PRIMARY KEY AUTOINCREMENT, itemId TEXT NOT NULL, locationId INTEGER NOT NULL, quantity REAL NOT NULL DEFAULT 0, lastUpdated TEXT NOT NULL, updatedBy TEXT, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE, UNIQUE (itemId, locationId));`,
-            'id, itemId, locationId, quantity, lastUpdated, updatedBy');
-        
-        checkAndRecreateForeignKey('item_locations', 'locationId',
-            `CREATE TABLE item_locations (id INTEGER PRIMARY KEY AUTOINCREMENT, itemId TEXT NOT NULL, locationId INTEGER NOT NULL, clientId TEXT, isExclusive INTEGER DEFAULT 0, requiresCertificate INTEGER DEFAULT 0, updatedBy TEXT, updatedAt TEXT, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE, UNIQUE (itemId, locationId, clientId));`,
-            'id, itemId, locationId, clientId, isExclusive, requiresCertificate, updatedBy, updatedAt');
-        
-        const movementsCreateSql = `CREATE TABLE movements (id INTEGER PRIMARY KEY AUTOINCREMENT, itemId TEXT NOT NULL, quantity REAL NOT NULL, fromLocationId INTEGER, toLocationId INTEGER, timestamp TEXT NOT NULL, userId INTEGER NOT NULL, notes TEXT, FOREIGN KEY (fromLocationId) REFERENCES locations(id) ON DELETE CASCADE, FOREIGN KEY (toLocationId) REFERENCES locations(id) ON DELETE CASCADE);`;
-        
-        checkAndRecreateForeignKey('movements', 'fromLocationId', movementsCreateSql, 'id, itemId, quantity, fromLocationId, toLocationId, timestamp, userId, notes');
-        checkAndRecreateForeignKey('movements', 'toLocationId', movementsCreateSql, 'id, itemId, quantity, fromLocationId, toLocationId, timestamp, userId, notes');
+        // The problematic foreign key checks that were causing table rewrites have been removed.
+        // The application logic for deletions now manually handles dependencies,
+        // making this aggressive migration unnecessary and resolving the IIS reload issue.
 
         const inventoryTableInfo = db.prepare(`PRAGMA table_info(inventory)`).all() as { name: string }[];
-        if (!inventoryTableInfo.some(c => c.name === 'updatedBy')) {
+        if (inventoryTableInfo.length > 0 && !inventoryTableInfo.some(c => c.name === 'updatedBy')) {
             db.exec('ALTER TABLE inventory ADD COLUMN updatedBy TEXT');
         }
 
         const itemLocationsTableInfo = db.prepare(`PRAGMA table_info(item_locations)`).all() as { name: string }[];
-        if (!itemLocationsTableInfo.some(c => c.name === 'updatedBy')) db.exec('ALTER TABLE item_locations ADD COLUMN updatedBy TEXT');
-        if (!itemLocationsTableInfo.some(c => c.name === 'updatedAt')) db.exec('ALTER TABLE item_locations ADD COLUMN updatedAt TEXT');
-        if (!itemLocationsTableInfo.some(c => c.name === 'isExclusive')) db.exec('ALTER TABLE item_locations ADD COLUMN isExclusive INTEGER DEFAULT 0');
-        if (!itemLocationsTableInfo.some(c => c.name === 'requiresCertificate')) db.exec('ALTER TABLE item_locations ADD COLUMN requiresCertificate INTEGER DEFAULT 0');
+        if (itemLocationsTableInfo.length > 0) {
+            if (!itemLocationsTableInfo.some(c => c.name === 'updatedBy')) db.exec('ALTER TABLE item_locations ADD COLUMN updatedBy TEXT');
+            if (!itemLocationsTableInfo.some(c => c.name === 'updatedAt')) db.exec('ALTER TABLE item_locations ADD COLUMN updatedAt TEXT');
+            if (!itemLocationsTableInfo.some(c => c.name === 'isExclusive')) db.exec('ALTER TABLE item_locations ADD COLUMN isExclusive INTEGER DEFAULT 0');
+            if (!itemLocationsTableInfo.some(c => c.name === 'requiresCertificate')) db.exec('ALTER TABLE item_locations ADD COLUMN requiresCertificate INTEGER DEFAULT 0');
+        }
         
         const locationsTableInfo = db.prepare(`PRAGMA table_info(locations)`).all() as { name: string }[];
-        if (!locationsTableInfo.some(c => c.name === 'isLocked')) db.exec('ALTER TABLE locations ADD COLUMN isLocked INTEGER DEFAULT 0');
-        if (!locationsTableInfo.some(c => c.name === 'lockedBy')) db.exec('ALTER TABLE locations ADD COLUMN lockedBy TEXT');
-        if (!locationsTableInfo.some(c => c.name === 'lockedBySessionId')) db.exec('ALTER TABLE locations ADD COLUMN lockedBySessionId TEXT');
+        if (locationsTableInfo.length > 0) {
+            if (!locationsTableInfo.some(c => c.name === 'isLocked')) db.exec('ALTER TABLE locations ADD COLUMN isLocked INTEGER DEFAULT 0');
+            if (!locationsTableInfo.some(c => c.name === 'lockedBy')) db.exec('ALTER TABLE locations ADD COLUMN lockedBy TEXT');
+            if (!locationsTableInfo.some(c => c.name === 'lockedBySessionId')) db.exec('ALTER TABLE locations ADD COLUMN lockedBySessionId TEXT');
+        }
         
         const unitsTableExists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='inventory_units'`).get();
         if (!unitsTableExists) {
             db.exec(`CREATE TABLE inventory_units (id INTEGER PRIMARY KEY AUTOINCREMENT, unitCode TEXT UNIQUE, productId TEXT NOT NULL, humanReadableId TEXT, documentId TEXT, erpDocumentId TEXT, locationId INTEGER, quantity REAL DEFAULT 1, notes TEXT, createdAt TEXT NOT NULL, createdBy TEXT NOT NULL, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE);`);
         } else {
-             checkAndRecreateForeignKey('inventory_units', 'locationId',
-                `CREATE TABLE inventory_units (id INTEGER PRIMARY KEY AUTOINCREMENT, unitCode TEXT UNIQUE, productId TEXT NOT NULL, humanReadableId TEXT, documentId TEXT, erpDocumentId TEXT, locationId INTEGER, quantity REAL DEFAULT 1, notes TEXT, createdAt TEXT NOT NULL, createdBy TEXT NOT NULL, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE);`,
-                'id, unitCode, productId, humanReadableId, documentId, erpDocumentId, locationId, quantity, notes, createdAt, createdBy');
             const unitsTableInfo = db.prepare(`PRAGMA table_info(inventory_units)`).all() as { name: string }[];
             if (!unitsTableInfo.some(c => c.name === 'documentId')) db.exec('ALTER TABLE inventory_units ADD COLUMN documentId TEXT');
             if (!unitsTableInfo.some(c => c.name === 'quantity')) db.exec('ALTER TABLE inventory_units ADD COLUMN quantity REAL DEFAULT 1');
