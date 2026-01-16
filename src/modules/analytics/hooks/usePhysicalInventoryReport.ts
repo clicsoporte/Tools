@@ -286,7 +286,7 @@ export function usePhysicalInventoryReport() {
         getColumnContent: (item: PhysicalInventoryComparisonItem, colId: string): { content: React.ReactNode, className?: string } => {
             switch (colId) {
                 case 'productId':
-                    return { content: <><div className="font-medium">{item.productDescription}</div><div className="text-sm text-muted-foreground">{item.productId}</div></> };
+                    return { content: (<><div className="font-medium">{item.productDescription}</div><div className="text-sm text-muted-foreground">{item.productId}</div></>) };
                 case 'locationName':
                     return { content: `${item.locationName} (${item.locationCode})` };
                 case 'assignedLocationPath':
