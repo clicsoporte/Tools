@@ -132,8 +132,32 @@ export default function PhysicalInventoryReportPage() {
                                     sortedData.map(item => (
                                         <TableRow key={`${item.productId}-${item.locationId}`}>
                                             {visibleColumnsData.map(col => {
-                                                const { content, className } = selectors.getColumnContent(item, col.id);
-                                                return <TableCell key={col.id} className={cn(col.align === 'right' && 'text-right', className)}>{content}</TableCell>;
+                                                const cellData = selectors.getColumnContent(item, col.id);
+                                                let content: React.ReactNode;
+                                                switch (cellData.type) {
+                                                    case 'product':
+                                                        content = (
+                                                            <>
+                                                                <div className="font-medium">{cellData.description}</div>
+                                                                <div className="text-sm text-muted-foreground">{cellData.id}</div>
+                                                            </>
+                                                        );
+                                                        break;
+                                                    case 'number':
+                                                        content = (cellData.content as number).toLocaleString();
+                                                        break;
+                                                    case 'difference':
+                                                        const diff = cellData.content as number;
+                                                        content = `${diff > 0 ? '+' : ''}${diff.toLocaleString()}`;
+                                                        break;
+                                                    case 'date':
+                                                        const dateContent = cellData.content as string;
+                                                        content = dateContent ? format(parseISO(dateContent), 'dd/MM/yy HH:mm') : 'N/A';
+                                                        break;
+                                                    default:
+                                                        content = cellData.content;
+                                                }
+                                                return <TableCell key={col.id} className={cn(col.align === 'right' && 'text-right', cellData.className)}>{content}</TableCell>;
                                             })}
                                         </TableRow>
                                     ))
