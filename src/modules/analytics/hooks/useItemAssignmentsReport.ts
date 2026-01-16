@@ -66,14 +66,14 @@ export function useItemAssignmentsReport() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: false,
+        isLoading: true,
         data: [],
         searchTerm: '',
         sortKey: 'product',
         sortDirection: 'asc',
         typeFilter: 'all',
         classificationFilter: [],
-        dateRange: { from: new Date(), to: new Date() },
+        dateRange: { from: startOfDay(new Date()), to: new Date() },
         currentPage: 0,
         rowsPerPage: 25,
     });
@@ -112,8 +112,9 @@ export function useItemAssignmentsReport() {
     useEffect(() => {
         setTitle("Reporte de Catálogo de Clientes");
         if (isAuthorized) {
-            setIsInitialLoading(false);
+            fetchData().then(() => setIsInitialLoading(false));
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setTitle, isAuthorized]);
 
     const filteredData = useMemo(() => {
@@ -149,7 +150,7 @@ export function useItemAssignmentsReport() {
             filtered = filtered.filter(item => item.updatedAt && new Date(item.updatedAt) >= fromDate);
         }
         if (state.dateRange?.to) {
-            const toDate = startOfDay(state.dateRange.to);
+            const toDate = new Date(state.dateRange.to);
             toDate.setHours(23, 59, 59, 999);
             filtered = filtered.filter(item => item.updatedAt && new Date(item.updatedAt) <= toDate);
         }
@@ -245,7 +246,7 @@ export function useItemAssignmentsReport() {
                 searchTerm: '', 
                 typeFilter: 'all', 
                 classificationFilter: [],
-                dateRange: { from: new Date(), to: new Date() },
+                dateRange: { from: startOfDay(new Date()), to: new Date() },
                 currentPage: 0
             }),
         },

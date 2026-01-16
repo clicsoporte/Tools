@@ -69,7 +69,7 @@ export function useTransitsReport() {
     const [state, setState] = useState<State>({
         isLoading: true,
         dateRange: {
-            from: new Date(),
+            from: startOfDay(new Date()),
             to: new Date(),
         },
         data: [],
@@ -101,26 +101,26 @@ export function useTransitsReport() {
             toast({ title: "Error al Generar Reporte", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isLoading: false });
-            if (isInitialLoading) setIsInitialLoading(false);
         }
-    }, [isAuthorized, state.dateRange, toast, updateState, isInitialLoading]);
+    }, [isAuthorized, state.dateRange, toast, updateState]);
     
     useEffect(() => {
         setTitle("Reporte de Tránsitos");
-        const loadPrefs = async () => {
+        const loadPrefsAndData = async () => {
              if(user) {
                 const prefs = await getUserPreferences(user.id, 'transitsReportPrefs');
                 if (prefs && prefs.visibleColumns) {
                     updateState({ visibleColumns: prefs.visibleColumns });
                 }
             }
+            await handleAnalyze();
             setIsInitialLoading(false);
-            updateState({ isLoading: false });
         };
         if (isAuthorized) {
-            loadPrefs();
+            loadPrefsAndData();
         }
-    }, [setTitle, isAuthorized, user, updateState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized, user?.id]);
 
     const sortedData = useMemo(() => {
         let filtered = state.data;

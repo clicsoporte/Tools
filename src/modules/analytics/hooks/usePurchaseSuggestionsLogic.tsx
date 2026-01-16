@@ -14,7 +14,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getRequestSuggestions, savePurchaseRequest } from '@/modules/requests/lib/actions';
 import { getUserPreferences, saveUserPreferences, getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
-import type { DateRange, UserPreferences, PurchaseSuggestion, PurchaseRequestPriority, ErpPurchaseOrderHeader, ErpPurchaseOrderLine } from '@/modules/core/types';
+import type { DateRange, UserPreferences, PurchaseSuggestion, PurchaseRequestPriority, ErpOrderHeader, ErpOrderLine, User, ErpPurchaseOrderHeader as ErpPOHeader, ErpPurchaseOrderLine } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { subDays, startOfDay } from 'date-fns';
 import { useDebounce } from 'use-debounce';
@@ -76,7 +76,7 @@ export function usePurchaseSuggestionsLogic() {
         isLoading: true,
         isSubmitting: false,
         dateRange: {
-            from: new Date(),
+            from: startOfDay(new Date()),
             to: new Date(),
         },
         suggestions: [],

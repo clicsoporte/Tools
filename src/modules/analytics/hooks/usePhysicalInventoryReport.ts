@@ -64,11 +64,11 @@ export function usePhysicalInventoryReport() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: false,
+        isLoading: true,
         reportData: [],
         allSelectableLocations: [],
         dateRange: {
-            from: new Date(),
+            from: startOfDay(new Date()),
             to: new Date(),
         },
         searchTerm: '',
@@ -103,7 +103,7 @@ export function usePhysicalInventoryReport() {
 
     useEffect(() => {
         setTitle("Reporte de Inventario Físico");
-        const loadPrefs = async () => {
+        const loadPrefsAndData = async () => {
             if(user) {
                 const prefs = await getUserPreferences(user.id, 'physicalInventoryReportPrefs');
                 if (prefs) {
@@ -113,14 +113,15 @@ export function usePhysicalInventoryReport() {
                     });
                 }
             }
+            await fetchData();
             setIsInitialLoading(false);
-            updateState({ isLoading: false }); // Stop loading initially
         };
 
         if (isAuthorized) {
-            loadPrefs();
+            loadPrefsAndData();
         }
-    }, [setTitle, isAuthorized, user, updateState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized, user?.id]);
 
     const sortedData = useMemo(() => {
         let data: PhysicalInventoryComparisonItem[] = [...state.reportData];
@@ -283,26 +284,26 @@ export function usePhysicalInventoryReport() {
         classifications: useMemo(() => Array.from(new Set(products.map(p => p.classification).filter(Boolean))), [products]),
         availableColumns,
         visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][], [state.visibleColumns]),
-        getColumnContent: (item: PhysicalInventoryComparisonItem, colId: string) => {
+        getColumnContent: (item: PhysicalInventoryComparisonItem, colId: string): { type: string, data: any, className?: string } => {
             switch (colId) {
                 case 'productId':
-                    return { type: 'product', description: item.productDescription, id: item.productId };
+                    return { type: 'product', data: { description: item.productDescription, id: item.productId } };
                 case 'locationName':
-                    return { type: 'string', content: `${item.locationName} (${item.locationCode})` };
+                    return { type: 'string', data: `${item.locationName} (${item.locationCode})` };
                 case 'assignedLocationPath':
-                    return { type: 'string', content: item.assignedLocationPath, className: "text-sm text-muted-foreground" };
+                    return { type: 'string', data: item.assignedLocationPath, className: "text-sm text-muted-foreground" };
                 case 'physicalCount':
-                    return { type: 'number', content: item.physicalCount, className: "font-medium" };
+                    return { type: 'number', data: item.physicalCount, className: "font-medium" };
                 case 'erpStock':
-                    return { type: 'number', content: item.erpStock };
+                    return { type: 'number', data: item.erpStock };
                 case 'difference':
-                    return { type: 'difference', content: item.difference, className: cn("font-bold", item.difference !== 0 && (item.difference > 0 ? "text-green-600" : "text-red-600")) };
+                    return { type: 'difference', data: item.difference, className: cn("font-bold", item.difference !== 0 && (item.difference > 0 ? "text-green-600" : "text-red-600")) };
                 case 'updatedBy':
-                    return { type: 'string', content: item.updatedBy };
+                    return { type: 'string', data: item.updatedBy };
                 case 'lastCountDate':
-                    return { type: 'date', content: item.lastCountDate, className: "text-xs text-muted-foreground" };
+                    return { type: 'date', data: item.lastCountDate, className: "text-xs text-muted-foreground" };
                 default:
-                    return { type: 'string', content: null };
+                    return { type: 'string', data: null };
             }
         },
     };

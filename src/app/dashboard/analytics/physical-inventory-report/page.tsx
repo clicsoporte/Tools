@@ -138,24 +138,24 @@ export default function PhysicalInventoryReportPage() {
                                                     case 'product':
                                                         content = (
                                                             <>
-                                                                <div className="font-medium">{cellData.description}</div>
-                                                                <div className="text-sm text-muted-foreground">{cellData.id}</div>
+                                                                <div className="font-medium">{cellData.data.description}</div>
+                                                                <div className="text-sm text-muted-foreground">{cellData.data.id}</div>
                                                             </>
                                                         );
                                                         break;
                                                     case 'number':
-                                                        content = (cellData.content as number).toLocaleString();
+                                                        content = (cellData.data as number).toLocaleString();
                                                         break;
                                                     case 'difference':
-                                                        const diff = cellData.content as number;
+                                                        const diff = cellData.data as number;
                                                         content = `${diff > 0 ? '+' : ''}${diff.toLocaleString()}`;
                                                         break;
                                                     case 'date':
-                                                        const dateContent = cellData.content as string;
+                                                        const dateContent = cellData.data as string;
                                                         content = dateContent ? format(parseISO(dateContent), 'dd/MM/yy HH:mm') : 'N/A';
                                                         break;
                                                     default:
-                                                        content = cellData.content;
+                                                        content = cellData.data;
                                                 }
                                                 return <TableCell key={col.id} className={cn(col.align === 'right' && 'text-right', cellData.className)}>{content}</TableCell>;
                                             })}

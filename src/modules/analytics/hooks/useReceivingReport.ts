@@ -3,6 +3,7 @@
  */
 'use client';
 
+import React from 'react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
@@ -17,7 +18,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
-import React from 'react';
+import { cn } from '@/lib/utils';
 
 const normalizeText = (text: string | null | undefined): string => {
     if (!text) return "";
@@ -57,11 +58,11 @@ export function useReceivingReport() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: false,
+        isLoading: true,
         data: [],
         allLocations: [],
         dateRange: {
-            from: new Date(),
+            from: startOfDay(new Date()),
             to: new Date(),
         },
         searchTerm: '',
@@ -94,19 +95,21 @@ export function useReceivingReport() {
     
     useEffect(() => {
         setTitle("Reporte de Recepciones");
-        const loadPrefs = async () => {
+        const loadPrefsAndData = async () => {
              if(user) {
                 const prefs = await getUserPreferences(user.id, 'receivingReportPrefs');
                 if (prefs && prefs.visibleColumns) {
                     updateState({ visibleColumns: prefs.visibleColumns });
                 }
             }
-             setIsInitialLoading(false);
+            await fetchData();
+            setIsInitialLoading(false);
         }
         if (isAuthorized) {
-            loadPrefs();
+            loadPrefsAndData();
         }
-    }, [setTitle, isAuthorized, user, updateState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized, user?.id]);
     
     const getAllChildLocationIds = useCallback((locationId: number): number[] => {
         let children: number[] = [];
@@ -197,26 +200,14 @@ export function useReceivingReport() {
     
     const handleExportExcel = () => {
         const headers = selectors.visibleColumnsData.map(c => c.label);
-        const dataToExport = sortedData.map(item => 
+        const dataToExport = sortedData.map(item =>
             selectors.visibleColumnsData.map(col => {
                 const { content } = selectors.getColumnContent(item, col.id);
-                
-                if (typeof content === 'string' || typeof content === 'number' || content === null || content === undefined) {
-                    return content;
-                }
-
+                // Convert React nodes to string for Excel export
                 if (React.isValidElement(content)) {
-                    const children = (content.props as { children: any }).children;
-                    if (typeof children === 'string' || typeof children === 'number') {
-                        return children;
-                    }
-                    if(children){
-                        return React.Children.toArray(children).join('');
-                    }
-                    return '';
+                    return React.Children.toArray((content as React.ReactElement).props.children).join('');
                 }
-                
-                return String(content);
+                return content;
             })
         );
         exportToExcel({
@@ -233,7 +224,7 @@ export function useReceivingReport() {
         const tableRows = sortedData.map(item => 
             selectors.visibleColumnsData.map(col => {
                 const { content } = selectors.getColumnContent(item, col.id);
-                if (typeof content === 'object' && content !== null) {
+                if (React.isValidElement(content)) {
                     return React.Children.toArray((content as React.ReactElement).props.children).join(' ');
                 }
                 return String(content);
