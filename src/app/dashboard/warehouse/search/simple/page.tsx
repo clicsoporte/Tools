@@ -80,7 +80,7 @@ export default function SimpleWarehouseSearchPage() {
     useAuthorization(['warehouse:access']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user, companyData, products, customers, logout, isReady } = useAuth();
+    const { user, companyData, products, customers, logout, isAuthReady } = useAuth();
     
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -115,10 +115,10 @@ export default function SimpleWarehouseSearchPage() {
     
     useEffect(() => {
         setTitle("Búsqueda Rápida de Almacén");
-        if (isReady) {
+        if (isAuthReady) {
             loadData();
         }
-    }, [setTitle, loadData, isReady]);
+    }, [setTitle, loadData, isAuthReady]);
 
     // Effect to auto-focus input on page load/reload
     useEffect(() => {
@@ -242,7 +242,7 @@ export default function SimpleWarehouseSearchPage() {
         }
     };
 
-    if (!isReady || isLoading || !stockSettings) {
+    if (!isAuthReady || isLoading || !stockSettings) {
         return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
     }
 
@@ -331,7 +331,7 @@ export default function SimpleWarehouseSearchPage() {
                                                         return (
                                                             <div key={whId} className="flex justify-between items-center p-2 border rounded-md">
                                                                 <span className="flex items-center gap-2">
-                                                                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: warehouse?.color || '#CCCCCC' }}></span>
+                                                                    <span className="h-3 w-3 rounded-full border" style={{ backgroundColor: warehouse?.color || '#CCCCCC' }}></span>
                                                                     {warehouse?.name} ({whId})
                                                                 </span>
                                                                 <span className="font-bold text-lg">{qty.toLocaleString()}</span>

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview The main Quoter page.
  * This component provides the user interface for creating, managing, and generating quotes.
@@ -114,9 +113,9 @@ export default function QuoterPage() {
     selectors,
   } = useQuoter();
 
-  const { isReady } = useAuth();
+  const { isAuthReady } = useAuth();
 
-  if (!isReady || isAuthorized === null) {
+  if (!isAuthReady || isAuthorized === null) {
     return (
       <main className="flex-1 p-4 md:p-6 lg:p-8">
         <Card>
@@ -433,7 +432,7 @@ export default function QuoterPage() {
                     value={state.productSearchTerm}
                     onValueChange={actions.setProductSearchTerm}
                     onKeyDown={actions.handleProductInputKeyDown}
-                    placeholder="Buscar producto por código o descripción..."
+                    placeholder="Buscar producto por código, descripción o código de barras..."
                     open={state.isProductSearchOpen}
                     onOpenChange={actions.setProductSearchOpen}
                   />

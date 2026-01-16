@@ -38,7 +38,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isReady } = useAuth();
+  const { user, isAuthReady } = useAuth();
   const router = useRouter();
 
   // This effect is the single source of truth for session verification.
@@ -46,18 +46,18 @@ export default function DashboardLayout({
   useEffect(() => {
     // If the auth context is ready but there's no user, it means the session
     // is invalid (or the user logged out). Redirect to the login page.
-    if (isReady && !user) {
+    if (isAuthReady && !user) {
       const fullPath = window.location.pathname + window.location.search;
       if (fullPath && fullPath !== "/" && fullPath !== "/?") {
         sessionStorage.setItem(REDIRECT_URL_KEY, fullPath);
       }
       router.replace('/');
     }
-  }, [isReady, user, router]);
+  }, [isAuthReady, user, router]);
 
   // While waiting for the initial check and for all auth data to be ready,
   // show a global loading screen.
-  if (!isReady) {
+  if (!isAuthReady) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Page for Cost Assistant settings.
  */
@@ -24,13 +23,13 @@ export default function CostAssistantSettingsPage() {
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const router = useRouter();
-    const { user, isReady } = useAuth();
+    const { user, isAuthReady } = useAuth();
     const [settings, setSettings] = useState<Partial<CostAssistantSettings> | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         setTitle("Configuración del Asistente de Costos");
-        if (isReady && isAuthorized && user) {
+        if (isAuthReady && isAuthorized && user) {
             getCostAssistantSettings(user.id)
                 .then(data => {
                     const completeSettings = {
@@ -45,7 +44,7 @@ export default function CostAssistantSettingsPage() {
                 })
                 .finally(() => setIsLoading(false));
         }
-    }, [setTitle, isAuthorized, toast, user, isReady]);
+    }, [setTitle, isAuthorized, toast, user, isAuthReady]);
 
     const handleSave = async () => {
         if (!settings || !user) return;

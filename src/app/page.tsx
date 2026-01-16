@@ -13,9 +13,9 @@ import { headers } from "next/headers";
 import React from "react";
 
 // This is the critical fix for the production cache issue.
-// It forces Next.js to re-evaluate this page on every request, ensuring
-// that the authentication state (which depends on cookies) is always fresh.
-export const dynamic = 'force-dynamic';
+// By not specifying a dynamic flag, Next.js can infer dynamism from the usage
+// of headers() and cookies() in child components/actions, which is more robust.
+// export const dynamic = 'force-dynamic'; // This was removed as it might cause issues with router cache.
 
 export default function InitialPage() {
   const headerList = headers();

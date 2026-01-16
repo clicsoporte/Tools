@@ -44,7 +44,7 @@ export default function PlannerPage() {
         selectors,
         isAuthorized,
     } = usePlanner();
-    const { isReady } = useAuth();
+    const { isAuthReady } = useAuth();
     const {
         isLoading, isSubmitting, isRefreshing, isNewOrderDialogOpen, isEditOrderDialogOpen, orders, viewingArchived,
         currentPage, pageSize, plannerSettings, newOrder, orderToEdit,
@@ -57,7 +57,7 @@ export default function PlannerPage() {
         activeOrdersForSelectedProduct, visibleColumns, orderToConfirmModification
     } = state;
 
-    if (!isReady) {
+    if (!isAuthReady) {
         return (
             <main className="flex-1 p-4 md:p-6">
                 <div className="flex justify-between items-center mb-6">

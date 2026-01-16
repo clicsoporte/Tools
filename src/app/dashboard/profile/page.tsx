@@ -37,7 +37,7 @@ import { getInitials } from "@/lib/utils";
  */
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user, isReady, refreshAuth } = useAuth();
+  const { user, isAuthReady, refreshAuth } = useAuth();
   const { setTitle } = usePageTitle();
   
   const [formData, setFormData] = useState({
@@ -176,7 +176,7 @@ export default function ProfilePage() {
     }
   };
   
-  if (!isReady || !user) {
+  if (!isAuthReady || !user) {
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="mx-auto max-w-2xl">

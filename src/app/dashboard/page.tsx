@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview The main dashboard page, which greets the user and displays available tools.
  */
@@ -20,7 +19,7 @@ import { BarChartBig, Wrench } from "lucide-react";
  * based on user permissions.
  */
 export default function DashboardPage() {
-  const { isReady } = useAuth();
+  const { isAuthReady } = useAuth();
   const { hasPermission } = useAuthorization();
   const { setTitle } = usePageTitle();
 
@@ -29,7 +28,7 @@ export default function DashboardPage() {
   }, [setTitle]);
 
   const visibleTools = useMemo(() => {
-    if (!isReady) return [];
+    if (!isAuthReady) return [];
     
     // Filter the main tools based on user permissions first
     const permittedMainTools = mainTools.filter(tool => {
@@ -79,10 +78,10 @@ export default function DashboardPage() {
     
     return tools;
 
-  }, [isReady, hasPermission]);
+  }, [isAuthReady, hasPermission]);
 
 
-  if (!isReady) {
+  if (!isAuthReady) {
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <Skeleton className="h-8 w-64 mb-4" />
