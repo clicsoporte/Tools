@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -139,7 +137,7 @@ export const useQuoter = () => {
     allExemptions,
     exemptionLaws,
     refreshAuth,
-    isReady,
+    isAuthReady,
   } = useAuth();
 
   const [quoteNumber, setQuoteNumber] = useState("");
@@ -661,7 +659,7 @@ export const useQuoter = () => {
   };
   
   const generatePDF = async () => {
-    if (!isReady || !companyData) {
+    if (!isAuthReady || !companyData) {
         toast({
             title: "Por favor espere",
             description:
@@ -862,7 +860,7 @@ export const useQuoter = () => {
   };
 
   const loadDrafts = useCallback(async () => {
-    if (!isReady || !currentUser) return;
+    if (!isAuthReady || !currentUser) return;
     const draftsFromDb = await getAllQuoteDrafts(currentUser.id);
     const enrichedDrafts = draftsFromDb.map((draft) => ({
       ...draft,
@@ -873,7 +871,7 @@ export const useQuoter = () => {
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
     );
-  }, [isReady, currentUser, customers]);
+  }, [isAuthReady, currentUser, customers]);
 
   const handleLoadDraft = (draft: QuoteDraft) => {
     setQuoteNumber(draft.id);

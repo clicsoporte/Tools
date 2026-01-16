@@ -202,7 +202,7 @@ export const useRequests = () => {
     const { isAuthorized, hasPermission } = useAuthorization(['requests:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user: currentUser, stockLevels: authStockLevels, companyData: authCompanyData, isReady: isAuthReady, products, customers } = useAuth();
+    const { user: currentUser, stockLevels: authStockLevels, companyData: authCompanyData, isAuthReady, products, customers } = useAuth();
     const searchParams = useSearchParams();
     
     const [state, setState] = useState<State>({

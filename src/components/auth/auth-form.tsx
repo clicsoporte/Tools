@@ -55,7 +55,7 @@ interface AuthFormProps {
 export function AuthForm({ clientInfo }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, isReady, refreshAuth, redirectAfterLogin } = useAuth();
+  const { user, isAuthReady, refreshAuth, redirectAfterLogin } = useAuth();
 
   // Initial page state
   const [hasUsers, setHasUsers] = useState<boolean | null>(null);
@@ -80,10 +80,10 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
   
   useEffect(() => {
     // If the user is already logged in, redirect them to the dashboard.
-    if (isReady && user) {
+    if (isAuthReady && user) {
       redirectAfterLogin("/dashboard");
     }
-  }, [isReady, user, redirectAfterLogin]);
+  }, [isAuthReady, user, redirectAfterLogin]);
 
   useEffect(() => {
     async function checkUserStatus() {
@@ -208,7 +208,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
   };
 
   const renderContent = () => {
-    if (isLoading || (isReady && user)) return <div className="flex justify-center items-center h-48"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
+    if (isLoading || (isAuthReady && user)) return <div className="flex justify-center items-center h-48"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
     if (error) return <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><CardTitle>Error Crítico</CardTitle><AlertDescription>{error}</AlertDescription></Alert>;
     
     if (hasUsers === false) return <SetupWizard clientInfo={clientInfo} />;

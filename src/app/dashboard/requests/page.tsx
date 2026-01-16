@@ -59,7 +59,7 @@ const HighlightedText = ({ text, highlight }: { text: string; highlight: string 
 
 export default function PurchaseRequestPage() {
     const { state, actions, selectors, isAuthorized } = useRequests();
-    const { isReady } = useAuth();
+    const { isAuthReady } = useAuth();
 
     const {
         isLoading, isSubmitting, isNewRequestDialogOpen, isEditRequestDialogOpen, viewingArchived,
@@ -85,7 +85,7 @@ export default function PurchaseRequestPage() {
     } = state;
 
 
-    if (!isReady) {
+    if (!isAuthReady) {
         return (
             <main className="flex-1 p-4 md:p-6">
                 <div className="flex justify-between items-center mb-6">
