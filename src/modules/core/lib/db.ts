@@ -1273,17 +1273,29 @@ export async function backupAllForUpdate(): Promise<void> {
     // Force a WAL checkpoint on all databases before backing up.
     await runWalCheckpoint();
     
-    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    if (!fs.existsSync(backupDir)) {
+        try {
+            fs.mkdirSync(backupDir, { recursive: true });
+        } catch (error: any) {
+            logError("Failed to create backup directory", { path: backupDir, error: error.message });
+            throw new Error(`No se pudo crear el directorio de backups: ${backupDir}`);
+        }
+    }
     
-    // Create a standard, parsable ISO timestamp
-    const timestamp = new Date().toISOString();
+    // Create a standard, parsable ISO timestamp but make it filename-safe for Windows.
+    const timestamp = new Date().toISOString().replace(/:/g, '-');
     const version = await getCurrentVersion() || 'unknown';
     
     for (const dbModule of DB_MODULES) {
         const dbPath = path.join(dbDirectory, dbModule.dbFile);
         if (fs.existsSync(dbPath)) {
             const backupPath = path.join(backupDir, `${timestamp}_v${version}_${dbModule.dbFile}`);
-            fs.copyFileSync(dbPath, backupPath);
+            try {
+                fs.copyFileSync(dbPath, backupPath);
+            } catch (error: any) {
+                logError(`Failed to copy backup for ${dbModule.dbFile}`, { from: dbPath, to: backupPath, error: error.message });
+                throw new Error(`Fallo al copiar el archivo de backup para ${dbModule.dbFile}. Detalles: ${error.message}`);
+            }
         }
     }
 }
@@ -1296,26 +1308,29 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
             const parts = file.split('_');
             if (parts.length < 3) return null; // Invalid filename format
             
-            const dateString = parts[0];
+            const dateStringFromFile = parts[0]; // e.g., '2024-07-25T19-03-30.123Z'
             const version = parts[1]?.startsWith('v') ? parts[1].substring(1) : 'unknown';
             const dbFile = version !== 'unknown' ? parts.slice(2).join('_') : parts.slice(1).join('_');
             
-            // Validate that the dateString is a valid ISO 8601 string before creating a Date object.
-            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(dateString)) {
-                 // Try to fix common issue with colons replaced by hyphens
-                const correctedDateString = dateString.replace(/(\d{2})-(\d{2})-(\d{2}\.\d{3}Z)$/, ':$1:$2.$3');
-                 if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(correctedDateString)) {
-                    console.warn(`Skipping backup file with invalid timestamp format: ${file}`);
-                    return null;
-                 }
+            // Revert the filename-safe timestamp back to a proper ISO string for parsing.
+            // This handles both old (with colons) and new (with hyphens) formats.
+            let isoDateString = dateStringFromFile;
+            if (dateStringFromFile.includes('T') && dateStringFromFile.includes('-')) {
+                const timePartIndex = dateStringFromFile.indexOf('T');
+                if (timePartIndex !== -1) {
+                    const datePart = dateStringFromFile.substring(0, timePartIndex);
+                    const timePart = dateStringFromFile.substring(timePartIndex + 1);
+                    // This regex is specific enough to only replace hyphens in the time part.
+                    isoDateString = `${datePart}T${timePart.replace(/-/g, ':')}`;
+                }
             }
-
+            
             const dbModule = DB_MODULES.find(m => m.dbFile === dbFile);
             return {
                 moduleId: dbModule?.id || 'unknown',
                 moduleName: dbModule?.name || 'Base de Datos Desconocida',
                 fileName: file,
-                date: dateString,
+                date: isoDateString, // Use the corrected, parsable ISO string
                 version: version
             };
         } catch (e) {
@@ -1393,7 +1408,7 @@ export async function deleteOldUpdateBackups(): Promise<number> {
     const timestampsToDelete = uniqueTimestamps.slice(1);
     let deletedCount = 0;
     for (const timestamp of timestampsToDelete) {
-        const filesToDelete = fs.readdirSync(backupDir).filter(file => file.startsWith(timestamp));
+        const filesToDelete = fs.readdirSync(backupDir).filter(file => file.startsWith(timestamp.replace(/:/g, '-')));
         for (const file of filesToDelete) {
             fs.unlinkSync(path.join(backupDir, file));
             deletedCount++;
