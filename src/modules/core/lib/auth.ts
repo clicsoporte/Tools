@@ -352,9 +352,6 @@ export async function getCurrentUser(): Promise<User | null> {
  * This is a server action that aggregates data from various database functions.
  */
 export async function getInitialAuthData() {
-    // This action invalidates the cache for the entire site, ensuring fresh data on login/refresh.
-    revalidatePath('/', 'layout');
-
     const db = await connectDb();
     // Ensure all databases are initialized on first authenticated load
     const dbModules = await getDbModules();
