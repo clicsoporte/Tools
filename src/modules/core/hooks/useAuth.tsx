@@ -32,7 +32,7 @@ interface AuthContextType {
   stockLevels: StockInfo[];
   allExemptions: Exemption[];
   exemptionLaws: ExemptionLaw[];
-  isReady: boolean; // Flag to signal when ALL auth-related data is loaded
+  isAuthReady: boolean; // Flag to signal when ALL auth-related data is loaded
   exchangeRateData: {
       rate: number | null;
       date: string | null;
@@ -71,7 +71,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
-  const [isReady, setIsReady] = useState(false); // Only one state for readiness
+  const [isAuthReady, setIsAuthReady] = useState(false); // This is the single source of truth for the initial auth load.
 
   const fetchExchangeRate = useCallback(async () => {
     try {
@@ -109,14 +109,14 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const loadAuthData = useCallback(async (userFromLogin?: User): Promise<User | null> => {
-    setIsReady(false);
+    // This function will set isAuthReady to true once, and only once,
+    // after the initial authentication check is complete.
     try {
-      // If a user object is passed (from login), use it directly. Otherwise, fetch from server.
       const currentUser = userFromLogin || await getCurrentUserClient();
       
       if (!currentUser) {
           setUser(null);
-          setIsReady(true);
+          setIsAuthReady(true);
           return null;
       }
       
@@ -131,14 +131,12 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setExemptionLaws(data.exemptionLaws);
       setExchangeRateData(data.exchangeRate);
       
-      // Fetch initial counts and data
       const initialSuggestionsCount = await getUnreadSuggestionsCountAction();
       setUnreadSuggestionsCount(initialSuggestionsCount);
       
       const initialNotifications = await getNotificationsForUser(currentUser.id);
       setNotifications(initialNotifications);
       setUnreadNotificationsCount(initialNotifications.filter(n => !n.isRead).length);
-
 
       if (currentUser && data.roles.length > 0) {
         const role = data.roles.find((r: Role) => r.id === currentUser.role);
@@ -154,47 +152,46 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setCompanyData(null);
       return null;
     } finally {
-      setIsReady(true);
+      if (!isAuthReady) {
+        setIsAuthReady(true);
+      }
     }
-  }, []);
+  }, [isAuthReady]); // Depends on isAuthReady to prevent re-runs
   
   const redirectAfterLogin = (path?: string) => {
     const stored = safeInternalPath(sessionStorage.getItem(REDIRECT_URL_KEY));
     sessionStorage.removeItem(REDIRECT_URL_KEY);
-    
-    // Use router.replace to prevent the login page from being in the browser history
     router.replace(stored ?? path ?? "/dashboard");
   };
 
   const handleLogout = async () => {
     await clientLogout();
-    setIsReady(false);
+    setIsAuthReady(false);
     setUser(null);
     setUserRole(null);
     window.location.href = '/';
   }
 
   useEffect(() => {
-    loadAuthData();
-  }, [loadAuthData]);
+    // Only run on initial mount
+    if (!isAuthReady) {
+        loadAuthData();
+    }
+  }, [isAuthReady, loadAuthData]);
 
   useEffect(() => {
-    if (user && isReady) {
+    if (user && isAuthReady) {
       const interval = setInterval(() => {
-        // Run these in parallel and catch potential fetch errors
         Promise.all([
             updateUnreadSuggestionsCount(),
             fetchUnreadNotifications()
         ]).catch(error => {
-            // This will catch network errors (like "Failed to fetch") if the server action call fails.
-            // It's common during development with hot-reloading or temporary network issues.
-            // We can log it silently to the console without breaking the UI.
             console.warn("Periodic auth update failed, likely due to network interruption or page unload:", error);
         });
       }, 30000);
       return () => clearInterval(interval);
     }
-  }, [user, isReady, updateUnreadSuggestionsCount, fetchUnreadNotifications]);
+  }, [user, isAuthReady, updateUnreadSuggestionsCount, fetchUnreadNotifications]);
 
   const contextValue: AuthContextType = {
     user,
@@ -205,7 +202,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     stockLevels,
     allExemptions,
     exemptionLaws,
-    isReady,
+    isAuthReady,
     exchangeRateData,
     unreadSuggestionsCount,
     notifications,

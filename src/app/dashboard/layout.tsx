@@ -41,11 +41,7 @@ export default function DashboardLayout({
   const { user, isAuthReady } = useAuth();
   const router = useRouter();
 
-  // This effect is the single source of truth for session verification.
-  // It waits until the auth state is fully resolved.
   useEffect(() => {
-    // If the auth context is ready but there's no user, it means the session
-    // is invalid (or the user logged out). Redirect to the login page.
     if (isAuthReady && !user) {
       const fullPath = window.location.pathname + window.location.search;
       if (fullPath && fullPath !== "/" && fullPath !== "/?") {
@@ -55,8 +51,6 @@ export default function DashboardLayout({
     }
   }, [isAuthReady, user, router]);
 
-  // While waiting for the initial check and for all auth data to be ready,
-  // show a global loading screen.
   if (!isAuthReady) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -65,13 +59,10 @@ export default function DashboardLayout({
     );
   }
   
-  // If after all loading, there is still no user, render nothing to avoid flashes
-  // while the redirect effect takes place.
   if (!user) {
       return null;
   }
 
-  // Once ready and user is confirmed, render the full dashboard layout.
   return (
       <PageTitleProvider initialTitle="Panel">
         <SidebarProvider>
