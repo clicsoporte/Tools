@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file centralizes all permission-related constants and logic.
  * Separating this from data.ts breaks a problematic dependency cycle.
@@ -61,6 +62,8 @@ export const permissionGroups = {
         "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset"
     ],
 };
+
+export const analyticsPermissions = permissionGroups["Analíticas y Reportes"];
 
 export const permissionTranslations: { [key: string]: string } = {
     "admin:access": "Acceso a Configuración",

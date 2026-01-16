@@ -6,7 +6,7 @@
 'use client';
 
 import { adminTools } from "@/modules/core/lib/data";
-import { adminPermissions } from "@/modules/core/lib/permissions";
+import { allAdminPermissions } from "@/modules/core/lib/permissions";
 import { ToolCard } from "@/components/dashboard/tool-card";
 import { useEffect, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
@@ -16,7 +16,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 
 export default function AdminDashboardPage() {
     const { setTitle } = usePageTitle();
-    const { hasPermission, isAuthorized } = useAuthorization(adminPermissions);
+    const { hasPermission, isAuthorized } = useAuthorization(allAdminPermissions);
     const { unreadSuggestionsCount } = useAuth();
 
     useEffect(() => {
