@@ -447,3 +447,5 @@ export async function sendPasswordRecoveryEmail(email: string, clientInfo: { ip:
         throw new Error("No se pudo enviar el correo de recuperación. Revisa la configuración de SMTP.");
     }
 }
+
+    
