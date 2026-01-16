@@ -4,7 +4,6 @@
  * admin layout is available to its children, allowing the import page to
  * set its own title within the admin section.
  */
-'use client';
 
 export default function ImportLayout({
   children,

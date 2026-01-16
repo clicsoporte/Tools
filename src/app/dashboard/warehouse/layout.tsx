@@ -3,7 +3,6 @@
  * This layout ensures that any child pages within the /warehouse route
  * (like /search and /assign) have access to the main dashboard context.
  */
-'use client';
 
 import type { ReactNode } from "react";
 
