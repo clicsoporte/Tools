@@ -7,14 +7,14 @@
 'use client';
 
 import React from 'react';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, FormEvent } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getRequestSuggestions, savePurchaseRequest } from '@/modules/requests/lib/actions';
 import { getUserPreferences, saveUserPreferences, getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
-import type { DateRange, UserPreferences, PurchaseSuggestion, PurchaseRequestPriority, ErpOrderHeader, ErpOrderLine, User, ErpPurchaseOrderHeader as ErpPOHeader, ErpPurchaseOrderLine } from '@/modules/core/types';
+import type { DateRange, UserPreferences, PurchaseSuggestion, PurchaseRequestPriority, ErpOrderHeader, ErpOrderLine, User, ErpPurchaseOrderHeader, ErpPurchaseOrderLine } from '../../core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { subDays, startOfDay } from 'date-fns';
 import { useDebounce } from 'use-debounce';
