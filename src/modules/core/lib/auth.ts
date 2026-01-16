@@ -8,7 +8,7 @@
  */
 "use server";
 
-import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getUnreadSuggestions, getDbModules } from './db';
+import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getUnreadSuggestions, getDbModules, getStockSettings } from './db';
 import { sendEmail, getEmailSettings as getEmailSettingsFromDb } from './email-service';
 import type { User, ExchangeRateApiResponse, EmailSettings, Role } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
@@ -19,8 +19,9 @@ import { NewUserSchema, UserSchema } from './auth-schemas';
 import { confirmModification as confirmPlannerModificationServer } from '../../planner/lib/db';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
-import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
+import { initializeWarehouseDb, runWarehouseMigrations, getLocations as getWarehouseLocationsDb, getInventory as getWarehouseInventoryDb, getAllItemLocations as getAllItemLocationsDb } from '../../warehouse/lib/db';
 import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
+import { getWarehouseData } from '../../warehouse/lib/db';
 import { revalidatePath } from 'next/cache';
 
 const SALT_ROUNDS = 10;
@@ -321,9 +322,14 @@ export async function comparePasswords(userId: number, password: string, clientI
 /**
  * Retrieves the currently authenticated user based on the session cookie.
  * This is a server-only function.
+ * It's marked as dynamic to prevent caching issues when the user logs in/out.
  * @returns {Promise<User | null>} The user object or null if not authenticated.
  */
 export async function getCurrentUser(): Promise<User | null> {
+    // This line tells Next.js that this function's output depends on cookies
+    // and should not be cached across requests. This solves the stale session problem.
+    cookies();
+
     const cookieStore = cookies();
     const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
 
@@ -368,7 +374,8 @@ export async function getInitialAuthData() {
         exemptions,
         exemptionLaws,
         exchangeRate,
-        unreadSuggestions
+        unreadSuggestions,
+        warehouseData
     ] = await Promise.all([
         getAllRoles(),
         getCompanySettings(),
@@ -378,7 +385,8 @@ export async function getInitialAuthData() {
         getAllExemptions(),
         getExemptionLaws(),
         getExchangeRate(),
-        getUnreadSuggestions()
+        getUnreadSuggestions(),
+        getWarehouseData()
     ]);
     
     let rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
@@ -397,7 +405,11 @@ export async function getInitialAuthData() {
         exemptions,
         exemptionLaws,
         exchangeRate: rateData,
-        unreadSuggestions
+        unreadSuggestions,
+        allLocations: warehouseData.locations,
+        allInventory: warehouseData.inventory,
+        allItemLocations: warehouseData.itemLocations,
+        stockSettings: warehouseData.stockSettings,
     };
 }
 

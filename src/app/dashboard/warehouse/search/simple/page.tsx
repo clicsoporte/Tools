@@ -12,7 +12,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { addInventoryUnit } from '@/modules/warehouse/lib/actions';
-import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer, InventoryUnit } from '@/modules/core/types';
+import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer, InventoryUnit, Warehouse } from '@/modules/core/types';
 import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, Loader2, Info, User, ChevronRight, Printer, LogOut, Archive } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import { Button } from '@/components/ui/button';
@@ -313,7 +313,7 @@ export default function SimpleWarehouseSearchPage() {
                                                 {Object.entries(searchResult.erpStock.stockByWarehouse)
                                                     .filter(([, qty]) => qty > 0)
                                                     .map(([whId, qty]) => {
-                                                        const warehouse = stockSettings?.warehouses.find(w => w.id === whId);
+                                                        const warehouse = stockSettings?.warehouses.find((w: Warehouse) => w.id === whId);
                                                         if (!warehouse?.isVisible) return null;
                                                         return (
                                                             <div key={whId} className="flex justify-between items-center p-2 border rounded-md">

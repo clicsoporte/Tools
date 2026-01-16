@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { addInventoryUnit } from '@/modules/warehouse/lib/actions';
 import { syncAllData } from '@/modules/core/lib/actions';
-import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer, InventoryUnit, WarehouseSettings } from '@/modules/core/types';
+import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer, InventoryUnit, Warehouse } from '@/modules/core/types';
 import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, RefreshCw, Loader2, Info, User, ChevronRight, Printer, Filter, Archive, FilterX } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import { Button } from '@/components/ui/button';
@@ -308,7 +308,7 @@ export default function WarehouseSearchPage() {
     };
     
     const classifications = useMemo(() => Array.from(new Set(products.map(p => p.classification).filter(Boolean))), [products]);
-    const warehouseOptions = useMemo(() => stockSettings?.warehouses.map(w => ({ value: w.id, label: w.name })) || [], [stockSettings]);
+    const warehouseOptions = useMemo(() => stockSettings?.warehouses.map((w: Warehouse) => ({ value: w.id, label: w.name })) || [], [stockSettings]);
     const locationOptions = useMemo(() => locations.map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, locations) })), [locations]);
 
 
@@ -404,7 +404,7 @@ export default function WarehouseSearchPage() {
                                     .map(([whId, qty]) => ({
                                         whId,
                                         qty,
-                                        warehouse: stockSettings?.warehouses.find(w => w.id === whId)
+                                        warehouse: stockSettings?.warehouses.find((w: Warehouse) => w.id === whId)
                                     }))
                                     .filter(entry => entry.warehouse?.isVisible)
                                     .sort((a, b) => (a.warehouse?.id || '').localeCompare(b.warehouse?.id || '')) // Sort by warehouse ID
