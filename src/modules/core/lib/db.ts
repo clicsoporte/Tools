@@ -11,7 +11,7 @@ import path from 'path';
 import fs from 'fs';
 import { initialCompany, initialRoles } from './data';
 import { DB_MODULES } from './db-modules';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession, WarehouseLocation, WarehouseInventoryItem } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -22,7 +22,7 @@ import { NewUserSchema, UserSchema } from './auth-schemas';
 import { confirmModification as confirmPlannerModificationServer } from '../../planner/lib/db';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
-import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
+import { initializeWarehouseDb, runWarehouseMigrations, getLocations as getWarehouseLocationsDb, getInventory as getWarehouseInventoryDb, getAllItemLocations as getAllItemLocationsDb } from '../../warehouse/lib/db';
 import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
 import { revalidatePath } from 'next/cache';
 
@@ -111,7 +111,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE IF NOT EXISTS erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT, TOTAL_UNIDADES REAL, MONEDA_PEDIDO TEXT, USUARIO TEXT);
         CREATE TABLE IF NOT EXISTS erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));
         CREATE TABLE IF NOT EXISTS erp_purchase_order_headers (ORDEN_COMPRA TEXT PRIMARY KEY, PROVEEDOR TEXT, FECHA_HORA TEXT, ESTADO TEXT, CreatedBy TEXT);
-        CREATE TABLE IF NOT EXISTS erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY(ORDEN_COMPRA, ARTICULO));
+        CREATE TABLE IF NOT EXISTS erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY (ORDEN_COMPRA, ARTICULO));
         CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);
     `;
     db.exec(schema);
@@ -1729,6 +1729,74 @@ export async function getActiveWizardSession(userId: number): Promise<WizardSess
     return row?.activeWizardSession ? JSON.parse(row.activeWizardSession) : null;
 }
 
-    
+```
+- src/modules/core/lib/user-actions.ts:
+```ts
 
-    
+/**
+ * @fileoverview Server Actions related to user management, like creation.
+ * Separated from auth.ts to avoid circular dependencies and keep logic clean.
+ */
+"use server";
+
+import { connectDb, getUserCount } from "@/modules/core/lib/db";
+import type { User } from "@/modules/core/types";
+import bcrypt from 'bcryptjs';
+import { logInfo, logError } from '@/modules/core/lib/logger';
+
+const SALT_ROUNDS = 10;
+const DB_FILE = 'intratool.db';
+
+/**
+ * Creates the very first user in the system, assigning them the 'admin' role.
+ * This function includes a check to ensure it only runs if no other users exist.
+ * @param userData - The data for the new admin user.
+ * @param clientInfo - Information about the client making the request, for logging.
+ * @throws {Error} If a user already exists in the database.
+ */
+export async function createFirstUser(
+  userData: Omit<User, 'id' | 'role' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer' | 'forcePasswordChange'> & { password: string },
+  clientInfo: { ip: string, host: string }
+): Promise<void> {
+  const userCount = await getUserCount();
+  if (userCount > 0) {
+    await logError("Attempted to create first user when users already exist.", clientInfo);
+    throw new Error("La configuración inicial ya fue completada. No se puede crear otro usuario administrador de esta forma.");
+  }
+
+  // Connect to the database. It will be created if it doesn't exist.
+  const db = await connectDb(DB_FILE);
+  
+  const hashedPassword = bcrypt.hashSync(userData.password, SALT_ROUNDS);
+
+  const userToCreate: User = {
+    id: 1, // First user always gets ID 1
+    name: userData.name,
+    email: userData.email,
+    password: hashedPassword,
+    role: "admin", // Assign admin role
+    avatar: "",
+    recentActivity: "Primer usuario administrador creado.",
+    phone: userData.phone,
+    whatsapp: userData.whatsapp,
+    forcePasswordChange: false,
+  };
+  
+  const stmt = db.prepare(
+    `INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, forcePasswordChange) 
+     VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @forcePasswordChange)`
+  );
+  
+  try {
+    stmt.run({
+        ...userToCreate,
+        phone: userToCreate.phone || null,
+        whatsapp: userToCreate.whatsapp || null,
+        forcePasswordChange: 0,
+    });
+    await logInfo(`Initial admin user '${userToCreate.name}' created successfully.`, clientInfo);
+  } catch (error: any) {
+    await logError("Error in createFirstUser: Database error during user creation", { error: error.message, ...clientInfo });
+    throw new Error("Hubo un error al guardar el usuario en la base de datos.");
+  }
+}

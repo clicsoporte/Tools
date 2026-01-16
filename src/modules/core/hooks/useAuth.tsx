@@ -7,7 +7,7 @@
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification } from "../types";
+import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification, WarehouseLocation, WarehouseInventoryItem, ItemLocation } from "../types";
 import { getCurrentUser as getCurrentUserClient, getInitialAuthData, logout as clientLogout } from '../lib/auth-client';
 import { getUnreadSuggestionsCount as getUnreadSuggestionsCountAction } from "@/modules/core/lib/suggestions-actions";
 import { getExchangeRate } from "../lib/api-actions";
@@ -32,6 +32,10 @@ interface AuthContextType {
   stockLevels: StockInfo[];
   allExemptions: Exemption[];
   exemptionLaws: ExemptionLaw[];
+  allLocations: WarehouseLocation[];
+  allInventory: WarehouseInventoryItem[];
+  allItemLocations: ItemLocation[];
+  stockSettings: any | null; // Keep it simple for now
   isAuthReady: boolean; // Flag to signal when ALL auth-related data is loaded
   exchangeRateData: {
       rate: number | null;
@@ -67,6 +71,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
   const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
+  const [allLocations, setAllLocations] = useState<WarehouseLocation[]>([]);
+  const [allInventory, setAllInventory] = useState<WarehouseInventoryItem[]>([]);
+  const [allItemLocations, setAllItemLocations] = useState<ItemLocation[]>([]);
+  const [stockSettings, setStockSettings] = useState<any | null>(null);
   const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null; date: string | null }>({ rate: null, date: null });
   const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -129,6 +137,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setStockLevels(data.stock);
       setAllExemptions(data.exemptions);
       setExemptionLaws(data.exemptionLaws);
+      setAllLocations(data.allLocations);
+      setAllInventory(data.allInventory);
+      setAllItemLocations(data.allItemLocations);
+      setStockSettings(data.stockSettings);
       setExchangeRateData(data.exchangeRate);
       
       const initialSuggestionsCount = await getUnreadSuggestionsCountAction();
@@ -202,6 +214,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     stockLevels,
     allExemptions,
     exemptionLaws,
+    allLocations,
+    allInventory,
+    allItemLocations,
+    stockSettings,
     isAuthReady,
     exchangeRateData,
     unreadSuggestionsCount,

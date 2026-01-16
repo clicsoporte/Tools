@@ -13,7 +13,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getWarehouseData, addInventoryUnit } from '@/modules/warehouse/lib/actions';
+import { addInventoryUnit } from '@/modules/warehouse/lib/actions';
 import { syncAllData } from '@/modules/core/lib/actions';
 import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer, InventoryUnit, WarehouseSettings } from '@/modules/core/types';
 import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, RefreshCw, Loader2, Info, User, ChevronRight, Printer, Filter, Archive, FilterX } from 'lucide-react';
@@ -104,22 +104,24 @@ export default function WarehouseSearchPage() {
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const router = useRouter();
-    const { user, companyData, products, customers, isAuthReady } = useAuth();
+    const { 
+        user, 
+        companyData, 
+        products, 
+        customers, 
+        isAuthReady,
+        allLocations: locations,
+        allInventory: inventory,
+        allItemLocations: itemLocations,
+        stockLevels: stock,
+        stockSettings
+    } = useAuth();
 
-    const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     
     const [debouncedSearchTerm] = useDebounce(searchTerm, companyData?.searchDebounceTime ?? 500);
-    
-    const [locations, setLocations] = useState<WarehouseLocation[]>([]);
-    const [inventory, setInventory] = useState<WarehouseInventoryItem[]>([]);
-    const [itemLocations, setItemLocations] = useState<ItemLocation[]>([]);
-    const [stock, setStock] = useState<StockInfo[]>([]);
-    const [stockSettings, setStockSettings] = useState<StockSettings | null>(null);
-    const [warehouseSettings, setWarehouseSettings] = useState<WarehouseSettings | null>(null);
     
     const [classificationFilter, setClassificationFilter] = useState<string[]>([]);
     const [warehouseFilter, setWarehouseFilter] = useState<string[]>([]);
@@ -131,32 +133,10 @@ export default function WarehouseSearchPage() {
         setWarehouseFilter([]);
         setLocationFilter([]);
     };
-
-    const loadData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const wData = await getWarehouseData();
-            setLocations(wData.locations);
-            setInventory(wData.inventory);
-            setItemLocations(wData.itemLocations);
-            setStock(wData.stock);
-            setStockSettings(wData.stockSettings);
-            setWarehouseSettings(wData.warehouseSettings);
-        } catch (error) {
-            console.error("Failed to load warehouse data", error);
-            logError("Failed to load warehouse data", { error });
-            toast({ title: "Error de Carga", description: "No se pudieron cargar los datos del almacén.", variant: "destructive"});
-        } finally {
-            setIsLoading(false);
-        }
-    }, [toast]);
     
     useEffect(() => {
         setTitle("Búsqueda en Almacén");
-        if (isAuthReady) {
-            loadData();
-        }
-    }, [setTitle, loadData, isAuthReady]);
+    }, [setTitle]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -188,7 +168,7 @@ export default function WarehouseSearchPage() {
     );
 
     const filteredItems = useMemo((): SearchResultItem[] => {
-        if (!hasActiveFilters) return [];
+        if (!hasActiveFilters || !isAuthReady) return [];
 
         const searchLower = normalizeText(debouncedSearchTerm);
         
@@ -271,7 +251,7 @@ export default function WarehouseSearchPage() {
         
         return searchResultItems.sort((a, b) => a.product.id.localeCompare(b.product.id));
 
-    }, [hasActiveFilters, products, itemLocations, customers, inventory, stock, locations, debouncedSearchTerm, classificationFilter, warehouseFilter, locationFilter]);
+    }, [hasActiveFilters, products, itemLocations, customers, inventory, stock, locations, debouncedSearchTerm, classificationFilter, warehouseFilter, locationFilter, isAuthReady]);
     
     const handlePrintLabel = async (product: Product, location: WarehouseLocation) => {
         if (!user || !companyData) return;
@@ -332,7 +312,7 @@ export default function WarehouseSearchPage() {
     const locationOptions = useMemo(() => locations.map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, locations) })), [locations]);
 
 
-    if (!isAuthReady || !warehouseSettings) {
+    if (!isAuthReady) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card className="max-w-5xl mx-auto">
@@ -412,7 +392,7 @@ export default function WarehouseSearchPage() {
             </div>
             <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
                 <div className="max-w-5xl mx-auto space-y-4">
-                    {isLoading ? (
+                    {!isAuthReady ? (
                         <div className="flex justify-center items-center h-40">
                             <Loader2 className="animate-spin h-8 w-8 text-muted-foreground"/>
                         </div>

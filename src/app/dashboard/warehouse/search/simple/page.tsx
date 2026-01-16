@@ -11,8 +11,8 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getWarehouseData, addInventoryUnit } from '@/modules/warehouse/lib/actions';
-import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer, InventoryUnit, WarehouseSettings } from '@/modules/core/types';
+import { addInventoryUnit } from '@/modules/warehouse/lib/actions';
+import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer, InventoryUnit } from '@/modules/core/types';
 import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, Loader2, Info, User, ChevronRight, Printer, LogOut, Archive } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import { Button } from '@/components/ui/button';
@@ -80,50 +80,37 @@ export default function SimpleWarehouseSearchPage() {
     useAuthorization(['warehouse:access']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user, companyData, products, customers, logout, isAuthReady } = useAuth();
+    const { 
+        user, 
+        companyData, 
+        products, 
+        customers, 
+        logout, 
+        isAuthReady,
+        allLocations: locations,
+        allInventory: inventory,
+        allItemLocations: itemLocations,
+        stockLevels: stock,
+        stockSettings
+    } = useAuth();
     
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [lastSearchedItem, setLastSearchedItem] = useState<Product | null>(null);
 
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300); // Shorter debounce for faster scanner response
     
-    const [locations, setLocations] = useState<WarehouseLocation[]>([]);
-    const [inventory, setInventory] = useState<WarehouseInventoryItem[]>([]);
-    const [itemLocations, setItemLocations] = useState<ItemLocation[]>([]);
-    const [stock, setStock] = useState<StockInfo[]>([]);
-    const [stockSettings, setStockSettings] = useState<StockSettings | null>(null);
-
-    const loadData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const wData = await getWarehouseData();
-            setLocations(wData.locations);
-            setInventory(wData.inventory);
-            setItemLocations(wData.itemLocations);
-            setStock(wData.stock);
-            setStockSettings(wData.stockSettings);
-        } catch (error) {
-            logError("Failed to load warehouse data", { error });
-            toast({ title: "Error de Carga", variant: "destructive"});
-        } finally {
-            setIsLoading(false);
-        }
-    }, [toast]);
-    
     useEffect(() => {
         setTitle("Búsqueda Rápida de Almacén");
-        if (isAuthReady) {
-            loadData();
-        }
-    }, [setTitle, loadData, isAuthReady]);
+    }, [setTitle]);
 
     // Effect to auto-focus input on page load/reload
     useEffect(() => {
-        inputRef.current?.focus();
-    }, [isLoading]);
+        if (isAuthReady) {
+            inputRef.current?.focus();
+        }
+    }, [isAuthReady]);
 
     // This effect triggers the automatic search when the debounced term changes.
     useEffect(() => {
@@ -242,7 +229,7 @@ export default function SimpleWarehouseSearchPage() {
         }
     };
 
-    if (!isAuthReady || isLoading || !stockSettings) {
+    if (!isAuthReady || !stockSettings) {
         return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
     }
 
