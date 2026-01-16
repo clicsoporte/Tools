@@ -7,7 +7,7 @@
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification, WarehouseLocation, WarehouseInventoryItem, ItemLocation } from "../types";
+import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw, Notification, WarehouseLocation, WarehouseInventoryItem, ItemLocation, Warehouse } from "../types";
 import { getCurrentUser as getCurrentUserClient, getInitialAuthData, logout as clientLogout } from '../lib/auth-client';
 import { getUnreadSuggestionsCount as getUnreadSuggestionsCountAction } from "@/modules/core/lib/suggestions-actions";
 import { getExchangeRate } from "../lib/api-actions";
@@ -35,7 +35,7 @@ interface AuthContextType {
   allLocations: WarehouseLocation[];
   allInventory: WarehouseInventoryItem[];
   allItemLocations: ItemLocation[];
-  stockSettings: any | null; // Keep it simple for now
+  stockSettings: { warehouses: Warehouse[] } | null;
   isAuthReady: boolean; // Flag to signal when ALL auth-related data is loaded
   exchangeRateData: {
       rate: number | null;
@@ -74,7 +74,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [allLocations, setAllLocations] = useState<WarehouseLocation[]>([]);
   const [allInventory, setAllInventory] = useState<WarehouseInventoryItem[]>([]);
   const [allItemLocations, setAllItemLocations] = useState<ItemLocation[]>([]);
-  const [stockSettings, setStockSettings] = useState<any | null>(null);
+  const [stockSettings, setStockSettings] = useState<{ warehouses: Warehouse[] } | null>(null);
   const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null; date: string | null }>({ rate: null, date: null });
   const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -177,12 +177,12 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const handleLogout = async () => {
-    await clientLogout();
-    setIsAuthReady(false);
+    await clientLogout(); // Invalidates the cookie on the server
+    // Update the state to reflect that the user is logged out.
+    // The DashboardLayout's useEffect will then handle the redirection.
     setUser(null);
     setUserRole(null);
-    window.location.href = '/';
-  }
+  };
 
   useEffect(() => {
     // Only run on initial mount
