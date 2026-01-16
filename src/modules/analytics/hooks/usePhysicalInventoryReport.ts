@@ -18,6 +18,8 @@ import { useDebounce } from 'use-debounce';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
+import { cn } from '@/lib/utils';
+
 
 export type SortKey = 'productId' | 'physicalCount' | 'erpStock' | 'difference' | 'lastCountDate' | 'locationName' | 'updatedBy';
 export type SortDirection = 'asc' | 'desc';
@@ -281,6 +283,28 @@ export function usePhysicalInventoryReport() {
         classifications: useMemo(() => Array.from(new Set(products.map(p => p.classification).filter(Boolean))), [products]),
         availableColumns,
         visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][], [state.visibleColumns]),
+        getColumnContent: (item: PhysicalInventoryComparisonItem, colId: string): { content: React.ReactNode, className?: string } => {
+            switch (colId) {
+                case 'productId':
+                    return { content: <><div className="font-medium">{item.productDescription}</div><div className="text-sm text-muted-foreground">{item.productId}</div></> };
+                case 'locationName':
+                    return { content: `${item.locationName} (${item.locationCode})` };
+                case 'assignedLocationPath':
+                    return { content: item.assignedLocationPath, className: "text-sm text-muted-foreground" };
+                case 'physicalCount':
+                    return { content: item.physicalCount.toLocaleString(), className: "font-medium" };
+                case 'erpStock':
+                    return { content: item.erpStock.toLocaleString() };
+                case 'difference':
+                    return { content: `${item.difference > 0 ? '+' : ''}${item.difference.toLocaleString()}`, className: cn("font-bold", item.difference !== 0 && (item.difference > 0 ? "text-green-600" : "text-red-600")) };
+                case 'updatedBy':
+                    return { content: item.updatedBy };
+                case 'lastCountDate':
+                    return { content: item.lastCountDate ? format(parseISO(item.lastCountDate), 'dd/MM/yy HH:mm') : 'N/A', className: "text-xs text-muted-foreground" };
+                default:
+                    return { content: null };
+            }
+        },
     };
 
     return {

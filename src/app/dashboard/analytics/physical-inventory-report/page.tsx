@@ -131,23 +131,10 @@ export default function PhysicalInventoryReportPage() {
                                 ) : sortedData.length > 0 ? (
                                     sortedData.map(item => (
                                         <TableRow key={`${item.productId}-${item.locationId}`}>
-                                            {visibleColumns.includes('productId') && (
-                                                <TableCell>
-                                                    <div className="font-medium">{item.productDescription}</div>
-                                                    <div className="text-sm text-muted-foreground">{item.productId}</div>
-                                                </TableCell>
-                                            )}
-                                            {visibleColumns.includes('locationName') && <TableCell>{item.locationName} ({item.locationCode})</TableCell>}
-                                            {visibleColumns.includes('assignedLocationPath') && <TableCell className="text-sm text-muted-foreground">{item.assignedLocationPath}</TableCell>}
-                                            {visibleColumns.includes('physicalCount') && <TableCell className="text-right font-medium">{item.physicalCount.toLocaleString()}</TableCell>}
-                                            {visibleColumns.includes('erpStock') && <TableCell className="text-right">{item.erpStock.toLocaleString()}</TableCell>}
-                                            {visibleColumns.includes('difference') && (
-                                                <TableCell className={cn("text-right font-bold", item.difference !== 0 && (item.difference > 0 ? "text-green-600" : "text-red-600"))}>
-                                                    {item.difference > 0 ? '+' : ''}{item.difference.toLocaleString()}
-                                                </TableCell>
-                                            )}
-                                            {visibleColumns.includes('updatedBy') && <TableCell>{item.updatedBy}</TableCell>}
-                                            {visibleColumns.includes('lastCountDate') && <TableCell className="text-xs text-muted-foreground">{item.lastCountDate ? format(parseISO(item.lastCountDate), 'dd/MM/yy HH:mm') : 'N/A'}</TableCell>}
+                                            {visibleColumnsData.map(col => {
+                                                const { content, className } = selectors.getColumnContent(item, col.id);
+                                                return <TableCell key={col.id} className={cn(col.align === 'right' && 'text-right', className)}>{content}</TableCell>;
+                                            })}
                                         </TableRow>
                                     ))
                                 ) : (
