@@ -16,7 +16,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 export default function AnalyticsDashboardPage() {
     const { setTitle } = usePageTitle();
     const { isAuthorized, hasPermission } = useAuthorization(analyticsPermissions);
-    const { isReady } = useAuth();
+    const { isAuthReady } = useAuth();
 
     useEffect(() => {
         setTitle("Analíticas y Reportes");
@@ -55,7 +55,7 @@ export default function AnalyticsDashboardPage() {
         });
     }, [isAuthorized, hasPermission]);
 
-    if (!isReady) {
+    if (!isAuthReady) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <div className="grid gap-8">

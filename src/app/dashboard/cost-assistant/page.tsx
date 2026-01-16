@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Page for the Cost Assistant module.
  * Allows users to upload purchase invoice XMLs and calculate selling prices.
@@ -34,7 +33,7 @@ export default function CostAssistantPage() {
         actions,
     } = useCostAssistant();
     
-    const { isReady } = useAuth();
+    const { isAuthReady } = useAuth();
     
     const columns = [
         { id: 'cabysCode', label: 'Cabys', defaultVisible: true, className: 'min-w-[150px]' },
@@ -51,7 +50,7 @@ export default function CostAssistantPage() {
         { id: 'profitPerLine', label: 'Ganancia por Línea', defaultVisible: true, className: 'min-w-[180px] text-right', tooltip: 'Ganancia total para esta línea de productos (Cantidad x Ganancia por unidad).' },
     ];
 
-    if (!isReady || isAuthorized === null) {
+    if (!isAuthReady || isAuthorized === null) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
                 <Skeleton className="h-40 w-full" />

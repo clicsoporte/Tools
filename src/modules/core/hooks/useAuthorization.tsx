@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook to handle authorization for specific pages or components.
  * It checks if the current user's role includes at least one of the required permissions.
@@ -19,18 +18,18 @@ type UseAuthorizationReturn = {
 
 export function useAuthorization(requiredPermissions: string[] = []): UseAuthorizationReturn {
     const router = useRouter();
-    const { user, userRole, isReady } = useAuth(); // Use isReady from the central auth context
+    const { user, userRole, isAuthReady } = useAuth(); // Use isAuthReady from the central auth context
 
     const userPermissions = useMemo(() => userRole?.permissions || [], [userRole]);
 
     const hasPermission = useCallback((permission: string): boolean => {
-        if (!isReady || !userRole) return false;
+        if (!isAuthReady || !userRole) return false;
         if (userRole.id === 'admin') return true;
         return userPermissions.includes(permission);
-    }, [isReady, userRole, userPermissions]);
+    }, [isAuthReady, userRole, userPermissions]);
 
     const isAuthorized = useMemo(() => {
-        if (!isReady) return null; // Wait until all auth data is ready before making a decision.
+        if (!isAuthReady) return null; // Wait until all auth data is ready before making a decision.
         if (!user || !userRole) return false; // No user or role, not authorized.
         
         // If no specific permissions are required, being logged in and ready is enough.
@@ -38,16 +37,16 @@ export function useAuthorization(requiredPermissions: string[] = []): UseAuthori
         
         // Use the memoized hasPermission function for checking.
         return requiredPermissions.some(p => hasPermission(p));
-    }, [isReady, user, userRole, requiredPermissions, hasPermission]);
+    }, [isAuthReady, user, userRole, requiredPermissions, hasPermission]);
 
     useEffect(() => {
         // This effect is now simplified. The main redirect logic is in DashboardLayout.
         // It's kept in case specific pages need to react to authorization changes in the future,
         // but it no longer handles the primary redirection responsibility.
-        if (isReady && isAuthorized && user) {
+        if (isAuthReady && isAuthorized && user) {
             // This is a good place to log module access if needed.
         }
-    }, [isAuthorized, isReady, user]);
+    }, [isAuthorized, isAuthReady, user]);
 
     return { isAuthorized, hasPermission, userPermissions };
 }

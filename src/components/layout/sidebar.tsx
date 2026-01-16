@@ -45,7 +45,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
  */
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user: currentUser, companyData, userRole, isReady } = useAuth();
+  const { user: currentUser, companyData, userRole, isAuthReady } = useAuth();
   const { isMobile, setOpenMobile } = useSidebar();
 
   const handleLinkClick = () => {
@@ -72,7 +72,7 @@ export function AppSidebar() {
   const hasAnalyticsAccess = hasAdminAccess || userRole?.permissions.includes('analytics:read');
 
 
-  if (!isReady) {
+  if (!isAuthReady) {
     return (
         <div className="hidden md:flex flex-col w-64 border-r p-4 gap-4 bg-sidebar text-sidebar-foreground">
             <div className="flex items-center gap-2 mb-4">
@@ -131,7 +131,7 @@ export function AppSidebar() {
     {
       id: "warehouse",
       name: "Almacén",
-      description: "Consultar, asignar y gestionar inventario.",
+      description: "Consultar ubicaciones, gestionar unidades y registrar conteos.",
       href: "/dashboard/warehouse",
       icon: Warehouse,
     },

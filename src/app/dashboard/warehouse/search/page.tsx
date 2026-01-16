@@ -104,7 +104,7 @@ export default function WarehouseSearchPage() {
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const router = useRouter();
-    const { user, companyData, products, customers, isReady } = useAuth();
+    const { user, companyData, products, customers, isAuthReady } = useAuth();
 
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -153,10 +153,10 @@ export default function WarehouseSearchPage() {
     
     useEffect(() => {
         setTitle("Búsqueda en Almacén");
-        if (isReady) {
+        if (isAuthReady) {
             loadData();
         }
-    }, [setTitle, loadData, isReady]);
+    }, [setTitle, loadData, isAuthReady]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -332,7 +332,7 @@ export default function WarehouseSearchPage() {
     const locationOptions = useMemo(() => locations.map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, locations) })), [locations]);
 
 
-    if (!isReady || !warehouseSettings) {
+    if (!isAuthReady || !warehouseSettings) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card className="max-w-5xl mx-auto">

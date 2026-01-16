@@ -139,7 +139,7 @@ export const useQuoter = () => {
     allExemptions,
     exemptionLaws,
     refreshAuth,
-    isReady,
+    isAuthReady,
   } = useAuth();
 
   const [quoteNumber, setQuoteNumber] = useState("");
@@ -466,6 +466,7 @@ export const useQuoter = () => {
 
   const handleSelectProduct = useCallback(
     (productId: string) => {
+      setProductSearchOpen(false);
       if (!productId) {
         setProductSearchTerm("");
         return;
@@ -481,6 +482,7 @@ export const useQuoter = () => {
 
   const handleSelectCustomer = useCallback(
     (customerId: string) => {
+      setCustomerSearchOpen(false);
       setExemptionInfo(null); // CRITICAL FIX: Reset exemption info when changing customer
       if (!customerId) {
         setSelectedCustomer(null);
@@ -659,7 +661,7 @@ export const useQuoter = () => {
   };
   
   const generatePDF = async () => {
-    if (!isReady || !companyData) {
+    if (!isAuthReady || !companyData) {
         toast({
             title: "Por favor espere",
             description:
@@ -860,7 +862,7 @@ export const useQuoter = () => {
   };
 
   const loadDrafts = useCallback(async () => {
-    if (!isReady || !currentUser) return;
+    if (!isAuthReady || !currentUser) return;
     const draftsFromDb = await getAllQuoteDrafts(currentUser.id);
     const enrichedDrafts = draftsFromDb.map((draft) => ({
       ...draft,
@@ -871,7 +873,7 @@ export const useQuoter = () => {
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
     );
-  }, [isReady, currentUser, customers]);
+  }, [isAuthReady, currentUser, customers]);
 
   const handleLoadDraft = (draft: QuoteDraft) => {
     setQuoteNumber(draft.id);
@@ -945,13 +947,8 @@ export const useQuoter = () => {
     if (e.key === "Enter") {
       e.preventDefault();
       const lineRefs = lineInputRefs.current.get(lineId);
-      const currentLine = lines.find(l => l.id === lineId);
       if (field === "qty" && lineRefs?.price) {
-        if(currentLine && currentLine.price === 0) {
-            lineRefs.price.focus();
-        } else {
-            productInputRef.current?.focus();
-        }
+        lineRefs.price.focus();
       } else if (field === "price" && productInputRef.current) {
         productInputRef.current.focus();
       }

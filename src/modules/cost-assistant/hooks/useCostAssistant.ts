@@ -61,7 +61,7 @@ export const useCostAssistant = () => {
     useAuthorization(['dashboard:access', 'cost-assistant:access']); // Permissions
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user, isReady: isAuthReady } = useAuth(); // Use isAuthReady
+    const { user, isAuthReady } = useAuth(); // Use isAuthReady
     
     const fileInputRef = useRef<HTMLInputElement>(null);
 

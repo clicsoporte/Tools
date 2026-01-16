@@ -93,7 +93,7 @@ export const usePlanner = () => {
     const { isAuthorized, hasPermission } = useAuthorization(['planner:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user: currentUser, companyData: authCompanyData, customers, products, stockLevels, isReady: isAuthReady } = useAuth();
+    const { user: currentUser, companyData: authCompanyData, customers, products, stockLevels, isAuthReady } = useAuth();
 
     const [state, setState] = useState({
         isLoading: true,

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview The main dashboard page for the warehouse section.
  * It displays a grid of available warehouse management tools.
@@ -16,7 +15,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 export default function WarehouseDashboardPage() {
     const { setTitle } = usePageTitle();
     const { isAuthorized, hasPermission } = useAuthorization();
-    const { isReady } = useAuth();
+    const { isAuthReady } = useAuth();
 
     useEffect(() => {
         setTitle("Almacén");
@@ -56,7 +55,7 @@ export default function WarehouseDashboardPage() {
         });
     }, [isAuthorized, hasPermission]);
 
-    if (!isReady) {
+    if (!isAuthReady) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <div className="grid gap-8">

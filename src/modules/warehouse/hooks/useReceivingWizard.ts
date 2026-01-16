@@ -36,7 +36,7 @@ export const useReceivingWizard = () => {
     useAuthorization(['warehouse:receiving:create']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user, companyData, products: authProducts, isReady } = useAuth();
+    const { user, companyData, products: authProducts, isAuthReady } = useAuth();
 
     const [state, setState] = useState({
         isLoading: true,
@@ -86,10 +86,10 @@ export const useReceivingWizard = () => {
                 updateState({ isLoading: false });
             }
         };
-        if (isReady) {
+        if (isAuthReady) {
             loadInitialData();
         }
-    }, [setTitle, isReady, toast, updateState]);
+    }, [setTitle, isAuthReady, toast, updateState]);
     
     const productOptions = useMemo(() => {
         if (debouncedProductSearch.length < 2) return [];
