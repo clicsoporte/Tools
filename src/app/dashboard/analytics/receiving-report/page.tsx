@@ -124,16 +124,14 @@ export default function ReceivingReportPage() {
                                 ) : sortedData.length > 0 ? (
                                     sortedData.map(item => (
                                         <TableRow key={item.id}>
-                                            {visibleColumns.includes('createdAt') && <TableCell className="text-xs text-muted-foreground">{format(parseISO(item.createdAt), 'dd/MM/yy HH:mm')}</TableCell>}
-                                            {visibleColumns.includes('productId') && <TableCell>{item.productId}</TableCell>}
-                                            {visibleColumns.includes('productDescription') && <TableCell>{selectors.getProductDescription(item.productId)}</TableCell>}
-                                            {visibleColumns.includes('humanReadableId') && <TableCell className="font-mono">{item.humanReadableId || 'N/A'}</TableCell>}
-                                            {visibleColumns.includes('unitCode') && <TableCell className="font-mono text-xs">{item.unitCode}</TableCell>}
-                                            {visibleColumns.includes('documentId') && <TableCell>{item.documentId || 'N/A'}</TableCell>}
-                                            {visibleColumns.includes('erpDocumentId') && <TableCell>{item.erpDocumentId || 'N/A'}</TableCell>}
-                                            {visibleColumns.includes('locationPath') && <TableCell className="text-xs">{selectors.getLocationPath(item.locationId)}</TableCell>}
-                                            {visibleColumns.includes('quantity') && <TableCell className="font-bold">{item.quantity}</TableCell>}
-                                            {visibleColumns.includes('createdBy') && <TableCell>{item.createdBy}</TableCell>}
+                                            {visibleColumns.map(colId => {
+                                                const { content, className } = selectors.getColumnContent(item, colId);
+                                                return (
+                                                    <TableCell key={colId} className={cn(className)}>
+                                                        {content}
+                                                    </TableCell>
+                                                )
+                                            })}
                                         </TableRow>
                                     ))
                                 ) : (

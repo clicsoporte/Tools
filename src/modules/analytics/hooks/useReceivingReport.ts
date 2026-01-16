@@ -17,6 +17,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
+import React from 'react';
 
 const normalizeText = (text: string | null | undefined): string => {
     if (!text) return "";
@@ -60,7 +61,7 @@ export function useReceivingReport() {
         data: [],
         allLocations: [],
         dateRange: {
-            from: startOfDay(subDays(new Date(), 7)),
+            from: new Date(),
             to: new Date(),
         },
         searchTerm: '',
@@ -93,18 +94,17 @@ export function useReceivingReport() {
     
     useEffect(() => {
         setTitle("Reporte de Recepciones");
-        const loadPrefsAndData = async () => {
+        const loadPrefs = async () => {
              if(user) {
                 const prefs = await getUserPreferences(user.id, 'receivingReportPrefs');
                 if (prefs && prefs.visibleColumns) {
                     updateState({ visibleColumns: prefs.visibleColumns });
                 }
             }
-             // Do not fetch data automatically, wait for user action.
              setIsInitialLoading(false);
         }
         if (isAuthorized) {
-            loadPrefsAndData();
+            loadPrefs();
         }
     }, [setTitle, isAuthorized, user, updateState]);
     
@@ -168,7 +168,6 @@ export function useReceivingReport() {
         const path: string[] = [];
         let currentId: number | null = locationId;
 
-        // Loop with a safeguard
         for (let i = 0; i < 10 && currentId !== null; i++) {
             const current = locationMap.get(currentId);
             if (current) {
@@ -180,7 +179,6 @@ export function useReceivingReport() {
         }
         return path.join(' > ');
     }, [state.allLocations]);
-
 
     const getProductDescription = useCallback((productId: string): string => {
         return products.find(p => p.id === productId)?.description || 'Producto Desconocido';
@@ -201,19 +199,12 @@ export function useReceivingReport() {
         const headers = selectors.visibleColumnsData.map(c => c.label);
         const dataToExport = sortedData.map(item => 
             selectors.visibleColumnsData.map(col => {
-                switch(col.id) {
-                    case 'createdAt': return format(parseISO(item.createdAt), 'dd/MM/yyyy HH:mm');
-                    case 'productId': return item.productId;
-                    case 'productDescription': return getProductDescription(item.productId);
-                    case 'humanReadableId': return item.humanReadableId || 'N/A';
-                    case 'unitCode': return item.unitCode;
-                    case 'documentId': return item.documentId || 'N/A';
-                    case 'erpDocumentId': return item.erpDocumentId || 'N/A';
-                    case 'locationPath': return getLocationPath(item.locationId);
-                    case 'quantity': return (item as any).quantity ?? 1;
-                    case 'createdBy': return item.createdBy;
-                    default: return '';
+                const { content } = selectors.getColumnContent(item, col.id);
+                // Simple conversion from ReactNode to string for Excel
+                if (typeof content === 'object' && content !== null) {
+                    return React.Children.toArray((content as React.ReactElement).props.children).join('');
                 }
+                return content;
             })
         );
         exportToExcel({
@@ -229,21 +220,11 @@ export function useReceivingReport() {
         const tableHeaders = selectors.visibleColumnsData.map(c => c.label);
         const tableRows = sortedData.map(item => 
             selectors.visibleColumnsData.map(col => {
-                let cellValue: string;
-                switch(col.id) {
-                    case 'createdAt': cellValue = format(parseISO(item.createdAt), 'dd/MM/yy HH:mm'); break;
-                    case 'productId': cellValue = item.productId; break;
-                    case 'productDescription': cellValue = getProductDescription(item.productId); break;
-                    case 'humanReadableId': cellValue = item.humanReadableId || 'N/A'; break;
-                    case 'unitCode': cellValue = item.unitCode || 'N/A'; break;
-                    case 'documentId': cellValue = item.documentId || 'N/A'; break;
-                    case 'erpDocumentId': cellValue = item.erpDocumentId || 'N/A'; break;
-                    case 'locationPath': cellValue = getLocationPath(item.locationId); break;
-                    case 'quantity': return String((item as any).quantity ?? 1);
-                    case 'createdBy': cellValue = item.createdBy; break;
-                    default: cellValue = '';
+                const { content } = selectors.getColumnContent(item, col.id);
+                if (typeof content === 'object' && content !== null) {
+                    return React.Children.toArray((content as React.ReactElement).props.children).join(' ');
                 }
-                return cellValue;
+                return String(content);
             })
         );
         const doc = generateDocument({
@@ -256,29 +237,44 @@ export function useReceivingReport() {
         doc.save('reporte_recepciones.pdf');
     };
 
+    const selectors = {
+        sortedData,
+        userOptions: useMemo(() => Array.from(new Set(state.data.map(item => item.createdBy))).map(u => ({ value: u, label: u })), [state.data]),
+        locationOptions: useMemo(() => state.allLocations.map(l => ({ value: String(l.id), label: getLocationPath(l.id) })), [state.allLocations, getLocationPath]),
+        getProductDescription,
+        getLocationPath,
+        availableColumns,
+        visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][], [state.visibleColumns]),
+        getColumnContent: (item: InventoryUnit, colId: string): { content: React.ReactNode, className?: string } => {
+            switch (colId) {
+                case 'createdAt': return { content: format(parseISO(item.createdAt), 'dd/MM/yy HH:mm'), className: "text-xs text-muted-foreground" };
+                case 'productId': return { content: item.productId };
+                case 'productDescription': return { content: getProductDescription(item.productId) };
+                case 'humanReadableId': return { content: item.humanReadableId || 'N/A', className: "font-mono" };
+                case 'unitCode': return { content: item.unitCode, className: "font-mono text-xs" };
+                case 'documentId': return { content: item.documentId || 'N/A' };
+                case 'erpDocumentId': return { content: item.erpDocumentId || 'N/A' };
+                case 'locationPath': return { content: getLocationPath(item.locationId), className: "text-xs" };
+                case 'quantity': return { content: item.quantity, className: "font-bold" };
+                case 'createdBy': return { content: item.createdBy };
+                default: return { content: null };
+            }
+        },
+    };
+
     const actions = {
         fetchData,
         setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined } }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
         setUserFilter: (filter: string[]) => updateState({ userFilter: filter }),
         setLocationFilter: (filter: string[]) => updateState({ locationFilter: filter }),
-        handleClearFilters: () => updateState({ searchTerm: '', userFilter: [], locationFilter: [] }),
+        handleClearFilters: () => updateState({ searchTerm: '', userFilter: [], locationFilter: [], dateRange: { from: new Date(), to: new Date() } }),
         handleExportExcel,
         handleExportPDF,
         handleColumnVisibilityChange: (columnId: string, checked: boolean) => {
             updateState({ visibleColumns: checked ? [...state.visibleColumns, columnId] : state.visibleColumns.filter(id => id !== columnId) });
         },
         handleSavePreferences,
-    };
-
-    const selectors = {
-        sortedData,
-        userOptions: useMemo(() => Array.from(new Set(state.data.map(item => item.createdBy))).map(u => ({ value: u, label: u })), [state.data]),
-        locationOptions: useMemo(() => state.allLocations.map(l => ({ value: String(l.id), label: getLocationPath(l.id) })), [state.allLocations, getLocationPath]),
-        getLocationPath,
-        getProductDescription,
-        availableColumns,
-        visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][], [state.visibleColumns]),
     };
     
     return {
