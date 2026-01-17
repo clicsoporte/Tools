@@ -85,7 +85,7 @@ export function useReceivingReport() {
     const fetchData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const data = await getReceivingReportData({ dateRange: state.dateRange, includeVoided: true });
+            const data = await getReceivingReportData({ dateRange: state.dateRange });
             updateState({ 
                 data: data.units, 
                 allLocations: data.locations 
