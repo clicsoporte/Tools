@@ -631,8 +631,8 @@ export async function searchInventoryUnits(filters: {
         params.push(`%${filters.documentId}%`);
     }
      if (filters.receptionConsecutive) {
-        whereClauses.push("receptionConsecutive = ?");
-        params.push(filters.receptionConsecutive);
+        whereClauses.push("receptionConsecutive LIKE ?");
+        params.push(`%${filters.receptionConsecutive}%`);
     }
     
     if (!filters.showVoided) {

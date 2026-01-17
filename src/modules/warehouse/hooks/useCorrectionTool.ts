@@ -22,6 +22,7 @@ interface State {
         humanReadableId: string;
         unitCode: string;
         documentId: string;
+        receptionConsecutive: string;
         showVoided: boolean;
     };
     searchResults: InventoryUnit[];
@@ -55,6 +56,7 @@ export const useCorrectionTool = () => {
             humanReadableId: '',
             unitCode: '',
             documentId: '',
+            receptionConsecutive: '',
             showVoided: false,
         },
         searchResults: [],
@@ -96,6 +98,7 @@ export const useCorrectionTool = () => {
                 humanReadableId: '',
                 unitCode: '',
                 documentId: '',
+                receptionConsecutive: '',
                 showVoided: false,
             },
             searchResults: [],
@@ -129,7 +132,7 @@ export const useCorrectionTool = () => {
     };
     
     const handleConfirmCorrection = async () => {
-        if (!user || !state.unitToCorrect || !state.newSelectedProduct) {
+        if (!user || !state.unitToCorrect) {
              toast({ title: "Error", description: "Faltan datos para la corrección.", variant: "destructive" });
              return;
         }
@@ -138,7 +141,7 @@ export const useCorrectionTool = () => {
         try {
             await correctInventoryUnit({
                 unitId: state.unitToCorrect.id,
-                newProductId: state.newSelectedProduct.id,
+                newProductId: state.editableUnit.productId ?? state.unitToCorrect.productId,
                 newQuantity: state.editableUnit.quantity ?? state.unitToCorrect.quantity,
                 newHumanReadableId: state.editableUnit.humanReadableId ?? state.unitToCorrect.humanReadableId ?? '',
                 newDocumentId: state.editableUnit.documentId ?? state.unitToCorrect.documentId ?? '',
@@ -150,7 +153,7 @@ export const useCorrectionTool = () => {
             handleModalOpenChange(false);
             await handleSearch(); // Refresh search results after correction
         } catch (error: any) {
-            logError('Error executing inventory correction', { error: error.message, payload: { unitId: state.unitToCorrect.id, newProductId: state.newSelectedProduct.id, newQuantity: state.editableUnit.quantity, userId: user.id } });
+            logError('Error executing inventory correction', { error: error.message, payload: { unitId: state.unitToCorrect.id, newProductId: state.newSelectedProduct?.id, newQuantity: state.editableUnit.quantity, userId: user.id } });
             toast({ title: "Error en la Corrección", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isSubmitting: false });
@@ -210,8 +213,15 @@ export const useCorrectionTool = () => {
              return authProducts.find(p => p.id === productId)?.description || 'Desconocido';
         },
         isCorrectionFormValid: useMemo(() => {
-            return !!state.newSelectedProduct && !!state.editableUnit.quantity && state.editableUnit.quantity > 0;
-        }, [state.newSelectedProduct, state.editableUnit.quantity]),
+            if (!state.unitToCorrect) return false;
+            // Check if any of the correctable fields have changed from the original
+            const hasChanged = state.editableUnit.productId !== state.unitToCorrect.productId ||
+                               state.editableUnit.quantity !== state.unitToCorrect.quantity ||
+                               state.editableUnit.humanReadableId !== (state.unitToCorrect.humanReadableId || '') ||
+                               state.editableUnit.documentId !== (state.unitToCorrect.documentId || '') ||
+                               state.editableUnit.erpDocumentId !== (state.unitToCorrect.erpDocumentId || '');
+            return hasChanged;
+        }, [state.editableUnit, state.unitToCorrect]),
     };
 
     return {

@@ -56,7 +56,7 @@ export default function CorrectionPage() {
                         <CardDescription>Usa los filtros para encontrar la unidad de inventario que necesitas corregir.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="space-y-2">
                                 <Label>Rango de Fechas</Label>
                                 <Popover>
@@ -72,6 +72,7 @@ export default function CorrectionPage() {
                             <div className="space-y-2"><Label htmlFor="productId">Código Producto</Label><Input id="productId" value={filters.productId} onChange={e => actions.setFilter('productId', e.target.value)} /></div>
                             <div className="space-y-2"><Label htmlFor="humanReadableId">Nº Lote / ID Físico</Label><Input id="humanReadableId" value={filters.humanReadableId} onChange={e => actions.setFilter('humanReadableId', e.target.value)} /></div>
                             <div className="space-y-2"><Label htmlFor="unitCode">ID Unidad (U-XXXXX)</Label><Input id="unitCode" value={filters.unitCode} onChange={e => actions.setFilter('unitCode', e.target.value)} /></div>
+                            <div className="space-y-2"><Label htmlFor="receptionConsecutive">Consecutivo Ingreso (ING-XXXXX)</Label><Input id="receptionConsecutive" value={filters.receptionConsecutive} onChange={e => actions.setFilter('receptionConsecutive', e.target.value)} /></div>
                             <div className="space-y-2"><Label htmlFor="documentId">Nº Documento</Label><Input id="documentId" value={filters.documentId} onChange={e => actions.setFilter('documentId', e.target.value)} /></div>
                             <div className="flex items-center space-x-2 pt-6">
                                 <Checkbox id="showVoided" checked={filters.showVoided} onCheckedChange={(checked) => actions.setFilter('showVoided', !!checked)} />
@@ -143,7 +144,7 @@ export default function CorrectionPage() {
                                                     <TableCell>{unit.createdAt ? format(parseISO(unit.createdAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
                                                     <TableCell>{unit.annulledBy || ''}</TableCell>
                                                     <TableCell>{unit.annulledAt ? format(parseISO(unit.annulledAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
-                                                    <TableCell className="text-right">
+                                                    <TableCell className="text-right whitespace-nowrap">
                                                         {!isVoided && (
                                                             <Button variant="outline" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="whitespace-nowrap">
                                                                 <RotateCcw className="mr-2 h-4 w-4"/>
@@ -248,7 +249,7 @@ export default function CorrectionPage() {
                                 <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button disabled={!selectors.isCorrectionFormValid || isSubmitting}>
+                                        <Button disabled={!editableUnit.quantity || editableUnit.quantity <= 0 || isSubmitting}>
                                             <Save className="mr-2 h-4 w-4"/>
                                             Aplicar Corrección
                                         </Button>

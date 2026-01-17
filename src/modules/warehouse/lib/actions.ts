@@ -126,6 +126,7 @@ export const searchInventoryUnits = async (filters: {
     humanReadableId?: string;
     unitCode?: string;
     documentId?: string;
+    receptionConsecutive?: string;
     showVoided?: boolean;
 }): Promise<InventoryUnit[]> => searchInventoryUnitsServer(filters);
 
