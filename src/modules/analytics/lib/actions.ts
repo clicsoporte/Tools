@@ -215,7 +215,7 @@ export async function getPhysicalInventoryReportData({ dateRange }: { dateRange?
 export async function getReceivingReportData({ dateRange }: { dateRange?: DateRange }): Promise<{ units: InventoryUnit[], locations: WarehouseLocation[] }> {
     try {
         const [units, locations] = await Promise.all([
-            getInventoryUnits(dateRange),
+            getInventoryUnits({ dateRange, includeVoided: true }),
             getWarehouseLocations(),
         ]);
         return JSON.parse(JSON.stringify({ units, locations }));
@@ -224,3 +224,5 @@ export async function getReceivingReportData({ dateRange }: { dateRange?: DateRa
         throw new Error('No se pudo generar el reporte de recepciones.');
     }
 }
+
+    

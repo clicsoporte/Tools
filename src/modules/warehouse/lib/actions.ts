@@ -108,9 +108,10 @@ export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'created
 export const getInventoryUnits = async (): Promise<InventoryUnit[]> => getInventoryUnitsServer();
 export const deleteInventoryUnit = async (id: number): Promise<void> => deleteInventoryUnitServer(id);
 export const getInventoryUnitById = async (id: string | number): Promise<InventoryUnit | null> => getInventoryUnitByIdServer(id);
+
 export const correctInventoryUnit = async (payload: {
     unitId: number;
-    newProductId: string;
+    newProductId: string | null;
     newQuantity: number;
     newHumanReadableId: string;
     newDocumentId: string;
@@ -118,6 +119,7 @@ export const correctInventoryUnit = async (payload: {
     userId: number;
     userName: string;
 }): Promise<void> => correctInventoryUnitServer(payload);
+
 export const searchInventoryUnits = async (filters: {
     dateRange?: DateRange;
     productId?: string;
@@ -135,3 +137,5 @@ export const lockEntity = async (payload: { entityIds: number[]; userName: strin
 export const releaseLock = async (entityIds: number[], userId: number): Promise<void> => releaseLockServer(entityIds, userId);
 export const forceReleaseLock = async (locationId: number): Promise<void> => forceReleaseLockServer(locationId);
 export const getChildLocations = async (parentIds: number[]): Promise<WarehouseLocation[]> => getChildLocationsServer(parentIds);
+
+    

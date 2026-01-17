@@ -277,7 +277,7 @@ export type ProductionOrder = {
   erpOrderNumber?: string;
 };
 
-export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified' | 'pendingAction'>> & {
+export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'shiftId'>> & {
     orderId: number;
     updatedBy: string;
 };
@@ -475,6 +475,8 @@ export type WarehouseSettings = {
     locationLevels: WarehouseLocationLevel[];
     unitPrefix: string;
     nextUnitNumber: number;
+    correctionPrefix: string;
+    nextCorrectionNumber: number;
     dispatchNotificationEmails?: string;
 };
 
@@ -514,6 +516,9 @@ export type ItemLocation = {
 export type InventoryUnit = {
     id: number;
     unitCode?: string; // e.g., 'U00001'
+    receptionConsecutive?: string; // e.g., 'ING-00001'
+    correctionConsecutive?: string; // e.g., 'COR-00001' (the doc that voided this unit)
+    correctedFromUnitId?: number; // The ID of the unit this one corrected
     productId: string;
     humanReadableId?: string; // e.g. a lot number
     documentId?: string; // e.g. a delivery note
@@ -888,3 +893,5 @@ export interface EmailSettings {
   recoveryEmailSubject: string;
   recoveryEmailBody: string;
 }
+
+    

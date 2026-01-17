@@ -123,7 +123,7 @@ export default function ReceivingReportPage() {
                                     <TableRow><TableCell colSpan={visibleColumns.length} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
                                 ) : sortedData.length > 0 ? (
                                     sortedData.map(item => (
-                                        <TableRow key={item.id}>
+                                        <TableRow key={item.id} className={cn(item.quantity === 0 && 'bg-destructive/10')}>
                                             {visibleColumns.map(colId => {
                                                 const { content, className } = selectors.getColumnContent(item, colId);
                                                 return (
@@ -145,3 +145,5 @@ export default function ReceivingReportPage() {
         </main>
     );
 }
+
+    

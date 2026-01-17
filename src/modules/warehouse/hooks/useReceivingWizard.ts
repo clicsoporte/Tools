@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError } from '@/modules/core/lib/logger';
+import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getLocations, getAllItemLocations, addInventoryUnit, getSelectableLocations, assignItemToLocation } from '@/modules/warehouse/lib/actions';
 import type { Product, WarehouseLocation, ItemLocation, InventoryUnit } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -324,3 +324,5 @@ export const useReceivingWizard = () => {
         },
     };
 };
+
+    

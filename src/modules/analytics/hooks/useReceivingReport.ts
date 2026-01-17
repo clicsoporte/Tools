@@ -19,6 +19,7 @@ import { exportToExcel } from '@/modules/core/lib/excel-export';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const normalizeText = (text: string | null | undefined): string => {
     if (!text) return "";
@@ -26,6 +27,7 @@ const normalizeText = (text: string | null | undefined): string => {
 };
 
 const availableColumns = [
+    { id: 'receptionConsecutive', label: 'Consecutivo Ingreso' },
     { id: 'createdAt', label: 'Fecha' },
     { id: 'productId', label: 'Código Producto' },
     { id: 'productDescription', label: 'Descripción' },
@@ -36,6 +38,7 @@ const availableColumns = [
     { id: 'locationPath', label: 'Ubicación' },
     { id: 'quantity', label: 'Cantidad' },
     { id: 'createdBy', label: 'Usuario' },
+    { id: 'traceability', label: 'Trazabilidad Corrección' },
 ];
 
 interface State {
@@ -250,6 +253,7 @@ export function useReceivingReport() {
         visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][], [state.visibleColumns]),
         getColumnContent: (item: InventoryUnit, colId: string): { content: React.ReactNode, className?: string } => {
             switch (colId) {
+                case 'receptionConsecutive': return { content: item.receptionConsecutive || 'N/A' };
                 case 'createdAt': return { content: format(parseISO(item.createdAt), 'dd/MM/yy HH:mm'), className: "text-xs text-muted-foreground" };
                 case 'productId': return { content: item.productId };
                 case 'productDescription': return { content: getProductDescription(item.productId) };
@@ -260,6 +264,15 @@ export function useReceivingReport() {
                 case 'locationPath': return { content: getLocationPath(item.locationId), className: "text-xs" };
                 case 'quantity': return { content: item.quantity, className: "font-bold" };
                 case 'createdBy': return { content: item.createdBy };
+                case 'traceability':
+                    if (item.correctionConsecutive) {
+                        return { content: <Badge variant="destructive">Anulado por {item.correctionConsecutive}</Badge> };
+                    }
+                    if (item.correctedFromUnitId) {
+                        const original = state.data.find(u => u.id === item.correctedFromUnitId);
+                        return { content: <Badge variant="outline">Corrige a {original?.receptionConsecutive || 'N/A'}</Badge> };
+                    }
+                    return { content: 'N/A' };
                 default: return { content: null };
             }
         },
@@ -288,3 +301,5 @@ export function useReceivingReport() {
         isInitialLoading,
     };
 }
+
+    

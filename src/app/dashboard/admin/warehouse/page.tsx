@@ -144,10 +144,10 @@ export default function WarehouseSettingsPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                          <div className="space-y-4 rounded-lg border p-4">
-                            <h3 className="font-semibold">Unidades de Inventario (Etiquetas QR)</h3>
+                            <h3 className="font-semibold">Consecutivos de Documentos de Inventario</h3>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <Label htmlFor="unitPrefix">Prefijo de Unidad</Label>
+                                    <Label htmlFor="unitPrefix">Prefijo de Recepción (Ingreso)</Label>
                                     <Input
                                         id="unitPrefix"
                                         value={warehouseSettings.unitPrefix || 'U'}
@@ -155,12 +155,29 @@ export default function WarehouseSettingsPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="nextUnitNumber">Próximo Nº de Unidad</Label>
+                                    <Label htmlFor="nextUnitNumber">Próximo Nº de Recepción</Label>
                                     <Input
                                         id="nextUnitNumber"
                                         type="number"
                                         value={warehouseSettings.nextUnitNumber || 1}
                                         onChange={(e) => setWarehouseSettings(prev => prev ? { ...prev, nextUnitNumber: Number(e.target.value) } : null)}
+                                    />
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="correctionPrefix">Prefijo de Corrección (Anulación)</Label>
+                                    <Input
+                                        id="correctionPrefix"
+                                        value={warehouseSettings.correctionPrefix || 'COR-'}
+                                        onChange={(e) => setWarehouseSettings(prev => prev ? { ...prev, correctionPrefix: e.target.value } : null)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="nextCorrectionNumber">Próximo Nº de Corrección</Label>
+                                    <Input
+                                        id="nextCorrectionNumber"
+                                        type="number"
+                                        value={warehouseSettings.nextCorrectionNumber || 1}
+                                        onChange={(e) => setWarehouseSettings(prev => prev ? { ...prev, nextCorrectionNumber: Number(e.target.value) } : null)}
                                     />
                                 </div>
                             </div>
@@ -274,3 +291,5 @@ export default function WarehouseSettingsPage() {
         </main>
     );
 }
+
+    
