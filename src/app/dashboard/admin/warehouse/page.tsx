@@ -220,11 +220,11 @@ export default function WarehouseSettingsPage() {
                                                         </p>
                                                         <div className="flex items-center gap-4 mt-2">
                                                             <div className="flex items-center space-x-2">
-                                                                <Checkbox id={`default-${wh.id}`} checked={wh.isDefault} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isDefault', checked)} />
+                                                                <Checkbox id={`default-${wh.id}`} checked={wh.isDefault} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isDefault', checked as boolean)} />
                                                                 <Label htmlFor={`default-${wh.id}`} className="text-xs">Predeterm.</Label>
                                                             </div>
                                                             <div className="flex items-center space-x-2">
-                                                                <Checkbox id={`visible-${wh.id}`} checked={wh.isVisible} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isVisible', checked)} />
+                                                                <Checkbox id={`visible-${wh.id}`} checked={wh.isVisible} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isVisible', checked as boolean)} />
                                                                 <Label htmlFor={`visible-${wh.id}`} className="text-xs">Visible</Label>
                                                             </div>
                                                         </div>

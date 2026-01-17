@@ -44,7 +44,7 @@ export default function CorrectionPage() {
     } = state;
 
     useEffect(() => {
-        setTitle("Corrección de Ingresos");
+        setTitle("Administración de Ingresos");
     }, [setTitle]);
     
     return (
@@ -74,7 +74,7 @@ export default function CorrectionPage() {
                             <div className="space-y-2"><Label htmlFor="unitCode">ID Unidad (U-XXXXX)</Label><Input id="unitCode" value={filters.unitCode} onChange={e => actions.setFilter('unitCode', e.target.value)} /></div>
                             <div className="space-y-2"><Label htmlFor="documentId">Nº Documento</Label><Input id="documentId" value={filters.documentId} onChange={e => actions.setFilter('documentId', e.target.value)} /></div>
                             <div className="flex items-center space-x-2 pt-6">
-                                <Checkbox id="showVoided" checked={filters.showVoided} onCheckedChange={(checked) => actions.setFilter('showVoided', checked)} />
+                                <Checkbox id="showVoided" checked={filters.showVoided} onCheckedChange={(checked) => actions.setFilter('showVoided', !!checked)} />
                                 <Label htmlFor="showVoided">Incluir anulados</Label>
                             </div>
                         </div>
@@ -101,12 +101,12 @@ export default function CorrectionPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>ID Unidad</TableHead>
+                                            <TableHead>Trazabilidad</TableHead>
                                             <TableHead>Producto</TableHead>
                                             <TableHead>Lote/ID Físico</TableHead>
                                             <TableHead>Cant.</TableHead>
+                                            <TableHead>Usuario</TableHead>
                                             <TableHead>Fecha Ingreso</TableHead>
-                                            <TableHead>Notas</TableHead>
                                             <TableHead className="text-right">Acción</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -115,19 +115,32 @@ export default function CorrectionPage() {
                                             const isVoided = unit.quantity === 0;
                                             return (
                                                 <TableRow key={unit.id} className={cn(isVoided && 'bg-destructive/10 text-destructive')}>
-                                                    <TableCell className="font-mono">{unit.unitCode}</TableCell>
+                                                    <TableCell className="font-mono text-xs">
+                                                        {unit.correctionConsecutive ? (
+                                                            <div className="flex flex-col">
+                                                                <Badge variant="destructive" className="mb-1 w-fit">ANULADO</Badge>
+                                                                <span>{unit.receptionConsecutive}</span>
+                                                                <span className="text-muted-foreground">→ {unit.correctionConsecutive}</span>
+                                                            </div>
+                                                        ) : unit.correctedFromUnitId ? (
+                                                            <div className="flex flex-col">
+                                                                <Badge variant="outline" className="mb-1 w-fit">CORRECCIÓN</Badge>
+                                                                <span>{unit.receptionConsecutive}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <Badge variant="secondary">{unit.receptionConsecutive}</Badge>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell>
                                                         <p className="font-medium">{selectors.getProductName(unit.productId)}</p>
                                                         <p className="text-sm text-muted-foreground">{unit.productId}</p>
                                                     </TableCell>
                                                     <TableCell>{unit.humanReadableId || 'N/A'}</TableCell>
                                                     <TableCell className="font-bold">{unit.quantity}</TableCell>
+                                                    <TableCell>{unit.createdBy}</TableCell>
                                                     <TableCell>{format(parseISO(unit.createdAt), 'dd/MM/yyyy HH:mm')}</TableCell>
-                                                    <TableCell className="text-xs max-w-xs truncate">{unit.notes || 'N/A'}</TableCell>
                                                     <TableCell className="text-right">
-                                                        {isVoided ? (
-                                                            <Badge variant="destructive">ANULADO</Badge>
-                                                        ) : (
+                                                        {!isVoided && (
                                                             <Button variant="outline" size="sm" onClick={() => actions.setUnitToCorrect(unit)}>
                                                                 <RotateCcw className="mr-2 h-4 w-4"/>
                                                                 Corregir
@@ -149,7 +162,7 @@ export default function CorrectionPage() {
                         <DialogHeader>
                             <DialogTitle>Corregir Ingreso de Unidad</DialogTitle>
                             <DialogDescription>
-                                Modifica los campos necesarios para la unidad <strong>{unitToCorrect?.unitCode}</strong>.
+                                Modifica los campos necesarios para la unidad <strong>{unitToCorrect?.receptionConsecutive}</strong>.
                                 Al guardar, se anulará la unidad original y se creará una nueva con esta información.
                             </DialogDescription>
                         </DialogHeader>

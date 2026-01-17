@@ -28,6 +28,7 @@ const normalizeText = (text: string | null | undefined): string => {
 
 const availableColumns = [
     { id: 'receptionConsecutive', label: 'Consecutivo Ingreso' },
+    { id: 'traceability', label: 'Trazabilidad Corrección' },
     { id: 'createdAt', label: 'Fecha' },
     { id: 'productId', label: 'Código Producto' },
     { id: 'productDescription', label: 'Descripción' },
@@ -38,7 +39,6 @@ const availableColumns = [
     { id: 'locationPath', label: 'Ubicación' },
     { id: 'quantity', label: 'Cantidad' },
     { id: 'createdBy', label: 'Usuario' },
-    { id: 'traceability', label: 'Trazabilidad Corrección' },
 ];
 
 interface State {
@@ -71,7 +71,7 @@ export function useReceivingReport() {
         searchTerm: '',
         userFilter: [],
         locationFilter: [],
-        visibleColumns: availableColumns.map(c => c.id),
+        visibleColumns: ['receptionConsecutive', 'traceability', 'createdAt', 'productDescription', 'quantity', 'createdBy'],
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
@@ -212,6 +212,10 @@ export function useReceivingReport() {
                 if (content === null || content === undefined) {
                     return '';
                 }
+                if (React.isValidElement(content)) {
+                     const textContent = React.Children.toArray((content as React.ReactElement).props.children).join('').replace(/<[^>]*>?/gm, ' ');
+                    return textContent;
+                }
                 return String(content);
             })
         );
@@ -228,9 +232,12 @@ export function useReceivingReport() {
         const tableHeaders = selectors.visibleColumnsData.map(c => c.label);
         const tableRows = sortedData.map(item => 
             selectors.visibleColumnsData.map(col => {
-                const { content } = selectors.getColumnContent(item, col.id);
+                const { content, type } = selectors.getColumnContent(item, col.id);
+                if (type === 'badge') {
+                    return content.text;
+                }
                 if (React.isValidElement(content)) {
-                    return React.Children.toArray((content as React.ReactElement).props.children).join('');
+                    return React.Children.toArray((content as React.ReactElement).props.children).join('').replace(/<[^>]*>?/gm, ' ');
                 }
                 return String(content);
             })
@@ -253,29 +260,29 @@ export function useReceivingReport() {
         getLocationPath,
         availableColumns,
         visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][], [state.visibleColumns]),
-        getColumnContent: (item: InventoryUnit, colId: string): { content: React.ReactNode, className?: string } => {
+        getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string } => {
             switch (colId) {
-                case 'receptionConsecutive': return { content: item.receptionConsecutive || 'N/A' };
-                case 'createdAt': return { content: format(parseISO(item.createdAt), 'dd/MM/yy HH:mm'), className: "text-xs text-muted-foreground" };
-                case 'productId': return { content: item.productId };
-                case 'productDescription': return { content: getProductDescription(item.productId) };
-                case 'humanReadableId': return { content: item.humanReadableId || 'N/A', className: "font-mono" };
-                case 'unitCode': return { content: item.unitCode, className: "font-mono text-xs" };
-                case 'documentId': return { content: item.documentId || 'N/A' };
-                case 'erpDocumentId': return { content: item.erpDocumentId || 'N/A' };
-                case 'locationPath': return { content: getLocationPath(item.locationId), className: "text-xs" };
-                case 'quantity': return { content: item.quantity, className: "font-bold" };
-                case 'createdBy': return { content: item.createdBy };
+                case 'receptionConsecutive': return { content: item.receptionConsecutive || 'N/A', type: 'string' };
+                case 'createdAt': return { content: format(parseISO(item.createdAt), 'dd/MM/yy HH:mm'), className: "text-xs text-muted-foreground", type: 'string' };
+                case 'productId': return { content: item.productId, type: 'string' };
+                case 'productDescription': return { content: getProductDescription(item.productId), type: 'string' };
+                case 'humanReadableId': return { content: item.humanReadableId || 'N/A', className: "font-mono", type: 'string' };
+                case 'unitCode': return { content: item.unitCode, className: "font-mono text-xs", type: 'string' };
+                case 'documentId': return { content: item.documentId || 'N/A', type: 'string' };
+                case 'erpDocumentId': return { content: item.erpDocumentId || 'N/A', type: 'string' };
+                case 'locationPath': return { content: getLocationPath(item.locationId), className: "text-xs", type: 'string' };
+                case 'quantity': return { content: item.quantity, className: "font-bold", type: 'number' };
+                case 'createdBy': return { content: item.createdBy, type: 'string' };
                 case 'traceability':
                     if (item.correctionConsecutive) {
-                        return { content: <Badge variant="destructive">Anulado por {item.correctionConsecutive}</Badge> };
+                        return { type: 'badge', content: { variant: 'destructive', text: `Anulado por ${item.correctionConsecutive}` } };
                     }
                     if (item.correctedFromUnitId) {
                         const original = state.data.find(u => u.id === item.correctedFromUnitId);
-                        return { content: <Badge variant="outline">Corrige a {original?.receptionConsecutive || 'N/A'}</Badge> };
+                        return { type: 'badge', content: { variant: 'outline', text: `Corrige a ${original?.receptionConsecutive || 'N/A'}` } };
                     }
-                    return { content: 'N/A' };
-                default: return { content: null };
+                    return { type: 'string', content: 'N/A' };
+                default: return { content: null, type: 'string' };
             }
         },
     };
@@ -303,5 +310,3 @@ export function useReceivingReport() {
         isInitialLoading,
     };
 }
-
-    

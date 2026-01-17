@@ -20,6 +20,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { SearchInput } from '@/components/ui/search-input';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
+import { Badge } from '@/components/ui/badge';
 
 export default function ReceivingReportPage() {
     const {
@@ -123,12 +124,16 @@ export default function ReceivingReportPage() {
                                     <TableRow><TableCell colSpan={visibleColumns.length} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
                                 ) : sortedData.length > 0 ? (
                                     sortedData.map(item => (
-                                        <TableRow key={item.id} className={cn(item.quantity === 0 && 'bg-destructive/10')}>
+                                        <TableRow key={item.id} className={cn(item.quantity === 0 && 'bg-destructive/10 text-destructive')}>
                                             {visibleColumns.map(colId => {
-                                                const { content, className } = selectors.getColumnContent(item, colId);
+                                                const { content, className, type } = selectors.getColumnContent(item, colId);
                                                 return (
                                                     <TableCell key={colId} className={cn(className, item.quantity === 0 && 'text-destructive')}>
-                                                        {content}
+                                                        {type === 'badge' ? (
+                                                            <Badge variant={content.variant as any}>{content.text}</Badge>
+                                                        ) : (
+                                                            content
+                                                        )}
                                                     </TableCell>
                                                 )
                                             })}

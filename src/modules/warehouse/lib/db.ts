@@ -97,7 +97,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
             { type: 'shelf', name: 'Estante' },
             { type: 'bin', name: 'Casilla' }
         ],
-        unitPrefix: 'U',
+        unitPrefix: 'U-',
         nextUnitNumber: 1,
         receptionPrefix: 'ING-',
         nextReceptionNumber: 1,
@@ -179,7 +179,7 @@ export async function getWarehouseSettings(): Promise<WarehouseSettings> {
             { type: 'shelf', name: 'Estante' },
             { type: 'bin', name: 'Casilla' }
         ],
-        unitPrefix: 'U',
+        unitPrefix: 'U-',
         nextUnitNumber: 1,
         receptionPrefix: 'ING-',
         nextReceptionNumber: 1,
@@ -516,7 +516,7 @@ export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'created
     
     const transaction = db.transaction(() => {
         const settings = getWarehouseSettingsTx(db);
-        const unitPrefix = settings.unitPrefix || 'U';
+        const unitPrefix = settings.unitPrefix || 'U-';
         const nextUnitNumber = settings.nextUnitNumber || 1;
         const receptionPrefix = settings.receptionPrefix || 'ING-';
         const nextReceptionNumber = settings.nextReceptionNumber || 1;
@@ -708,10 +708,13 @@ export async function correctInventoryUnit(payload: {
 
         // If data has changed, create a new unit. Otherwise, just void the old one.
         if (hasDataChanged) {
+            const nextUnitNumber = settings.nextUnitNumber || 1;
+            const unitCode = `${settings.unitPrefix || 'U-'}${String(nextUnitNumber).padStart(5, '0')}`;
             const nextReceptionNumber = settings.nextReceptionNumber || 1;
             newUnitReceptionConsecutive = `${settings.receptionPrefix || 'ING-'}${String(nextReceptionNumber).padStart(5, '0')}`;
             
             const newUnitData = {
+                unitCode: unitCode,
                 productId: newProductId,
                 quantity: newQuantity,
                 humanReadableId: newHumanReadableId || null,
@@ -726,11 +729,12 @@ export async function correctInventoryUnit(payload: {
             };
 
             const info = db.prepare(
-                'INSERT INTO inventory_units (productId, quantity, humanReadableId, documentId, erpDocumentId, locationId, notes, createdAt, createdBy, receptionConsecutive, correctedFromUnitId) VALUES (@productId, @quantity, @humanReadableId, @documentId, @erpDocumentId, @locationId, @notes, @createdAt, @createdBy, @receptionConsecutive, @correctedFromUnitId)'
+                'INSERT INTO inventory_units (unitCode, productId, quantity, humanReadableId, documentId, erpDocumentId, locationId, notes, createdAt, createdBy, receptionConsecutive, correctedFromUnitId) VALUES (@unitCode, @productId, @quantity, @humanReadableId, @documentId, @erpDocumentId, @locationId, @notes, @createdAt, @createdBy, @receptionConsecutive, @correctedFromUnitId)'
             ).run(newUnitData);
             newUnitId = info.lastInsertRowid as number;
             
-            // Increment reception counter only if a new unit is created
+            // Increment counters
+            settings.nextUnitNumber = nextUnitNumber + 1;
             settings.nextReceptionNumber = nextReceptionNumber + 1;
 
              // Register IN movement for the CORRECT product/quantity
@@ -740,7 +744,8 @@ export async function correctInventoryUnit(payload: {
         }
 
         // Always void the original unit
-        const annulmentNote = `ANULADO POR: ${correctionConsecutive} por ${userName}. ${hasDataChanged ? `Reemplazado por ${newUnitReceptionConsecutive}.` : ''} Nota original: ${originalUnit.notes || ''}`;
+        const replacementText = hasDataChanged ? `Reemplazado por ${newUnitReceptionConsecutive}.` : 'Anulado sin reemplazo.';
+        const annulmentNote = `ANULADO POR: ${correctionConsecutive} por ${userName}. ${replacementText} Nota original: ${originalUnit.notes || ''}`;
         db.prepare('UPDATE inventory_units SET quantity = 0, notes = ?, correctionConsecutive = ? WHERE id = ?')
           .run(annulmentNote, correctionConsecutive, unitId);
 
@@ -842,4 +847,5 @@ export async function getChildLocations(parentIds: number[]): Promise<WarehouseL
     const uniqueChildren = Array.from(new Map(allChildren.map(item => [item.id, item])).values());
     return JSON.parse(JSON.stringify(uniqueChildren));
 }
+
 
