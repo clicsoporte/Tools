@@ -23,6 +23,7 @@ import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db'
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations, getLocations as getWarehouseLocationsDb, getInventory as getWarehouseInventoryDb, getAllItemLocations as getAllItemLocationsDb } from '../../warehouse/lib/db';
 import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
+import { getWarehouseData } from '../../warehouse/lib/db';
 import { revalidatePath } from 'next/cache';
 
 const DB_FILE = 'intratool.db';
@@ -1727,3 +1728,26 @@ export async function getActiveWizardSession(userId: number): Promise<WizardSess
     const row = db.prepare(`SELECT activeWizardSession FROM users WHERE id = ?`).get(userId) as { activeWizardSession: string | null } | undefined;
     return row?.activeWizardSession ? JSON.parse(row.activeWizardSession) : null;
 }
+
+// --- Graceful Shutdown Handler ---
+// This ensures database connections are closed when the Next.js dev server is terminated,
+// preventing file lock issues with `rm -rf .next` on restart.
+let isShuttingDown = false;
+function closeAllConnections() {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log("\n[DB] Closing all database connections for a graceful shutdown...");
+  for (const [file, connection] of dbConnections.entries()) {
+      if (connection && connection.open) {
+          connection.close();
+          console.log(`[DB] Closed connection to ${file}`);
+      }
+  }
+  dbConnections.clear();
+  console.log('[DB] All connections closed.');
+}
+
+// These events are triggered on process termination.
+process.on('SIGINT', closeAllConnections);  // Catches Ctrl+C in terminal
+process.on('SIGTERM', closeAllConnections); // Catches standard kill signals
+process.on('beforeExit', closeAllConnections); // General cleanup before Node.js exits

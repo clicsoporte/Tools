@@ -67,7 +67,7 @@ export function useReceivingReport() {
         data: [],
         allLocations: [],
         dateRange: {
-            from: startOfDay(new Date()),
+            from: new Date(),
             to: new Date(),
         },
         searchTerm: '',
@@ -85,7 +85,7 @@ export function useReceivingReport() {
     const fetchData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const data = await getReceivingReportData({ dateRange: state.dateRange });
+            const data = await getReceivingReportData({ dateRange: state.dateRange, includeVoided: true });
             updateState({ 
                 data: data.units, 
                 allLocations: data.locations 
@@ -273,13 +273,13 @@ export function useReceivingReport() {
                 case 'erpDocumentId': return { type: 'string', content: item.erpDocumentId || 'N/A' };
                 case 'locationPath': return { type: 'string', content: getLocationPath(item.locationId), className: "text-xs" };
                 case 'quantity': return { type: 'number', content: item.quantity, className: "font-bold" };
-                case 'createdBy': return { type: 'string', content: item.createdBy };
-                case 'annulledBy': return { type: 'string', content: item.annulledBy };
-                case 'annulledAt': return { type: 'string', content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '' };
+                case 'createdBy': return { content: item.createdBy, type: 'string' };
+                case 'annulledBy': return { content: item.annulledBy || '', type: 'string' };
+                case 'annulledAt': return { content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '', type: 'string' };
                 case 'traceability':
                     if (item.correctionConsecutive) {
-                         const correctedUnit = state.data.find(u => u.correctedFromUnitId === item.id);
-                         const replacementText = correctedUnit ? `Reemplazado por ${correctedUnit.receptionConsecutive}` : 'Anulado sin reemplazo';
+                        const correctedUnit = state.data.find(u => u.correctedFromUnitId === item.id);
+                        const replacementText = correctedUnit ? `Reemplazado por ${correctedUnit.receptionConsecutive}` : 'Anulado sin reemplazo';
                         return { type: 'badge', content: { variant: 'destructive', text: `${item.correctionConsecutive} (${replacementText})` } };
                     }
                     if (item.correctedFromUnitId) {
