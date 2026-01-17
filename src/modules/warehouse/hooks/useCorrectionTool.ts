@@ -208,7 +208,10 @@ export const useCorrectionTool = () => {
         },
         getProductName: (productId: string) => {
              return authProducts.find(p => p.id === productId)?.description || 'Desconocido';
-        }
+        },
+        isCorrectionFormValid: useMemo(() => {
+            return !!state.newSelectedProduct && !!state.editableUnit.quantity && state.editableUnit.quantity > 0;
+        }, [state.newSelectedProduct, state.editableUnit.quantity]),
     };
 
     return {

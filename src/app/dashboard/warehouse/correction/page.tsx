@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX } from 'lucide-react';
+import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX, Info } from 'lucide-react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -107,19 +107,21 @@ export default function CorrectionPage() {
                                             <TableHead>Cant.</TableHead>
                                             <TableHead>Usuario</TableHead>
                                             <TableHead>Fecha Ingreso</TableHead>
+                                            <TableHead>Anulado Por</TableHead>
+                                            <TableHead>Fecha Anulación</TableHead>
                                             <TableHead className="text-right">Acción</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {searchResults.map(unit => {
-                                            const isVoided = unit.quantity === 0;
+                                            const isVoided = !!unit.correctionConsecutive;
                                             return (
                                                 <TableRow key={unit.id} className={cn(isVoided && 'bg-destructive/10 text-destructive')}>
                                                     <TableCell className="font-mono text-xs">
                                                         {unit.correctionConsecutive ? (
                                                             <div className="flex flex-col">
                                                                 <Badge variant="destructive" className="mb-1 w-fit">ANULADO</Badge>
-                                                                <span>{unit.receptionConsecutive}</span>
+                                                                <span className="line-through">{unit.receptionConsecutive}</span>
                                                                 <span className="text-muted-foreground">→ {unit.correctionConsecutive}</span>
                                                             </div>
                                                         ) : unit.correctedFromUnitId ? (
@@ -138,7 +140,9 @@ export default function CorrectionPage() {
                                                     <TableCell>{unit.humanReadableId || 'N/A'}</TableCell>
                                                     <TableCell className="font-bold">{unit.quantity}</TableCell>
                                                     <TableCell>{unit.createdBy}</TableCell>
-                                                    <TableCell>{format(parseISO(unit.createdAt), 'dd/MM/yyyy HH:mm')}</TableCell>
+                                                    <TableCell>{unit.createdAt ? format(parseISO(unit.createdAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
+                                                    <TableCell>{unit.annulledBy || ''}</TableCell>
+                                                    <TableCell>{unit.annulledAt ? format(parseISO(unit.annulledAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
                                                     <TableCell className="text-right">
                                                         {!isVoided && (
                                                             <Button variant="outline" size="sm" onClick={() => actions.setUnitToCorrect(unit)}>
@@ -175,6 +179,7 @@ export default function CorrectionPage() {
                                         <p><strong>Cantidad:</strong> {unitToCorrect.quantity}</p>
                                         <p><strong>Lote/ID:</strong> {unitToCorrect.humanReadableId || 'N/A'}</p>
                                         <p><strong>Documento:</strong> {unitToCorrect.documentId || 'N/A'}</p>
+                                        <p><strong>Doc. ERP:</strong> {unitToCorrect.erpDocumentId || 'N/A'}</p>
                                      </div>
                                 </div>
                                 
@@ -219,6 +224,13 @@ export default function CorrectionPage() {
                                         Al continuar, la unidad original será anulada y se creará una nueva unidad con los datos ingresados arriba. Esta acción quedará registrada en el historial de movimientos.
                                     </AlertDescription>
                                 </Alert>
+                                <Alert>
+                                    <Info className="h-4 w-4" />
+                                    <AlertTitle>Nota sobre Anulación</AlertTitle>
+                                    <AlertDescription>
+                                        Si guardas sin modificar ningún dato (producto, cantidad, lote, etc.), la acción se interpretará como una <span className="font-semibold">anulación simple</span>. La unidad original será anulada y no se creará un nuevo ingreso.
+                                    </AlertDescription>
+                                </Alert>
                             </div>
                         )}
                         <DialogFooter className="justify-between">
@@ -236,7 +248,7 @@ export default function CorrectionPage() {
                                 <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button disabled={!newSelectedProduct || isSubmitting}>
+                                        <Button disabled={!selectors.isCorrectionFormValid || isSubmitting}>
                                             <Save className="mr-2 h-4 w-4"/>
                                             Aplicar Corrección
                                         </Button>
