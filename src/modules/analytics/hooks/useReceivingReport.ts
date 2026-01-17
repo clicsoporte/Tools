@@ -85,7 +85,7 @@ export function useReceivingReport() {
     const fetchData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const data = await getReceivingReportData({ dateRange: state.dateRange, includeVoided: true });
+            const data = await getReceivingReportData({ dateRange: state.dateRange });
             updateState({ 
                 data: data.units, 
                 allLocations: data.locations 
@@ -278,7 +278,9 @@ export function useReceivingReport() {
                 case 'annulledAt': return { type: 'string', content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '' };
                 case 'traceability':
                     if (item.correctionConsecutive) {
-                        return { type: 'badge', content: { variant: 'destructive', text: `Anula a ${item.correctionConsecutive}` } };
+                         const correctedUnit = state.data.find(u => u.correctedFromUnitId === item.id);
+                         const replacementText = correctedUnit ? `Reemplazado por ${correctedUnit.receptionConsecutive}` : 'Anulado sin reemplazo';
+                        return { type: 'badge', content: { variant: 'destructive', text: `${item.correctionConsecutive} (${replacementText})` } };
                     }
                     if (item.correctedFromUnitId) {
                         const original = state.data.find(u => u.id === item.correctedFromUnitId);
@@ -294,7 +296,11 @@ export function useReceivingReport() {
         fetchData,
         setDateRange: (range: DateRange | undefined) => {
             const from = range?.from;
-            const to = range?.to || from; // If only `from` is selected, make `to` the same day
+            let to = range?.to || from;
+            if (to) {
+                to = new Date(to);
+                to.setHours(23, 59, 59, 999);
+            }
             updateState({ dateRange: { from, to } });
         },
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
