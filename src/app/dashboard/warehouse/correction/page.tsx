@@ -163,10 +163,10 @@ export default function CorrectionPage() {
                 )}
 
                  <Dialog open={isConfirmModalOpen} onOpenChange={actions.handleModalOpenChange}>
-                    <DialogContent className="sm:max-w-3xl">
+                    <DialogContent className="sm:max-w-3xl" aria-describedby="correction-dialog-description">
                         <DialogHeader>
                             <DialogTitle>Corregir Ingreso de Unidad</DialogTitle>
-                            <DialogDescription>
+                            <DialogDescription id="correction-dialog-description">
                                 Modifica los campos necesarios para la unidad <strong>{unitToCorrect?.receptionConsecutive}</strong>.
                                 Al guardar, se anulará la unidad original y se creará una nueva con esta información.
                             </DialogDescription>
@@ -229,7 +229,7 @@ export default function CorrectionPage() {
                                     <Info className="h-4 w-4" />
                                     <AlertTitle>Nota sobre Anulación</AlertTitle>
                                     <AlertDescription>
-                                        Si guardas sin modificar ningún dato (producto, cantidad, lote, etc.), la acción se interpretará como una <span className="font-semibold">anulación simple</span>. La unidad original será anulada y no se creará un nuevo ingreso.
+                                       Si guardas sin modificar ningún dato (producto, cantidad, lote, etc.), la acción se interpretará como una <span className="font-semibold">anulación simple</span>. La unidad original será anulada y no se creará un nuevo ingreso.
                                     </AlertDescription>
                                 </Alert>
                             </div>
@@ -249,7 +249,7 @@ export default function CorrectionPage() {
                                 <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button disabled={!editableUnit.quantity || editableUnit.quantity <= 0 || isSubmitting}>
+                                        <Button disabled={!editableUnit.quantity || editableUnit.quantity < 0 || isSubmitting}>
                                             <Save className="mr-2 h-4 w-4"/>
                                             Aplicar Corrección
                                         </Button>

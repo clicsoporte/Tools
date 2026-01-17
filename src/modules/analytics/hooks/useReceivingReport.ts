@@ -39,6 +39,8 @@ const availableColumns = [
     { id: 'locationPath', label: 'Ubicación' },
     { id: 'quantity', label: 'Cantidad' },
     { id: 'createdBy', label: 'Usuario' },
+    { id: 'annulledBy', label: 'Anulado Por' },
+    { id: 'annulledAt', label: 'Fecha Anulación' },
 ];
 
 interface State {
@@ -71,7 +73,7 @@ export function useReceivingReport() {
         searchTerm: '',
         userFilter: [],
         locationFilter: [],
-        visibleColumns: ['receptionConsecutive', 'traceability', 'createdAt', 'productDescription', 'quantity', 'createdBy'],
+        visibleColumns: ['receptionConsecutive', 'traceability', 'createdAt', 'productDescription', 'quantity', 'createdBy', 'annulledBy', 'annulledAt'],
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
@@ -83,7 +85,7 @@ export function useReceivingReport() {
     const fetchData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const data = await getReceivingReportData({ dateRange: state.dateRange });
+            const data = await getReceivingReportData({ dateRange: state.dateRange, includeVoided: true });
             updateState({ 
                 data: data.units, 
                 allLocations: data.locations 
@@ -207,16 +209,15 @@ export function useReceivingReport() {
         const headers = selectors.visibleColumnsData.map(c => c.label);
         const dataToExport = sortedData.map(item =>
             selectors.visibleColumnsData.map(col => {
-                const { content } = selectors.getColumnContent(item, col.id);
-                 // Safely convert any content to a string for Excel
-                if (content === null || content === undefined) {
-                    return '';
+                const { content, type } = selectors.getColumnContent(item, col.id);
+                if (type === 'badge') {
+                    return content.text;
                 }
                 if (React.isValidElement(content)) {
                      const textContent = React.Children.toArray((content as React.ReactElement).props.children).join('').replace(/<[^>]*>?/gm, ' ');
                     return textContent;
                 }
-                return String(content);
+                return String(content ?? '');
             })
         );
         exportToExcel({
@@ -239,7 +240,7 @@ export function useReceivingReport() {
                 if (React.isValidElement(content)) {
                     return React.Children.toArray((content as React.ReactElement).props.children).join('').replace(/<[^>]*>?/gm, ' ');
                 }
-                return String(content);
+                return String(content ?? '');
             })
         );
         const doc = generateDocument({
@@ -262,20 +263,22 @@ export function useReceivingReport() {
         visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][], [state.visibleColumns]),
         getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string } => {
             switch (colId) {
-                case 'receptionConsecutive': return { content: item.receptionConsecutive || 'N/A', type: 'string' };
-                case 'createdAt': return { content: format(parseISO(item.createdAt), 'dd/MM/yy HH:mm'), className: "text-xs text-muted-foreground", type: 'string' };
-                case 'productId': return { content: item.productId, type: 'string' };
-                case 'productDescription': return { content: getProductDescription(item.productId), type: 'string' };
-                case 'humanReadableId': return { content: item.humanReadableId || 'N/A', className: "font-mono", type: 'string' };
-                case 'unitCode': return { content: item.unitCode, className: "font-mono text-xs", type: 'string' };
-                case 'documentId': return { content: item.documentId || 'N/A', type: 'string' };
-                case 'erpDocumentId': return { content: item.erpDocumentId || 'N/A', type: 'string' };
-                case 'locationPath': return { content: getLocationPath(item.locationId), className: "text-xs", type: 'string' };
-                case 'quantity': return { content: item.quantity, className: "font-bold", type: 'number' };
-                case 'createdBy': return { content: item.createdBy, type: 'string' };
+                case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A' };
+                case 'createdAt': return { type: 'string', content: format(parseISO(item.createdAt), 'dd/MM/yy HH:mm'), className: "text-xs text-muted-foreground" };
+                case 'productId': return { type: 'string', content: item.productId };
+                case 'productDescription': return { type: 'string', content: getProductDescription(item.productId) };
+                case 'humanReadableId': return { type: 'string', content: item.humanReadableId || 'N/A', className: "font-mono" };
+                case 'unitCode': return { type: 'string', content: item.unitCode, className: "font-mono text-xs" };
+                case 'documentId': return { type: 'string', content: item.documentId || 'N/A' };
+                case 'erpDocumentId': return { type: 'string', content: item.erpDocumentId || 'N/A' };
+                case 'locationPath': return { type: 'string', content: getLocationPath(item.locationId), className: "text-xs" };
+                case 'quantity': return { type: 'number', content: item.quantity, className: "font-bold" };
+                case 'createdBy': return { type: 'string', content: item.createdBy };
+                case 'annulledBy': return { type: 'string', content: item.annulledBy };
+                case 'annulledAt': return { type: 'string', content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '' };
                 case 'traceability':
                     if (item.correctionConsecutive) {
-                        return { type: 'badge', content: { variant: 'destructive', text: `Anulado por ${item.correctionConsecutive}` } };
+                        return { type: 'badge', content: { variant: 'destructive', text: `Anula a ${item.correctionConsecutive}` } };
                     }
                     if (item.correctedFromUnitId) {
                         const original = state.data.find(u => u.id === item.correctedFromUnitId);
@@ -289,7 +292,11 @@ export function useReceivingReport() {
 
     const actions = {
         fetchData,
-        setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined } }),
+        setDateRange: (range: DateRange | undefined) => {
+            const from = range?.from;
+            const to = range?.to || from; // If only `from` is selected, make `to` the same day
+            updateState({ dateRange: { from, to } });
+        },
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
         setUserFilter: (filter: string[]) => updateState({ userFilter: filter }),
         setLocationFilter: (filter: string[]) => updateState({ locationFilter: filter }),

@@ -104,14 +104,14 @@ export const getWarehouseData = async () => getWarehouseDataServer();
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);
 
 // --- Inventory Unit Actions ---
-export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode'>): Promise<InventoryUnit> => addInventoryUnitServer(unit);
+export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive'>): Promise<InventoryUnit> => addInventoryUnitServer(unit);
 export const getInventoryUnits = async (): Promise<InventoryUnit[]> => getInventoryUnitsServer();
 export const deleteInventoryUnit = async (id: number): Promise<void> => deleteInventoryUnitServer(id);
 export const getInventoryUnitById = async (id: string | number): Promise<InventoryUnit | null> => getInventoryUnitByIdServer(id);
 
 export const correctInventoryUnit = async (payload: {
     unitId: number;
-    newProductId: string | null;
+    newProductId: string;
     newQuantity: number;
     newHumanReadableId: string;
     newDocumentId: string;

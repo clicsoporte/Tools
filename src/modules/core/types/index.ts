@@ -531,6 +531,8 @@ export type InventoryUnit = {
     notes?: string;
     createdAt: string;
     createdBy: string;
+    annulledAt?: string;
+    annulledBy?: string;
 };
 
 
