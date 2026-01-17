@@ -16,7 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX } from 'lucide-react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useCorrectionTool } from '@/modules/warehouse/hooks/useCorrectionTool';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { Badge } from '@/components/ui/badge';
 
 export default function CorrectionPage() {
     useAuthorization(['warehouse:correction:execute']);
@@ -48,7 +49,7 @@ export default function CorrectionPage() {
     
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="mx-auto max-w-4xl space-y-6">
+            <div className="mx-auto max-w-5xl space-y-6">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Search className="h-6 w-6"/>Buscar Ingresos para Corregir</CardTitle>
@@ -72,6 +73,10 @@ export default function CorrectionPage() {
                             <div className="space-y-2"><Label htmlFor="humanReadableId">Nº Lote / ID Físico</Label><Input id="humanReadableId" value={filters.humanReadableId} onChange={e => actions.setFilter('humanReadableId', e.target.value)} /></div>
                             <div className="space-y-2"><Label htmlFor="unitCode">ID Unidad (U-XXXXX)</Label><Input id="unitCode" value={filters.unitCode} onChange={e => actions.setFilter('unitCode', e.target.value)} /></div>
                             <div className="space-y-2"><Label htmlFor="documentId">Nº Documento</Label><Input id="documentId" value={filters.documentId} onChange={e => actions.setFilter('documentId', e.target.value)} /></div>
+                            <div className="flex items-center space-x-2 pt-6">
+                                <Checkbox id="showVoided" checked={filters.showVoided} onCheckedChange={(checked) => actions.setFilter('showVoided', checked)} />
+                                <Label htmlFor="showVoided">Incluir anulados</Label>
+                            </div>
                         </div>
                     </CardContent>
                     <CardFooter className="gap-2">
@@ -101,28 +106,37 @@ export default function CorrectionPage() {
                                             <TableHead>Lote/ID Físico</TableHead>
                                             <TableHead>Cant.</TableHead>
                                             <TableHead>Fecha Ingreso</TableHead>
+                                            <TableHead>Notas</TableHead>
                                             <TableHead className="text-right">Acción</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {searchResults.map(unit => (
-                                            <TableRow key={unit.id}>
-                                                <TableCell className="font-mono">{unit.unitCode}</TableCell>
-                                                <TableCell>
-                                                    <p className="font-medium">{selectors.getProductName(unit.productId)}</p>
-                                                    <p className="text-sm text-muted-foreground">{unit.productId}</p>
-                                                </TableCell>
-                                                <TableCell>{unit.humanReadableId || 'N/A'}</TableCell>
-                                                <TableCell className="font-bold">{unit.quantity}</TableCell>
-                                                <TableCell>{format(parseISO(unit.createdAt), 'dd/MM/yyyy HH:mm')}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="outline" size="sm" onClick={() => actions.setUnitToCorrect(unit)}>
-                                                        <RotateCcw className="mr-2 h-4 w-4"/>
-                                                        Corregir
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                        {searchResults.map(unit => {
+                                            const isVoided = unit.quantity === 0;
+                                            return (
+                                                <TableRow key={unit.id} className={cn(isVoided && 'bg-destructive/10 text-destructive')}>
+                                                    <TableCell className="font-mono">{unit.unitCode}</TableCell>
+                                                    <TableCell>
+                                                        <p className="font-medium">{selectors.getProductName(unit.productId)}</p>
+                                                        <p className="text-sm text-muted-foreground">{unit.productId}</p>
+                                                    </TableCell>
+                                                    <TableCell>{unit.humanReadableId || 'N/A'}</TableCell>
+                                                    <TableCell className="font-bold">{unit.quantity}</TableCell>
+                                                    <TableCell>{format(parseISO(unit.createdAt), 'dd/MM/yyyy HH:mm')}</TableCell>
+                                                    <TableCell className="text-xs max-w-xs truncate">{unit.notes || 'N/A'}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        {isVoided ? (
+                                                            <Badge variant="destructive">ANULADO</Badge>
+                                                        ) : (
+                                                            <Button variant="outline" size="sm" onClick={() => actions.setUnitToCorrect(unit)}>
+                                                                <RotateCcw className="mr-2 h-4 w-4"/>
+                                                                Corregir
+                                                            </Button>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
                                     </TableBody>
                                 </Table>
                             </ScrollArea>

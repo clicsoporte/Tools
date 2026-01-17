@@ -564,6 +564,7 @@ export async function searchInventoryUnits(filters: {
     humanReadableId?: string;
     unitCode?: string;
     documentId?: string;
+    showVoided?: boolean;
 }): Promise<InventoryUnit[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     let query = 'SELECT * FROM inventory_units';
@@ -595,6 +596,10 @@ export async function searchInventoryUnits(filters: {
     if (filters.documentId) {
         whereClauses.push("documentId LIKE ?");
         params.push(`%${filters.documentId}%`);
+    }
+    
+    if (!filters.showVoided) {
+        whereClauses.push("quantity > 0");
     }
     
     if (whereClauses.length > 0) {
@@ -756,10 +761,10 @@ export async function correctInventoryUnit(payload: {
             newHumanReadableId || null,
             newDocumentId || null,
             newErpDocumentId || null,
-            originalUnit.locationId,
+            originalUnit.locationId, // location doesn't change
             newQuantity,
             `CORRECCIÓN desde ${originalUnit.unitCode}.`,
-            originalUnit.createdAt,
+            originalUnit.createdAt, // keep original creation date
             userName
         );
 

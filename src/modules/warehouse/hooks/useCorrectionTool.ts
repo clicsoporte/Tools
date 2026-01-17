@@ -22,6 +22,7 @@ interface State {
         humanReadableId: string;
         unitCode: string;
         documentId: string;
+        showVoided: boolean;
     };
     searchResults: InventoryUnit[];
     unitToCorrect: InventoryUnit | null;
@@ -34,7 +35,7 @@ interface State {
 
 const emptyEditableUnit: Partial<InventoryUnit> = {
     productId: '',
-    quantity: undefined, // Changed from 1 to undefined
+    quantity: undefined,
     humanReadableId: '',
     documentId: '',
     erpDocumentId: '',
@@ -54,6 +55,7 @@ export const useCorrectionTool = () => {
             humanReadableId: '',
             unitCode: '',
             documentId: '',
+            showVoided: false,
         },
         searchResults: [],
         unitToCorrect: null,
@@ -94,6 +96,7 @@ export const useCorrectionTool = () => {
                 humanReadableId: '',
                 unitCode: '',
                 documentId: '',
+                showVoided: false,
             },
             searchResults: [],
         });
