@@ -49,7 +49,7 @@ export default function CorrectionPage() {
     
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="mx-auto max-w-5xl space-y-6">
+            <div className="mx-auto max-w-7xl space-y-6">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Search className="h-6 w-6"/>Buscar Ingresos para Corregir</CardTitle>
@@ -145,7 +145,7 @@ export default function CorrectionPage() {
                                                     <TableCell>{unit.annulledAt ? format(parseISO(unit.annulledAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
                                                     <TableCell className="text-right">
                                                         {!isVoided && (
-                                                            <Button variant="outline" size="sm" onClick={() => actions.setUnitToCorrect(unit)}>
+                                                            <Button variant="outline" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="whitespace-nowrap">
                                                                 <RotateCcw className="mr-2 h-4 w-4"/>
                                                                 Corregir
                                                             </Button>
