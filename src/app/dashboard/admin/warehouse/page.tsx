@@ -147,20 +147,37 @@ export default function WarehouseSettingsPage() {
                             <h3 className="font-semibold">Consecutivos de Documentos de Inventario</h3>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <Label htmlFor="unitPrefix">Prefijo de Recepción (Ingreso)</Label>
+                                    <Label htmlFor="unitPrefix">Prefijo de Unidad Física (Etiqueta)</Label>
                                     <Input
                                         id="unitPrefix"
-                                        value={warehouseSettings.unitPrefix || 'U'}
+                                        value={warehouseSettings.unitPrefix || 'U-'}
                                         onChange={(e) => setWarehouseSettings(prev => prev ? { ...prev, unitPrefix: e.target.value } : null)}
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="nextUnitNumber">Próximo Nº de Recepción</Label>
+                                    <Label htmlFor="nextUnitNumber">Próximo Nº de Unidad</Label>
                                     <Input
                                         id="nextUnitNumber"
                                         type="number"
                                         value={warehouseSettings.nextUnitNumber || 1}
                                         onChange={(e) => setWarehouseSettings(prev => prev ? { ...prev, nextUnitNumber: Number(e.target.value) } : null)}
+                                    />
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="receptionPrefix">Prefijo de Recepción (Ingreso)</Label>
+                                    <Input
+                                        id="receptionPrefix"
+                                        value={warehouseSettings.receptionPrefix || 'ING-'}
+                                        onChange={(e) => setWarehouseSettings(prev => prev ? { ...prev, receptionPrefix: e.target.value } : null)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="nextReceptionNumber">Próximo Nº de Recepción</Label>
+                                    <Input
+                                        id="nextReceptionNumber"
+                                        type="number"
+                                        value={warehouseSettings.nextReceptionNumber || 1}
+                                        onChange={(e) => setWarehouseSettings(prev => prev ? { ...prev, nextReceptionNumber: Number(e.target.value) } : null)}
                                     />
                                 </div>
                                  <div className="space-y-2">

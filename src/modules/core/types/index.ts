@@ -475,6 +475,8 @@ export type WarehouseSettings = {
     locationLevels: WarehouseLocationLevel[];
     unitPrefix: string;
     nextUnitNumber: number;
+    receptionPrefix: string;
+    nextReceptionNumber: number;
     correctionPrefix: string;
     nextCorrectionNumber: number;
     dispatchNotificationEmails?: string;
@@ -488,6 +490,7 @@ export type WarehouseLocation = {
     parentId?: number | null; // For hierarchical structure
     isLocked?: 0 | 1;
     lockedBy?: string | null;
+    lockedBySessionId?: string;
 };
 
 /** Tracks physical quantity in a specific location */

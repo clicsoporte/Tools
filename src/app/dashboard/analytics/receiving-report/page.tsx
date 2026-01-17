@@ -127,7 +127,7 @@ export default function ReceivingReportPage() {
                                             {visibleColumns.map(colId => {
                                                 const { content, className } = selectors.getColumnContent(item, colId);
                                                 return (
-                                                    <TableCell key={colId} className={cn(className)}>
+                                                    <TableCell key={colId} className={cn(className, item.quantity === 0 && 'text-destructive')}>
                                                         {content}
                                                     </TableCell>
                                                 )

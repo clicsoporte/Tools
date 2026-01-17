@@ -147,7 +147,9 @@ export function useReceivingReport() {
                     normalizeText(item.humanReadableId).includes(searchLower) ||
                     normalizeText(item.documentId).includes(searchLower) ||
                     normalizeText(item.erpDocumentId).includes(searchLower) ||
-                    normalizeText(item.unitCode).includes(searchLower)
+                    normalizeText(item.unitCode).includes(searchLower) ||
+                    normalizeText(item.receptionConsecutive).includes(searchLower) ||
+                    normalizeText(item.correctionConsecutive).includes(searchLower)
                 );
             });
         }

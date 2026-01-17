@@ -52,6 +52,9 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
         CREATE TABLE IF NOT EXISTS inventory_units (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             unitCode TEXT UNIQUE,
+            receptionConsecutive TEXT,
+            correctionConsecutive TEXT,
+            correctedFromUnitId INTEGER,
             productId TEXT NOT NULL,
             humanReadableId TEXT,
             documentId TEXT,
@@ -61,7 +64,8 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
             notes TEXT,
             createdAt TEXT NOT NULL,
             createdBy TEXT NOT NULL,
-            FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE
+            FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE,
+            FOREIGN KEY (correctedFromUnitId) REFERENCES inventory_units(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS movements (
@@ -95,6 +99,10 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
         ],
         unitPrefix: 'U',
         nextUnitNumber: 1,
+        receptionPrefix: 'ING-',
+        nextReceptionNumber: 1,
+        correctionPrefix: 'COR-',
+        nextCorrectionNumber: 1,
     };
     db.prepare(`
         INSERT OR IGNORE INTO warehouse_config (key, value) VALUES ('settings', ?)
@@ -106,10 +114,6 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
 
 export async function runWarehouseMigrations(db: import('better-sqlite3').Database) {
     try {
-        // The problematic foreign key checks that were causing table rewrites have been removed.
-        // The application logic for deletions now manually handles dependencies,
-        // making this aggressive migration unnecessary and resolving the IIS reload issue.
-
         const inventoryTableInfo = db.prepare(`PRAGMA table_info(inventory)`).all() as { name: string }[];
         if (inventoryTableInfo.length > 0 && !inventoryTableInfo.some(c => c.name === 'updatedBy')) {
             db.exec('ALTER TABLE inventory ADD COLUMN updatedBy TEXT');
@@ -132,12 +136,16 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
         
         const unitsTableExists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='inventory_units'`).get();
         if (!unitsTableExists) {
-            db.exec(`CREATE TABLE inventory_units (id INTEGER PRIMARY KEY AUTOINCREMENT, unitCode TEXT UNIQUE, productId TEXT NOT NULL, humanReadableId TEXT, documentId TEXT, erpDocumentId TEXT, locationId INTEGER, quantity REAL DEFAULT 1, notes TEXT, createdAt TEXT NOT NULL, createdBy TEXT NOT NULL, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE);`);
+            db.exec(`CREATE TABLE inventory_units (id INTEGER PRIMARY KEY AUTOINCREMENT, unitCode TEXT UNIQUE, receptionConsecutive TEXT, correctionConsecutive TEXT, correctedFromUnitId INTEGER, productId TEXT NOT NULL, humanReadableId TEXT, documentId TEXT, erpDocumentId TEXT, locationId INTEGER, quantity REAL DEFAULT 1, notes TEXT, createdAt TEXT NOT NULL, createdBy TEXT NOT NULL, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE, FOREIGN KEY (correctedFromUnitId) REFERENCES inventory_units(id) ON DELETE SET NULL);`);
         } else {
             const unitsTableInfo = db.prepare(`PRAGMA table_info(inventory_units)`).all() as { name: string }[];
-            if (!unitsTableInfo.some(c => c.name === 'documentId')) db.exec('ALTER TABLE inventory_units ADD COLUMN documentId TEXT');
-            if (!unitsTableInfo.some(c => c.name === 'quantity')) db.exec('ALTER TABLE inventory_units ADD COLUMN quantity REAL DEFAULT 1');
-            if (!unitsTableInfo.some(c => c.name === 'erpDocumentId')) db.exec('ALTER TABLE inventory_units ADD COLUMN erpDocumentId TEXT');
+            const columns = new Set(unitsTableInfo.map(c => c.name));
+            if (!columns.has('documentId')) db.exec('ALTER TABLE inventory_units ADD COLUMN documentId TEXT');
+            if (!columns.has('quantity')) db.exec('ALTER TABLE inventory_units ADD COLUMN quantity REAL DEFAULT 1');
+            if (!columns.has('erpDocumentId')) db.exec('ALTER TABLE inventory_units ADD COLUMN erpDocumentId TEXT');
+            if (!columns.has('receptionConsecutive')) db.exec('ALTER TABLE inventory_units ADD COLUMN receptionConsecutive TEXT');
+            if (!columns.has('correctionConsecutive')) db.exec('ALTER TABLE inventory_units ADD COLUMN correctionConsecutive TEXT');
+            if (!columns.has('correctedFromUnitId')) db.exec('ALTER TABLE inventory_units ADD COLUMN correctedFromUnitId INTEGER REFERENCES inventory_units(id) ON DELETE SET NULL');
         }
 
         const configTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='warehouse_config'`).get();
@@ -145,10 +153,12 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
              const settingsRow = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string } | undefined;
              if (settingsRow) {
                  const settings = JSON.parse(settingsRow.value);
-                 if (settings.dispatchNotificationEmails === undefined) {
-                     settings.dispatchNotificationEmails = '';
-                     db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(settings));
-                 }
+                 if (settings.dispatchNotificationEmails === undefined) settings.dispatchNotificationEmails = '';
+                 if (settings.receptionPrefix === undefined) settings.receptionPrefix = 'ING-';
+                 if (settings.nextReceptionNumber === undefined) settings.nextReceptionNumber = 1;
+                 if (settings.correctionPrefix === undefined) settings.correctionPrefix = 'COR-';
+                 if (settings.nextCorrectionNumber === undefined) settings.nextCorrectionNumber = 1;
+                 db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(settings));
              }
         }
 
@@ -171,6 +181,10 @@ export async function getWarehouseSettings(): Promise<WarehouseSettings> {
         ],
         unitPrefix: 'U',
         nextUnitNumber: 1,
+        receptionPrefix: 'ING-',
+        nextReceptionNumber: 1,
+        correctionPrefix: 'COR-',
+        nextCorrectionNumber: 1,
         dispatchNotificationEmails: '',
     };
     try {
@@ -497,64 +511,78 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
     db.prepare('DELETE FROM item_locations WHERE id = ?').run(itemLocationId);
 }
 
-export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode'>): Promise<InventoryUnit> {
+export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive'>): Promise<InventoryUnit> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     
     const transaction = db.transaction(() => {
-        // Step 1: Get the current settings to read the prefix and counter
-        const settingsRow = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string };
-        const parsedSettings: WarehouseSettings = JSON.parse(settingsRow.value);
-        const prefix = parsedSettings.unitPrefix || 'U';
-        const nextNumber = parsedSettings.nextUnitNumber || 1;
-        const unitCode = `${prefix}${String(nextNumber).padStart(5, '0')}`;
+        const settings = getWarehouseSettingsTx(db);
+        const unitPrefix = settings.unitPrefix || 'U';
+        const nextUnitNumber = settings.nextUnitNumber || 1;
+        const receptionPrefix = settings.receptionPrefix || 'ING-';
+        const nextReceptionNumber = settings.nextReceptionNumber || 1;
+
+        const unitCode = `${unitPrefix}${String(nextUnitNumber).padStart(5, '0')}`;
+        const receptionConsecutive = `${receptionPrefix}${String(nextReceptionNumber).padStart(5, '0')}`;
         
-        // Step 2: Create the new unit with the generated code
         const newUnitData = {
             ...unit,
             createdAt: new Date().toISOString(),
             unitCode: unitCode,
+            receptionConsecutive: receptionConsecutive,
             humanReadableId: unit.humanReadableId || null,
             documentId: unit.documentId || null,
             erpDocumentId: unit.erpDocumentId || null,
             quantity: unit.quantity ?? 1,
         };
+
         const info = db.prepare(
-            'INSERT INTO inventory_units (unitCode, productId, humanReadableId, documentId, erpDocumentId, locationId, quantity, notes, createdAt, createdBy) VALUES (@unitCode, @productId, @humanReadableId, @documentId, @erpDocumentId, @locationId, @quantity, @notes, @createdAt, @createdBy)'
+            'INSERT INTO inventory_units (unitCode, receptionConsecutive, productId, humanReadableId, documentId, erpDocumentId, locationId, quantity, notes, createdAt, createdBy) VALUES (@unitCode, @receptionConsecutive, @productId, @humanReadableId, @documentId, @erpDocumentId, @locationId, @quantity, @notes, @createdAt, @createdBy)'
         ).run(newUnitData);
         
         const newId = info.lastInsertRowid as number;
         
-        // Step 3: Increment and save the counter for the next operation
-        parsedSettings.nextUnitNumber = nextNumber + 1;
-        db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(parsedSettings));
+        // Increment counters
+        settings.nextUnitNumber = nextUnitNumber + 1;
+        settings.nextReceptionNumber = nextReceptionNumber + 1;
+        db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(settings));
 
-        // Step 4: Return the newly created unit
         return db.prepare('SELECT * FROM inventory_units WHERE id = ?').get(newId) as InventoryUnit;
     });
 
     try {
-      return transaction();
+        return transaction();
     } catch (error: any) {
         logError("Failed to create inventory unit transactionally", { error: error.message, details: unit });
-        throw error; // Re-throw to be caught by the calling action
+        throw error;
     }
 }
 
-export async function getInventoryUnits(dateRange?: DateRange): Promise<InventoryUnit[]> {
+export async function getInventoryUnits(filters: { dateRange?: DateRange, includeVoided?: boolean } = {}): Promise<InventoryUnit[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
-    
-    if (dateRange?.from) {
-        const toDate = dateRange.to || new Date();
-        toDate.setHours(23, 59, 59, 999);
-        const units = db.prepare(`
-            SELECT * FROM inventory_units 
-            WHERE createdAt BETWEEN ? AND ?
-            ORDER BY createdAt DESC
-        `).all(dateRange.from.toISOString(), toDate.toISOString()) as InventoryUnit[];
-        return JSON.parse(JSON.stringify(units));
+    let query = 'SELECT * FROM inventory_units';
+    const params = [];
+    const whereClauses = [];
+
+    if (filters.dateRange?.from) {
+        whereClauses.push("createdAt >= ?");
+        params.push(filters.dateRange.from.toISOString());
     }
-    
-    const units = db.prepare('SELECT * FROM inventory_units ORDER BY createdAt DESC LIMIT 200').all() as InventoryUnit[];
+    if (filters.dateRange?.to) {
+        const toDate = new Date(filters.dateRange.to);
+        toDate.setHours(23, 59, 59, 999);
+        whereClauses.push("createdAt <= ?");
+        params.push(toDate.toISOString());
+    }
+    if (!filters.includeVoided) {
+        whereClauses.push("quantity > 0");
+    }
+
+    if (whereClauses.length > 0) {
+        query += ` WHERE ${whereClauses.join(' AND ')}`;
+    }
+
+    query += ' ORDER BY createdAt DESC LIMIT 200';
+    const units = db.prepare(query).all(...params) as InventoryUnit[];
     return JSON.parse(JSON.stringify(units));
 }
 
@@ -599,7 +627,7 @@ export async function searchInventoryUnits(filters: {
     }
     
     if (!filters.showVoided) {
-        whereClauses.push("quantity > 0");
+        whereClauses.push("quantity > 0 OR (quantity = 0 AND correctedFromUnitId IS NOT NULL)");
     }
     
     if (whereClauses.length > 0) {
@@ -639,7 +667,110 @@ export async function updateInventoryUnitLocation(id: number, locationId: number
     db.prepare('UPDATE inventory_units SET locationId = ? WHERE id = ?').run(locationId, id);
 }
 
+// Helper to get settings within a transaction
+const getWarehouseSettingsTx = (db: import('better-sqlite3').Database): WarehouseSettings => {
+    const row = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string };
+    return JSON.parse(row.value);
+};
 
+
+export async function correctInventoryUnit(payload: {
+    unitId: number;
+    newProductId: string;
+    newQuantity: number;
+    newHumanReadableId: string;
+    newDocumentId: string;
+    newErpDocumentId: string;
+    userId: number;
+    userName: string;
+}): Promise<void> {
+    const { unitId, newProductId, newQuantity, newHumanReadableId, newDocumentId, newErpDocumentId, userId, userName } = payload;
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+
+    const transaction = db.transaction(() => {
+        const originalUnit = db.prepare('SELECT * FROM inventory_units WHERE id = ?').get(unitId) as InventoryUnit | undefined;
+        if (!originalUnit) {
+            throw new Error("La unidad de inventario a corregir no existe.");
+        }
+
+        const settings = getWarehouseSettingsTx(db);
+        const nextCorrectionNumber = settings.nextCorrectionNumber || 1;
+        const correctionConsecutive = `${settings.correctionPrefix || 'COR-'}${String(nextCorrectionNumber).padStart(5, '0')}`;
+        
+        let newUnitId: number | null = null;
+        let newUnitReceptionConsecutive: string | null = null;
+        
+        const hasDataChanged = newProductId !== originalUnit.productId ||
+                               newQuantity !== originalUnit.quantity ||
+                               newHumanReadableId !== originalUnit.humanReadableId ||
+                               newDocumentId !== originalUnit.documentId ||
+                               newErpDocumentId !== originalUnit.erpDocumentId;
+
+        // If data has changed, create a new unit. Otherwise, just void the old one.
+        if (hasDataChanged) {
+            const nextReceptionNumber = settings.nextReceptionNumber || 1;
+            newUnitReceptionConsecutive = `${settings.receptionPrefix || 'ING-'}${String(nextReceptionNumber).padStart(5, '0')}`;
+            
+            const newUnitData = {
+                productId: newProductId,
+                quantity: newQuantity,
+                humanReadableId: newHumanReadableId || null,
+                documentId: newDocumentId || null,
+                erpDocumentId: newErpDocumentId || null,
+                locationId: originalUnit.locationId,
+                notes: `CORRECCIÓN desde ${originalUnit.receptionConsecutive || originalUnit.unitCode}. Anulación: ${correctionConsecutive}.`,
+                createdAt: originalUnit.createdAt,
+                createdBy: userName, // The corrector is the creator of the new unit
+                receptionConsecutive: newUnitReceptionConsecutive,
+                correctedFromUnitId: originalUnit.id,
+            };
+
+            const info = db.prepare(
+                'INSERT INTO inventory_units (productId, quantity, humanReadableId, documentId, erpDocumentId, locationId, notes, createdAt, createdBy, receptionConsecutive, correctedFromUnitId) VALUES (@productId, @quantity, @humanReadableId, @documentId, @erpDocumentId, @locationId, @notes, @createdAt, @createdBy, @receptionConsecutive, @correctedFromUnitId)'
+            ).run(newUnitData);
+            newUnitId = info.lastInsertRowid as number;
+            
+            // Increment reception counter only if a new unit is created
+            settings.nextReceptionNumber = nextReceptionNumber + 1;
+
+             // Register IN movement for the CORRECT product/quantity
+            db.prepare(
+                'INSERT INTO movements (itemId, quantity, fromLocationId, toLocationId, timestamp, userId, notes) VALUES (?, ?, ?, ?, datetime(\'now\'), ?, ?)'
+            ).run(newProductId, newQuantity, null, originalUnit.locationId, userId, `Corrección de ingreso. Nueva unidad ${newUnitReceptionConsecutive}.`);
+        }
+
+        // Always void the original unit
+        const annulmentNote = `ANULADO POR: ${correctionConsecutive} por ${userName}. ${hasDataChanged ? `Reemplazado por ${newUnitReceptionConsecutive}.` : ''} Nota original: ${originalUnit.notes || ''}`;
+        db.prepare('UPDATE inventory_units SET quantity = 0, notes = ?, correctionConsecutive = ? WHERE id = ?')
+          .run(annulmentNote, correctionConsecutive, unitId);
+
+        // Always register OUT movement for the INCORRECT product/quantity
+        db.prepare(
+            'INSERT INTO movements (itemId, quantity, fromLocationId, toLocationId, timestamp, userId, notes) VALUES (?, ?, ?, ?, datetime(\'now\'), ?, ?)'
+        ).run(originalUnit.productId, -originalUnit.quantity, originalUnit.locationId, null, userId, `Corrección de ingreso (Anulación). ID: ${correctionConsecutive}.`);
+        
+        // Increment correction counter
+        settings.nextCorrectionNumber = nextCorrectionNumber + 1;
+        
+        // Save updated settings
+        db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(settings));
+
+        logInfo('Inventory unit corrected successfully', {
+            oldUnitId: unitId,
+            correctionConsecutive,
+            newUnitId: newUnitId,
+            newUnitReceptionConsecutive: newUnitReceptionConsecutive,
+            user: userName,
+        });
+    });
+
+    try {
+        transaction();
+    } catch (error: any) {
+        logError('Failed to correct inventory unit', { error: error.message, payload });
+        throw error;
+    }
+}
 // --- Wizard Lock Functions ---
 
 export async function getActiveLocks(): Promise<WarehouseLocation[]> {
@@ -712,81 +843,3 @@ export async function getChildLocations(parentIds: number[]): Promise<WarehouseL
     return JSON.parse(JSON.stringify(uniqueChildren));
 }
 
-export async function correctInventoryUnit(payload: {
-    unitId: number;
-    newProductId: string;
-    newQuantity: number;
-    newHumanReadableId: string;
-    newDocumentId: string;
-    newErpDocumentId: string;
-    userId: number;
-    userName: string;
-}): Promise<void> {
-    const { unitId, newProductId, newQuantity, newHumanReadableId, newDocumentId, newErpDocumentId, userId, userName } = payload;
-    const db = await connectDb(WAREHOUSE_DB_FILE);
-
-    const transaction = db.transaction(() => {
-        const originalUnit = db.prepare('SELECT * FROM inventory_units WHERE id = ?').get(unitId) as InventoryUnit | undefined;
-        if (!originalUnit) {
-            throw new Error("La unidad de inventario a corregir no existe.");
-        }
-
-        // --- ATOMIC COUNTER LOGIC ---
-        // 1. Get the current settings to read the prefix and counter
-        const settingsRow = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string };
-        const parsedSettings: WarehouseSettings = JSON.parse(settingsRow.value);
-        const nextNumber = parsedSettings.nextUnitNumber || 1;
-        const prefix = parsedSettings.unitPrefix || 'U';
-        const newUnitCode = `${prefix}${String(nextNumber).padStart(5, '0')}`;
-        
-        // 2. Increment and immediately save the new counter
-        parsedSettings.nextUnitNumber = nextNumber + 1;
-        db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(parsedSettings));
-        // --- END ATOMIC COUNTER LOGIC ---
-
-        // 3. Anular la unidad original (poniendo cantidad en 0 para mantener el histórico del código)
-        db.prepare('UPDATE inventory_units SET quantity = 0, notes = ? WHERE id = ?').run(`CORREGIDO. Reemplazado por unidad ${newUnitCode}. Producto original era ${originalUnit.productId}. Anulado por ${userName}. Nota original: ${originalUnit.notes || ''}`, unitId);
-
-        // 4. Registrar movimiento de SALIDA del producto incorrecto con la cantidad original
-        db.prepare(
-            'INSERT INTO movements (itemId, quantity, fromLocationId, toLocationId, timestamp, userId, notes) VALUES (?, ?, ?, ?, datetime(\'now\'), ?, ?)'
-        ).run(originalUnit.productId, -originalUnit.quantity, originalUnit.locationId, null, userId, `Corrección de ingreso (Anulación). Salida de unidad ${originalUnit.unitCode}.`);
-
-        // 5. Crear NUEVA unidad de inventario con los datos corregidos
-        db.prepare(
-            'INSERT INTO inventory_units (unitCode, productId, humanReadableId, documentId, erpDocumentId, locationId, quantity, notes, createdAt, createdBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ).run(
-            newUnitCode,
-            newProductId,
-            newHumanReadableId || null,
-            newDocumentId || null,
-            newErpDocumentId || null,
-            originalUnit.locationId, // location doesn't change
-            newQuantity,
-            `CORRECCIÓN desde ${originalUnit.unitCode}.`,
-            originalUnit.createdAt, // keep original creation date
-            userName
-        );
-
-        // 6. Registrar movimiento de ENTRADA para el producto y cantidad correctos
-        db.prepare(
-            'INSERT INTO movements (itemId, quantity, fromLocationId, toLocationId, timestamp, userId, notes) VALUES (?, ?, ?, ?, datetime(\'now\'), ?, ?)'
-        ).run(newProductId, newQuantity, null, originalUnit.locationId, userId, `Corrección de ingreso. Nueva unidad ${newUnitCode}.`);
-
-        logInfo('Inventory unit corrected successfully', {
-            oldUnitId: unitId,
-            oldProductId: originalUnit.productId,
-            newProductId,
-            newQuantity,
-            newUnitCode,
-            user: userName,
-        });
-    });
-
-    try {
-        transaction();
-    } catch (error: any) {
-        logError('Failed to correct inventory unit', { error: error.message, payload });
-        throw error;
-    }
-}
