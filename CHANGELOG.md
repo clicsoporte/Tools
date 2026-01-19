@@ -8,15 +8,15 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 **Para actualizar a una nueva versión, siga estos pasos:**
 
-1.  **¡Crítico! Crear Punto de Restauración:** Antes de cualquier cambio, vaya a **Administración > Mantenimiento** y haga clic en **"Crear Punto de Restauración"**. Esto crea una copia de seguridad completa de todas las bases de datos (`.db`).
+1.  **¡Crítico! Crear Punto de Restauración:** Antes de cualquier cambio, vaya a **Administración &gt; Mantenimiento** y haga clic en **"Crear Punto de Restauración"**. Esto crea una copia de seguridad completa de todas las bases de datos (`.db`).
 2.  **Reemplazar Archivos:** Reemplace todos los archivos y carpetas de la aplicación en el servidor con los de la nueva versión, **excepto** la carpeta `dbs/` y el archivo `.env.local`.
 3.  **Actualizar Dependencias:** Ejecute `npm install --omit=dev` en el servidor.
 4.  **Reconstruir y Reiniciar:** Ejecute `npm run build` y reinicie la aplicación (ej: `pm2 restart clic-tools`).
-5.  **Verificar:** Ejecute la auditoría desde **Administración > Mantenimiento** para confirmar que la estructura de la base de datos es correcta.
+5.  **Verificar:** Ejecute la auditoría desde **Administración &gt; Mantenimiento** para confirmar que la estructura de la base de datos es correcta.
 
 **Para realizar un rollback (regresar a la versión anterior):**
 
-1.  **Restaurar Punto de Restauración:** Vaya a **Administración > Mantenimiento**, seleccione el punto de restauración que creó antes de la actualización y haga clic en "Restaurar". **Esto requiere un reinicio manual del servidor de la aplicación después de la restauración.**
+1.  **Restaurar Punto de Restauración:** Vaya a **Administración &gt; Mantenimiento**, seleccione el punto de restauración que creó antes de la actualización y haga clic en "Restaurar". **Esto requiere un reinicio manual del servidor de la aplicación después de la restauración.**
 2.  **Revertir Archivos:** Reemplace los archivos del servidor con los de la versión anterior.
 3.  **Reinstalar y Reconstruir:** Ejecute `npm install --omit=dev` y `npm run build`.
 4.  **Reiniciar:** Inicie la aplicación nuevamente.
@@ -34,13 +34,13 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
     -   La interfaz ha sido rediseñada con una tabla principal que muestra todas las asignaciones y un diálogo simplificado para crear o editar estas asociaciones.
 
 -   **[Funcionalidad Clave] Nueva Herramienta "Administración de Ingresos" (Corrección):**
-    -   Se ha añadido una potente herramienta en **Almacén > Administración de Ingresos**.
+    -   Se ha añadido una potente herramienta en **Almacén &gt; Administración de Ingresos**.
     -   Permite a un supervisor buscar una unidad de inventario (lote/tarima) por múltiples criterios (fecha, producto, lote, consecutivo, etc.).
     -   Al seleccionar una unidad, se abre un modal que permite **corregir el producto o la cantidad** del ingreso original.
     -   Internamente, el sistema anula la unidad incorrecta y crea una nueva con los datos corregidos, generando los movimientos de inventario de entrada y salida correspondientes para una trazabilidad completa.
 
 -   **[Funcionalidad Clave] Nuevo "Reporte de Catálogo":**
-    -   Se ha añadido un nuevo reporte en **Analíticas > Reporte de Catálogo**.
+    -   Se ha añadido un nuevo reporte en **Analíticas &gt; Reporte de Catálogo**.
     -   Permite auditar todas las asignaciones de producto-cliente-ubicación.
     -   Incluye filtros estándar por **rango de fechas**, búsqueda de texto, **clasificación de producto** y un nuevo filtro por **tipo de asignación** (General, Exclusivo, Sin Cliente).
     -   Cuenta con paginación y exportación a PDF y Excel.
