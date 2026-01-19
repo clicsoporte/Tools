@@ -33,9 +33,9 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
     -   **Exclusividad:** Se puede marcar una asignación como "Exclusiva" para un cliente, indicando que ese producto en esa ubicación es solo para él.
     -   La interfaz ha sido rediseñada con una tabla principal que muestra todas las asignaciones y un diálogo simplificado para crear o editar estas asociaciones.
 
--   **[Funcionalidad Clave] Nueva Herramienta "Corrección de Ingresos":**
+-   **[Funcionalidad Clave] Nueva Herramienta "Administración de Ingresos" (Corrección):**
     -   Se ha añadido una potente herramienta en **Almacén > Administración de Ingresos**.
-    -   Permite a un supervisor buscar una unidad de inventario (lote/tarima) por múltiples criterios (fecha, producto, lote, etc.).
+    -   Permite a un supervisor buscar una unidad de inventario (lote/tarima) por múltiples criterios (fecha, producto, lote, consecutivo, etc.).
     -   Al seleccionar una unidad, se abre un modal que permite **corregir el producto o la cantidad** del ingreso original.
     -   Internamente, el sistema anula la unidad incorrecta y crea una nueva con los datos corregidos, generando los movimientos de inventario de entrada y salida correspondientes para una trazabilidad completa.
 
