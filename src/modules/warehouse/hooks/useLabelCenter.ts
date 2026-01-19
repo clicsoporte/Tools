@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook to manage the state and logic for the Label Center page.
  */
@@ -144,33 +143,50 @@ export const useLabelCenter = () => {
     const filteredLocations = useMemo(() => {
         if (!state.selectedRack) return [];
 
-        let locationsToFilter = rackChildren;
-
+        // rackChildren are the leaf nodes, which is what we want to print.
+        let potentialLocations = rackChildren;
+        
+        // Helper to get all ancestors for a given location up to the selected rack
+        const getAncestors = (locationId: number): WarehouseLocation[] => {
+            const ancestors: WarehouseLocation[] = [];
+            let current = state.allLocations.find(l => l.id === locationId);
+            while (current && current.parentId) {
+                const parent = state.allLocations.find(p => p.id === current!.parentId);
+                if (!parent || parent.id === state.selectedRack?.id) break;
+                ancestors.push(parent);
+                current = parent;
+            }
+            return ancestors;
+        };
+        
+        // Apply Level Filter
         if (state.levelFilter.length > 0) {
-            const levelIdsAsNumbers = new Set(state.levelFilter.map(Number));
-            locationsToFilter = locationsToFilter.filter(l => {
-                let current = l;
-                while (current.parentId) {
-                    if (levelIdsAsNumbers.has(current.id)) return true;
-                    const parent = state.allLocations.find((p: WarehouseLocation) => p.id === current.parentId);
-                    if (!parent || !state.selectedRack || parent.id === state.selectedRack.id) break;
-                    current = parent;
-                }
-                return false;
+            const levelIds = new Set(state.levelFilter.map(Number));
+            potentialLocations = potentialLocations.filter(loc => {
+                const ancestors = getAncestors(loc.id);
+                // A "level" is a direct child of a rack.
+                const levelAncestor = ancestors.find(a => a.parentId === state.selectedRack?.id);
+                return levelAncestor && levelIds.has(levelAncestor.id);
             });
         }
         
+        // Apply Position Filter
         if (state.positionFilter.length > 0) {
             const positionNames = new Set(state.positionFilter);
-            locationsToFilter = locationsToFilter.filter(l => positionNames.has(l.name));
+            potentialLocations = potentialLocations.filter(loc => {
+                const ancestors = getAncestors(loc.id);
+                // A "position" is a child of a "level".
+                return ancestors.some(a => positionNames.has(a.name));
+            });
         }
 
+        // Apply Label Type filter
         if (state.labelType === 'product_location') {
             const assignedLocationIds = new Set(state.itemLocations.map((il: ItemLocation) => il.locationId));
-            return locationsToFilter.filter(l => assignedLocationIds.has(l.id));
+            return potentialLocations.filter(l => assignedLocationIds.has(l.id));
         }
 
-        return locationsToFilter;
+        return potentialLocations;
     }, [state.selectedRack, state.levelFilter, state.positionFilter, state.labelType, rackChildren, state.itemLocations, state.allLocations]);
     
     const handleGeneratePdf = async () => {
