@@ -150,6 +150,3 @@ export default function ReceivingReportPage() {
         </main>
     );
 }
-
-    
-

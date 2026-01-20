@@ -52,6 +52,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -461,6 +462,9 @@ export default function QuoterPage() {
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Seleccionar Columnas Visibles</DialogTitle>
+                            <DialogDescription>
+                                Elige las columnas que deseas ver en la tabla de artículos de la cotización.
+                            </DialogDescription>
                         </DialogHeader>
                         <ScrollArea className="max-h-80">
                             <div className="space-y-2 p-1">

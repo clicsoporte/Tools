@@ -280,11 +280,17 @@ export function useReceivingReport() {
                     if (item.correctionConsecutive) {
                         const correctedUnit = state.data.find(u => u.correctedFromUnitId === item.id);
                         const replacementText = correctedUnit ? `Reemplazado por ${correctedUnit.receptionConsecutive}` : 'Anulado sin reemplazo';
-                        return { type: 'badge', content: { variant: 'destructive', text: `${item.correctionConsecutive} (${replacementText})` } };
+                        return {
+                            type: 'badge',
+                            content: { variant: 'destructive', text: `${item.correctionConsecutive} (${replacementText})` }
+                        };
                     }
                     if (item.correctedFromUnitId) {
                         const original = state.data.find(u => u.id === item.correctedFromUnitId);
-                        return { type: 'badge', content: { variant: 'outline', text: `Corrige a ${original?.receptionConsecutive || 'N/A'}` } };
+                        return {
+                            type: 'badge',
+                            content: { variant: 'outline', text: `Corrige a ${original?.receptionConsecutive || 'N/A'}` }
+                        };
                     }
                     return { type: 'string', content: 'N/A' };
                 default: return { content: null, type: 'string' };
