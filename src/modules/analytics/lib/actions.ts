@@ -4,9 +4,9 @@
 'use server';
 
 import { getOrders as getPlannerOrders, getPlannerSettings, getCompletedOrdersByDateRange } from '@/modules/planner/lib/db';
-import { getAllRoles, getAllSuppliers, getAllStock } from '@/modules/core/lib/db';
+import { getAllRoles, getAllSuppliers, getAllStock, getAllProducts as getAllProductsFromMain, getAllCustomers as getAllCustomersFromMain } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, OccupancyReportRow } from '@/modules/core/types';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
@@ -172,7 +172,7 @@ export async function getPhysicalInventoryReportData({ dateRange }: { dateRange?
         const [physicalInventory, erpStock, allProducts, allLocations, allItemLocations, selectableLocations] = await Promise.all([
             getPhysicalInventory(dateRange),
             getAllStock(),
-            getAllProducts(),
+            getAllProductsFromMain(),
             getWarehouseLocations(),
             getAllItemLocations(),
             getSelectableLocations(),
@@ -225,4 +225,68 @@ export async function getReceivingReportData({ dateRange }: { dateRange?: DateRa
     }
 }
 
+export async function getOccupancyReportData(): Promise<OccupancyReportRow[]> {
+    try {
+        const [allLocations, allItemLocations, physicalInventory, allProducts, allCustomers] = await Promise.all([
+            getWarehouseLocations(),
+            getAllItemLocations(),
+            getPhysicalInventory(),
+            getAllProductsFromMain(),
+            getAllCustomersFromMain(),
+        ]);
+
+        const parentIds = new Set(allLocations.map(l => l.parentId).filter(Boolean));
+        const leafLocations = allLocations.filter(l => !parentIds.has(l.id));
+
+        const productMap = new Map(allProducts.map(p => [p.id, p]));
+        const customerMap = new Map(allCustomers.map(c => [c.id, c]));
+        const inventoryMap = new Map<number, { [itemId: string]: number }>();
+
+        physicalInventory.forEach(item => {
+            if (!inventoryMap.has(item.locationId)) {
+                inventoryMap.set(item.locationId, {});
+            }
+            inventoryMap.get(item.locationId)![item.itemId] = item.quantity;
+        });
+
+        const reportRows: OccupancyReportRow[] = leafLocations.map(location => {
+            const assignments = allItemLocations.filter(il => il.locationId === location.id);
+            const status = assignments.length === 0 ? 'Libre' : (assignments.length === 1 ? 'Ocupado' : 'Mixto');
+
+            const items = assignments.map(a => {
+                const product = productMap.get(a.itemId);
+                const quantity = inventoryMap.get(location.id)?.[a.itemId];
+                return {
+                    productId: a.itemId,
+                    productDescription: product?.description || 'Desconocido',
+                    classification: product?.classification || 'N/A',
+                    quantity: quantity,
+                };
+            });
+
+            const clients = Array.from(new Set(assignments.map(a => a.clientId).filter(Boolean)))
+                .map(clientId => {
+                    const customer = customerMap.get(clientId as string);
+                    return {
+                        clientId: clientId as string,
+                        clientName: customer?.name || 'Desconocido',
+                    };
+                });
+
+            return {
+                locationId: location.id,
+                locationPath: renderLocationPathAsString(location.id, allLocations),
+                status,
+                items,
+                clients,
+            };
+        });
+
+        return JSON.parse(JSON.stringify(reportRows));
+
+    } catch (error) {
+        logError('Failed to generate occupancy report data', { error });
+        throw new Error('No se pudo generar el reporte de ocupación.');
+    }
+}
     

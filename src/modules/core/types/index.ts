@@ -811,6 +811,22 @@ export interface PhysicalInventoryComparisonItem {
     assignedLocationPath: string;
 }
 
+export interface OccupancyReportRow {
+    locationId: number;
+    locationPath: string;
+    status: 'Libre' | 'Ocupado' | 'Mixto';
+    items: {
+        productId: string;
+        productDescription: string;
+        classification: string;
+        quantity: number | undefined;
+    }[];
+    clients: {
+        clientId: string;
+        clientName: string;
+    }[];
+}
+
 // --- User Preferences ---
 export interface UserPreferences {
     [key: string]: any;

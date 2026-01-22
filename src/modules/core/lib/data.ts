@@ -42,6 +42,7 @@ import {
   Tags,
   RotateCcw,
   BookUser,
+  LayoutGrid,
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -422,6 +423,14 @@ export const analyticsTools: Tool[] = [
         href: '/dashboard/analytics/item-assignments-report',
         icon: BookUser,
         bgColor: 'bg-rose-600'
+    },
+    {
+        id: 'analytics:occupancy-report:read',
+        name: 'Reporte de Ocupación',
+        description: 'Visualizar el estado (Libre, Ocupado, Mixto) de las ubicaciones del almacén.',
+        href: '/dashboard/analytics/occupancy-report',
+        icon: LayoutGrid,
+        bgColor: 'bg-sky-700'
     },
     {
         id: "analytics:user-permissions:read",
