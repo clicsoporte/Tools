@@ -15,6 +15,8 @@ import { useReceivingWizard } from '@/modules/warehouse/hooks/useReceivingWizard
 import { SearchInput } from '@/components/ui/search-input';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import type { Product } from '@/modules/core/types';
 
 export default function ReceivingWizardPage() {
     const {
@@ -40,6 +42,8 @@ export default function ReceivingWizardPage() {
         documentId,
         erpDocumentId,
         saveAsDefault,
+        isMixedLocationConfirmOpen,
+        conflictingItems,
     } = state;
 
     if (isLoading) {
@@ -217,6 +221,27 @@ export default function ReceivingWizardPage() {
                     </CardFooter>
                  )}
             </Card>
+
+            <AlertDialog open={isMixedLocationConfirmOpen} onOpenChange={actions.setIsMixedLocationConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¡Atención! Ubicación Ocupada</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            La ubicación seleccionada ya contiene los siguientes productos:
+                            <ul className="list-disc list-inside mt-2 max-h-40 overflow-y-auto rounded-md bg-muted p-2 text-foreground">
+                                {conflictingItems.map((item: Product) => (
+                                    <li key={item.id}><strong>{item.id}</strong> - {item.description}</li>
+                                ))}
+                            </ul>
+                            ¿Deseas <strong>añadir</strong> el nuevo producto a esta ubicación, creando una ubicación mixta?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={actions.handleConfirmAddMixed}>Sí, Añadir</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </main>
     );
 }

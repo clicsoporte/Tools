@@ -58,7 +58,11 @@ export const useReceivingWizard = () => {
         isProductSearchOpen: false,
         locationSearchTerm: '',
         isLocationSearchOpen: false,
-        saveAsDefault: true, // New state for the switch
+        saveAsDefault: true,
+        // For mixed location confirmation
+        isMixedLocationConfirmOpen: false,
+        conflictingItems: [] as Product[],
+        locationForConfirmation: null as number | null,
     });
     
     const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);
@@ -107,6 +111,39 @@ export const useReceivingWizard = () => {
             .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, state.allLocations) }));
     }, [state.allLocations, state.selectableLocations, debouncedLocationSearch]);
 
+    const openMixedLocationDialog = useCallback((locationId: number) => {
+        const conflicts = state.allItemLocations.filter(il => il.locationId === locationId);
+        if (conflicts.length > 0) {
+            const conflictingProducts = conflicts.map(c => authProducts.find(p => p.id === c.itemId)).filter(Boolean) as Product[];
+            updateState({
+                conflictingItems: conflictingProducts,
+                locationForConfirmation: locationId,
+                isMixedLocationConfirmOpen: true
+            });
+            return true; // Conflict found
+        }
+        return false; // No conflict
+    }, [state.allItemLocations, authProducts, updateState]);
+    
+    const handleConfirmAddMixed = useCallback(() => {
+        if (!state.locationForConfirmation) return;
+        const wasSuggested = state.suggestedLocations.some(l => l.id === state.locationForConfirmation);
+        
+        updateState({
+            selectedLocationId: wasSuggested ? state.locationForConfirmation : null,
+            newLocationId: state.locationForConfirmation,
+            step: wasSuggested ? 'confirm_suggested' : 'confirm_new',
+            isMixedLocationConfirmOpen: false,
+            conflictingItems: [],
+            locationForConfirmation: null,
+            saveAsDefault: !wasSuggested,
+        });
+
+        if (!wasSuggested) {
+            updateState({ locationSearchTerm: renderLocationPathAsString(state.locationForConfirmation, state.allLocations) });
+        }
+    }, [state.locationForConfirmation, state.suggestedLocations, state.allLocations, updateState]);
+
     const handleSelectProduct = useCallback((productId: string) => {
         const product = authProducts.find(p => p.id === productId);
         if (!product) return;
@@ -123,7 +160,7 @@ export const useReceivingWizard = () => {
             suggestedLocations: suggested,
             step: 'select_location',
             isProductSearchOpen: false,
-            saveAsDefault: suggested.length === 0, // CRITICAL: Set switch to ON if no suggestions exist
+            saveAsDefault: suggested.length === 0,
         });
     }, [authProducts, state.allItemLocations, state.allLocations, updateState]);
     
@@ -135,11 +172,14 @@ export const useReceivingWizard = () => {
     };
     
     const handleUseSuggestedLocation = (locationId: number) => {
+        if (openMixedLocationDialog(locationId)) {
+            return;
+        }
         updateState({
             selectedLocationId: locationId,
             newLocationId: locationId,
             step: 'confirm_suggested',
-            saveAsDefault: false, // Turn off when using an existing suggestion
+            saveAsDefault: false,
         });
     };
     
@@ -147,6 +187,13 @@ export const useReceivingWizard = () => {
     
     const handleSelectLocation = (locationIdStr: string) => {
         const id = Number(locationIdStr);
+        if (openMixedLocationDialog(id)) {
+            updateState({ 
+                isLocationSearchOpen: false,
+                locationSearchTerm: renderLocationPathAsString(id, state.allLocations) 
+            });
+            return;
+        }
         updateState({
             newLocationId: id,
             isLocationSearchOpen: false,
@@ -159,7 +206,6 @@ export const useReceivingWizard = () => {
         if (state.step === 'select_location') {
             updateState({ step: 'select_product', selectedProduct: null, productSearchTerm: '' });
         } else {
-            // When going back from confirm_new, reset saveAsDefault based on original suggestions
             const hadSuggestions = state.suggestedLocations.length > 0;
             updateState({ step: 'select_location', newLocationId: null, locationSearchTerm: '', saveAsDefault: !hadSuggestions });
         }
@@ -201,14 +247,12 @@ export const useReceivingWizard = () => {
             const margin = 0.2;
             const contentWidth = 4 - (margin * 2);
             
-            // --- Left Column (QR and Barcode) ---
             const leftColX = margin;
             const leftColWidth = 1.2;
             doc.addImage(qrCodeDataUrl, 'PNG', leftColX, margin, leftColWidth, leftColWidth);
             doc.addImage(barcodeDataUrl, 'PNG', leftColX, margin + leftColWidth + 0.1, leftColWidth, 0.4);
             doc.setFontSize(10).text(unit.unitCode!, leftColX + leftColWidth / 2, margin + leftColWidth + 0.1 + 0.4 + 0.15, { align: 'center' });
 
-            // --- Right Column (Text Info) ---
             const rightColX = leftColX + leftColWidth + 0.2;
             const rightColWidth = contentWidth - leftColWidth - 0.2;
 
@@ -235,7 +279,6 @@ export const useReceivingWizard = () => {
             const locLines = doc.splitTextToSize(renderLocationPathAsString(unit.locationId!, state.allLocations), rightColWidth);
             doc.text(locLines, rightColX, currentY);
             
-            // --- Footer ---
             const footerY = 3 - margin;
             doc.setFontSize(8).setTextColor(150);
             doc.text(`Creado: ${format(new Date(), 'dd/MM/yyyy')} por ${user?.name || 'Sistema'}`, 4 - margin, footerY, { align: 'right' });
@@ -276,7 +319,6 @@ export const useReceivingWizard = () => {
                     isExclusive: 0,
                     updatedBy: user.name,
                 });
-                // After saving, re-fetch the item locations to update the local state
                 const updatedItemLocations = await getAllItemLocations();
                 updateState({ allItemLocations: updatedItemLocations });
             }
@@ -298,6 +340,7 @@ export const useReceivingWizard = () => {
     return {
         state,
         actions: {
+            updateState,
             handleSelectProduct,
             handleUseSuggestedLocation,
             handleAssignNewLocation,
@@ -316,6 +359,8 @@ export const useReceivingWizard = () => {
             setSaveAsDefault: (save: boolean) => updateState({ saveAsDefault: save }),
             handleProductSearchKeyDown,
             handlePrintLabel,
+            handleConfirmAddMixed,
+            setIsMixedLocationConfirmOpen: (isOpen: boolean) => updateState({ isMixedLocationConfirmOpen: isOpen }),
         },
         selectors: {
             productOptions,
@@ -324,5 +369,3 @@ export const useReceivingWizard = () => {
         },
     };
 };
-
-    
