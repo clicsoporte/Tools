@@ -4,20 +4,38 @@
 'use client';
 
 import React from 'react';
-import { useOccupancyReport, type SortKey } from '@/modules/analytics/hooks/useOccupancyReport';
+import { useOccupancyReport, type SortKey, type OccupancyReportRow } from '@/modules/analytics/hooks/useOccupancyReport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, FilterX, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet, Save } from 'lucide-react';
+import { Loader2, Search, FilterX, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
+
+// This new component handles rendering the tooltip for mixed items.
+const ItemsTooltipContent = ({ items }: { items: OccupancyReportRow['items'] }) => {
+    return (
+        <div className="p-2">
+            <p className="font-bold mb-2">Artículos en esta ubicación:</p>
+            <ul className="list-disc list-inside space-y-1 text-xs">
+                {items.map(item => (
+                    <li key={item.productId}>
+                        <span className="font-semibold">{item.productDescription}</span>
+                        <span className="text-muted-foreground"> ({item.productId})</span>
+                        {item.quantity !== undefined && <span className="font-bold ml-2">Cant: {item.quantity}</span>}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+};
+
 
 export default function OccupancyReportPage() {
     const {
@@ -136,9 +154,23 @@ export default function OccupancyReportPage() {
                                     ) : paginatedData.length > 0 ? (
                                         paginatedData.map((item) => (
                                             <TableRow key={item.locationId}>
-                                                {selectors.visibleColumnsData.map(col => (
-                                                     <TableCell key={col.id}>{selectors.renderCellContent(item, col.id)}</TableCell>
-                                                ))}
+                                                {selectors.visibleColumnsData.map(col => {
+                                                     const { content, className } = selectors.renderCellContent(item, col.id);
+                                                    return (
+                                                        <TableCell key={col.id} className={className}>
+                                                            {col.id === 'items' && item.status === 'Mixto' ? (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>{content}</TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <ItemsTooltipContent items={item.items} />
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            ) : (
+                                                                content
+                                                            )}
+                                                        </TableCell>
+                                                    )
+                                                })}
                                             </TableRow>
                                         ))
                                     ) : (
