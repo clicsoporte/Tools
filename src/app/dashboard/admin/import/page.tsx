@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Admin page for managing data imports from external sources (files or SQL DB).
  * This component allows administrators to configure import paths, connection strings,
@@ -24,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type ImportType = ImportQuery['type'];
-const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys', 'suppliers', 'erp_order_headers', 'erp_order_lines', 'erp_purchase_order_headers', 'erp_purchase_order_lines'];
+const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys', 'suppliers', 'erp_order_headers', 'erp_order_lines', 'erp_purchase_order_headers', 'erp_purchase_order_lines', 'employees', 'departments', 'positions', 'payrolls', 'salespersons'];
 
 const importTypeTranslations: { [key in ImportType]: string } = {
     customers: 'Clientes',
@@ -38,11 +39,16 @@ const importTypeTranslations: { [key in ImportType]: string } = {
     erp_order_lines: 'Pedidos ERP (Líneas)',
     erp_purchase_order_headers: 'Órdenes de Compra ERP (Cabeceras)',
     erp_purchase_order_lines: 'Órdenes de Compra ERP (Líneas)',
+    employees: 'Empleados (RRHH)',
+    departments: 'Departamentos (RRHH)',
+    positions: 'Puestos (RRHH)',
+    payrolls: 'Nóminas (RRHH)',
+    salespersons: 'Vendedores (RRHH)',
 };
 
 const defaultQueries: { [key in ImportType]?: string } = {
     customers: "SELECT [CLIENTE], [NOMBRE], [DIRECCION], [TELEFONO1], [CONTRIBUYENTE], [MONEDA], [LIMITE_CREDITO], [CONDICION_PAGO], [VENDEDOR], [ACTIVO], [E_MAIL], [EMAIL_DOC_ELECTRONICO] FROM [GAREND].[CLIENTE]",
-    products: "SELECT [ARTICULO], [DESCRIPCION], [CLASIFICACION_2], [ULTIMO_INGRESO], [ACTIVO], [NOTAS], [UNIDAD_VENTA], [CANASTA_BASICA], [CODIGO_HACIENDA] FROM [GAREND].[ARTICULO]",
+    products: "SELECT [ARTICULO], [DESCRIPCION], [CLASIFICACION_2], [ULTIMO_INGRESO], [ACTIVO], [NOTAS], [UNIDAD_VENTA], [CANASTA_BASICA], [CODIGO_HACIENDA], [CODIGO_BARRAS_VENT] FROM [SOFTLAND].[GAREND].[ARTICULO]",
     exemptions: "SELECT [CODIGO], [DESCRIPCION], [CLIENTE], [NUM_AUTOR], [FECHA_RIGE], [FECHA_VENCE], [PORCENTAJE], [TIPO_DOC], [NOMBRE_INSTITUCION], [CODIGO_INSTITUCION] FROM [GAREND].[EXENCION]",
     stock: "SELECT [ARTICULO], [BODEGA], [CANT_DISPONIBLE] FROM [GAREND].[EXISTENCIA_BODEGA]",
     locations: "SELECT [CODIGO], [P. HORIZONTAL], [P. VERTICAL], [RACK], [CLIENTE], [DESCRIPCION] FROM [GAREND].[UBICACION]",
@@ -51,6 +57,11 @@ const defaultQueries: { [key in ImportType]?: string } = {
     erp_order_lines: "SELECT T1.[PEDIDO], T1.[PEDIDO_LINEA], T1.[ARTICULO], T1.[CANTIDAD_PEDIDA], T1.[PRECIO_UNITARIO] FROM [GAREND].[PEDIDO_LINEA] AS T1 INNER JOIN [GAREND].[PEDIDO] AS T0 ON T1.PEDIDO = T0.PEDIDO WHERE T0.FECHA_PEDIDO >= DATEADD(day, -60, GETDATE()) AND T1.[ESTADO] NOT IN ('F', 'C')",
     erp_purchase_order_headers: "SELECT [ORDEN_COMPRA], [PROVEEDOR], [FECHA_HORA], [ESTADO], [CreatedBy] FROM [SOFTLAND].[GAREND].[ORDEN_COMPRA]",
     erp_purchase_order_lines: "SELECT [ORDEN_COMPRA], [ARTICULO], [CANTIDAD_ORDENADA] FROM [SOFTLAND].[GAREND].[ORDEN_COMPRA_LINEA]",
+    employees: '',
+    departments: '',
+    positions: '',
+    payrolls: '',
+    salespersons: ''
 };
 
 

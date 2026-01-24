@@ -9,7 +9,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getOccupancyReportData } from '@/modules/analytics/lib/actions';
-import type { OccupancyReportRow, UserPreferences } from '@/modules/core/types';
+import type { UserPreferences } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
@@ -21,6 +21,23 @@ import { Info } from 'lucide-react';
 export type SortKey = 'locationPath' | 'status';
 export type SortDirection = 'asc' | 'desc';
 export type StatusFilter = 'all' | 'Libre' | 'Ocupado' | 'Mixto';
+
+export interface OccupancyReportRow {
+    locationId: number;
+    locationPath: string;
+    status: 'Libre' | 'Ocupado' | 'Mixto';
+    items: {
+        productId: string;
+        productDescription: string;
+        classification: string;
+        quantity: number | undefined;
+    }[];
+    clients: {
+        clientId: string;
+        clientName: string;
+    }[];
+}
+
 
 const normalizeText = (text: string | null | undefined): string => {
     if (!text) return "";
