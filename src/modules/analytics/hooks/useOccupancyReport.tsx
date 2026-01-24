@@ -56,6 +56,7 @@ interface State {
     currentPage: number;
     rowsPerPage: number;
     visibleColumns: string[];
+    hasRun: boolean; // To track if the report has been generated at least once
 }
 
 export const useOccupancyReport = () => {
@@ -67,7 +68,7 @@ export const useOccupancyReport = () => {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: true,
+        isLoading: false,
         data: [],
         searchTerm: '',
         sortKey: 'locationPath',
@@ -78,6 +79,7 @@ export const useOccupancyReport = () => {
         currentPage: 0,
         rowsPerPage: 25,
         visibleColumns: ['locationPath', 'status', 'items', 'clients'],
+        hasRun: false,
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, 500);
@@ -95,28 +97,27 @@ export const useOccupancyReport = () => {
             logError("Failed to fetch occupancy report data", { error: error.message });
             toast({ title: "Error al Generar Reporte", description: error.message, variant: "destructive" });
         } finally {
-            updateState({ isLoading: false });
+            updateState({ isLoading: false, hasRun: true });
         }
     }, [toast, updateState]);
     
     useEffect(() => {
         setTitle("Reporte de Ocupación de Almacén");
-        const loadPrefsAndData = async () => {
+        const loadPrefs = async () => {
              if(user) {
                 const prefs = await getUserPreferences(user.id, 'occupancyReportPrefs');
                 if (prefs) {
                     updateState({ visibleColumns: prefs.visibleColumns || state.visibleColumns });
                 }
             }
-            await fetchData();
-            setIsInitialLoading(false);
+            setIsInitialLoading(false); // Preferences loaded, initial loading is done.
         };
 
         if (isAuthorized) {
-            loadPrefsAndData();
+            loadPrefs();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthorized, user?.id, fetchData]);
+    }, [setTitle, isAuthorized, user?.id]);
 
 
     const filteredData = useMemo(() => {
@@ -196,6 +197,7 @@ export const useOccupancyReport = () => {
     return {
         state,
         actions: {
+            fetchData,
             setSearchTerm: (term: string) => updateState({ searchTerm: term, currentPage: 0 }),
             handleSort,
             handleExportExcel,

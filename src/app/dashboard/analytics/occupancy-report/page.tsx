@@ -17,6 +17,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
+import { Info } from 'lucide-react';
 
 // This new component handles rendering the tooltip for mixed items.
 const ItemsTooltipContent = ({ items }: { items: OccupancyReportRow['items'] }) => {
@@ -46,7 +47,7 @@ export default function OccupancyReportPage() {
         isInitialLoading,
     } = useOccupancyReport();
 
-    const { isLoading, searchTerm, sortKey, sortDirection, statusFilter, classificationFilter, clientFilter, rowsPerPage, currentPage, visibleColumns } = state;
+    const { isLoading, searchTerm, sortKey, sortDirection, statusFilter, classificationFilter, clientFilter, rowsPerPage, currentPage, visibleColumns, hasRun } = state;
     const { paginatedData, classifications, clients } = selectors;
 
     if (isInitialLoading) {
@@ -71,10 +72,18 @@ export default function OccupancyReportPage() {
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Reporte de Ocupación de Almacén</CardTitle>
-                    <CardDescription>
-                        Visualiza el estado de cada ubicación final (Libre, Ocupado, Mixto) y su contenido.
-                    </CardDescription>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <CardTitle>Reporte de Ocupación de Almacén</CardTitle>
+                            <CardDescription>
+                                Visualiza el estado de cada ubicación final (Libre, Ocupado, Mixto) y su contenido.
+                            </CardDescription>
+                        </div>
+                        <Button onClick={actions.fetchData} disabled={isLoading}>
+                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                            Generar Reporte
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
                      <div className="flex flex-wrap gap-4 items-center">
@@ -151,6 +160,12 @@ export default function OccupancyReportPage() {
                                                 <TableCell colSpan={visibleColumns.length}><Skeleton className="h-8 w-full" /></TableCell>
                                             </TableRow>
                                         ))
+                                    ) : !hasRun ? (
+                                        <TableRow>
+                                            <TableCell colSpan={visibleColumns.length} className="h-32 text-center">
+                                                Ajusta los filtros y haz clic en &quot;Generar Reporte&quot; para empezar.
+                                            </TableCell>
+                                        </TableRow>
                                     ) : paginatedData.length > 0 ? (
                                         paginatedData.map((item: OccupancyReportRow) => (
                                             <TableRow key={item.locationId}>
