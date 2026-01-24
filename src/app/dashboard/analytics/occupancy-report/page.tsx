@@ -24,7 +24,7 @@ const ItemsTooltipContent = ({ items }: { items: OccupancyReportRow['items'] }) 
         <div className="p-2">
             <p className="font-bold mb-2">Artículos en esta ubicación:</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
-                {items.map(item => (
+                {items.map((item) => (
                     <li key={item.productId}>
                         <span className="font-semibold">{item.productDescription}</span>
                         <span className="text-muted-foreground"> ({item.productId})</span>
@@ -98,13 +98,13 @@ export default function OccupancyReportPage() {
                         </Select>
                          <MultiSelectFilter
                             title="Clasificación"
-                            options={classifications.map(c => ({ value: c, label: c }))}
+                            options={classifications.map((c: string) => ({ value: c, label: c }))}
                             selectedValues={classificationFilter}
                             onSelectedChange={actions.setClassificationFilter}
                         />
                          <MultiSelectFilter
                             title="Cliente"
-                            options={clients.map(c => ({ value: String(c.id), label: c.name }))}
+                            options={clients.map((c: { id: string, name: string }) => ({ value: String(c.id), label: c.name }))}
                             selectedValues={clientFilter}
                             onSelectedChange={actions.setClientFilter}
                         />
@@ -137,7 +137,7 @@ export default function OccupancyReportPage() {
                             <Table>
                                 <TableHeader className="sticky top-0 bg-background z-10">
                                     <TableRow>
-                                        {selectors.visibleColumnsData.map(col => (
+                                        {selectors.visibleColumnsData.map((col) => (
                                             <TableHead key={col.id} className="cursor-pointer hover:bg-muted" onClick={() => actions.handleSort(col.id as SortKey)}>
                                                 <div className="flex items-center gap-2">{col.label} {renderSortIcon(col.id as SortKey)}</div>
                                             </TableHead>
@@ -152,9 +152,9 @@ export default function OccupancyReportPage() {
                                             </TableRow>
                                         ))
                                     ) : paginatedData.length > 0 ? (
-                                        paginatedData.map((item) => (
+                                        paginatedData.map((item: OccupancyReportRow) => (
                                             <TableRow key={item.locationId}>
-                                                {selectors.visibleColumnsData.map(col => {
+                                                {selectors.visibleColumnsData.map((col) => {
                                                      const { content, className } = selectors.renderCellContent(item, col.id);
                                                     return (
                                                         <TableCell key={col.id} className={className}>

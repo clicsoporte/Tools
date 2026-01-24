@@ -183,7 +183,7 @@ export const warehouseTools: Tool[] = [
         name: "Catálogo Clientes y Artículos",
         description: "Asociar productos a clientes y marcar si son de venta general o exclusivos.",
         href: "/dashboard/warehouse/assign",
-        icon: PackagePlus,
+        icon: BookUser,
         bgColor: 'bg-teal-600',
     },
     {
@@ -369,7 +369,7 @@ export const adminTools: Tool[] = [
 
 export const analyticsTools: Tool[] = [
     {
-        id: "analytics:purchase-suggestions:read",
+        id: "purchase-suggestions",
         name: "Sugerencias de Compra",
         description: "Analizar pedidos y stock para sugerir compras proactivas.",
         href: "/dashboard/analytics/purchase-suggestions",
@@ -377,7 +377,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-blue-600",
     },
     {
-        id: "analytics:purchase-report:read",
+        id: "purchase-report",
         name: "Reporte de Compras",
         description: "Visualizar y exportar un reporte histórico de compras.",
         href: "/dashboard/analytics/purchase-report",
@@ -385,7 +385,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-green-600",
     },
      {
-        id: "analytics:transits-report:read",
+        id: "transits-report",
         name: "Reporte de Tránsitos",
         description: "Monitorear órdenes de compra del ERP activas y en tránsito.",
         href: "/dashboard/analytics/transits-report",
@@ -393,7 +393,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-orange-500",
     },
     {
-        id: "analytics:production-report:read",
+        id: "production-report",
         name: "Reporte de Producción",
         description: "Analizar rendimiento y desperdicio de órdenes completadas.",
         href: "/dashboard/analytics/production-report",
@@ -401,7 +401,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-purple-600",
     },
     {
-        id: "analytics:physical-inventory-report:read",
+        id: "physical-inventory-report",
         name: "Reporte de Inventario Físico",
         description: "Comparar conteos físicos con el stock del ERP para encontrar diferencias.",
         href: "/dashboard/analytics/physical-inventory-report",
@@ -409,7 +409,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-cyan-600",
     },
     {
-        id: "analytics:receiving-report:read",
+        id: "receiving-report",
         name: "Reporte de Recepciones",
         description: "Auditar las recepciones de mercadería registradas en el sistema.",
         href: "/dashboard/analytics/receiving-report",
@@ -417,7 +417,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-teal-600",
     },
     {
-        id: 'analytics:item-assignments-report:read',
+        id: 'item-assignments-report',
         name: 'Reporte de Catálogo',
         description: 'Auditar qué productos están asociados a qué clientes y si son exclusivos.',
         href: '/dashboard/analytics/item-assignments-report',
@@ -425,7 +425,7 @@ export const analyticsTools: Tool[] = [
         bgColor: 'bg-rose-600'
     },
     {
-        id: 'analytics:occupancy-report:read',
+        id: 'occupancy-report',
         name: 'Reporte de Ocupación',
         description: 'Visualizar el estado (Libre, Ocupado, Mixto) de las ubicaciones del almacén.',
         href: '/dashboard/analytics/occupancy-report',
@@ -433,7 +433,7 @@ export const analyticsTools: Tool[] = [
         bgColor: 'bg-sky-700'
     },
     {
-        id: "analytics:user-permissions:read",
+        id: "user-permissions",
         name: "Reporte de Permisos",
         description: "Auditar los permisos asignados a cada usuario según su rol.",
         href: "/dashboard/analytics/user-permissions",

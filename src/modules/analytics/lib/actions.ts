@@ -289,4 +289,3 @@ export async function getOccupancyReportData(): Promise<OccupancyReportRow[]> {
         throw new Error('No se pudo generar el reporte de ocupación.');
     }
 }
-    
