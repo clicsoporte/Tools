@@ -64,6 +64,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
             notes TEXT,
             createdAt TEXT NOT NULL,
             createdBy TEXT NOT NULL,
+            status TEXT,
             annulledAt TEXT,
             annulledBy TEXT,
             FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE,
@@ -138,7 +139,7 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
         
         const unitsTableExists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='inventory_units'`).get();
         if (!unitsTableExists) {
-            db.exec(`CREATE TABLE inventory_units (id INTEGER PRIMARY KEY AUTOINCREMENT, unitCode TEXT UNIQUE, receptionConsecutive TEXT, correctionConsecutive TEXT, correctedFromUnitId INTEGER, productId TEXT NOT NULL, humanReadableId TEXT, documentId TEXT, erpDocumentId TEXT, locationId INTEGER, quantity REAL DEFAULT 1, notes TEXT, createdAt TEXT NOT NULL, createdBy TEXT NOT NULL, annulledAt TEXT, annulledBy TEXT, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE, FOREIGN KEY (correctedFromUnitId) REFERENCES inventory_units(id) ON DELETE SET NULL);`);
+            db.exec(`CREATE TABLE inventory_units (id INTEGER PRIMARY KEY AUTOINCREMENT, unitCode TEXT UNIQUE, receptionConsecutive TEXT, correctionConsecutive TEXT, correctedFromUnitId INTEGER, productId TEXT NOT NULL, humanReadableId TEXT, documentId TEXT, erpDocumentId TEXT, locationId INTEGER, quantity REAL DEFAULT 1, notes TEXT, createdAt TEXT NOT NULL, createdBy TEXT NOT NULL, status TEXT, annulledAt TEXT, annulledBy TEXT, FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE, FOREIGN KEY (correctedFromUnitId) REFERENCES inventory_units(id) ON DELETE SET NULL);`);
         } else {
             const unitsTableInfo = db.prepare(`PRAGMA table_info(inventory_units)`).all() as { name: string }[];
             const columns = new Set(unitsTableInfo.map(c => c.name));
@@ -150,6 +151,7 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
             if (!columns.has('correctedFromUnitId')) db.exec('ALTER TABLE inventory_units ADD COLUMN correctedFromUnitId INTEGER REFERENCES inventory_units(id) ON DELETE SET NULL');
             if (!columns.has('annulledAt')) db.exec('ALTER TABLE inventory_units ADD COLUMN annulledAt TEXT');
             if (!columns.has('annulledBy')) db.exec('ALTER TABLE inventory_units ADD COLUMN annulledBy TEXT');
+            if (!columns.has('status')) db.exec('ALTER TABLE inventory_units ADD COLUMN status TEXT');
         }
 
         const configTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='warehouse_config'`).get();
@@ -537,10 +539,11 @@ export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'created
             documentId: unit.documentId || null,
             erpDocumentId: unit.erpDocumentId || null,
             quantity: unit.quantity ?? 1,
+            status: 'pending', // Set status to pending for all new units
         };
 
         const info = db.prepare(
-            'INSERT INTO inventory_units (unitCode, receptionConsecutive, productId, humanReadableId, documentId, erpDocumentId, locationId, quantity, notes, createdAt, createdBy) VALUES (@unitCode, @receptionConsecutive, @productId, @humanReadableId, @documentId, @erpDocumentId, @locationId, @quantity, @notes, @createdAt, @createdBy)'
+            'INSERT INTO inventory_units (unitCode, receptionConsecutive, productId, humanReadableId, documentId, erpDocumentId, locationId, quantity, notes, createdAt, createdBy, status) VALUES (@unitCode, @receptionConsecutive, @productId, @humanReadableId, @documentId, @erpDocumentId, @locationId, @quantity, @notes, @createdAt, @createdBy, @status)'
         ).run(newUnitData);
         
         const newId = info.lastInsertRowid as number;
@@ -578,7 +581,7 @@ export async function getInventoryUnits(filters: { dateRange?: DateRange, includ
         params.push(toDate.toISOString());
     }
     if (!filters.includeVoided) {
-        whereClauses.push("quantity > 0 OR (quantity = 0 AND correctedFromUnitId IS NOT NULL)");
+        whereClauses.push("correctionConsecutive IS NULL");
     }
 
     if (whereClauses.length > 0) {
@@ -739,10 +742,11 @@ export async function correctInventoryUnit(payload: {
                 createdBy: userName, // The corrector is the creator of the new unit
                 receptionConsecutive: newUnitReceptionConsecutive,
                 correctedFromUnitId: originalUnit.id,
+                status: 'applied', // Corrections are applied by default
             };
 
             const info = db.prepare(
-                'INSERT INTO inventory_units (unitCode, productId, quantity, humanReadableId, documentId, erpDocumentId, locationId, notes, createdAt, createdBy, receptionConsecutive, correctedFromUnitId) VALUES (@unitCode, @productId, @quantity, @humanReadableId, @documentId, @erpDocumentId, @locationId, @notes, @createdAt, @createdBy, @receptionConsecutive, @correctedFromUnitId)'
+                'INSERT INTO inventory_units (unitCode, productId, quantity, humanReadableId, documentId, erpDocumentId, locationId, notes, createdAt, createdBy, receptionConsecutive, correctedFromUnitId, status) VALUES (@unitCode, @productId, @quantity, @humanReadableId, @documentId, @erpDocumentId, @locationId, @notes, @createdAt, @createdBy, @receptionConsecutive, @correctedFromUnitId, @status)'
             ).run(newUnitData);
             newUnitId = info.lastInsertRowid as number;
             
@@ -757,8 +761,8 @@ export async function correctInventoryUnit(payload: {
         // Always void the original unit
         const replacementText = hasDataChanged ? `Reemplazado por ${newUnitReceptionConsecutive}.` : 'Anulado sin reemplazo.';
         const annulmentNote = `ANULADO POR: ${correctionConsecutive} por ${userName}. ${replacementText} Nota original: ${originalUnit.notes || ''}`;
-        db.prepare('UPDATE inventory_units SET quantity = 0, notes = ?, correctionConsecutive = ?, annulledAt = ?, annulledBy = ? WHERE id = ?')
-          .run(annulmentNote, correctionConsecutive, annulmentTimestamp, userName, unitId);
+        db.prepare('UPDATE inventory_units SET quantity = 0, notes = ?, correctionConsecutive = ?, annulledAt = ?, annulledBy = ?, status = ? WHERE id = ?')
+          .run(annulmentNote, correctionConsecutive, annulmentTimestamp, userName, 'voided', unitId);
 
         // Always register OUT movement for the INCORRECT product/quantity
         db.prepare(
@@ -786,6 +790,39 @@ export async function correctInventoryUnit(payload: {
         throw error;
     }
 }
+
+export async function applyInventoryUnit(payload: {
+    unitId: number;
+    newProductId: string;
+    newQuantity: number;
+    newHumanReadableId: string;
+    newDocumentId: string;
+    newErpDocumentId: string;
+    updatedBy: string;
+}): Promise<void> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    const { unitId, updatedBy, ...dataToUpdate } = payload;
+    
+    try {
+        db.prepare(`
+            UPDATE inventory_units SET
+                productId = @newProductId,
+                quantity = @newQuantity,
+                humanReadableId = @newHumanReadableId,
+                documentId = @newDocumentId,
+                erpDocumentId = @newErpDocumentId,
+                status = 'applied'
+            WHERE id = @unitId AND status = 'pending'
+        `).run({ unitId, ...dataToUpdate });
+
+        logInfo('Pending inventory unit applied', { unitId, user: updatedBy, changes: dataToUpdate });
+
+    } catch (error: any) {
+        logError('Failed to apply inventory unit', { error: error.message, payload });
+        throw error;
+    }
+}
+
 // --- Wizard Lock Functions ---
 
 export async function getActiveLocks(): Promise<WarehouseLocation[]> {
@@ -857,3 +894,32 @@ export async function getChildLocations(parentIds: number[]): Promise<WarehouseL
     const uniqueChildren = Array.from(new Map(allChildren.map(item => [item.id, item])).values());
     return JSON.parse(JSON.stringify(uniqueChildren));
 }
+
+export async function migrateLegacyInventoryUnits(): Promise<number> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    let updatedCount = 0;
+
+    const transaction = db.transaction(() => {
+        const legacyUnits = db.prepare(`SELECT * FROM inventory_units WHERE status IS NULL`).all() as InventoryUnit[];
+        const settings = getWarehouseSettingsTx(db);
+
+        let nextReceptionNumber = settings.nextReceptionNumber || 1;
+        
+        for (const unit of legacyUnits) {
+            let receptionConsecutive = unit.receptionConsecutive;
+            if (!receptionConsecutive) {
+                receptionConsecutive = `${settings.receptionPrefix || 'ING-'}${String(nextReceptionNumber).padStart(5, '0')}`;
+                nextReceptionNumber++;
+            }
+            db.prepare(`UPDATE inventory_units SET status = 'applied', receptionConsecutive = ? WHERE id = ?`).run(receptionConsecutive, unit.id);
+            updatedCount++;
+        }
+        
+        settings.nextReceptionNumber = nextReceptionNumber;
+        db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(settings));
+    });
+
+    transaction();
+    return updatedCount;
+}
+

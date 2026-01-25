@@ -140,7 +140,6 @@ export const useCorrectionTool = () => {
         updateState({ isSubmitting: true });
         try {
             if (state.unitToCorrect.status === 'pending') {
-                // APPLY flow
                 await applyInventoryUnit({
                     unitId: state.unitToCorrect.id,
                     newProductId: state.editableUnit.productId ?? state.unitToCorrect.productId,
@@ -152,7 +151,6 @@ export const useCorrectionTool = () => {
                 });
                 toast({ title: "Ingreso Aplicado", description: `El ingreso ${state.unitToCorrect.receptionConsecutive} ha sido finalizado.` });
             } else {
-                // CORRECTION flow
                  await correctInventoryUnit({
                     unitId: state.unitToCorrect.id,
                     newProductId: state.editableUnit.productId ?? state.unitToCorrect.productId,

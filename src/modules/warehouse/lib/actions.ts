@@ -33,6 +33,7 @@ import {
     correctInventoryUnit as correctInventoryUnitServer,
     applyInventoryUnit as applyInventoryUnitServer,
     searchInventoryUnits as searchInventoryUnitsServer,
+    migrateLegacyInventoryUnits as migrateLegacyInventoryUnitsServer,
 } from './db';
 import { getStockSettings as getStockSettingsDb, saveStockSettings as saveStockSettingsDb } from '@/modules/core/lib/db';
 import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User, DateRange } from '@/modules/core/types';
@@ -105,7 +106,7 @@ export const getWarehouseData = async () => getWarehouseDataServer();
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);
 
 // --- Inventory Unit Actions ---
-export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive' | 'status'>): Promise<InventoryUnit> => addInventoryUnitServer(unit);
+export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive'>): Promise<InventoryUnit> => addInventoryUnitServer(unit);
 export const getInventoryUnits = async (): Promise<InventoryUnit[]> => getInventoryUnitsServer();
 export const deleteInventoryUnit = async (id: number): Promise<void> => deleteInventoryUnitServer(id);
 export const getInventoryUnitById = async (id: string | number): Promise<InventoryUnit | null> => getInventoryUnitByIdServer(id);
@@ -117,8 +118,7 @@ export const applyInventoryUnit = async (payload: {
     newHumanReadableId: string;
     newDocumentId: string;
     newErpDocumentId: string;
-    userId: number;
-    userName: string;
+    updatedBy: string;
 }): Promise<void> => applyInventoryUnitServer(payload);
 
 export const correctInventoryUnit = async (payload: {
@@ -143,7 +143,6 @@ export const searchInventoryUnits = async (filters: {
 }): Promise<InventoryUnit[]> => searchInventoryUnitsServer(filters);
 
 
-
 // --- Wizard Lock Actions ---
 export const getActiveLocks = async (): Promise<WarehouseLocation[]> => getActiveLocksServer();
 export const lockEntity = async (payload: { entityIds: number[]; userName: string; userId: number; }): Promise<{ locked: boolean }> => lockEntityServer(payload);
@@ -151,4 +150,7 @@ export const releaseLock = async (entityIds: number[], userId: number): Promise<
 export const forceReleaseLock = async (locationId: number): Promise<void> => forceReleaseLockServer(locationId);
 export const getChildLocations = async (parentIds: number[]): Promise<WarehouseLocation[]> => getChildLocationsServer(parentIds);
 
+// --- Migration Actions ---
+export const migrateLegacyInventoryUnits = async (): Promise<number> => migrateLegacyInventoryUnitsServer();
     
+

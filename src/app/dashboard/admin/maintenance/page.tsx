@@ -25,7 +25,7 @@ import {
   } from "@/components/ui/select"
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo, logWarn } from "@/modules/core/lib/logger";
-import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle, FileUp, ShieldCheck, CheckCircle, Wrench, FileArchive } from "lucide-react";
+import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle, FileUp, ShieldCheck, CheckCircle, Wrench, FileArchive, DatabaseZap as DBMigrationIcon } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules, getCurrentVersion, runDatabaseAudit, runSingleModuleMigration } from '@/modules/core/lib/db';
 import { cleanupAllExportFiles } from '@/modules/core/lib/actions';
+import { migrateLegacyInventoryUnits } from '@/modules/warehouse/lib/actions';
 import type { UpdateBackupInfo, DatabaseModule, AuditResult } from '@/modules/core/types';
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -87,6 +88,9 @@ export default function MaintenancePage() {
     // State for audit
     const [isAuditing, setIsAuditing] = useState(false);
     const [auditResults, setAuditResults] = useState<AuditResult[] | null>(null);
+
+    // State for legacy migration
+    const [isMigratingLegacy, setIsMigratingLegacy] = useState(false);
 
 
     const fetchMaintenanceData = useCallback(async () => {
@@ -353,6 +357,21 @@ export default function MaintenancePage() {
         }
     };
     
+    const handleRunLegacyMigration = async () => {
+        if (!user) return;
+        setIsMigratingLegacy(true);
+        try {
+            const count = await migrateLegacyInventoryUnits();
+            toast({ title: "Migración Completada", description: `Se actualizaron ${count} ingresos antiguos.` });
+            await logInfo(`User ${user.name} ran the legacy inventory unit migration, updating ${count} records.`);
+        } catch (error: any) {
+            logError("Error running legacy inventory migration", { error: error.message });
+            toast({ title: "Error de Migración", description: "No se pudo completar el proceso.", variant: "destructive" });
+        } finally {
+            setIsMigratingLegacy(false);
+        }
+    };
+
     const uniqueTimestamps = [...new Set(updateBackups.map(b => b.date))].sort((a,b) => new Date(b).getTime() - new Date(a).getTime());
 
     const oldBackupsCount = uniqueTimestamps.length > 1 ? uniqueTimestamps.length - 1 : 0;
@@ -561,139 +580,183 @@ export default function MaintenancePage() {
                     </Card>
                     
                     {hasPermission('admin:maintenance:reset') && (
-                        <Card className="border-destructive">
-                            <AccordionItem value="danger-zone">
-                                <AccordionTrigger className="p-6 hover:no-underline">
-                                    <div className="flex items-center gap-4">
-                                        <Skull className="h-8 w-8 text-destructive" />
-                                        <div>
-                                            <CardTitle>Zona de Peligro</CardTitle>
-                                            <CardDescription>Acciones críticas e irreversibles. Usar con extrema precaución.</CardDescription>
+                        <Accordion type="multiple" className="w-full space-y-6">
+                            <Card>
+                                <AccordionItem value="migration-tools">
+                                    <AccordionTrigger className="p-6 hover:no-underline">
+                                        <div className="flex items-center gap-4">
+                                            <DBMigrationIcon className="h-8 w-8 text-orange-600" />
+                                            <div>
+                                                <CardTitle>Herramientas de Migración</CardTitle>
+                                                <CardDescription>Ejecuta procesos manuales para actualizar la estructura de datos antiguos.</CardDescription>
+                                            </div>
                                         </div>
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="p-6 pt-0 space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-4 rounded-lg border p-4">
-                                            <h3 className="font-semibold">Limpiar Archivos Temporales</h3>
-                                            <p className="text-sm text-muted-foreground">Elimina todos los archivos generados por las exportaciones de reportes (Excel) que se han acumulado en el servidor.</p>
-                                            <AlertDialog open={isClearExportsConfirmOpen} onOpenChange={setClearExportsConfirmOpen}>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="p-6 pt-0 space-y-6">
+                                        <div className="space-y-2 rounded-lg border p-4">
+                                            <h3 className="font-semibold">Actualizar Ingresos de Almacén Antiguos</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                Este proceso buscará todos los ingresos creados antes del sistema de estados y los marcará como "Aplicado". Es seguro de ejecutar múltiples veces.
+                                            </p>
+                                            <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button variant="outline" className="w-full" disabled={isProcessing}>
-                                                        <FileArchive className="mr-2 h-4 w-4" />Limpiar Exportaciones
+                                                     <Button variant="secondary" disabled={isMigratingLegacy}>
+                                                        {isMigratingLegacy ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle className="mr-2 h-4 w-4"/>}
+                                                        Actualizar Ingresos Antiguos
                                                     </Button>
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle>¿Limpiar Archivos de Exportación?</AlertDialogTitle>
+                                                        <AlertDialogTitle>¿Actualizar Registros Antiguos?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Se eliminarán todos los archivos temporales de la carpeta de exportaciones.
+                                                            Se asignará un consecutivo y se marcarán como "Aplicados" todos los ingresos de inventario que no tengan un estado.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={handleClearExportFiles}>Sí, limpiar</AlertDialogAction>
+                                                        <AlertDialogAction onClick={handleRunLegacyMigration}>Sí, actualizar</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                         </div>
-                                        <div className="space-y-4 rounded-lg border p-4">
-                                            <h3 className="font-semibold">Restaurar Módulo Individual</h3>
-                                            <p className="text-sm text-muted-foreground">Reemplaza la base de datos de un módulo con un archivo .db que subas desde tu computadora.</p>
-                                            <Dialog open={isSingleRestoreOpen} onOpenChange={(open: boolean) => {
-                                                if (!open) { setSingleRestoreStep(0); setSingleRestoreConfirmationText(''); setModuleToRestore(''); setFileToRestore(null); }
-                                                setIsSingleRestoreOpen(open);
-                                            }}>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="destructive" className="w-full"><FileUp className="mr-2 h-4 w-4"/>Restaurar Módulo</Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación de Restauración</DialogTitle>
-                                                        <DialogDescription>Esta acción reemplazará la base de datos del módulo seleccionado. Todos los datos actuales en ese módulo se perderán.</DialogDescription>
-                                                    </DialogHeader>
-                                                    <div className="py-4 space-y-4">
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="restore-module-select">Módulo a Restaurar</Label>
-                                                            <Select value={moduleToRestore} onValueChange={setModuleToRestore}><SelectTrigger id="restore-module-select"><SelectValue placeholder="Seleccionar módulo..." /></SelectTrigger><SelectContent>{dbModules.map(m => (<SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>))}</SelectContent></Select>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label>Archivo de Backup (.db)</Label>
-                                                            <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50')}>
-                                                                <input {...getInputProps()} />
-                                                                <UploadCloud className="w-8 h-8 text-muted-foreground" />
-                                                                {fileToRestore ? <p className="mt-2 text-sm font-medium">{fileToRestore.name}</p> : <p className="mt-2 text-center text-sm text-muted-foreground">Arrastra un archivo .db aquí o haz clic para seleccionar</p>}
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center space-x-2">
-                                                            <Checkbox id="restore-single-confirm-checkbox" onCheckedChange={(checked) => setSingleRestoreStep(checked ? 1 : 0)} disabled={!moduleToRestore || !fileToRestore}/>
-                                                            <Label htmlFor="restore-single-confirm-checkbox" className="font-medium text-destructive">Entiendo las consecuencias y deseo continuar.</Label>
-                                                        </div>
-                                                        {singleRestoreStep > 0 && (
-                                                            <div className="space-y-2">
-                                                                <Label htmlFor="restore-single-confirmation-text">Para confirmar, escribe &quot;RESTAURAR&quot;:</Label>
-                                                                <Input id="restore-single-confirmation-text" value={singleRestoreConfirmationText} onChange={(e) => { setSingleRestoreConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESTAURAR') {setSingleRestoreStep(2);} else {setSingleRestoreStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <DialogFooter>
-                                                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                                                        <Button variant="destructive" onClick={handleSingleModuleRestore} disabled={isProcessing || singleRestoreStep !== 2 || singleRestoreConfirmationText !== 'RESTAURAR'}>
-                                                            {processingAction === 'single-restore' ? <Loader2 className="mr-2 animate-spin"/> : <RotateCcw className="mr-2"/>} Sí, Restaurar Módulo
-                                                        </Button>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Card>
+
+                            <Card className="border-destructive">
+                                <AccordionItem value="danger-zone">
+                                    <AccordionTrigger className="p-6 hover:no-underline">
+                                        <div className="flex items-center gap-4">
+                                            <Skull className="h-8 w-8 text-destructive" />
+                                            <div>
+                                                <CardTitle>Zona de Peligro</CardTitle>
+                                                <CardDescription>Acciones críticas e irreversibles. Usar con extrema precaución.</CardDescription>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="space-y-4 rounded-lg border p-4">
-                                        <h3 className="font-semibold">Resetear Módulo Específico</h3>
-                                        <p className="text-sm text-muted-foreground">Borra todos los datos de un módulo y lo devuelve a su estado inicial. Útil si un módulo está corrupto.</p>
-                                        <div className='flex flex-wrap gap-4 items-end'>
-                                            <div className="flex-1 min-w-[200px] space-y-2"><Label htmlFor="reset-module-select">Módulo a Resetear</Label><Select value={moduleToReset} onValueChange={setModuleToReset}><SelectTrigger id="reset-module-select"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{dbModules.map(m => (<SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>))}</SelectContent></Select></div>
-                                            <AlertDialog open={isResetConfirmOpen} onOpenChange={(open: boolean) => { setResetConfirmOpen(open); if(!open) { setResetStep(0); setResetConfirmationText(''); }}}>
-                                                <AlertDialogTrigger asChild><Button variant="destructive" disabled={isProcessing || !moduleToReset}><TrashIcon className="mr-2 h-4 w-4" />Resetear Módulo</Button></AlertDialogTrigger>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="p-6 pt-0 space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-4 rounded-lg border p-4">
+                                                <h3 className="font-semibold">Limpiar Archivos Temporales</h3>
+                                                <p className="text-sm text-muted-foreground">Elimina todos los archivos generados por las exportaciones de reportes (Excel) que se han acumulado en el servidor.</p>
+                                                <AlertDialog open={isClearExportsConfirmOpen} onOpenChange={setClearExportsConfirmOpen}>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="outline" className="w-full" disabled={isProcessing}>
+                                                            <FileArchive className="mr-2 h-4 w-4" />Limpiar Exportaciones
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>¿Limpiar Archivos de Exportación?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Se eliminarán todos los archivos temporales de la carpeta de exportaciones.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={handleClearExportFiles}>Sí, limpiar</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                            <div className="space-y-4 rounded-lg border p-4">
+                                                <h3 className="font-semibold">Restaurar Módulo Individual</h3>
+                                                <p className="text-sm text-muted-foreground">Reemplaza la base de datos de un módulo con un archivo .db que subas desde tu computadora.</p>
+                                                <Dialog open={isSingleRestoreOpen} onOpenChange={(open: boolean) => {
+                                                    if (!open) { setSingleRestoreStep(0); setSingleRestoreConfirmationText(''); setModuleToRestore(''); setFileToRestore(null); }
+                                                    setIsSingleRestoreOpen(open);
+                                                }}>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="destructive" className="w-full"><FileUp className="mr-2 h-4 w-4"/>Restaurar Módulo</Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación de Restauración</DialogTitle>
+                                                            <DialogDescription>Esta acción reemplazará la base de datos del módulo seleccionado. Todos los datos actuales en ese módulo se perderán.</DialogDescription>
+                                                        </DialogHeader>
+                                                        <div className="py-4 space-y-4">
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="restore-module-select">Módulo a Restaurar</Label>
+                                                                <Select value={moduleToRestore} onValueChange={setModuleToRestore}><SelectTrigger id="restore-module-select"><SelectValue placeholder="Seleccionar módulo..." /></SelectTrigger><SelectContent>{dbModules.map(m => (<SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>))}</SelectContent></Select>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label>Archivo de Backup (.db)</Label>
+                                                                <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50')}>
+                                                                    <input {...getInputProps()} />
+                                                                    <UploadCloud className="w-8 h-8 text-muted-foreground" />
+                                                                    {fileToRestore ? <p className="mt-2 text-sm font-medium">{fileToRestore.name}</p> : <p className="mt-2 text-center text-sm text-muted-foreground">Arrastra un archivo .db aquí o haz clic para seleccionar</p>}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <Checkbox id="restore-single-confirm-checkbox" onCheckedChange={(checked) => setSingleRestoreStep(checked ? 1 : 0)} disabled={!moduleToRestore || !fileToRestore}/>
+                                                                <Label htmlFor="restore-single-confirm-checkbox" className="font-medium text-destructive">Entiendo las consecuencias y deseo continuar.</Label>
+                                                            </div>
+                                                            {singleRestoreStep > 0 && (
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="restore-single-confirmation-text">Para confirmar, escribe &quot;RESTAURAR&quot;:</Label>
+                                                                    <Input id="restore-single-confirmation-text" value={singleRestoreConfirmationText} onChange={(e) => { setSingleRestoreConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESTAURAR') {setSingleRestoreStep(2);} else {setSingleRestoreStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <DialogFooter>
+                                                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                                                            <Button variant="destructive" onClick={handleSingleModuleRestore} disabled={isProcessing || singleRestoreStep !== 2 || singleRestoreConfirmationText !== 'RESTAURAR'}>
+                                                                {processingAction === 'single-restore' ? <Loader2 className="mr-2 animate-spin"/> : <RotateCcw className="mr-2"/>} Sí, Restaurar Módulo
+                                                            </Button>
+                                                        </DialogFooter>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-4 rounded-lg border p-4">
+                                            <h3 className="font-semibold">Resetear Módulo Específico</h3>
+                                            <p className="text-sm text-muted-foreground">Borra todos los datos de un módulo y lo devuelve a su estado inicial. Útil si un módulo está corrupto.</p>
+                                            <div className='flex flex-wrap gap-4 items-end'>
+                                                <div className="flex-1 min-w-[200px] space-y-2"><Label htmlFor="reset-module-select">Módulo a Resetear</Label><Select value={moduleToReset} onValueChange={setModuleToReset}><SelectTrigger id="reset-module-select"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{dbModules.map(m => (<SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>))}</SelectContent></Select></div>
+                                                <AlertDialog open={isResetConfirmOpen} onOpenChange={(open: boolean) => { setResetConfirmOpen(open); if(!open) { setResetStep(0); setResetConfirmationText(''); }}}>
+                                                    <AlertDialogTrigger asChild><Button variant="destructive" disabled={isProcessing || !moduleToReset}><TrashIcon className="mr-2 h-4 w-4" />Resetear Módulo</Button></AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitle>
+                                                            <AlertDialogDescription>Esta acción borrará **TODA** la información del módulo &quot;{dbModules.find(m => m.id === moduleToReset)?.name || ''}&quot;.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <div className="py-4 space-y-4">
+                                                            <div className="flex items-center space-x-2"><Checkbox id="reset-confirm-checkbox" onCheckedChange={(checked) => setResetStep(checked ? 1 : 0)} /><Label htmlFor="reset-confirm-checkbox" className="font-medium text-destructive">Entiendo las consecuencias.</Label></div>
+                                                            {resetStep > 0 && (<div className="space-y-2"><Label htmlFor="reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR&quot;:</Label><Input id="reset-confirmation-text" value={resetConfirmationText} onChange={(e) => { setResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR') {setResetStep(2);} else {setResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" /></div>)}
+                                                        </div>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={handleFactoryReset} disabled={isProcessing || resetStep !== 2 || resetConfirmationText !== 'RESETEAR'}>{processingAction === 'factory-reset' ? <Loader2 className="mr-2 animate-spin"/> : <TrashIcon className="mr-2"/>}Sí, Borrar Módulo</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </div>
+                                         <div className="space-y-4 rounded-lg border p-4">
+                                            <h3 className="font-semibold">Resetear Todo el Sistema</h3>
+                                            <p className="text-sm text-muted-foreground">Devuelve la aplicación completa a su estado de fábrica. Se borrarán todos los usuarios, configuraciones y datos. Es una acción irreversible.</p>
+                                            <AlertDialog open={isFullResetConfirmOpen} onOpenChange={(open: boolean) => { setFullResetConfirmOpen(open); if(!open) { setFullResetStep(0); setFullResetConfirmationText(''); }}}>
+                                                <AlertDialogTrigger asChild><Button variant="destructive" className='w-full'><Skull className="mr-2 h-4 w-4" />Resetear Sistema de Fábrica</Button></AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitle>
-                                                        <AlertDialogDescription>Esta acción borrará **TODA** la información del módulo &quot;{dbModules.find(m => m.id === moduleToReset)?.name || ''}&quot;.</AlertDialogDescription>
+                                                        <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>¡ACCIÓN IRREVERSIBLE!</AlertDialogTitle>
+                                                        <AlertDialogDescription>Se borrarán **TODAS LAS BASES DE DATOS** y se perderá toda la información. La aplicación se reiniciará.</AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <div className="py-4 space-y-4">
-                                                        <div className="flex items-center space-x-2"><Checkbox id="reset-confirm-checkbox" onCheckedChange={(checked) => setResetStep(checked ? 1 : 0)} /><Label htmlFor="reset-confirm-checkbox" className="font-medium text-destructive">Entiendo las consecuencias.</Label></div>
-                                                        {resetStep > 0 && (<div className="space-y-2"><Label htmlFor="reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR&quot;:</Label><Input id="reset-confirmation-text" value={resetConfirmationText} onChange={(e) => { setResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR') {setResetStep(2);} else {setResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" /></div>)}
+                                                        <div className="flex items-center space-x-2"><Checkbox id="full-reset-confirm-checkbox" onCheckedChange={(checked) => setFullResetStep(checked ? 1 : 0)} /><Label htmlFor="full-reset-confirm-checkbox" className="font-medium text-destructive">Entiendo que esto borrará toda la información.</Label></div>
+                                                        {fullResetStep > 0 && (<div className="space-y-2"><Label htmlFor="full-reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR TODO&quot;:</Label><Input id="full-reset-confirmation-text" value={fullResetConfirmationText} onChange={(e) => { setFullResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR TODO') {setFullResetStep(2);} else {setFullResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" /></div>)}
                                                     </div>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={handleFactoryReset} disabled={isProcessing || resetStep !== 2 || resetConfirmationText !== 'RESETEAR'}>{processingAction === 'factory-reset' ? <Loader2 className="mr-2 animate-spin"/> : <TrashIcon className="mr-2"/>}Sí, Borrar Módulo</AlertDialogAction>
+                                                        <AlertDialogAction onClick={handleFullFactoryReset} disabled={isProcessing || fullResetStep !== 2 || fullResetConfirmationText !== 'RESETEAR TODO'}>{processingAction === 'full-factory-reset' ? <Loader2 className="mr-2 animate-spin"/> : <Skull className="mr-2"/>}Sí, Borrar Todo</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                         </div>
-                                    </div>
-                                     <div className="space-y-4 rounded-lg border p-4">
-                                        <h3 className="font-semibold">Resetear Todo el Sistema</h3>
-                                        <p className="text-sm text-muted-foreground">Devuelve la aplicación completa a su estado de fábrica. Se borrarán todos los usuarios, configuraciones y datos. Es una acción irreversible.</p>
-                                        <AlertDialog open={isFullResetConfirmOpen} onOpenChange={(open: boolean) => { setFullResetConfirmOpen(open); if(!open) { setFullResetStep(0); setFullResetConfirmationText(''); }}}>
-                                            <AlertDialogTrigger asChild><Button variant="destructive" className='w-full'><Skull className="mr-2 h-4 w-4" />Resetear Sistema de Fábrica</Button></AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>¡ACCIÓN IRREVERSIBLE!</AlertDialogTitle>
-                                                    <AlertDialogDescription>Se borrarán **TODAS LAS BASES DE DATOS** y se perderá toda la información. La aplicación se reiniciará.</AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <div className="py-4 space-y-4">
-                                                    <div className="flex items-center space-x-2"><Checkbox id="full-reset-confirm-checkbox" onCheckedChange={(checked) => setFullResetStep(checked ? 1 : 0)} /><Label htmlFor="full-reset-confirm-checkbox" className="font-medium text-destructive">Entiendo que esto borrará toda la información.</Label></div>
-                                                    {fullResetStep > 0 && (<div className="space-y-2"><Label htmlFor="full-reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR TODO&quot;:</Label><Input id="full-reset-confirmation-text" value={fullResetConfirmationText} onChange={(e) => { setFullResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR TODO') {setFullResetStep(2);} else {setFullResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" /></div>)}
-                                                </div>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={handleFullFactoryReset} disabled={isProcessing || fullResetStep !== 2 || fullResetConfirmationText !== 'RESETEAR TODO'}>{processingAction === 'full-factory-reset' ? <Loader2 className="mr-2 animate-spin"/> : <Skull className="mr-2"/>}Sí, Borrar Todo</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Card>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Card>
+                        </Accordion>
                     )}
                 </Accordion>
             </div>
