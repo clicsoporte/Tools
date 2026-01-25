@@ -47,8 +47,8 @@ export default function OccupancyReportPage() {
         isInitialLoading,
     } = useOccupancyReport();
 
-    const { isLoading, searchTerm, sortKey, sortDirection, statusFilter, classificationFilter, clientFilter, rowsPerPage, currentPage, visibleColumns, hasRun } = state;
-    const { paginatedData, classifications, clients } = selectors;
+    const { isLoading, searchTerm, sortKey, sortDirection, statusFilter, classificationFilter, clientFilter, rackFilter, levelFilter, rowsPerPage, currentPage, visibleColumns, hasRun } = state;
+    const { paginatedData, classifications, clients, rackOptions, levelOptions } = selectors;
 
     if (isInitialLoading) {
         return (
@@ -116,6 +116,19 @@ export default function OccupancyReportPage() {
                             options={clients.map((c: { id: string, name: string }) => ({ value: String(c.id), label: c.name }))}
                             selectedValues={clientFilter}
                             onSelectedChange={actions.setClientFilter}
+                        />
+                        <MultiSelectFilter
+                            title="Rack"
+                            options={rackOptions}
+                            selectedValues={rackFilter}
+                            onSelectedChange={actions.setRackFilter}
+                        />
+                        <MultiSelectFilter
+                            title="Nivel"
+                            options={levelOptions}
+                            selectedValues={levelFilter}
+                            onSelectedChange={actions.setLevelFilter}
+                            disabled={rackFilter.length === 0}
                         />
                          <Button variant="ghost" onClick={actions.handleClearFilters}>
                             <FilterX className="mr-2 h-4 w-4" />

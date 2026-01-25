@@ -6,12 +6,12 @@
 import { getOrders as getPlannerOrders, getPlannerSettings, getCompletedOrdersByDateRange } from '@/modules/planner/lib/db';
 import { getAllRoles, getAllSuppliers, getAllStock, getAllProducts as getAllProductsFromMain, getAllCustomers as getAllCustomersFromMain } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, OccupancyReportRow } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, OccupancyReportRow, WarehouseSettings } from '@/modules/core/types';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
 import { getAllProducts, getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
-import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits } from '@/modules/warehouse/lib/db';
+import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits, getWarehouseSettings } from '@/modules/warehouse/lib/db';
 import type { TransitReportItem } from '../hooks/useTransitsReport';
 
 
@@ -225,14 +225,15 @@ export async function getReceivingReportData({ dateRange }: { dateRange?: DateRa
     }
 }
 
-export async function getOccupancyReportData(): Promise<OccupancyReportRow[]> {
+export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyReportRow[], allLocations: WarehouseLocation[], warehouseSettings: WarehouseSettings }> {
     try {
-        const [allLocations, allItemLocations, physicalInventory, allProducts, allCustomers] = await Promise.all([
+        const [allLocations, allItemLocations, physicalInventory, allProducts, allCustomers, warehouseSettings] = await Promise.all([
             getWarehouseLocations(),
             getAllItemLocations(),
             getPhysicalInventory(),
             getAllProductsFromMain(),
             getAllCustomersFromMain(),
+            getWarehouseSettings(),
         ]);
 
         const parentIds = new Set(allLocations.map(l => l.parentId).filter(Boolean));
@@ -282,7 +283,7 @@ export async function getOccupancyReportData(): Promise<OccupancyReportRow[]> {
             };
         });
 
-        return JSON.parse(JSON.stringify(reportRows));
+        return JSON.parse(JSON.stringify({ reportRows, allLocations, warehouseSettings }));
 
     } catch (error) {
         logError('Failed to generate occupancy report data', { error });

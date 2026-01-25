@@ -9,7 +9,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getOccupancyReportData } from '@/modules/analytics/lib/actions';
-import type { UserPreferences } from '@/modules/core/types';
+import type { UserPreferences, WarehouseLocation, WarehouseSettings } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/modules/core/lib/excel-export';
@@ -47,16 +47,20 @@ const normalizeText = (text: string | null | undefined): string => {
 interface State {
     isLoading: boolean;
     data: OccupancyReportRow[];
+    allLocations: WarehouseLocation[];
+    warehouseSettings: WarehouseSettings | null;
     searchTerm: string;
     sortKey: SortKey;
     sortDirection: SortDirection;
     statusFilter: StatusFilter;
     classificationFilter: string[];
     clientFilter: string[];
+    rackFilter: string[];
+    levelFilter: string[];
     currentPage: number;
     rowsPerPage: number;
     visibleColumns: string[];
-    hasRun: boolean; // To track if the report has been generated at least once
+    hasRun: boolean;
 }
 
 export const useOccupancyReport = () => {
@@ -70,12 +74,16 @@ export const useOccupancyReport = () => {
     const [state, setState] = useState<State>({
         isLoading: false,
         data: [],
+        allLocations: [],
+        warehouseSettings: null,
         searchTerm: '',
         sortKey: 'locationPath',
         sortDirection: 'asc',
         statusFilter: 'all',
         classificationFilter: [],
         clientFilter: [],
+        rackFilter: [],
+        levelFilter: [],
         currentPage: 0,
         rowsPerPage: 25,
         visibleColumns: ['locationPath', 'status', 'items', 'clients'],
@@ -91,8 +99,8 @@ export const useOccupancyReport = () => {
     const fetchData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const data = await getOccupancyReportData();
-            updateState({ data });
+            const { reportRows, allLocations, warehouseSettings } = await getOccupancyReportData();
+            updateState({ data: reportRows, allLocations, warehouseSettings });
         } catch (error: any) {
             logError("Failed to fetch occupancy report data", { error: error.message });
             toast({ title: "Error al Generar Reporte", description: error.message, variant: "destructive" });
@@ -110,7 +118,7 @@ export const useOccupancyReport = () => {
                     updateState({ visibleColumns: prefs.visibleColumns || state.visibleColumns });
                 }
             }
-            setIsInitialLoading(false); // Preferences loaded, initial loading is done.
+            setIsInitialLoading(false);
         };
 
         if (isAuthorized) {
@@ -119,6 +127,25 @@ export const useOccupancyReport = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setTitle, isAuthorized, user?.id]);
 
+    const getDescendantIds = useCallback((parentIds: number[]): Set<number> => {
+        const descendants = new Set<number>();
+        if (parentIds.length === 0) return descendants;
+
+        const queue: number[] = [...parentIds];
+        const visited = new Set<number>();
+    
+        while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            if (visited.has(currentId)) continue;
+            visited.add(currentId);
+            
+            descendants.add(currentId);
+    
+            const children = state.allLocations.filter(l => l.parentId === currentId);
+            children.forEach(child => queue.push(child.id));
+        }
+        return descendants;
+    }, [state.allLocations]);
 
     const filteredData = useMemo(() => {
         let filtered = [...state.data];
@@ -133,6 +160,14 @@ export const useOccupancyReport = () => {
         
         if (state.clientFilter.length > 0) {
             filtered = filtered.filter(item => item.clients.some(client => state.clientFilter.includes(client.clientId)));
+        }
+
+        if (state.levelFilter.length > 0) {
+            const targetLocationIds = getDescendantIds(state.levelFilter.map(Number));
+            filtered = filtered.filter(item => targetLocationIds.has(item.locationId));
+        } else if (state.rackFilter.length > 0) {
+            const targetLocationIds = getDescendantIds(state.rackFilter.map(Number));
+            filtered = filtered.filter(item => targetLocationIds.has(item.locationId));
         }
 
         if (debouncedSearchTerm) {
@@ -153,7 +188,7 @@ export const useOccupancyReport = () => {
         });
 
         return filtered;
-    }, [state.data, debouncedSearchTerm, state.statusFilter, state.classificationFilter, state.clientFilter, state.sortKey, state.sortDirection]);
+    }, [state.data, debouncedSearchTerm, state.statusFilter, state.classificationFilter, state.clientFilter, state.rackFilter, state.levelFilter, state.sortKey, state.sortDirection, getDescendantIds]);
     
     const paginatedData = useMemo(() => {
         const start = state.currentPage * state.rowsPerPage;
@@ -204,6 +239,8 @@ export const useOccupancyReport = () => {
             setStatusFilter: (filter: StatusFilter) => updateState({ statusFilter: filter, currentPage: 0 }),
             setClassificationFilter: (filter: string[]) => updateState({ classificationFilter: filter, currentPage: 0 }),
             setClientFilter: (filter: string[]) => updateState({ clientFilter: filter, currentPage: 0 }),
+            setRackFilter: (filter: string[]) => updateState({ rackFilter: filter, levelFilter: [], currentPage: 0 }),
+            setLevelFilter: (filter: string[]) => updateState({ levelFilter: filter, currentPage: 0 }),
             setCurrentPage: (page: number) => updateState({ currentPage: page }),
             setRowsPerPage: (size: number) => updateState({ rowsPerPage: size, currentPage: 0 }),
             handleColumnVisibilityChange: (columnId: string, checked: boolean) => updateState({ visibleColumns: checked ? [...state.visibleColumns, columnId] : state.visibleColumns.filter(id => id !== columnId) }),
@@ -213,6 +250,8 @@ export const useOccupancyReport = () => {
                 statusFilter: 'all',
                 classificationFilter: [],
                 clientFilter: [],
+                rackFilter: [],
+                levelFilter: [],
                 currentPage: 0,
             }),
         },
@@ -232,6 +271,19 @@ export const useOccupancyReport = () => {
                 });
                 return Array.from(allClientsInReport.values());
             }, [state.data]),
+             rackOptions: useMemo(() => {
+                if (!state.warehouseSettings) return [];
+                const rackType = state.warehouseSettings.locationLevels.find(l => l.name.toLowerCase().includes('rack'))?.type;
+                if (!rackType) return [];
+                return state.allLocations.filter(l => l.type === rackType).map(l => ({ value: String(l.id), label: l.name }));
+            }, [state.allLocations, state.warehouseSettings]),
+            levelOptions: useMemo(() => {
+                if (state.rackFilter.length === 0 || !state.warehouseSettings) return [];
+                const rackIds = new Set(state.rackFilter.map(Number));
+                const levelType = state.warehouseSettings.locationLevels.find(l => l.name.toLowerCase().includes('nivel') || l.name.toLowerCase().includes('estante'))?.type;
+                if (!levelType) return [];
+                return state.allLocations.filter(l => l.type === levelType && l.parentId && rackIds.has(l.parentId)).map(l => ({ value: String(l.id), label: l.name }));
+            }, [state.allLocations, state.rackFilter, state.warehouseSettings]),
             availableColumns: [
                 { id: 'locationPath', label: 'Ubicación', sortable: true },
                 { id: 'status', label: 'Estado', sortable: true },
@@ -251,6 +303,18 @@ export const useOccupancyReport = () => {
                     case 'items':
                         if (item.items.length === 0) return { content: <span className="text-muted-foreground">-</span> };
                         const firstItem = item.items[0];
+                        
+                        if (item.status === 'Ocupado') {
+                            return { 
+                                content: (
+                                    <div>
+                                        <p>{firstItem.productDescription}</p>
+                                        <p className="text-xs text-muted-foreground">{firstItem.productId}</p>
+                                    </div>
+                                )
+                            };
+                        }
+
                         const content = (
                             <div className="flex items-center gap-2">
                                 <span>{firstItem.productDescription} {firstItem.quantity !== undefined && `(${firstItem.quantity})`}</span>
