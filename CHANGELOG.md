@@ -23,6 +23,28 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [2.3.0] - Publicado
+
+### Funcionalidades y Mejoras Principales
+
+-   **[Funcionalidad Clave] Nuevo Flujo de Aprobación para Ingresos de Mercadería:**
+    -   Se ha introducido un sistema de estados para la herramienta **"Administración de Ingresos"**.
+    -   **Nuevos Estados:** Los ingresos creados desde el "Asistente de Recepción" ahora entran en estado **"Pendiente"**.
+    -   **Revisión y Aplicación:** Un supervisor puede ahora "Revisar y Aplicar" un ingreso pendiente. En esta etapa, se pueden **editar todos los campos**, incluyendo `Producto`, `Cantidad`, `Lote` y, crucialmente, añadir el **Nº de Documento ERP** que se genera horas después de la recepción física. Al "Aplicar", el registro se actualiza y se marca como final.
+    -   **Corrección Post-Aplicación:** Una vez que un ingreso está "Aplicado", el flujo de "Corrección" funciona como antes: anula el ingreso original y crea uno nuevo, manteniendo una trazabilidad completa de los cambios.
+    -   Este cambio proporciona la flexibilidad necesaria para completar la información del ERP sin perder el control ni la capacidad de auditoría.
+
+-   **[UX Reportes] Mejoras en Reporte de Ocupación:**
+    -   La columna "Artículos" en el "Reporte de Ocupación" ahora muestra directamente el **código del artículo** además de la descripción cuando una ubicación está ocupada por un solo producto.
+    -   Se han añadido nuevos **filtros jerárquicos** por **Rack** y **Nivel**, permitiendo un análisis mucho más granular del estado de las ubicaciones.
+    -   El buscador del reporte ahora también indexa el código del artículo.
+
+### Mejoras Internas y de Estabilidad
+
+-   **[Estabilidad]** Se corrigió un error de compilación (`Property 'disabled' does not exist`) relacionado con el componente de filtro múltiple, mejorando la estabilidad de la página de reportes.
+
+---
+
 ## [2.2.0] - Publicado
 
 ### Funcionalidades y Mejoras Principales

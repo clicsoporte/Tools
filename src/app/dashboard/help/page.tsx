@@ -323,7 +323,7 @@ export default function HelpPage() {
                 <h4 className="font-semibold text-lg pt-2 border-t">Configuración para Administradores</h4>
                 <ul className="list-disc space-y-3 pl-6">
                     <li>
-                        <strong>Paso 1: Configurar el SMTP.</strong> Para que el sistema pueda enviar correos, un administrador debe ir a <strong>Administración &gt; Configuración de Correo</strong>.
+                        <strong>Paso 1: Configurar el SMTP.</strong> Para que el sistema pueda enviar correos, un administrador debe ir a <strong>Administración > Configuración de Correo</strong>.
                     </li>
                     <li>
                         <strong>Campos Requeridos:</strong> Se deben ingresar los datos del servidor de correo de la empresa (Host, Puerto, Usuario, Contraseña y Seguridad). Estos datos se guardan de forma segura.
@@ -373,7 +373,7 @@ export default function HelpPage() {
                         <strong>Gestión para Administradores:</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>Los usuarios con permiso `admin:suggestions:read` verán un contador de sugerencias no leídas en el botón de &quot;Configuración&quot; del menú lateral.</li>
-                            <li>Dentro de <strong>Administración &gt; Buzón de Sugerencias</strong>, podrán ver todas las sugerencias enviadas, quién las envió y cuándo.</li>
+                            <li>Dentro de <strong>Administración > Buzón de Sugerencias</strong>, podrán ver todas las sugerencias enviadas, quién las envió y cuándo.</li>
                             <li>Las sugerencias nuevas aparecen resaltadas. Pueden marcarlas como leídas (<CheckCircle className="inline h-4 w-4 text-green-600"/>) o eliminarlas (<Trash2 className="inline h-4 w-4 text-red-600"/>).</li>
                         </ul>
                     </li>
@@ -512,7 +512,7 @@ export default function HelpPage() {
                     <strong>Tooltips Informativos:</strong> Si un botón de acción (como &quot;Aprobar&quot; o &quot;Reabrir&quot;) está desactivado, ahora puedes pasar el cursor sobre él para ver un mensaje que explica por qué no está disponible (ej: &quot;Solo para solicitudes aprobadas&quot;).
                 </li>
                 <li>
-                    <strong>Pasos Opcionales:</strong> En <strong>Administración &gt; Config. Compras</strong>, puedes activar el paso de &quot;Recibido en Bodega&quot; y el paso final &quot;Ingresado en ERP&quot; para un control más detallado del proceso logístico.
+                    <strong>Pasos Opcionales:</strong> En <strong>Administración > Config. Compras</strong>, puedes activar el paso de &quot;Recibido en Bodega&quot; y el paso final &quot;Ingresado en ERP&quot; para un control más detallado del proceso logístico.
                 </li>
                 <li>
                     <strong>Exportación:</strong> Puedes generar un archivo **PDF** o **Excel (.xlsx)** del reporte actual, incluyendo los filtros que hayas aplicado.
@@ -646,7 +646,12 @@ export default function HelpPage() {
                         <strong>Búsqueda Rápida (<QrCode className="inline h-4 w-4"/>):</strong> Ideal para dispositivos con escáner. Simplemente escanea el código de un artículo para ver instantáneamente su información, existencias y ubicaciones físicas y del ERP. El campo de búsqueda se limpia automáticamente, listo para el siguiente escaneo.
                     </li>
                     <li>
-                        <strong>Administración de Ingresos (<RotateCcw className="inline h-4 w-4 text-red-500"/>):</strong> Si se recibió un producto con un código incorrecto, esta herramienta permite buscar esa unidad de inventario por múltiples criterios (fecha, lote, producto, etc.) y cambiarla por el producto correcto. El sistema anula la unidad original y crea una nueva con los datos corregidos, generando los movimientos de inventario de entrada y salida para una auditoría completa.
+                        <strong>Administración de Ingresos (<RotateCcw className="inline h-4 w-4 text-red-500"/>):</strong>
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                            <li>Permite buscar un ingreso ya registrado por múltiples criterios (fecha, lote, producto, etc.).</li>
+                            <li>**Nuevo Flujo de Aprobación:** Los ingresos entran en estado **"Pendiente"**. Un supervisor puede **"Revisar y Aplicar"** el ingreso, editando cualquier campo y añadiendo el **Nº de Documento ERP**.</li>
+                            <li>Una vez "Aplicado", el ingreso solo puede ser **"Corregido"**, lo que anula el registro original y crea uno nuevo, manteniendo una trazabilidad completa.</li>
+                        </ul>
                     </li>
                      <li>
                         <strong>Catálogo Clientes y Artículos (<BookUser className="inline h-4 w-4 text-teal-600"/>):</strong> Esta es la herramienta central para definir qué producto va en qué ubicación y si pertenece a un cliente en específico.
@@ -660,7 +665,7 @@ export default function HelpPage() {
                         <strong>Asistente de Poblado (<Wand2 className="inline h-4 w-4 text-indigo-500" />):</strong> Permite poblar masivamente las ubicaciones de un rack de forma guiada, ideal para el ingreso de mercadería nueva. Incluye un sistema para retomar sesiones interrumpidas y ahora muestra un indicador de `(Finalizado)` en los niveles que ya se completaron.
                     </li>
                     <li>
-                        <strong>Asistente de Recepción (<PackageCheck className="inline h-4 w-4 text-emerald-600"/>):</strong> Registra producto terminado o compras y genera etiquetas QR para las nuevas unidades.
+                        <strong>Asistente de Recepción (<PackageCheck className="inline h-4 w-4 text-emerald-600"/>):</strong> Registra producto terminado o compras y genera etiquetas QR para las nuevas unidades. Los ingresos creados aquí entrarán en estado "Pendiente".
                     </li>
                      <li>
                         <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite a los bodegueros registrar conteos físicos de un producto en una ubicación específica. Ahora incluye un **&quot;Modo Escáner&quot;** que, al leer una etiqueta QR con formato `ID_UBICACION&gt;ID_PRODUCTO`, carga automáticamente ambos campos, agilizando el proceso.
@@ -813,7 +818,7 @@ export default function HelpPage() {
                  <h4 className="font-semibold text-lg">Proceso de Actualización Seguro</h4>
                 <ol className="list-decimal space-y-3 pl-6">
                     <li>
-                        <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve a <strong>Administración &gt; Mantenimiento</strong> y haz clic en <strong>&quot;Crear Punto de Restauración&quot;</strong>. Esto generará una copia segura de todas las bases de datos del sistema.
+                        <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve a <strong>Administración > Mantenimiento</strong> y haz clic en <strong>&quot;Crear Punto de Restauración&quot;</strong>. Esto generará una copia segura de todas las bases de datos del sistema.
                     </li>
                     <li>
                         <strong>Paso 2: Reemplazar Archivos.</strong> Detén la aplicación (por ejemplo, usando `pm2 stop clic-tools` en Linux o deteniendo el sitio en IIS). Luego, borra todos los archivos y carpetas de la versión anterior **excepto** la carpeta `dbs/` y, si existe, el archivo `.env.local`. Después, copia todos los archivos de la nueva versión en su lugar.
@@ -822,7 +827,7 @@ export default function HelpPage() {
                         <strong>Paso 3: Actualizar y Reconstruir.</strong> Abre una terminal en la carpeta del proyecto, ejecuta `npm install --omit=dev` para instalar cualquier nueva dependencia y luego `npm run build` para compilar la nueva versión.
                     </li>
                     <li>
-                        <strong>Paso 4: Reiniciar y Verificar.</strong> Vuelve a iniciar la aplicación (ej: `pm2 start clic-tools`). Al arrancar, el sistema detectará las diferencias y añadirá las nuevas tablas o columnas automáticamente. Luego, ve a <strong>Administración &gt; Mantenimiento &gt; Centro de Verificación</strong> y ejecuta la auditoría para confirmar que todas las bases de datos tienen la estructura correcta.
+                        <strong>Paso 4: Reiniciar y Verificar.</strong> Vuelve a iniciar la aplicación (ej: `pm2 start clic-tools`). Al arrancar, el sistema detectará las diferencias y añadirá las nuevas tablas o columnas automáticamente. Luego, ve a <strong>Administración > Mantenimiento > Centro de Verificación</strong> y ejecuta la auditoría para confirmar que todas las bases de datos tienen la estructura correcta.
                     </li>
                 </ol>
                 <Alert variant="destructive">

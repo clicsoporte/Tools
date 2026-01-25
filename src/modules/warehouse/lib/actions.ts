@@ -31,6 +31,7 @@ import {
     forceReleaseLock as forceReleaseLockServer,
     getChildLocations as getChildLocationsServer,
     correctInventoryUnit as correctInventoryUnitServer,
+    applyInventoryUnit as applyInventoryUnitServer,
     searchInventoryUnits as searchInventoryUnitsServer,
 } from './db';
 import { getStockSettings as getStockSettingsDb, saveStockSettings as saveStockSettingsDb } from '@/modules/core/lib/db';
@@ -104,10 +105,21 @@ export const getWarehouseData = async () => getWarehouseDataServer();
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);
 
 // --- Inventory Unit Actions ---
-export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive'>): Promise<InventoryUnit> => addInventoryUnitServer(unit);
+export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive' | 'status'>): Promise<InventoryUnit> => addInventoryUnitServer(unit);
 export const getInventoryUnits = async (): Promise<InventoryUnit[]> => getInventoryUnitsServer();
 export const deleteInventoryUnit = async (id: number): Promise<void> => deleteInventoryUnitServer(id);
 export const getInventoryUnitById = async (id: string | number): Promise<InventoryUnit | null> => getInventoryUnitByIdServer(id);
+
+export const applyInventoryUnit = async (payload: {
+    unitId: number;
+    newProductId: string;
+    newQuantity: number;
+    newHumanReadableId: string;
+    newDocumentId: string;
+    newErpDocumentId: string;
+    userId: number;
+    userName: string;
+}): Promise<void> => applyInventoryUnitServer(payload);
 
 export const correctInventoryUnit = async (payload: {
     unitId: number;
