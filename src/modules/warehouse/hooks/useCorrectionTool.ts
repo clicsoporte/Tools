@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { correctInventoryUnit, searchInventoryUnits } from '@/modules/warehouse/lib/actions';
+import { correctInventoryUnit, searchInventoryUnits, applyInventoryUnit } from '@/modules/warehouse/lib/actions';
 import type { InventoryUnit, Product, DateRange } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -43,7 +43,7 @@ const emptyEditableUnit: Partial<InventoryUnit> = {
 };
 
 export const useCorrectionTool = () => {
-    const { isAuthorized } = useAuthorization(['warehouse:correction:execute']);
+    const { hasPermission } = useAuthorization(['warehouse:correction:execute', 'warehouse:correction:apply']);
     const { toast } = useToast();
     const { user, products: authProducts } = useAuth();
 
@@ -139,22 +139,38 @@ export const useCorrectionTool = () => {
         
         updateState({ isSubmitting: true });
         try {
-            await correctInventoryUnit({
-                unitId: state.unitToCorrect.id,
-                newProductId: state.editableUnit.productId ?? state.unitToCorrect.productId,
-                newQuantity: state.editableUnit.quantity ?? state.unitToCorrect.quantity,
-                newHumanReadableId: state.editableUnit.humanReadableId ?? state.unitToCorrect.humanReadableId ?? '',
-                newDocumentId: state.editableUnit.documentId ?? state.unitToCorrect.documentId ?? '',
-                newErpDocumentId: state.editableUnit.erpDocumentId ?? state.unitToCorrect.erpDocumentId ?? '',
-                userId: user.id,
-                userName: user.name,
-            });
-            toast({ title: "Corrección Exitosa", description: `La unidad ${state.unitToCorrect.unitCode} ha sido actualizada.` });
+            if (state.unitToCorrect.status === 'pending') {
+                // APPLY flow
+                await applyInventoryUnit({
+                    unitId: state.unitToCorrect.id,
+                    newProductId: state.editableUnit.productId ?? state.unitToCorrect.productId,
+                    newQuantity: state.editableUnit.quantity ?? state.unitToCorrect.quantity,
+                    newHumanReadableId: state.editableUnit.humanReadableId ?? state.unitToCorrect.humanReadableId ?? '',
+                    newDocumentId: state.editableUnit.documentId ?? state.unitToCorrect.documentId ?? '',
+                    newErpDocumentId: state.editableUnit.erpDocumentId ?? state.unitToCorrect.erpDocumentId ?? '',
+                    updatedBy: user.name,
+                });
+                toast({ title: "Ingreso Aplicado", description: `El ingreso ${state.unitToCorrect.receptionConsecutive} ha sido finalizado.` });
+            } else {
+                // CORRECTION flow
+                 await correctInventoryUnit({
+                    unitId: state.unitToCorrect.id,
+                    newProductId: state.editableUnit.productId ?? state.unitToCorrect.productId,
+                    newQuantity: state.editableUnit.quantity ?? state.unitToCorrect.quantity,
+                    newHumanReadableId: state.editableUnit.humanReadableId ?? state.unitToCorrect.humanReadableId ?? '',
+                    newDocumentId: state.editableUnit.documentId ?? state.unitToCorrect.documentId ?? '',
+                    newErpDocumentId: state.editableUnit.erpDocumentId ?? state.unitToCorrect.erpDocumentId ?? '',
+                    userId: user.id,
+                    userName: user.name,
+                });
+                toast({ title: "Corrección Exitosa", description: `La unidad ${state.unitToCorrect.unitCode} ha sido actualizada.` });
+            }
+            
             handleModalOpenChange(false);
-            await handleSearch(); // Refresh search results after correction
+            await handleSearch(); // Refresh search results
         } catch (error: any) {
-            logError('Error executing inventory correction', { error: error.message, payload: { unitId: state.unitToCorrect.id, newProductId: state.newSelectedProduct?.id, newQuantity: state.editableUnit.quantity, userId: user.id } });
-            toast({ title: "Error en la Corrección", description: error.message, variant: "destructive" });
+            logError('Error executing inventory action', { error: error.message, unitId: state.unitToCorrect.id });
+            toast({ title: "Error en la Operación", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isSubmitting: false });
         }
@@ -198,6 +214,7 @@ export const useCorrectionTool = () => {
     }
 
     const selectors = {
+        hasPermission,
         productOptions: useMemo(() => {
             if (debouncedNewProductSearch.length < 2) return [];
             const searchLower = debouncedNewProductSearch.toLowerCase();

@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX, Info } from 'lucide-react';
+import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX, Info, Check } from 'lucide-react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -39,7 +39,6 @@ export default function CorrectionPage() {
         isConfirmModalOpen,
         newProductSearch,
         isNewProductSearchOpen,
-        newSelectedProduct,
         editableUnit,
     } = state;
 
@@ -52,8 +51,8 @@ export default function CorrectionPage() {
             <div className="mx-auto max-w-7xl space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Search className="h-6 w-6"/>Buscar Ingresos para Corregir</CardTitle>
-                        <CardDescription>Usa los filtros para encontrar la unidad de inventario que necesitas corregir.</CardDescription>
+                        <CardTitle className="flex items-center gap-2"><Search className="h-6 w-6"/>Buscar Ingresos</CardTitle>
+                        <CardDescription>Usa los filtros para encontrar la unidad de inventario que necesitas aplicar o corregir.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -102,6 +101,7 @@ export default function CorrectionPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
+                                            <TableHead>Estado</TableHead>
                                             <TableHead>Trazabilidad</TableHead>
                                             <TableHead>Producto</TableHead>
                                             <TableHead>Lote/ID Físico</TableHead>
@@ -118,6 +118,13 @@ export default function CorrectionPage() {
                                             const isVoided = !!unit.correctionConsecutive;
                                             return (
                                                 <TableRow key={unit.id} className={cn(isVoided && 'bg-destructive/10 text-destructive')}>
+                                                    <TableCell>
+                                                        {unit.status === 'pending' ? (
+                                                            <Badge variant="secondary">Pendiente</Badge>
+                                                        ) : (
+                                                            <Badge variant="default" className="bg-green-600">Aplicado</Badge>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell className="font-mono text-xs">
                                                         {unit.correctionConsecutive ? (
                                                             <div className="flex flex-col">
@@ -145,10 +152,13 @@ export default function CorrectionPage() {
                                                     <TableCell>{unit.annulledBy || ''}</TableCell>
                                                     <TableCell>{unit.annulledAt ? format(parseISO(unit.annulledAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
                                                     <TableCell className="text-right whitespace-nowrap">
-                                                        {!isVoided && (
+                                                         {isVoided ? null : unit.status === 'pending' ? (
+                                                            <Button variant="default" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="whitespace-nowrap bg-blue-600 hover:bg-blue-700" disabled={!selectors.hasPermission('warehouse:correction:apply')}>
+                                                                <Check className="mr-2 h-4 w-4"/> Revisar y Aplicar
+                                                            </Button>
+                                                        ) : (
                                                             <Button variant="outline" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="whitespace-nowrap">
-                                                                <RotateCcw className="mr-2 h-4 w-4"/>
-                                                                Corregir
+                                                                <RotateCcw className="mr-2 h-4 w-4"/> Corregir
                                                             </Button>
                                                         )}
                                                     </TableCell>
@@ -165,10 +175,14 @@ export default function CorrectionPage() {
                  <Dialog open={isConfirmModalOpen} onOpenChange={actions.handleModalOpenChange}>
                     <DialogContent className="sm:max-w-3xl" aria-describedby="correction-dialog-description">
                         <DialogHeader>
-                            <DialogTitle>Corregir Ingreso de Unidad</DialogTitle>
+                            <DialogTitle>
+                                {unitToCorrect?.status === 'pending' ? 'Revisar y Aplicar Ingreso' : 'Corregir Ingreso de Unidad'}
+                            </DialogTitle>
                             <DialogDescription id="correction-dialog-description">
-                                Modifica los campos necesarios para la unidad <strong>{unitToCorrect?.receptionConsecutive}</strong>.
-                                Al guardar, se anulará la unidad original y se creará una nueva con esta información.
+                                 {unitToCorrect?.status === 'pending' ? 
+                                    `Revisa y completa los datos de la unidad ${unitToCorrect?.receptionConsecutive}. Al aplicar, el ingreso quedará finalizado.`
+                                    : `Modifica los campos necesarios para la unidad ${unitToCorrect?.receptionConsecutive}. Se anulará la unidad original y se creará una nueva.`
+                                 }
                             </DialogDescription>
                         </DialogHeader>
                         {unitToCorrect && (
@@ -180,12 +194,11 @@ export default function CorrectionPage() {
                                         <p><strong>Cantidad:</strong> {unitToCorrect.quantity}</p>
                                         <p><strong>Lote/ID:</strong> {unitToCorrect.humanReadableId || 'N/A'}</p>
                                         <p><strong>Documento:</strong> {unitToCorrect.documentId || 'N/A'}</p>
-                                        <p><strong>Doc. ERP:</strong> {unitToCorrect.erpDocumentId || 'N/A'}</p>
                                      </div>
                                 </div>
                                 
                                 <div className="space-y-4">
-                                    <h4 className="font-semibold">Datos a Corregir</h4>
+                                    <h4 className="font-semibold">Datos a Modificar</h4>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="edit-product">Producto</Label>
@@ -218,20 +231,15 @@ export default function CorrectionPage() {
                                     </div>
                                 </div>
 
-                                <Alert variant="destructive">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>¡Acción Irreversible!</AlertTitle>
-                                    <AlertDescription>
-                                        Al continuar, la unidad original será anulada y se creará una nueva unidad con los datos ingresados arriba. Esta acción quedará registrada en el historial de movimientos.
-                                    </AlertDescription>
-                                </Alert>
-                                <Alert>
-                                    <Info className="h-4 w-4" />
-                                    <AlertTitle>Nota sobre Anulación</AlertTitle>
-                                    <AlertDescription>
-                                       Si guardas sin modificar ningún dato (producto, cantidad, lote, etc.), la acción se interpretará como una <span className="font-semibold">anulación simple</span>. La unidad original será anulada y no se creará un nuevo ingreso.
-                                    </AlertDescription>
-                                </Alert>
+                                {unitToCorrect?.status !== 'pending' && (
+                                    <Alert variant="destructive">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        <AlertTitle>¡Acción Irreversible!</AlertTitle>
+                                        <AlertDescription>
+                                            Al continuar, la unidad original será anulada y se creará una nueva unidad con los datos ingresados arriba. Esta acción quedará registrada en el historial de movimientos.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
                             </div>
                         )}
                         <DialogFooter className="justify-between">
@@ -250,22 +258,26 @@ export default function CorrectionPage() {
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                         <Button disabled={!editableUnit.quantity || editableUnit.quantity < 0 || isSubmitting}>
-                                            <Save className="mr-2 h-4 w-4"/>
-                                            Aplicar Corrección
+                                            {unitToCorrect?.status === 'pending' ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
+                                            {unitToCorrect?.status === 'pending' ? 'Aplicar Ingreso' : 'Aplicar Corrección'}
                                         </Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Confirmar Corrección?</AlertDialogTitle>
+                                            <AlertDialogTitle>¿Confirmar Cambios?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                Se va a generar un movimiento de anulación para el ingreso original y se creará un nuevo ingreso con los datos corregidos. ¿Estás seguro?
+                                                {unitToCorrect?.status === 'pending' ?
+                                                    "Se guardarán los cambios y el ingreso quedará marcado como 'Aplicado'."
+                                                    : "Se va a generar un movimiento de anulación para el ingreso original y se creará un nuevo ingreso con los datos corregidos."
+                                                }
+                                                ¿Estás seguro?
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>No, cancelar</AlertDialogCancel>
                                             <AlertDialogAction onClick={actions.handleConfirmCorrection} disabled={isSubmitting}>
                                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                                Sí, Corregir
+                                                Sí, Continuar
                                             </AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
