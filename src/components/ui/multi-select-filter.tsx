@@ -35,6 +35,7 @@ interface MultiSelectFilterProps {
   onSelectedChange: (selected: string[]) => void;
   title: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function MultiSelectFilter({
@@ -43,6 +44,7 @@ export function MultiSelectFilter({
   onSelectedChange,
   title,
   className,
+  disabled = false,
 }: MultiSelectFilterProps) {
   const [open, setOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -91,6 +93,7 @@ export function MultiSelectFilter({
           role="combobox"
           aria-expanded={open}
           className={cn("w-full md:w-[240px] justify-between", className)}
+          disabled={disabled}
         >
           <div className="flex items-center gap-1 truncate">
             <PlusCircle className="mr-2 h-4 w-4 shrink-0" />
