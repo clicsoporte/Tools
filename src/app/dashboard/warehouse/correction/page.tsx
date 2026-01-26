@@ -151,7 +151,7 @@ export default function CorrectionPage() {
                                                     <TableCell>{unit.createdAt ? format(parseISO(unit.createdAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
                                                     <TableCell>{unit.annulledBy || ''}</TableCell>
                                                     <TableCell>{unit.annulledAt ? format(parseISO(unit.annulledAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
-                                                    <TableCell className="text-right whitespace-nowrap">
+                                                    <TableCell className="text-right">
                                                         <div className="flex items-center justify-end gap-1">
                                                             {isVoided ? null : unit.status === 'pending' ? (
                                                                 <Button variant="default" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="whitespace-nowrap bg-blue-600 hover:bg-blue-700" disabled={!selectors.hasPermission('warehouse:correction:apply')}>
