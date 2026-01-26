@@ -115,7 +115,7 @@ export default function WarehouseSearchPage() {
         );
     }, [allItemLocations]);
 
-    const renderLocationPath = (locationId: number | null | undefined, locations: WarehouseLocation[]) => {
+    const renderLocationPath = useCallback((locationId: number | null | undefined, locations: WarehouseLocation[]) => {
         if (!locationId) return <span className="text-muted-foreground italic">Sin ubicación</span>;
         const path: WarehouseLocation[] = [];
         let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
@@ -142,7 +142,7 @@ export default function WarehouseSearchPage() {
                 {isMixed && <Badge variant="destructive" className="ml-2">Mixta</Badge>}
             </div>
         );
-    };
+    }, [mixedLocationIds]);
     
     const handleClearFilters = () => {
         setSearchTerm('');
@@ -268,7 +268,7 @@ export default function WarehouseSearchPage() {
         
         return searchResultItems.sort((a, b) => a.product.id.localeCompare(b.product.id));
 
-    }, [hasActiveFilters, products, allItemLocations, customers, inventory, stock, locations, debouncedSearchTerm, classificationFilter, warehouseFilter, locationFilter, isAuthReady, mixedLocationIds]);
+    }, [hasActiveFilters, products, allItemLocations, customers, inventory, stock, locations, debouncedSearchTerm, classificationFilter, warehouseFilter, locationFilter, isAuthReady, renderLocationPath]);
     
     const handlePrintLabel = async (product: Product, location: WarehouseLocation) => {
         if (!user || !companyData) return;

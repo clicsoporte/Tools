@@ -127,15 +127,14 @@ export const useCorrectionTool = () => {
                 const prefs = await getUserPreferences(user.id, 'correctionToolPrefs');
                 const [settings, locations] = await Promise.all([getWarehouseSettings(), getLocations()]);
                 
-                const newState: Partial<State> = {
-                    visibleColumns: prefs?.visibleColumns || state.visibleColumns,
+                updateState(prevState => ({
+                    visibleColumns: prefs?.visibleColumns || prevState.visibleColumns,
                     filters: {
-                        ...state.filters,
+                        ...prevState.filters,
                         statusFilter: prefs?.statusFilter === 'all' ? 'all' : 'pending',
                     }
-                };
+                }));
 
-                updateState(newState);
                 setWarehouseSettings(settings);
                 setAllLocations(locations);
             }

@@ -90,7 +90,7 @@ export default function SimpleWarehouseSearchPage() {
         );
     }, [allItemLocations]);
     
-    const renderLocationPath = (locationId: number | null | undefined, locations: WarehouseLocation[]) => {
+    const renderLocationPath = useCallback((locationId: number | null | undefined, locations: WarehouseLocation[]) => {
         if (!locationId) return <span className="text-muted-foreground italic">Sin ubicación</span>;
         const path: WarehouseLocation[] = [];
         let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
@@ -117,7 +117,7 @@ export default function SimpleWarehouseSearchPage() {
                 {isMixed && <Badge variant="destructive" className="ml-2">Mixta</Badge>}
             </div>
         );
-    };
+    }, [mixedLocationIds]);
     
     useEffect(() => {
         setTitle("Búsqueda Rápida de Almacén");
@@ -229,7 +229,7 @@ export default function SimpleWarehouseSearchPage() {
     const handlePrintLabel = async (product: Product, location: WarehouseLocation) => {
         if (!user || !companyData) return;
         try {
-            const newUnit = await addInventoryUnit({ productId: product.id, locationId: location.id, createdBy: user.name, notes: 'Etiqueta generada desde búsqueda simple.', quantity: 1 });
+            const newUnit = await addInventoryUnit({ productId: product.id, locationId: location.id, createdBy: user.name, notes: 'Etiqueta generada desde búsqueda simple.' });
             const qrCodeDataUrl = await QRCode.toDataURL(newUnit.productId, { errorCorrectionLevel: 'H', width: 200 });
 
             const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 3] });
