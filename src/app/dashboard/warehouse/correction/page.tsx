@@ -98,7 +98,7 @@ export default function CorrectionPage() {
                         </CardHeader>
                         <CardContent>
                             <ScrollArea className="h-96">
-                                <Table>
+                                <Table className="min-w-max">
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Estado</TableHead>
