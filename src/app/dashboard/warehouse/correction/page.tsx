@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -97,9 +96,9 @@ export default function CorrectionPage() {
                             <CardTitle>Resultados de la Búsqueda</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ScrollArea className="h-96 relative w-full overflow-auto">
-                                <Table className="min-w-max">
-                                    <TableHeader>
+                             <div className="relative h-96 w-full overflow-auto rounded-md border">
+                                <Table>
+                                    <TableHeader className="sticky top-0 z-10 bg-background">
                                         <TableRow>
                                             <TableHead>Estado</TableHead>
                                             <TableHead>Trazabilidad</TableHead>
@@ -172,7 +171,7 @@ export default function CorrectionPage() {
                                         })}
                                     </TableBody>
                                 </Table>
-                            </ScrollArea>
+                            </div>
                         </CardContent>
                     </Card>
                 )}
