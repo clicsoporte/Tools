@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX, Info, Check } from 'lucide-react';
+import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX, Info, Check, Printer } from 'lucide-react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -152,15 +152,20 @@ export default function CorrectionPage() {
                                                     <TableCell>{unit.annulledBy || ''}</TableCell>
                                                     <TableCell>{unit.annulledAt ? format(parseISO(unit.annulledAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
                                                     <TableCell className="text-right whitespace-nowrap">
-                                                         {isVoided ? null : unit.status === 'pending' ? (
-                                                            <Button variant="default" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="whitespace-nowrap bg-blue-600 hover:bg-blue-700" disabled={!selectors.hasPermission('warehouse:correction:apply')}>
-                                                                <Check className="mr-2 h-4 w-4"/> Revisar y Aplicar
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            {isVoided ? null : unit.status === 'pending' ? (
+                                                                <Button variant="default" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="whitespace-nowrap bg-blue-600 hover:bg-blue-700" disabled={!selectors.hasPermission('warehouse:correction:apply')}>
+                                                                    <Check className="mr-2 h-4 w-4"/> Revisar y Aplicar
+                                                                </Button>
+                                                            ) : (
+                                                                <Button variant="outline" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="whitespace-nowrap">
+                                                                    <RotateCcw className="mr-2 h-4 w-4"/> Corregir
+                                                                </Button>
+                                                            )}
+                                                            <Button variant="ghost" size="icon" onClick={() => actions.handlePrintTicket(unit)} disabled={isSubmitting} title="Imprimir Boleta">
+                                                                <Printer className="h-4 w-4" />
                                                             </Button>
-                                                        ) : (
-                                                            <Button variant="outline" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="whitespace-nowrap">
-                                                                <RotateCcw className="mr-2 h-4 w-4"/> Corregir
-                                                            </Button>
-                                                        )}
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             );
