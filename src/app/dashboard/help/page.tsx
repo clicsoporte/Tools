@@ -692,7 +692,7 @@ export default function HelpPage() {
                         <strong>Asistente de Recepción (<PackageCheck className="inline h-4 w-4 text-emerald-600"/>):</strong> Registra producto terminado o compras y genera etiquetas QR para las nuevas unidades. Los ingresos creados aquí entrarán en estado &quot;Pendiente&quot;.
                     </li>
                      <li>
-                        <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite a los bodegueros registrar conteos físicos de un producto en una ubicación específica. Ahora incluye un **&quot;Modo Escáner&quot;** que, al leer una etiqueta QR con formato `ID_UBICACION>ID_PRODUCTO`, carga automáticamente ambos campos, agilizando el proceso.
+                        <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite a los bodegueros registrar conteos físicos de un producto en una ubicación específica. Ahora incluye un **&quot;Modo Escáner&quot;** que, al leer una etiqueta QR con formato `ID_UBICACION&gt;ID_PRODUCTO`, carga automáticamente ambos campos, agilizando el proceso.
                     </li>
                      <li>
                         <strong>Reporte de Inventario Físico (<ClipboardList className="inline h-4 w-4"/>):</strong> (En Analíticas) Es la contraparte de la toma de inventario. Muestra una tabla comparando la `Cantidad Contada` vs. el `Stock del ERP` y resalta las diferencias.
