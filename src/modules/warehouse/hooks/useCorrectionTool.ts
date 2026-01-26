@@ -360,9 +360,31 @@ export const useCorrectionTool = () => {
         toast({ title: 'Preferencias Guardadas' });
     };
 
+    const actions = {
+        setFilter: (field: keyof State['filters'], value: any) => {
+            updateState({
+                filters: { ...state.filters, [field]: value },
+            });
+        },
+        handleSearch,
+        handleClearFilters,
+        handleSelectNewProduct,
+        handleModalOpenChange,
+        handleConfirmCorrection,
+        setUnitToCorrect,
+        setNewProductSearch: (term: string) => updateState({ newProductSearch: term }),
+        setNewProductSearchOpen: (isOpen: boolean) => updateState({ isNewProductSearchOpen: isOpen }),
+        setEditableUnitField,
+        resetEditableUnit,
+        handleClearForm,
+        handleSort,
+        handleColumnVisibilityChange,
+        savePreferences,
+        handlePrintTicket,
+    };
+
     const selectors = {
         hasPermission,
-        availableColumns,
         productOptions: useMemo(() => {
             if (debouncedNewProductSearch.length < 2) return [];
             const searchLower = debouncedNewProductSearch.toLowerCase();
@@ -385,9 +407,6 @@ export const useCorrectionTool = () => {
                                state.editableUnit.erpDocumentId !== (state.unitToCorrect.erpDocumentId || '');
             return hasChanged;
         }, [state.editableUnit, state.unitToCorrect]),
-        visibleColumnsData: useMemo(() => {
-            return state.visibleColumns.map(id => availableColumns.find(c => c.id === id)).filter(Boolean) as { id: string; label: string; }[];
-        }, [state.visibleColumns]),
         sortedResults: useMemo(() => {
             const data = [...state.searchResults];
             data.sort((a, b) => {
@@ -410,6 +429,10 @@ export const useCorrectionTool = () => {
             });
             return data;
         }, [state.searchResults, state.sortKey, state.sortDirection]),
+        availableColumns,
+        visibleColumnsData: useMemo(() => {
+            return state.visibleColumns.map(id => availableColumns.find(c => c.id === id)).filter(Boolean) as { id: string; label: string; }[];
+        }, [state.visibleColumns]),
         getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string, variant?: 'default' | 'secondary' | 'destructive' | 'outline' } => {
             switch (colId) {
                 case 'status': return { type: 'badge', content: item.status, variant: item.status === 'pending' ? 'secondary' : 'default', className: item.status === 'applied' ? 'bg-green-600' : '' };
