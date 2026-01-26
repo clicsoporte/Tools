@@ -97,7 +97,7 @@ export default function CorrectionPage() {
                             <CardTitle>Resultados de la Búsqueda</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ScrollArea className="h-96">
+                            <ScrollArea className="h-96 relative w-full overflow-auto">
                                 <Table className="min-w-max">
                                     <TableHeader>
                                         <TableRow>
@@ -154,7 +154,7 @@ export default function CorrectionPage() {
                                                     <TableCell className="text-right">
                                                         <div className="flex items-center justify-end gap-1">
                                                             {isVoided ? null : unit.status === 'pending' ? (
-                                                                <Button variant="default" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="whitespace-nowrap bg-blue-600 hover:bg-blue-700" disabled={!selectors.hasPermission('warehouse:correction:apply')}>
+                                                                <Button variant="default" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap" disabled={!selectors.hasPermission('warehouse:correction:apply')}>
                                                                     <Check className="mr-2 h-4 w-4"/> Revisar y Aplicar
                                                                 </Button>
                                                             ) : (
