@@ -100,28 +100,27 @@ export function usePhysicalInventoryReport() {
             updateState({ isLoading: false });
         }
     }, [state.dateRange, toast, updateState]);
+    
+    const loadPrefsAndData = useCallback(async () => {
+        if(user) {
+           const prefs = await getUserPreferences(user.id, 'physicalInventoryReportPrefs');
+           if (prefs) {
+               updateState({
+                   visibleColumns: prefs.visibleColumns || availableColumns.map(c => c.id),
+                   classificationFilter: prefs.classificationFilter || [],
+               });
+           }
+       }
+       await fetchData();
+       setIsInitialLoading(false);
+    }, [user, updateState, fetchData]);
 
     useEffect(() => {
         setTitle("Reporte de Inventario Físico");
-        const loadPrefsAndData = async () => {
-            if(user) {
-                const prefs = await getUserPreferences(user.id, 'physicalInventoryReportPrefs');
-                if (prefs) {
-                    updateState({
-                        visibleColumns: prefs.visibleColumns || availableColumns.map(c => c.id),
-                        classificationFilter: prefs.classificationFilter || [],
-                    });
-                }
-            }
-            await fetchData();
-            setIsInitialLoading(false);
-        };
-
         if (isAuthorized) {
             loadPrefsAndData();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthorized, user?.id]);
+    }, [setTitle, isAuthorized, loadPrefsAndData]);
 
     const sortedData = useMemo(() => {
         let data: PhysicalInventoryComparisonItem[] = [...state.reportData];

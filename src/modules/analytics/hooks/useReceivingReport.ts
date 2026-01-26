@@ -97,24 +97,24 @@ export function useReceivingReport() {
             updateState({ isLoading: false });
         }
     }, [state.dateRange, toast, updateState]);
+
+    const loadPrefsAndData = useCallback(async () => {
+        if(user) {
+           const prefs = await getUserPreferences(user.id, 'receivingReportPrefs');
+           if (prefs && prefs.visibleColumns) {
+               updateState({ visibleColumns: prefs.visibleColumns });
+           }
+       }
+       await fetchData();
+       setIsInitialLoading(false);
+    }, [user, fetchData, updateState]);
     
     useEffect(() => {
         setTitle("Reporte de Recepciones");
-        const loadPrefsAndData = async () => {
-             if(user) {
-                const prefs = await getUserPreferences(user.id, 'receivingReportPrefs');
-                if (prefs && prefs.visibleColumns) {
-                    updateState({ visibleColumns: prefs.visibleColumns });
-                }
-            }
-            await fetchData();
-            setIsInitialLoading(false);
-        }
         if (isAuthorized) {
             loadPrefsAndData();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthorized, user?.id]);
+    }, [setTitle, isAuthorized, loadPrefsAndData]);
     
     const getAllChildLocationIds = useCallback((locationId: number): number[] => {
         let children: number[] = [];
@@ -261,7 +261,7 @@ export function useReceivingReport() {
         getLocationPath,
         availableColumns,
         visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][], [state.visibleColumns]),
-        getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string } => {
+        getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string, variant?: "default" | "secondary" | "destructive" | "outline" | undefined; } => {
             switch (colId) {
                 case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A' };
                 case 'createdAt': return { type: 'string', content: format(parseISO(item.createdAt), 'dd/MM/yy HH:mm'), className: "text-xs text-muted-foreground" };
@@ -276,6 +276,8 @@ export function useReceivingReport() {
                 case 'createdBy': return { content: item.createdBy, type: 'string' };
                 case 'annulledBy': return { content: item.annulledBy || '', type: 'string' };
                 case 'annulledAt': return { content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '', type: 'string' };
+                case 'appliedBy': return { content: item.appliedBy || '', type: 'string' };
+                case 'appliedAt': return { content: item.appliedAt ? format(parseISO(item.appliedAt), 'dd/MM/yy HH:mm') : '', type: 'string' };
                 case 'traceability':
                     if (item.correctionConsecutive) {
                         const correctedUnit = state.data.find(u => u.correctedFromUnitId === item.id);

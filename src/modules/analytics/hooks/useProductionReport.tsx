@@ -124,27 +124,26 @@ export function useProductionReport() {
             toast({ title: "Error al Generar Reporte", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isLoading: false });
-            if (isInitialLoading) setIsInitialLoading(false);
         }
-    }, [isAuthorized, state.dateRange, state.productFilter, state.classificationFilter, state.machineFilter, toast, updateState, isInitialLoading]);
+    }, [isAuthorized, state.dateRange, state.productFilter, state.classificationFilter, state.machineFilter, toast, updateState]);
     
+    const loadPrefsAndData = useCallback(async () => {
+        if(user) {
+            const prefs = await getUserPreferences(user.id, 'productionReportPrefs');
+            if (prefs && prefs.visibleColumns) {
+                updateState({ visibleColumns: prefs.visibleColumns });
+            }
+        }
+        await handleAnalyze();
+        setIsInitialLoading(false);
+    }, [user, updateState, handleAnalyze]);
+
     useEffect(() => {
         setTitle("Reporte de Producción");
-        const loadPrefsAndData = async () => {
-             if(user) {
-                const prefs = await getUserPreferences(user.id, 'productionReportPrefs');
-                if (prefs && prefs.visibleColumns) {
-                    updateState({ visibleColumns: prefs.visibleColumns });
-                }
-            }
-            await handleAnalyze();
-        };
-
         if (isAuthorized) {
             loadPrefsAndData();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthorized, user?.id]);
+    }, [setTitle, isAuthorized, loadPrefsAndData]);
 
     const handleColumnVisibilityChange = (columnId: string, checked: boolean) => {
         updateState({

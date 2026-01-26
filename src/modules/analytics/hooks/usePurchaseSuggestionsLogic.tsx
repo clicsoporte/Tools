@@ -115,38 +115,38 @@ export function usePurchaseSuggestionsLogic() {
             toast({ title: "Error al Analizar", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isLoading: false, currentPage: 0 });
-            if (isInitialLoading) {
-                setIsInitialLoading(false);
-            }
         }
-    }, [state.dateRange, toast, updateState, isInitialLoading]);
+    }, [state.dateRange, toast, updateState]);
     
-    useEffect(() => {
-        const loadPrefsAndData = async () => {
-             if(currentUser) {
-                const prefs = await getUserPreferences(currentUser.id, 'purchaseSuggestionsPrefs');
-                const [poHeaders, poLines] = await Promise.all([getAllErpPurchaseOrderHeaders(), getAllErpPurchaseOrderLines()]);
+    const loadPrefsAndData = useCallback(async () => {
+        if(currentUser) {
+            const [prefs, poHeaders, poLines] = await Promise.all([
+                getUserPreferences(currentUser.id, 'purchaseSuggestionsPrefs'),
+                getAllErpPurchaseOrderHeaders(), 
+                getAllErpPurchaseOrderLines()
+            ]);
 
-                const newState: Partial<State> = { erpPoHeaders: poHeaders, erpPoLines: poLines };
-                
-                if (prefs) {
-                    newState.classificationFilter = prefs.classificationFilter || [];
-                    newState.showOnlyMyOrders = prefs.showOnlyMyOrders || false;
-                    newState.visibleColumns = prefs.visibleColumns || availableColumns.map(c => c.id);
-                    newState.sortKey = prefs.sortKey || 'earliestCreationDate';
-                    newState.sortDirection = prefs.sortDirection || 'desc';
-                    newState.rowsPerPage = prefs.rowsPerPage || 10;
-                }
-                updateState(newState);
+            const newState: Partial<State> = { erpPoHeaders: poHeaders, erpPoLines: poLines };
+            
+            if (prefs) {
+                newState.classificationFilter = prefs.classificationFilter || [];
+                newState.showOnlyMyOrders = prefs.showOnlyMyOrders || false;
+                newState.visibleColumns = prefs.visibleColumns || availableColumns.map(c => c.id);
+                newState.sortKey = prefs.sortKey || 'earliestCreationDate';
+                newState.sortDirection = prefs.sortDirection || 'desc';
+                newState.rowsPerPage = prefs.rowsPerPage || 10;
             }
-            await handleAnalyze();
-        };
+            updateState(newState);
+        }
+        await handleAnalyze();
+        setIsInitialLoading(false);
+    }, [currentUser, updateState, handleAnalyze]);
 
+    useEffect(() => {
         if(isAuthorized) {
             loadPrefsAndData();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAuthorized, currentUser?.id]);
+    }, [isAuthorized, loadPrefsAndData]);
 
     const getInTransitStock = useCallback((itemId: string): number => {
         const activePoNumbers = new Set(state.erpPoHeaders.filter(h => h.ESTADO === 'A').map(h => h.ORDEN_COMPRA));

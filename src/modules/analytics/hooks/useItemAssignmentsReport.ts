@@ -114,8 +114,7 @@ export function useItemAssignmentsReport() {
         if (isAuthorized) {
             fetchData().then(() => setIsInitialLoading(false));
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthorized]);
+    }, [setTitle, isAuthorized, fetchData]);
 
     const filteredData = useMemo(() => {
         let filtered = state.data;
