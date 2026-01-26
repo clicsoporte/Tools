@@ -234,6 +234,8 @@ export default function ManageUnitsPage() {
             doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Lote/ID: ${unit.humanReadableId || 'N/A'}`, rightColX, currentY);
             currentY += 0.15;
             doc.text(`Documento: ${unit.documentId || 'N/A'}`, rightColX, currentY);
+            currentY += 0.15;
+            doc.text(`Doc. ERP: ${unit.erpDocumentId || 'N/A'}`, rightColX, currentY);
             currentY += 0.25;
 
             doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Ubicación:`, rightColX, currentY);

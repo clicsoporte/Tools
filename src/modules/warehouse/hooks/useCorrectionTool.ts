@@ -14,7 +14,6 @@ import { useDebounce } from 'use-debounce';
 import { subDays, format, parseISO } from 'date-fns';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
-import { Badge } from '@/components/ui/badge';
 
 export type SortKey = 'status' | 'receptionConsecutive' | 'productId' | 'humanReadableId' | 'quantity' | 'createdBy' | 'createdAt' | 'annulledBy' | 'annulledAt' | 'appliedBy' | 'appliedAt';
 export type SortDirection = 'asc' | 'desc';
@@ -63,6 +62,21 @@ const renderLocationPathAsString = (locationId: number | null, locations: Wareho
     }
     return path.map(l => l.name).join(' > ');
 };
+
+const availableColumns = [
+    { id: 'status', label: 'Estado' },
+    { id: 'receptionConsecutive', label: 'Consecutivo Ingreso' },
+    { id: 'traceability', label: 'Trazabilidad' },
+    { id: 'productDescription', label: 'Producto' },
+    { id: 'humanReadableId', label: 'Nº Lote / ID' },
+    { id: 'quantity', label: 'Cant.' },
+    { id: 'createdBy', label: 'Recibido Por' },
+    { id: 'createdAt', label: 'Fecha Ingreso' },
+    { id: 'appliedBy', label: 'Aplicado Por' },
+    { id: 'appliedAt', label: 'Fecha Aplicación' },
+    { id: 'annulledBy', label: 'Anulado Por' },
+    { id: 'annulledAt', label: 'Fecha Anulación' },
+];
 
 
 export const useCorrectionTool = () => {
@@ -370,23 +384,10 @@ export const useCorrectionTool = () => {
                                state.editableUnit.erpDocumentId !== (state.unitToCorrect.erpDocumentId || '');
             return hasChanged;
         }, [state.editableUnit, state.unitToCorrect]),
-        availableColumns: [
-            { id: 'status', label: 'Estado' },
-            { id: 'receptionConsecutive', label: 'Consecutivo Ingreso' },
-            { id: 'traceability', label: 'Trazabilidad' },
-            { id: 'productDescription', label: 'Producto' },
-            { id: 'humanReadableId', label: 'Nº Lote / ID' },
-            { id: 'quantity', label: 'Cant.' },
-            { id: 'createdBy', label: 'Recibido Por' },
-            { id: 'createdAt', label: 'Fecha Ingreso' },
-            { id: 'appliedBy', label: 'Aplicado Por' },
-            { id: 'appliedAt', label: 'Fecha Aplicación' },
-            { id: 'annulledBy', label: 'Anulado Por' },
-            { id: 'annulledAt', label: 'Fecha Anulación' },
-        ],
+        availableColumns,
         visibleColumnsData: useMemo(() => {
-            return state.visibleColumns.map(id => selectors.availableColumns.find(c => c.id === id)).filter(Boolean) as { id: string; label: string; }[];
-        }, [state.visibleColumns]),
+            return state.visibleColumns.map(id => availableColumns.find(c => c.id === id)).filter(Boolean) as { id: string; label: string; }[];
+        }, [state.visibleColumns, availableColumns]),
         sortedResults: useMemo(() => {
             const data = [...state.searchResults];
             data.sort((a, b) => {
@@ -417,23 +418,31 @@ export const useCorrectionTool = () => {
                     if (item.correctionConsecutive) {
                         const correctedUnit = state.searchResults.find(u => u.correctedFromUnitId === item.id);
                         const replacementText = correctedUnit ? `Reemplazado por ${correctedUnit.receptionConsecutive}` : 'Anulado sin reemplazo';
-                        return { type: 'badge', content: `${item.correctionConsecutive} (Anula ${item.receptionConsecutive})`, variant: 'destructive' };
+                        return {
+                            type: 'badge',
+                            content: `${item.correctionConsecutive} (Anula ${item.receptionConsecutive})`,
+                            variant: 'destructive'
+                        };
                     }
                     if (item.correctedFromUnitId) {
                         const original = state.searchResults.find(u => u.id === item.correctedFromUnitId);
-                        return { type: 'badge', content: `Corrige a ${original?.receptionConsecutive || 'N/A'}`, variant: 'outline' };
+                        return {
+                            type: 'badge',
+                            content: `Corrige a ${original?.receptionConsecutive || 'N/A'}`,
+                            variant: 'outline'
+                        };
                     }
                     return { type: 'string', content: '-', className: "text-muted-foreground" };
                 case 'productDescription': return { type: 'multiline', content: [ { text: selectors.getProductName(item.productId) }, { text: item.productId, className: "text-xs text-muted-foreground" } ]};
                 case 'humanReadableId': return { type: 'string', content: item.humanReadableId || 'N/A' };
                 case 'quantity': return { type: 'string', content: item.quantity, className: 'font-bold' };
-                case 'createdBy': return { type: 'string', content: item.createdBy };
+                case 'createdBy': return { content: item.createdBy, type: 'string' };
                 case 'createdAt': return { type: 'string', content: item.createdAt ? format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') : '' };
                 case 'annulledBy': return { type: 'string', content: item.annulledBy || '' };
                 case 'annulledAt': return { type: 'string', content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '' };
                 case 'appliedBy': return { type: 'string', content: item.appliedBy || '' };
                 case 'appliedAt': return { type: 'string', content: item.appliedAt ? format(parseISO(item.appliedAt), 'dd/MM/yy HH:mm') : '' };
-                default: return { type: 'string', content: '' };
+                default: return { content: null, type: 'string' };
             }
         },
     };

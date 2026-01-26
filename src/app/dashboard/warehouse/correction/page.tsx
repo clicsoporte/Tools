@@ -25,6 +25,7 @@ import { useCorrectionTool, type SortKey } from '@/modules/warehouse/hooks/useCo
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { Badge } from '@/components/ui/badge';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
+import type { InventoryUnit } from '@/modules/core/types';
 
 export default function CorrectionPage() {
     useAuthorization(['warehouse:correction:execute']);
@@ -115,7 +116,7 @@ export default function CorrectionPage() {
                                 <Table className="min-w-max">
                                     <TableHeader className="sticky top-0 z-10 bg-background">
                                         <TableRow>
-                                            {selectors.visibleColumnsData.map(col => (
+                                            {selectors.visibleColumnsData.map((col: { id: string, label: string }) => (
                                                 <TableHead key={col.id} className="cursor-pointer" onClick={() => actions.handleSort(col.id as SortKey)}>
                                                     <div className="flex items-center gap-1">
                                                         {col.label} {renderSortIcon(col.id as SortKey)}
@@ -126,7 +127,7 @@ export default function CorrectionPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {selectors.sortedResults.map(unit => {
+                                        {selectors.sortedResults.map((unit: InventoryUnit) => {
                                             const isVoided = !!unit.correctionConsecutive;
                                             return (
                                                 <TableRow key={unit.id} className={cn(isVoided && 'bg-destructive/10 text-destructive')}>

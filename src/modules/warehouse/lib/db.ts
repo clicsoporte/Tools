@@ -537,16 +537,16 @@ export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'created
         const unitCode = `${unitPrefix}${String(nextUnitNumber).padStart(5, '0')}`;
         const receptionConsecutive = `${receptionPrefix}${String(nextReceptionNumber).padStart(5, '0')}`;
         
-        const newUnitData = {
+        const newUnitData: Omit<InventoryUnit, 'id'> = {
             ...unit,
             createdAt: new Date().toISOString(),
             unitCode: unitCode,
             receptionConsecutive: receptionConsecutive,
-            humanReadableId: unit.humanReadableId || null,
-            documentId: unit.documentId || null,
-            erpDocumentId: unit.erpDocumentId || null,
+            humanReadableId: unit.humanReadableId || undefined,
+            documentId: unit.documentId || undefined,
+            erpDocumentId: unit.erpDocumentId || undefined,
             quantity: unit.quantity ?? 1,
-            notes: unit.notes || null,
+            notes: unit.notes || undefined,
             status: 'pending', // Always start as pending
         };
 

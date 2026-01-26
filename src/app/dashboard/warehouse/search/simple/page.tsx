@@ -34,7 +34,6 @@ type SearchResultItem = {
         location: WarehouseLocation | undefined;
     }[];
     erpStock: StockInfo | null;
-    client?: Customer | null;
     requiresCertificate?: boolean;
 }
 
