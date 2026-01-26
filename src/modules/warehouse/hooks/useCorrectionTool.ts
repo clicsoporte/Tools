@@ -29,6 +29,7 @@ interface State {
         documentId: string;
         receptionConsecutive: string;
         showVoided: boolean;
+        statusFilter: 'pending' | 'all';
     };
     searchResults: InventoryUnit[];
     unitToCorrect: InventoryUnit | null;
@@ -40,6 +41,8 @@ interface State {
     visibleColumns: string[];
     sortKey: SortKey;
     sortDirection: SortDirection;
+    currentPage: number;
+    rowsPerPage: number;
 }
 
 const emptyEditableUnit: Partial<InventoryUnit> = {
@@ -98,6 +101,7 @@ export const useCorrectionTool = () => {
             documentId: '',
             receptionConsecutive: '',
             showVoided: false,
+            statusFilter: 'pending',
         },
         searchResults: [],
         unitToCorrect: null,
@@ -109,6 +113,8 @@ export const useCorrectionTool = () => {
         visibleColumns: ['status', 'traceability', 'productDescription', 'quantity', 'createdBy', 'createdAt', 'annulledBy', 'appliedBy'],
         sortKey: 'createdAt',
         sortDirection: 'desc',
+        currentPage: 0,
+        rowsPerPage: 25,
     });
 
     const updateState = useCallback((newState: Partial<State>) => {
@@ -119,10 +125,17 @@ export const useCorrectionTool = () => {
         const loadPrefsAndData = async () => {
             if (user && hasPermission('warehouse:correction:execute')) {
                 const prefs = await getUserPreferences(user.id, 'correctionToolPrefs');
-                if (prefs?.visibleColumns) {
-                    updateState({ visibleColumns: prefs.visibleColumns });
-                }
                 const [settings, locations] = await Promise.all([getWarehouseSettings(), getLocations()]);
+                
+                const newState: Partial<State> = {
+                    visibleColumns: prefs?.visibleColumns || state.visibleColumns,
+                    filters: {
+                        ...state.filters,
+                        statusFilter: prefs?.statusFilter === 'all' ? 'all' : 'pending',
+                    }
+                };
+
+                updateState(newState);
                 setWarehouseSettings(settings);
                 setAllLocations(locations);
             }
@@ -136,7 +149,7 @@ export const useCorrectionTool = () => {
         updateState({ isSearching: true, searchResults: [] });
         try {
             const results = await searchInventoryUnits(state.filters);
-            updateState({ searchResults: results });
+            updateState({ searchResults: results, currentPage: 0 });
             if (results.length === 0) {
                 toast({ title: 'Sin Resultados', description: 'No se encontraron ingresos con los filtros especificados.' });
             }
@@ -158,8 +171,10 @@ export const useCorrectionTool = () => {
                 documentId: '',
                 receptionConsecutive: '',
                 showVoided: false,
+                statusFilter: 'pending',
             },
             searchResults: [],
+            currentPage: 0,
         });
     };
 
@@ -356,7 +371,7 @@ export const useCorrectionTool = () => {
 
     const savePreferences = async () => {
         if (!user) return;
-        await saveUserPreferences(user.id, 'correctionToolPrefs', { visibleColumns: state.visibleColumns });
+        await saveUserPreferences(user.id, 'correctionToolPrefs', { visibleColumns: state.visibleColumns, statusFilter: state.filters.statusFilter });
         toast({ title: 'Preferencias Guardadas' });
     };
 
@@ -364,6 +379,12 @@ export const useCorrectionTool = () => {
         setFilter: (field: keyof State['filters'], value: any) => {
             updateState({
                 filters: { ...state.filters, [field]: value },
+            });
+        },
+        handleStatusFilterChange: (checked: boolean) => {
+            updateState({
+                filters: { ...state.filters, statusFilter: checked ? 'pending' : 'all' },
+                currentPage: 0,
             });
         },
         handleSearch,
@@ -381,7 +402,38 @@ export const useCorrectionTool = () => {
         handleColumnVisibilityChange,
         savePreferences,
         handlePrintTicket,
+        setCurrentPage: (page: number | ((p: number) => number)) => updateState({ currentPage: typeof page === 'function' ? page(state.currentPage) : page }),
+        setRowsPerPage: (size: number) => updateState({ rowsPerPage: size, currentPage: 0 }),
     };
+
+    const sortedResults = useMemo(() => {
+        const data = [...state.searchResults];
+        data.sort((a, b) => {
+            const key = state.sortKey;
+            const dir = state.sortDirection === 'asc' ? 1 : -1;
+            const valA = a[key as keyof InventoryUnit] ?? '';
+            const valB = b[key as keyof InventoryUnit] ?? '';
+            
+            if (key === 'createdAt' || key === 'annulledAt' || key === 'appliedAt') {
+                const dateA = valA ? parseISO(valA as string).getTime() : 0;
+                const dateB = valB ? parseISO(valB as string).getTime() : 0;
+                if (!valA) return 1 * dir;
+                if (!valB) return -1 * dir;
+                return (dateA - dateB) * dir;
+            }
+            if (typeof valA === 'number' && typeof valB === 'number') {
+                return (valA - valB) * dir;
+            }
+            return String(valA).localeCompare(String(valB)) * dir;
+        });
+        return data;
+    }, [state.searchResults, state.sortKey, state.sortDirection]);
+    
+    const paginatedResults = useMemo(() => {
+        const start = state.currentPage * state.rowsPerPage;
+        const end = start + state.rowsPerPage;
+        return sortedResults.slice(start, end);
+    }, [sortedResults, state.currentPage, state.rowsPerPage]);
 
     const selectors = {
         hasPermission,
@@ -407,35 +459,16 @@ export const useCorrectionTool = () => {
                                state.editableUnit.erpDocumentId !== (state.unitToCorrect.erpDocumentId || '');
             return hasChanged;
         }, [state.editableUnit, state.unitToCorrect]),
-        sortedResults: useMemo(() => {
-            const data = [...state.searchResults];
-            data.sort((a, b) => {
-                const key = state.sortKey;
-                const dir = state.sortDirection === 'asc' ? 1 : -1;
-                const valA = a[key as keyof InventoryUnit] ?? '';
-                const valB = b[key as keyof InventoryUnit] ?? '';
-                
-                if (key === 'createdAt' || key === 'annulledAt' || key === 'appliedAt') {
-                    const dateA = valA ? parseISO(valA as string).getTime() : 0;
-                    const dateB = valB ? parseISO(valB as string).getTime() : 0;
-                    if (!valA) return 1 * dir;
-                    if (!valB) return -1 * dir;
-                    return (dateA - dateB) * dir;
-                }
-                if (typeof valA === 'number' && typeof valB === 'number') {
-                    return (valA - valB) * dir;
-                }
-                return String(valA).localeCompare(String(valB)) * dir;
-            });
-            return data;
-        }, [state.searchResults, state.sortKey, state.sortDirection]),
+        sortedResults,
+        paginatedResults,
+        totalPages: Math.ceil(sortedResults.length / state.rowsPerPage),
         availableColumns,
         visibleColumnsData: useMemo(() => {
             return state.visibleColumns.map(id => availableColumns.find(c => c.id === id)).filter(Boolean) as { id: string; label: string; }[];
         }, [state.visibleColumns]),
         getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string, variant?: 'default' | 'secondary' | 'destructive' | 'outline' } => {
             switch (colId) {
-                case 'status': return { type: 'badge', content: item.status, variant: item.status === 'pending' ? 'secondary' : 'default', className: item.status === 'applied' ? 'bg-green-600' : '' };
+                case 'status': return { type: 'badge', content: item.status, variant: item.status === 'pending' ? 'secondary' : (item.status === 'voided' ? 'destructive' : 'default'), className: item.status === 'applied' ? 'bg-green-600' : '' };
                 case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono text-xs" };
                 case 'traceability':
                     if (item.correctionConsecutive) {

@@ -108,6 +108,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
         nextReceptionNumber: 1,
         correctionPrefix: 'COR-',
         nextCorrectionNumber: 1,
+        dispatchNotificationEmails: '',
         pdfTopLegend: 'Documento de Control Interno',
     };
     db.prepare(`
@@ -524,7 +525,7 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
     db.prepare('DELETE FROM item_locations WHERE id = ?').run(itemLocationId);
 }
 
-export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive' | 'status'>): Promise<InventoryUnit> {
+export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive'>): Promise<InventoryUnit> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     
     const transaction = db.transaction(() => {
@@ -609,6 +610,7 @@ export async function searchInventoryUnits(filters: {
     documentId?: string;
     receptionConsecutive?: string;
     showVoided?: boolean;
+    statusFilter?: 'pending' | 'all';
 }): Promise<InventoryUnit[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     let query = 'SELECT * FROM inventory_units';
@@ -650,11 +652,15 @@ export async function searchInventoryUnits(filters: {
         whereClauses.push("correctionConsecutive IS NULL");
     }
     
+    if (filters.statusFilter === 'pending') {
+        whereClauses.push("status = 'pending'");
+    }
+    
     if (whereClauses.length > 0) {
         query += ` WHERE ${whereClauses.join(' AND ')}`;
     }
     
-    query += ' ORDER BY createdAt DESC LIMIT 100';
+    query += ' ORDER BY createdAt DESC LIMIT 200';
     
     const units = db.prepare(query).all(...params) as InventoryUnit[];
     return JSON.parse(JSON.stringify(units));
@@ -931,3 +937,4 @@ export async function migrateLegacyInventoryUnits(): Promise<number> {
     transaction();
     return updatedCount;
 }
+
