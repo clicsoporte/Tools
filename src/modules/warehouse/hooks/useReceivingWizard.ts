@@ -112,9 +112,28 @@ export const useReceivingWizard = () => {
     }, [state.allLocations, state.selectableLocations, debouncedLocationSearch]);
 
     const openMixedLocationDialog = useCallback((locationId: number) => {
-        const conflicts = state.allItemLocations.filter(il => il.locationId === locationId);
-        if (conflicts.length > 0) {
-            const conflictingProducts = conflicts.map(c => authProducts.find(p => p.id === c.itemId)).filter(Boolean) as Product[];
+        // Find all items assigned to this location
+        const assignmentsInLocation = state.allItemLocations.filter(il => il.locationId === locationId);
+
+        if (assignmentsInLocation.length === 0) {
+            return false; // No assignments, no conflict.
+        }
+
+        // The product we are currently trying to receive
+        const currentProductId = state.selectedProduct?.id;
+        if (!currentProductId) {
+            return false; // Should not happen, but a good guard.
+        }
+
+        // Find assignments in this location that are for a DIFFERENT product
+        const conflictingAssignments = assignmentsInLocation.filter(il => il.itemId !== currentProductId);
+
+        if (conflictingAssignments.length > 0) {
+            // There's a real conflict with a different product. Show the dialog.
+            const conflictingProducts = conflictingAssignments
+                .map(c => authProducts.find(p => p.id === c.itemId))
+                .filter(Boolean) as Product[];
+            
             updateState({
                 conflictingItems: conflictingProducts,
                 locationForConfirmation: locationId,
@@ -122,8 +141,10 @@ export const useReceivingWizard = () => {
             });
             return true; // Conflict found
         }
+
+        // If we're here, it means the location is already assigned to the SAME product. This is fine.
         return false; // No conflict
-    }, [state.allItemLocations, authProducts, updateState]);
+    }, [state.allItemLocations, state.selectedProduct, authProducts, updateState]);
     
     const handleConfirmAddMixed = useCallback(() => {
         if (!state.locationForConfirmation) return;
