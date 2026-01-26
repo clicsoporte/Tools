@@ -636,7 +636,31 @@ export default function HelpPage() {
             <div className="space-y-4">
                 <p>Este módulo te da control total sobre la localización y conteo de tu inventario. Incluye herramientas para mapear tu bodega, registrar conteos y generar etiquetas.</p>
                 
-                <h4 className="font-semibold text-lg pt-4 border-t">Herramientas Operativas</h4>
+                <h4 className="font-semibold text-lg pt-4 border-t">Nuevo Módulo: Centro de Despacho (<Truck className="inline h-4 w-4 text-blue-500"/>)</h4>
+                 <p>Esta es la funcionalidad más importante añadida en la v2.2.0. Digitaliza el proceso de alistamiento y verificación de mercadería, reemplazando el papel.</p>
+                <ol className="list-decimal space-y-3 pl-6">
+                    <li>
+                        <strong>Paso 1: Configurar Rutas (Admin).</strong> Un administrador debe ir a <strong>Administración &gt; Config. Almacenes</strong> y crear los &quot;Contenedores de Despacho&quot;, que son tus rutas (ej: &quot;Ruta San José&quot;, &quot;Ruta Heredia&quot;).
+                    </li>
+                    <li>
+                        <strong>Paso 2: Asignar Facturas (Logística).</strong> En <strong>Almacén &gt; Clasificador de Despachos</strong>, el personal de logística ve las facturas del ERP sin asignar. Pueden seleccionarlas y moverlas al contenedor de ruta correcto. En la pestaña &quot;Ordenar&quot;, pueden arrastrar las facturas para definir el orden de entrega.
+                    </li>
+                    <li>
+                        <strong>Paso 3: Verificar (Bodega).</strong> En <strong>Almacén &gt; Centro de Despacho</strong>, el bodeguero hace clic en una ruta. Esto **bloquea la ruta** para él.
+                    </li>
+                    <li>
+                        <strong>Paso 4: Chequeo Inteligente.</strong> Al hacer clic en un documento dentro de la ruta, se abre la pantalla de verificación. El bodeguero escanea los artículos. Cuando termina, el sistema lo pasa automáticamente al siguiente documento de la lista.
+                    </li>
+                    <li>
+                        <strong>Manejo de Errores:</strong>
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                           <li><strong>Facturas Anuladas (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si una factura es anulada en el ERP después de ser asignada, aparecerá con una alerta visual roja y no se podrá verificar.</li>
+                           <li><strong>Mover a Otra Ruta:</strong> Si una factura se asignó mal, el bodeguero puede usar el botón &quot;Mover&quot; para enviarla a otro contenedor.</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h4 className="font-semibold text-lg pt-4 border-t">Otras Herramientas de Almacén</h4>
                  <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800">
                     <HelpCircle className="h-5 w-5"/>
                     <p className="text-sm">Una vez configurado, el personal de almacén puede usar las herramientas desde el sub-panel <strong>Almacén</strong>:</p>
@@ -649,8 +673,8 @@ export default function HelpPage() {
                         <strong>Administración de Ingresos (<RotateCcw className="inline h-4 w-4 text-red-500"/>):</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>Permite buscar un ingreso ya registrado por múltiples criterios (fecha, lote, producto, etc.).</li>
-                            <li>**Nuevo Flujo de Aprobación:** Los ingresos entran en estado **"Pendiente"**. Un supervisor puede **"Revisar y Aplicar"** el ingreso, editando cualquier campo y añadiendo el **Nº de Documento ERP**.</li>
-                            <li>Una vez "Aplicado", el ingreso solo puede ser **"Corregido"**, lo que anula el registro original y crea uno nuevo, manteniendo una trazabilidad completa.</li>
+                            <li>**Nuevo Flujo de Aprobación:** Los ingresos entran en estado **&quot;Pendiente&quot;**. Un supervisor puede **&quot;Revisar y Aplicar&quot;** el ingreso, editando cualquier campo y añadiendo el **Nº de Documento ERP**.</li>
+                            <li>Una vez &quot;Aplicado&quot;, el ingreso solo puede ser **&quot;Corregido&quot;**, lo que anula el registro original y crea uno nuevo, manteniendo una trazabilidad completa.</li>
                         </ul>
                     </li>
                      <li>
@@ -665,10 +689,10 @@ export default function HelpPage() {
                         <strong>Asistente de Poblado (<Wand2 className="inline h-4 w-4 text-indigo-500" />):</strong> Permite poblar masivamente las ubicaciones de un rack de forma guiada, ideal para el ingreso de mercadería nueva. Incluye un sistema para retomar sesiones interrumpidas y ahora muestra un indicador de `(Finalizado)` en los niveles que ya se completaron.
                     </li>
                     <li>
-                        <strong>Asistente de Recepción (<PackageCheck className="inline h-4 w-4 text-emerald-600"/>):</strong> Registra producto terminado o compras y genera etiquetas QR para las nuevas unidades. Los ingresos creados aquí entrarán en estado "Pendiente".
+                        <strong>Asistente de Recepción (<PackageCheck className="inline h-4 w-4 text-emerald-600"/>):</strong> Registra producto terminado o compras y genera etiquetas QR para las nuevas unidades. Los ingresos creados aquí entrarán en estado &quot;Pendiente&quot;.
                     </li>
                      <li>
-                        <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite a los bodegueros registrar conteos físicos de un producto en una ubicación específica. Ahora incluye un **&quot;Modo Escáner&quot;** que, al leer una etiqueta QR con formato `ID_UBICACION&gt;ID_PRODUCTO`, carga automáticamente ambos campos, agilizando el proceso.
+                        <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite a los bodegueros registrar conteos físicos de un producto en una ubicación específica. Ahora incluye un **&quot;Modo Escáner&quot;** que, al leer una etiqueta QR con formato `ID_UBICACION>ID_PRODUCTO`, carga automáticamente ambos campos, agilizando el proceso.
                     </li>
                      <li>
                         <strong>Reporte de Inventario Físico (<ClipboardList className="inline h-4 w-4"/>):</strong> (En Analíticas) Es la contraparte de la toma de inventario. Muestra una tabla comparando la `Cantidad Contada` vs. el `Stock del ERP` y resalta las diferencias.

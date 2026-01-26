@@ -362,6 +362,7 @@ export const useCorrectionTool = () => {
 
     const selectors = {
         hasPermission,
+        availableColumns,
         productOptions: useMemo(() => {
             if (debouncedNewProductSearch.length < 2) return [];
             const searchLower = debouncedNewProductSearch.toLowerCase();
@@ -384,10 +385,9 @@ export const useCorrectionTool = () => {
                                state.editableUnit.erpDocumentId !== (state.unitToCorrect.erpDocumentId || '');
             return hasChanged;
         }, [state.editableUnit, state.unitToCorrect]),
-        availableColumns,
         visibleColumnsData: useMemo(() => {
             return state.visibleColumns.map(id => availableColumns.find(c => c.id === id)).filter(Boolean) as { id: string; label: string; }[];
-        }, [state.visibleColumns, availableColumns]),
+        }, [state.visibleColumns]),
         sortedResults: useMemo(() => {
             const data = [...state.searchResults];
             data.sort((a, b) => {
@@ -449,26 +449,7 @@ export const useCorrectionTool = () => {
 
     return {
         state,
-        actions: {
-            setFilter: (field: keyof State['filters'], value: any) => {
-                updateState({ filters: { ...state.filters, [field]: value } });
-            },
-            handleSearch,
-            handleClearFilters,
-            setUnitToCorrect,
-            handleModalOpenChange,
-            setNewProductSearch: (term: string) => updateState({ newProductSearch: term }),
-            setNewProductSearchOpen: (isOpen: boolean) => updateState({ isNewProductSearchOpen: isOpen }),
-            handleSelectNewProduct,
-            handleConfirmCorrection,
-            setEditableUnitField,
-            resetEditableUnit,
-            handleClearForm,
-            handlePrintTicket,
-            handleSort,
-            handleColumnVisibilityChange,
-            savePreferences,
-        },
+        actions,
         selectors,
     };
 };
