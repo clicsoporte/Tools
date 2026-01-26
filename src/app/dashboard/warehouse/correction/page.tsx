@@ -111,7 +111,7 @@ export default function CorrectionPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="relative h-96 w-full overflow-auto rounded-md border">
+                            <div className="relative overflow-auto h-96 w-full rounded-md border">
                                 <Table className="min-w-max">
                                     <TableHeader className="sticky top-0 z-10 bg-background">
                                         <TableRow>
@@ -131,10 +131,22 @@ export default function CorrectionPage() {
                                             return (
                                                 <TableRow key={unit.id} className={cn(isVoided && 'bg-destructive/10 text-destructive')}>
                                                     {visibleColumns.map(colId => {
-                                                        const { content, className } = selectors.getColumnContent(unit, colId);
-                                                        return <TableCell key={colId} className={cn(className, isVoided && 'text-destructive')}>{content}</TableCell>
+                                                        const { content, className, type, variant } = selectors.getColumnContent(unit, colId);
+                                                        return (
+                                                            <TableCell key={colId} className={cn(className, isVoided && 'text-destructive')}>
+                                                                {type === 'badge' ? (
+                                                                    <Badge variant={variant}>{content}</Badge>
+                                                                ) : type === 'multiline' && Array.isArray(content) ? (
+                                                                    <div>
+                                                                        {content.map((line: any, i: number) => <p key={i} className={line.className}>{line.text}</p>)}
+                                                                    </div>
+                                                                ) : (
+                                                                    content
+                                                                )}
+                                                            </TableCell>
+                                                        )
                                                     })}
-                                                    <TableCell className="text-right sticky right-0 bg-card">
+                                                    <TableCell className="text-right sticky right-0 bg-card p-2">
                                                         <div className="flex items-center justify-end gap-1">
                                                             {isVoided ? null : unit.status === 'pending' ? (
                                                                 <Button variant="default" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap" disabled={!selectors.hasPermission('warehouse:correction:apply')}>

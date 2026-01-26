@@ -396,7 +396,11 @@ export const useCorrectionTool = () => {
                 const valB = b[key as keyof InventoryUnit] ?? '';
                 
                 if (key === 'createdAt' || key === 'annulledAt' || key === 'appliedAt') {
-                    return (new Date(valA as string).getTime() - new Date(valB as string).getTime()) * dir;
+                    const dateA = valA ? parseISO(valA as string).getTime() : 0;
+                    const dateB = valB ? parseISO(valB as string).getTime() : 0;
+                    if (!valA) return 1 * dir;
+                    if (!valB) return -1 * dir;
+                    return (dateA - dateB) * dir;
                 }
                 if (typeof valA === 'number' && typeof valB === 'number') {
                     return (valA - valB) * dir;
@@ -405,30 +409,31 @@ export const useCorrectionTool = () => {
             });
             return data;
         }, [state.searchResults, state.sortKey, state.sortDirection]),
-        getColumnContent: (item: InventoryUnit, colId: string): { content: React.ReactNode, className?: string } => {
+        getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string, variant?: 'default' | 'secondary' | 'destructive' | 'outline' } => {
             switch (colId) {
-                case 'status': return { content: <Badge variant={item.status === 'pending' ? 'secondary' : 'default'} className={item.status === 'applied' ? 'bg-green-600' : ''}>{item.status}</Badge> };
-                case 'receptionConsecutive': return { content: item.receptionConsecutive || 'N/A', className: "font-mono text-xs" };
+                case 'status': return { type: 'badge', content: item.status, variant: item.status === 'pending' ? 'secondary' : 'default', className: item.status === 'applied' ? 'bg-green-600' : '' };
+                case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono text-xs" };
                 case 'traceability':
                     if (item.correctionConsecutive) {
                         const correctedUnit = state.searchResults.find(u => u.correctedFromUnitId === item.id);
-                        return { content: <Badge variant="destructive">{`${item.correctionConsecutive} (Anula ${item.receptionConsecutive})`}</Badge> };
+                        const replacementText = correctedUnit ? `Reemplazado por ${correctedUnit.receptionConsecutive}` : 'Anulado sin reemplazo';
+                        return { type: 'badge', content: `${item.correctionConsecutive} (Anula ${item.receptionConsecutive})`, variant: 'destructive' };
                     }
                     if (item.correctedFromUnitId) {
                         const original = state.searchResults.find(u => u.id === item.correctedFromUnitId);
-                        return { content: <Badge variant="outline">{`Corrige a ${original?.receptionConsecutive || 'N/A'}`}</Badge> };
+                        return { type: 'badge', content: `Corrige a ${original?.receptionConsecutive || 'N/A'}`, variant: 'outline' };
                     }
-                    return { content: <span className="text-muted-foreground">-</span> };
-                case 'productDescription': return { content: <>{selectors.getProductName(item.productId)}<p className="text-xs text-muted-foreground">{item.productId}</p></> };
-                case 'humanReadableId': return { content: item.humanReadableId || 'N/A' };
-                case 'quantity': return { content: item.quantity, className: 'font-bold' };
-                case 'createdBy': return { content: item.createdBy };
-                case 'createdAt': return { content: item.createdAt ? format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') : '' };
-                case 'annulledBy': return { content: item.annulledBy || '' };
-                case 'annulledAt': return { content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '' };
-                case 'appliedBy': return { content: item.appliedBy || '' };
-                case 'appliedAt': return { content: item.appliedAt ? format(parseISO(item.appliedAt), 'dd/MM/yy HH:mm') : '' };
-                default: return { content: '' };
+                    return { type: 'string', content: '-', className: "text-muted-foreground" };
+                case 'productDescription': return { type: 'multiline', content: [ { text: selectors.getProductName(item.productId) }, { text: item.productId, className: "text-xs text-muted-foreground" } ]};
+                case 'humanReadableId': return { type: 'string', content: item.humanReadableId || 'N/A' };
+                case 'quantity': return { type: 'string', content: item.quantity, className: 'font-bold' };
+                case 'createdBy': return { type: 'string', content: item.createdBy };
+                case 'createdAt': return { type: 'string', content: item.createdAt ? format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') : '' };
+                case 'annulledBy': return { type: 'string', content: item.annulledBy || '' };
+                case 'annulledAt': return { type: 'string', content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '' };
+                case 'appliedBy': return { type: 'string', content: item.appliedBy || '' };
+                case 'appliedAt': return { type: 'string', content: item.appliedAt ? format(parseISO(item.appliedAt), 'dd/MM/yy HH:mm') : '' };
+                default: return { type: 'string', content: '' };
             }
         },
     };
