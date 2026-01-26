@@ -98,6 +98,21 @@ export const useInventoryCount = () => {
     }, [isAuthorized, toast, updateState, user]);
 
     // --- SHARED LOGIC & SELECTORS ---
+
+    const mixedLocationIds = useMemo(() => {
+        const counts = new Map<number, number>();
+        state.itemLocations.forEach(il => {
+            if (il.locationId) {
+                counts.set(il.locationId, (counts.get(il.locationId) || 0) + 1);
+            }
+        });
+        return new Set(
+            Array.from(counts.entries())
+                .filter(([_, count]) => count > 1)
+                .map(([locationId]) => locationId)
+        );
+    }, [state.itemLocations]);
+
     const productOptions = useMemo(() => {
         if (debouncedProductSearch.length < 2) return [];
         const searchLower = debouncedProductSearch.toLowerCase();
@@ -108,11 +123,19 @@ export const useInventoryCount = () => {
 
     const locationOptions = useMemo(() => {
         const searchTerm = debouncedLocationSearch.trim().toLowerCase();
-        if (searchTerm === '*' || searchTerm === '') return state.selectableLocations.map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, state.allLocations) }));
+        if (searchTerm === '*' || searchTerm === '') {
+            return state.selectableLocations.map(l => ({ 
+                value: String(l.id), 
+                label: `${renderLocationPathAsString(l.id, state.allLocations)}${mixedLocationIds.has(l.id) ? ' (Mixta)' : ''}` 
+            }));
+        }
         return state.selectableLocations
             .filter(l => renderLocationPathAsString(l.id, state.allLocations).toLowerCase().includes(searchTerm))
-            .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, state.allLocations) }));
-    }, [state.allLocations, state.selectableLocations, debouncedLocationSearch]);
+            .map(l => ({ 
+                value: String(l.id), 
+                label: `${renderLocationPathAsString(l.id, state.allLocations)}${mixedLocationIds.has(l.id) ? ' (Mixta)' : ''}`
+             }));
+    }, [state.allLocations, state.selectableLocations, debouncedLocationSearch, mixedLocationIds]);
 
 
     // --- MODE SWITCHING ---

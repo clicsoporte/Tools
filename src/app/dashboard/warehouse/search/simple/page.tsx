@@ -48,31 +48,7 @@ const LocationIcon = ({ type }: { type: WarehouseLocation['type'] }) => {
     }
 };
 
-const renderLocationPath = (locationId: number | null | undefined, locations: WarehouseLocation[]) => {
-    if (!locationId) return <span className="text-muted-foreground italic">Sin ubicación</span>;
-    const path: WarehouseLocation[] = [];
-    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
-    
-    while (current) {
-        path.unshift(current);
-        const parentId = current.parentId;
-        current = parentId ? locations.find(l => l.id === parentId) : undefined;
-    }
 
-    return (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-            {path.map((loc, index) => (
-                <React.Fragment key={loc.id}>
-                    <div className="flex items-center gap-1">
-                        <LocationIcon type={loc.type} />
-                        <span>{loc.name}</span>
-                    </div>
-                    {index < path.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />}
-                </React.Fragment>
-            ))}
-        </div>
-    );
-};
 
 
 export default function SimpleWarehouseSearchPage() {
@@ -88,7 +64,7 @@ export default function SimpleWarehouseSearchPage() {
         isAuthReady,
         allLocations: locations,
         allInventory: inventory,
-        allItemLocations: itemLocations,
+        allItemLocations,
         stockLevels: stock,
         stockSettings
     } = useAuth();
@@ -99,6 +75,49 @@ export default function SimpleWarehouseSearchPage() {
     const [lastSearchedItem, setLastSearchedItem] = useState<Product | null>(null);
 
     const [debouncedSearchTerm] = useDebounce(searchTerm, 300); // Shorter debounce for faster scanner response
+
+    const mixedLocationIds = useMemo(() => {
+        const counts = new Map<number, number>();
+        allItemLocations.forEach(il => {
+            if (il.locationId) {
+                counts.set(il.locationId, (counts.get(il.locationId) || 0) + 1);
+            }
+        });
+        return new Set(
+            Array.from(counts.entries())
+                .filter(([_, count]) => count > 1)
+                .map(([locationId]) => locationId)
+        );
+    }, [allItemLocations]);
+    
+    const renderLocationPath = (locationId: number | null | undefined, locations: WarehouseLocation[]) => {
+        if (!locationId) return <span className="text-muted-foreground italic">Sin ubicación</span>;
+        const path: WarehouseLocation[] = [];
+        let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
+        
+        while (current) {
+            path.unshift(current);
+            const parentId = current.parentId;
+            current = parentId ? locations.find(l => l.id === parentId) : undefined;
+        }
+
+        const isMixed = mixedLocationIds.has(locationId);
+
+        return (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                {path.map((loc, index) => (
+                    <React.Fragment key={loc.id}>
+                        <div className="flex items-center gap-1">
+                            <LocationIcon type={loc.type} />
+                            <span>{loc.name}</span>
+                        </div>
+                        {index < path.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />}
+                    </React.Fragment>
+                ))}
+                {isMixed && <Badge variant="destructive" className="ml-2">Mixta</Badge>}
+            </div>
+        );
+    };
     
     useEffect(() => {
         setTitle("Búsqueda Rápida de Almacén");
@@ -186,7 +205,7 @@ export default function SimpleWarehouseSearchPage() {
                 location: locations.find(l => l.id === inv.locationId),
             }));
 
-        const designatedLocations = itemLocations
+        const designatedLocations = allItemLocations
             .filter(itemLoc => itemLoc.itemId === lastSearchedItem.id)
             .map(itemLoc => ({
                 path: renderLocationPath(itemLoc.locationId, locations),
@@ -197,7 +216,7 @@ export default function SimpleWarehouseSearchPage() {
         const allPhysical = [...physicalLocations, ...designatedLocations];
         const uniqueLocations = Array.from(new Map(allPhysical.map(item => [item.location?.id, item])).values());
         
-        const requiresCertificate = itemLocations.some(il => il.itemId === lastSearchedItem.id && il.requiresCertificate === 1);
+        const requiresCertificate = allItemLocations.some(il => il.itemId === lastSearchedItem.id && il.requiresCertificate === 1);
 
         return {
             product: lastSearchedItem,
@@ -205,12 +224,12 @@ export default function SimpleWarehouseSearchPage() {
             erpStock: erpStock,
             requiresCertificate: requiresCertificate,
         };
-    }, [lastSearchedItem, inventory, itemLocations, stock, locations]);
+    }, [lastSearchedItem, inventory, allItemLocations, stock, locations, renderLocationPath]);
 
     const handlePrintLabel = async (product: Product, location: WarehouseLocation) => {
         if (!user || !companyData) return;
         try {
-            const newUnit = await addInventoryUnit({ productId: product.id, locationId: location.id, createdBy: user.name, notes: 'Etiqueta generada desde búsqueda simple.', quantity: 1 });
+            const newUnit = await addInventoryUnit({ productId: product.id, locationId: location.id, createdBy: user.name, notes: 'Etiqueta generada desde búsqueda simple.', quantity: 1, status: 'pending' });
             const qrCodeDataUrl = await QRCode.toDataURL(newUnit.productId, { errorCorrectionLevel: 'H', width: 200 });
 
             const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 3] });

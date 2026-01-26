@@ -61,32 +61,6 @@ const LocationIcon = ({ type }: { type: WarehouseLocation['type'] }) => {
     }
 };
 
-const renderLocationPath = (locationId: number | null | undefined, locations: WarehouseLocation[]) => {
-    if (!locationId) return <span className="text-muted-foreground italic">Sin ubicación</span>;
-    const path: WarehouseLocation[] = [];
-    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
-    
-    while (current) {
-        path.unshift(current);
-        const parentId = current.parentId;
-        current = parentId ? locations.find(l => l.id === parentId) : undefined;
-    }
-
-    return (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-            {path.map((loc, index) => (
-                <React.Fragment key={loc.id}>
-                    <div className="flex items-center gap-1">
-                        <LocationIcon type={loc.type} />
-                        <span>{loc.name}</span>
-                    </div>
-                    {index < path.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />}
-                </React.Fragment>
-            ))}
-        </div>
-    );
-};
-
 const renderLocationPathAsString = (locationId: number, locations: any[]): string => {
     if (!locationId) return "N/A";
     const path: any[] = [];
@@ -112,7 +86,7 @@ export default function WarehouseSearchPage() {
         isAuthReady,
         allLocations: locations,
         allInventory: inventory,
-        allItemLocations: itemLocations,
+        allItemLocations,
         stockLevels: stock,
         stockSettings
     } = useAuth();
@@ -126,6 +100,49 @@ export default function WarehouseSearchPage() {
     const [classificationFilter, setClassificationFilter] = useState<string[]>([]);
     const [warehouseFilter, setWarehouseFilter] = useState<string[]>([]);
     const [locationFilter, setLocationFilter] = useState<string[]>([]);
+
+    const mixedLocationIds = useMemo(() => {
+        const counts = new Map<number, number>();
+        allItemLocations.forEach(il => {
+            if (il.locationId) {
+                counts.set(il.locationId, (counts.get(il.locationId) || 0) + 1);
+            }
+        });
+        return new Set(
+            Array.from(counts.entries())
+                .filter(([_, count]) => count > 1)
+                .map(([locationId]) => locationId)
+        );
+    }, [allItemLocations]);
+
+    const renderLocationPath = (locationId: number | null | undefined, locations: WarehouseLocation[]) => {
+        if (!locationId) return <span className="text-muted-foreground italic">Sin ubicación</span>;
+        const path: WarehouseLocation[] = [];
+        let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
+        
+        while (current) {
+            path.unshift(current);
+            const parentId = current.parentId;
+            current = parentId ? locations.find(l => l.id === parentId) : undefined;
+        }
+
+        const isMixed = mixedLocationIds.has(locationId);
+
+        return (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                {path.map((loc, index) => (
+                    <React.Fragment key={loc.id}>
+                        <div className="flex items-center gap-1">
+                            <LocationIcon type={loc.type} />
+                            <span>{loc.name}</span>
+                        </div>
+                        {index < path.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />}
+                    </React.Fragment>
+                ))}
+                {isMixed && <Badge variant="destructive" className="ml-2">Mixta</Badge>}
+            </div>
+        );
+    };
     
     const handleClearFilters = () => {
         setSearchTerm('');
@@ -180,7 +197,7 @@ export default function WarehouseSearchPage() {
                 const product = products.find(p => p.id.toLowerCase() === productId);
                 if (product) {
                     const productInventory = inventory.filter(inv => inv.itemId === product.id);
-                    const productItemLocations = itemLocations.filter(il => il.itemId === product.id);
+                    const productItemLocations = allItemLocations.filter(il => il.itemId === product.id);
                     const requiresCertificate = productItemLocations.some(il => il.requiresCertificate === 1);
                     const physicalLocations = [
                         ...productInventory.map(inv => ({ path: renderLocationPath(inv.locationId, locations), quantity: inv.quantity, location: locations.find(l => l.id === inv.locationId) })),
@@ -203,7 +220,7 @@ export default function WarehouseSearchPage() {
         let results: Product[] = [...products];
         if (debouncedSearchTerm) {
             const customerItemIds = new Set(
-                itemLocations
+                allItemLocations
                     .filter(il => customers.some(c => c.id === il.clientId && normalizeText(c.name).includes(searchLower)))
                     .map(il => il.itemId)
             );
@@ -219,7 +236,7 @@ export default function WarehouseSearchPage() {
 
         let searchResultItems = results.map(product => {
             const productInventory = inventory.filter(inv => inv.itemId === product.id);
-            const productItemLocations = itemLocations.filter(il => il.itemId === product.id);
+            const productItemLocations = allItemLocations.filter(il => il.itemId === product.id);
             const requiresCertificate = productItemLocations.some(il => il.requiresCertificate === 1);
             const physicalLocations = [
                 ...productInventory.map(inv => ({ path: renderLocationPath(inv.locationId, locations), quantity: inv.quantity, location: locations.find(l => l.id === inv.locationId) })),
@@ -251,12 +268,12 @@ export default function WarehouseSearchPage() {
         
         return searchResultItems.sort((a, b) => a.product.id.localeCompare(b.product.id));
 
-    }, [hasActiveFilters, products, itemLocations, customers, inventory, stock, locations, debouncedSearchTerm, classificationFilter, warehouseFilter, locationFilter, isAuthReady]);
+    }, [hasActiveFilters, products, allItemLocations, customers, inventory, stock, locations, debouncedSearchTerm, classificationFilter, warehouseFilter, locationFilter, isAuthReady, mixedLocationIds]);
     
     const handlePrintLabel = async (product: Product, location: WarehouseLocation) => {
         if (!user || !companyData) return;
         try {
-            const newUnit = await addInventoryUnit({ productId: product.id, locationId: location.id, createdBy: user.name, notes: 'Etiqueta generada desde búsqueda.', quantity: 1 });
+            const newUnit = await addInventoryUnit({ productId: product.id, locationId: location.id, createdBy: user.name, notes: 'Etiqueta generada desde búsqueda.', quantity: 1, status: 'pending' });
 
             const qrCodeDataUrl = await QRCode.toDataURL(newUnit.productId, { errorCorrectionLevel: 'H', width: 200 });
 

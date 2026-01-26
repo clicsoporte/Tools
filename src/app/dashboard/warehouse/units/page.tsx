@@ -26,6 +26,8 @@ import jsPDF from "jspdf";
 import QRCode from 'qrcode';
 import jsbarcode from 'jsbarcode';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { TableCell } from '@/components/ui/table';
 
 const initialNewUnitState = {
     productId: '',
@@ -53,7 +55,7 @@ export default function ManageUnitsPage() {
     useAuthorization(['warehouse:units:manage']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user, companyData, products: authProducts } = useAuth();
+    const { user, companyData, products: authProducts, allItemLocations } = useAuth();
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,6 +99,20 @@ export default function ManageUnitsPage() {
         loadInitialData();
     }, [setTitle, loadInitialData]);
 
+    const mixedLocationIds = useMemo(() => {
+        const counts = new Map<number, number>();
+        allItemLocations.forEach(il => {
+            if (il.locationId) {
+                counts.set(il.locationId, (counts.get(il.locationId) || 0) + 1);
+            }
+        });
+        return new Set(
+            Array.from(counts.entries())
+                .filter(([_, count]) => count > 1)
+                .map(([locationId]) => locationId)
+        );
+    }, [allItemLocations]);
+
     const productOptions = useMemo(() => {
         if (!debouncedProductSearch) return [];
         const searchLower = debouncedProductSearch.toLowerCase();
@@ -121,12 +137,18 @@ export default function ManageUnitsPage() {
     const locationOptions = useMemo(() => {
         const searchTerm = debouncedLocationSearch.trim().toLowerCase();
         if (searchTerm === '*' || searchTerm === '') {
-            return selectableLocations.map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, allLocations) }));
+            return selectableLocations.map(l => ({ 
+                value: String(l.id), 
+                label: `${renderLocationPathAsString(l.id, allLocations)}${mixedLocationIds.has(l.id) ? ' (Mixta)' : ''}`
+            }));
         }
         return selectableLocations
             .filter(l => renderLocationPathAsString(l.id, allLocations).toLowerCase().includes(searchTerm))
-            .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, allLocations) }));
-    }, [allLocations, selectableLocations, debouncedLocationSearch]);
+            .map(l => ({ 
+                value: String(l.id), 
+                label: `${renderLocationPathAsString(l.id, allLocations)}${mixedLocationIds.has(l.id) ? ' (Mixta)' : ''}`
+             }));
+    }, [allLocations, selectableLocations, debouncedLocationSearch, mixedLocationIds]);
 
     const handleSelectProduct = (value: string) => {
         setIsProductSearchOpen(false);
@@ -158,7 +180,7 @@ export default function ManageUnitsPage() {
 
         setIsSubmitting(true);
         try {
-            const createdUnit = await addInventoryUnit({ ...newUnit, createdBy: user.name });
+            const createdUnit = await addInventoryUnit({ ...newUnit, createdBy: user.name, status: 'pending' });
             setInventoryUnits(prev => [createdUnit, ...prev]);
             
             toast({ title: "Unidad Creada", description: `Se ha creado la unidad ${createdUnit.unitCode} para ${createdUnit.productId}.` });
@@ -341,6 +363,7 @@ export default function ManageUnitsPage() {
                                     {inventoryUnits.map(unit => {
                                         const product = products.find(p => p.id === unit.productId);
                                         const location = allLocations.find(l => l.id === unit.locationId);
+                                        const isMixed = location ? mixedLocationIds.has(location.id) : false;
                                         return (
                                             <tr key={unit.id} className="border-b">
                                                 <td className="p-2 font-mono">{unit.unitCode}</td>
@@ -349,7 +372,12 @@ export default function ManageUnitsPage() {
                                                     <div className="text-xs text-muted-foreground">{unit.productId}</div>
                                                 </td>
                                                 <td className="p-2 font-mono">{unit.humanReadableId || '-'}</td>
-                                                <td className="p-2">{location ? renderLocationPathAsString(location.id, allLocations) : 'N/A'}</td>
+                                                <td className="p-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{location ? renderLocationPathAsString(location.id, allLocations) : 'N/A'}</span>
+                                                        {isMixed && <Badge variant="destructive">Mixta</Badge>}
+                                                    </div>
+                                                </td>
                                                 <td className="p-2 text-xs text-muted-foreground">
                                                     <div>{unit.createdBy}</div>
                                                     <div>{format(new Date(unit.createdAt), 'dd/MM/yyyy HH:mm')}</div>
