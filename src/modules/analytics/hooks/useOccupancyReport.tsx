@@ -109,23 +109,23 @@ export const useOccupancyReport = () => {
         }
     }, [toast, updateState]);
     
+    const loadPrefs = useCallback(async () => {
+        if(user) {
+           const prefs = await getUserPreferences(user.id, 'occupancyReportPrefs');
+           if (prefs) {
+               updateState({ visibleColumns: prefs.visibleColumns || state.visibleColumns });
+           }
+       }
+       setIsInitialLoading(false);
+   }, [user, updateState, state.visibleColumns]);
+
     useEffect(() => {
         setTitle("Reporte de Ocupación de Almacén");
-        const loadPrefs = async () => {
-             if(user) {
-                const prefs = await getUserPreferences(user.id, 'occupancyReportPrefs');
-                if (prefs) {
-                    updateState({ visibleColumns: prefs.visibleColumns || state.visibleColumns });
-                }
-            }
-            setIsInitialLoading(false);
-        };
-
         if (isAuthorized) {
             loadPrefs();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthorized, user?.id]);
+    }, [setTitle, isAuthorized]);
 
     const getDescendantIds = useCallback((parentIds: number[]): Set<number> => {
         const descendants = new Set<number>();

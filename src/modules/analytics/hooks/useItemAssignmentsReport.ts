@@ -66,7 +66,7 @@ export function useItemAssignmentsReport() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: true,
+        isLoading: false, // Set to false initially, only true during fetch
         data: [],
         searchTerm: '',
         sortKey: 'product',
@@ -112,9 +112,9 @@ export function useItemAssignmentsReport() {
     useEffect(() => {
         setTitle("Reporte de Catálogo de Clientes");
         if (isAuthorized) {
-            fetchData().then(() => setIsInitialLoading(false));
+            setIsInitialLoading(false);
         }
-    }, [setTitle, isAuthorized, fetchData]);
+    }, [setTitle, isAuthorized]);
 
     const filteredData = useMemo(() => {
         let filtered = state.data;

@@ -63,7 +63,7 @@ export function useReceivingReport() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: true,
+        isLoading: false,
         data: [],
         allLocations: [],
         dateRange: {
@@ -73,7 +73,7 @@ export function useReceivingReport() {
         searchTerm: '',
         userFilter: [],
         locationFilter: [],
-        visibleColumns: ['receptionConsecutive', 'traceability', 'createdAt', 'productDescription', 'quantity', 'createdBy', 'annulledBy', 'annulledAt'],
+        visibleColumns: ['receptionConsecutive', 'traceability', 'createdAt', 'productDescription', 'quantity', 'createdBy', 'annulledBy', 'appliedBy'],
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
@@ -98,23 +98,23 @@ export function useReceivingReport() {
         }
     }, [state.dateRange, toast, updateState]);
 
-    const loadPrefsAndData = useCallback(async () => {
+    const loadPrefs = useCallback(async () => {
         if(user) {
            const prefs = await getUserPreferences(user.id, 'receivingReportPrefs');
            if (prefs && prefs.visibleColumns) {
                updateState({ visibleColumns: prefs.visibleColumns });
            }
        }
-       await fetchData();
        setIsInitialLoading(false);
-    }, [user, fetchData, updateState]);
+   }, [user, updateState]);
     
     useEffect(() => {
         setTitle("Reporte de Recepciones");
         if (isAuthorized) {
-            loadPrefsAndData();
+            loadPrefs();
         }
-    }, [setTitle, isAuthorized, loadPrefsAndData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized]);
     
     const getAllChildLocationIds = useCallback((locationId: number): number[] => {
         let children: number[] = [];
@@ -284,7 +284,7 @@ export function useReceivingReport() {
                         const replacementText = correctedUnit ? `Reemplazado por ${correctedUnit.receptionConsecutive}` : 'Anulado sin reemplazo';
                         return {
                             type: 'badge',
-                            content: { variant: 'destructive', text: `${item.correctionConsecutive} (${replacementText})` }
+                            content: { variant: 'destructive', text: `${item.correctionConsecutive} (Anula ${item.receptionConsecutive})` }
                         };
                     }
                     if (item.correctedFromUnitId) {

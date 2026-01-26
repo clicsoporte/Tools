@@ -127,23 +127,23 @@ export function useProductionReport() {
         }
     }, [isAuthorized, state.dateRange, state.productFilter, state.classificationFilter, state.machineFilter, toast, updateState]);
     
-    const loadPrefsAndData = useCallback(async () => {
+    const loadPrefs = useCallback(async () => {
         if(user) {
             const prefs = await getUserPreferences(user.id, 'productionReportPrefs');
             if (prefs && prefs.visibleColumns) {
                 updateState({ visibleColumns: prefs.visibleColumns });
             }
         }
-        await handleAnalyze();
         setIsInitialLoading(false);
-    }, [user, updateState, handleAnalyze]);
+    }, [user, updateState]);
 
     useEffect(() => {
         setTitle("Reporte de Producción");
         if (isAuthorized) {
-            loadPrefsAndData();
+            loadPrefs();
         }
-    }, [setTitle, isAuthorized, loadPrefsAndData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized]);
 
     const handleColumnVisibilityChange = (columnId: string, checked: boolean) => {
         updateState({

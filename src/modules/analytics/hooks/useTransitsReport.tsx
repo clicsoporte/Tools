@@ -67,7 +67,7 @@ export function useTransitsReport() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: true,
+        isLoading: false,
         dateRange: {
             from: startOfDay(subDays(new Date(), 60)),
             to: new Date(),
@@ -104,23 +104,23 @@ export function useTransitsReport() {
         }
     }, [isAuthorized, state.dateRange, toast, updateState]);
     
-    const loadPrefsAndData = useCallback(async () => {
+    const loadPrefs = useCallback(async () => {
         if (user) {
             const prefs = await getUserPreferences(user.id, 'transitsReportPrefs');
             if (prefs && prefs.visibleColumns) {
                 updateState({ visibleColumns: prefs.visibleColumns });
             }
         }
-        await handleAnalyze();
         setIsInitialLoading(false);
-    }, [user, updateState, handleAnalyze]);
+    }, [user, updateState]);
 
     useEffect(() => {
         setTitle("Reporte de Tránsitos");
         if (isAuthorized) {
-            loadPrefsAndData();
+            loadPrefs();
         }
-    }, [setTitle, isAuthorized, loadPrefsAndData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized]);
 
     const sortedData = useMemo(() => {
         let filtered = state.data;

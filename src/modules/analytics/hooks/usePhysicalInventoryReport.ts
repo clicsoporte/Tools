@@ -64,7 +64,7 @@ export function usePhysicalInventoryReport() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: true,
+        isLoading: false,
         reportData: [],
         allSelectableLocations: [],
         dateRange: {
@@ -101,7 +101,7 @@ export function usePhysicalInventoryReport() {
         }
     }, [state.dateRange, toast, updateState]);
     
-    const loadPrefsAndData = useCallback(async () => {
+    const loadPrefs = useCallback(async () => {
         if(user) {
            const prefs = await getUserPreferences(user.id, 'physicalInventoryReportPrefs');
            if (prefs) {
@@ -111,16 +111,16 @@ export function usePhysicalInventoryReport() {
                });
            }
        }
-       await fetchData();
        setIsInitialLoading(false);
-    }, [user, updateState, fetchData]);
+    }, [user, updateState]);
 
     useEffect(() => {
         setTitle("Reporte de Inventario Físico");
         if (isAuthorized) {
-            loadPrefsAndData();
+            loadPrefs();
         }
-    }, [setTitle, isAuthorized, loadPrefsAndData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized]);
 
     const sortedData = useMemo(() => {
         let data: PhysicalInventoryComparisonItem[] = [...state.reportData];
