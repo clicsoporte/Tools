@@ -596,7 +596,7 @@ export default function MaintenancePage() {
                                         <div className="space-y-2 rounded-lg border p-4">
                                             <h3 className="font-semibold">Actualizar Ingresos de Almacén Antiguos</h3>
                                             <p className="text-sm text-muted-foreground">
-                                                Este proceso buscará todos los ingresos creados antes del sistema de estados y los marcará como "Aplicado". Es seguro de ejecutar múltiples veces.
+                                                Este proceso buscará todos los ingresos creados antes del sistema de estados y los marcará como &quot;Aplicado&quot;. Es seguro de ejecutar múltiples veces.
                                             </p>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
@@ -609,7 +609,7 @@ export default function MaintenancePage() {
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>¿Actualizar Registros Antiguos?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Se asignará un consecutivo y se marcarán como "Aplicados" todos los ingresos de inventario que no tengan un estado.
+                                                            Se asignará un consecutivo y se marcarán como &quot;Aplicados&quot; todos los ingresos de inventario que no tengan un estado.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
@@ -770,3 +770,5 @@ export default function MaintenancePage() {
         </main>
     );
 }
+
+  
