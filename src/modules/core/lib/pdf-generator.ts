@@ -148,19 +148,23 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     addHeader();
     
     if (data.blocks.length > 0) {
-        autoTable(doc, {
-            startY: finalY,
-            body: data.blocks.map(b => ([
-                { content: b.title, styles: { fontStyle: 'bold', cellPadding: { top: 0, right: 5, bottom: 2, left: 0 }, minCellHeight: 15 } },
-                { content: b.content, styles: { fontStyle: 'normal', cellPadding: { top: 0, right: 0, bottom: 2, left: 0 } } }
-            ])),
-            theme: 'plain',
-            tableWidth: 'wrap',
-            styles: { fontSize: 9, cellPadding: 0 },
-            columnStyles: { 0: { cellWidth: 'auto', fontStyle: 'bold' } },
-            margin: { left: margin, right: margin }
+        data.blocks.forEach(block => {
+            if (finalY > doc.internal.pageSize.getHeight() - 100) { // Check if space is needed
+                doc.addPage();
+                addHeader();
+            }
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text(block.title, margin, finalY);
+            finalY += 15;
+    
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(9);
+            const contentLines = doc.splitTextToSize(block.content, pageWidth - (margin * 2));
+            doc.text(contentLines, margin, finalY);
+            finalY += (contentLines.length * 10) + 10;
         });
-        finalY = (doc as any).lastAutoTable.finalY + 15;
+        finalY += 5;
     }
 
     if (data.table && data.table.rows && data.table.rows.length > 0) {
