@@ -23,6 +23,28 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [2.5.0] - Publicado
+
+### Mejoras de Experiencia de Usuario (UX)
+
+-   **[UX] Mejoras en Administración de Ingresos:**
+    -   Se ha añadido **paginación** a la tabla de resultados, permitiendo manejar miles de registros sin afectar el rendimiento.
+    -   Se ha integrado un nuevo filtro **"Mostrar solo pendientes"** que está activado por defecto, enfocando la vista en las tareas que requieren acción. La preferencia de este filtro se guarda por usuario.
+-   **[UX] Indicador Visual de Ubicaciones Mixtas:**
+    -   En todas las herramientas del módulo de Almacén (Asistente de Recepción, Catálogo, Consultas, etc.), las ubicaciones que contienen más de un tipo de producto ahora muestran una insignia roja **"(Mixta)"**.
+    -   Esto proporciona visibilidad inmediata al operario sobre el estado de una ubicación sin necesidad de generar un reporte.
+-   **[UX] Notificación de Sincronización Mejorada:** El mensaje que aparece al finalizar la sincronización del ERP ahora muestra un recuento más claro del progreso (ej: "Se han procesado 10 de 11 tipos de datos").
+
+### Correcciones y Mejoras Internas
+
+-   **[Funcionalidad] Búsqueda por Código de Barras Universal:** Se ha habilitado la búsqueda por código de barras en todos los buscadores de productos de la aplicación (Cotizador, Planificador, Compras, Almacén) para una mayor consistencia y agilidad.
+-   **[Corrección] Logo en PDF de Ingresos:** Se solucionó un error que impedía que el logo de la empresa se mostrara en los comprobantes de ingreso y anulación generados desde la Administración de Ingresos.
+-   **[Corrección] Título de Página Dinámico:** Se arregló un problema que causaba que el título en la cabecera de la aplicación no se actualizara correctamente al navegar entre diferentes herramientas del panel de Administración.
+-   **[Lógica] Asistente de Recepción Inteligente:** Se corrigió la lógica del asistente. Ahora, la advertencia de "Ubicación Ocupada" solo aparecerá si se intenta ingresar un producto en una ubicación que ya contiene un artículo **diferente**, y no cuando se agrega más stock del mismo producto.
+-   **[Documentación] Centro de Ayuda Actualizado:** Se ha ampliado y actualizado el manual de usuario con tutoriales detallados que explican la diferencia entre las herramientas de almacén y cómo realizar traslados de inventario.
+
+---
+
 ## [2.4.0] - Publicado
 
 ### Funcionalidades y Mejoras Principales

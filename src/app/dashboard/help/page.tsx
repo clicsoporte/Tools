@@ -296,7 +296,7 @@ export default function HelpPage() {
 
                 <h4 className="font-semibold text-lg pt-2 border-t">¿Qué es el Botón &quot;Sincronizar ERP&quot;?</h4>
                  <ul className="list-disc space-y-3 pl-6">
-                    <li>Este botón, visible en el encabezado para usuarios con permisos, ejecuta el proceso de importación completo (ya sea desde archivos o SQL) en segundo plano.</li>
+                    <li>Este botón, visible en el encabezado para usuarios con permisos, ejecuta el proceso de importación completo (ya sea desde archivos o SQL) en segundo plano. La notificación de éxito ahora te dirá cuántos tipos de datos se procesaron del total (ej: &quot;10 de 11&quot;).</li>
                     <li>
                         <strong>Alerta de Sincronización Antigua (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si ha pasado mucho tiempo desde la última sincronización (el tiempo es configurable en Administración &gt; General), el indicador &quot;Última Sinc&quot; y el botón de sincronización se pondrán en **rojo y parpadearán**. Esto es una alerta visual crítica que te indica que los datos de la aplicación (como precios o inventario) pueden estar desactualizados.
                     </li>
@@ -323,7 +323,7 @@ export default function HelpPage() {
                 <h4 className="font-semibold text-lg pt-2 border-t">Configuración para Administradores</h4>
                 <ul className="list-disc space-y-3 pl-6">
                     <li>
-                        <strong>Paso 1: Configurar el SMTP.</strong> Para que el sistema pueda enviar correos, un administrador debe ir a <strong>Administración &gt; Configuración de Correo</strong>.
+                        <strong>Paso 1: Configurar el SMTP.</strong> Para que el sistema pueda enviar correos, un administrador debe ir a <strong>Administración > Configuración de Correo</strong>.
                     </li>
                     <li>
                         <strong>Campos Requeridos:</strong> Se deben ingresar los datos del servidor de correo de la empresa (Host, Puerto, Usuario, Contraseña y Seguridad). Estos datos se guardan de forma segura.
@@ -373,7 +373,7 @@ export default function HelpPage() {
                         <strong>Gestión para Administradores:</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>Los usuarios con permiso `admin:suggestions:read` verán un contador de sugerencias no leídas en el botón de &quot;Configuración&quot; del menú lateral.</li>
-                            <li>Dentro de <strong>Administración &gt; Buzón de Sugerencias</strong>, podrán ver todas las sugerencias enviadas, quién las envió y cuándo.</li>
+                            <li>Dentro de <strong>Administración > Buzón de Sugerencias</strong>, podrán ver todas las sugerencias enviadas, quién las envió y cuándo.</li>
                             <li>Las sugerencias nuevas aparecen resaltadas. Pueden marcarlas como leídas (<CheckCircle className="inline h-4 w-4 text-green-600"/>) o eliminarlas (<Trash2 className="inline h-4 w-4 text-red-600"/>).</li>
                         </ul>
                     </li>
@@ -512,7 +512,7 @@ export default function HelpPage() {
                     <strong>Tooltips Informativos:</strong> Si un botón de acción (como &quot;Aprobar&quot; o &quot;Reabrir&quot;) está desactivado, ahora puedes pasar el cursor sobre él para ver un mensaje que explica por qué no está disponible (ej: &quot;Solo para solicitudes aprobadas&quot;).
                 </li>
                 <li>
-                    <strong>Pasos Opcionales:</strong> En <strong>Administración &gt; Config. Compras</strong>, puedes activar el paso de &quot;Recibido en Bodega&quot; y el paso final &quot;Ingresado en ERP&quot; para un control más detallado del proceso logístico.
+                    <strong>Pasos Opcionales:</strong> En <strong>Administración > Config. Compras</strong>, puedes activar el paso de &quot;Recibido en Bodega&quot; y el paso final &quot;Ingresado en ERP&quot; para un control más detallado del proceso logístico.
                 </li>
                 <li>
                     <strong>Exportación:</strong> Puedes generar un archivo **PDF** o **Excel (.xlsx)** del reporte actual, incluyendo los filtros que hayas aplicado.
@@ -636,31 +636,7 @@ export default function HelpPage() {
             <div className="space-y-4">
                 <p>Este módulo te da control total sobre la localización y conteo de tu inventario. Incluye herramientas para mapear tu bodega, registrar conteos y generar etiquetas.</p>
                 
-                <h4 className="font-semibold text-lg pt-4 border-t">Nuevo Módulo: Centro de Despacho (<Truck className="inline h-4 w-4 text-blue-500"/>)</h4>
-                 <p>Esta es la funcionalidad más importante añadida en la v2.2.0. Digitaliza el proceso de alistamiento y verificación de mercadería, reemplazando el papel.</p>
-                <ol className="list-decimal space-y-3 pl-6">
-                    <li>
-                        <strong>Paso 1: Configurar Rutas (Admin).</strong> Un administrador debe ir a <strong>Administración &gt; Config. Almacenes</strong> y crear los &quot;Contenedores de Despacho&quot;, que son tus rutas (ej: &quot;Ruta San José&quot;, &quot;Ruta Heredia&quot;).
-                    </li>
-                    <li>
-                        <strong>Paso 2: Asignar Facturas (Logística).</strong> En <strong>Almacén &gt; Clasificador de Despachos</strong>, el personal de logística ve las facturas del ERP sin asignar. Pueden seleccionarlas y moverlas al contenedor de ruta correcto. En la pestaña &quot;Ordenar&quot;, pueden arrastrar las facturas para definir el orden de entrega.
-                    </li>
-                    <li>
-                        <strong>Paso 3: Verificar (Bodega).</strong> En <strong>Almacén &gt; Centro de Despacho</strong>, el bodeguero hace clic en una ruta. Esto **bloquea la ruta** para él.
-                    </li>
-                    <li>
-                        <strong>Paso 4: Chequeo Inteligente.</strong> Al hacer clic en un documento dentro de la ruta, se abre la pantalla de verificación. El bodeguero escanea los artículos. Cuando termina, el sistema lo pasa automáticamente al siguiente documento de la lista.
-                    </li>
-                    <li>
-                        <strong>Manejo de Errores:</strong>
-                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                           <li><strong>Facturas Anuladas (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si una factura es anulada en el ERP después de ser asignada, aparecerá con una alerta visual roja y no se podrá verificar.</li>
-                           <li><strong>Mover a Otra Ruta:</strong> Si una factura se asignó mal, el bodeguero puede usar el botón &quot;Mover&quot; para enviarla a otro contenedor.</li>
-                        </ul>
-                    </li>
-                </ol>
-
-                <h4 className="font-semibold text-lg pt-4 border-t">Otras Herramientas de Almacén</h4>
+                <h4 className="font-semibold text-lg pt-4 border-t">Herramientas Principales de Almacén</h4>
                  <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800">
                     <HelpCircle className="h-5 w-5"/>
                     <p className="text-sm">Una vez configurado, el personal de almacén puede usar las herramientas desde el sub-panel <strong>Almacén</strong>:</p>
@@ -670,11 +646,13 @@ export default function HelpPage() {
                         <strong>Búsqueda Rápida (<QrCode className="inline h-4 w-4"/>):</strong> Ideal para dispositivos con escáner. Simplemente escanea el código de un artículo para ver instantáneamente su información, existencias y ubicaciones físicas y del ERP. El campo de búsqueda se limpia automáticamente, listo para el siguiente escaneo.
                     </li>
                     <li>
-                        <strong>Administración de Ingresos (<RotateCcw className="inline h-4 w-4 text-red-500"/>):</strong>
+                        <strong>Administración de Ingresos (<BookMarked className="inline h-4 w-4 text-red-500"/>):</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li>Permite buscar un ingreso ya registrado por múltiples criterios (fecha, lote, producto, etc.).</li>
-                            <li>**Nuevo Flujo de Aprobación:** Los ingresos entran en estado **&quot;Pendiente&quot;**. Un supervisor puede **&quot;Revisar y Aplicar&quot;** el ingreso, editando cualquier campo y añadiendo el **Nº de Documento ERP**.</li>
+                            <li>Permite buscar un ingreso ya registrado por múltiples criterios. Ahora incluye **paginación** para manejar grandes volúmenes de datos.</li>
+                            <li>**Filtro Inteligente:** Por defecto, la herramienta muestra solo los ingresos <strong>&quot;Pendientes&quot;</strong>. Puedes desactivar el filtro para ver todos los ingresos (aplicados, anulados, etc.).</li>
+                            <li>**Flujo de Aprobación:** Los ingresos entran en estado **&quot;Pendiente&quot;**. Un supervisor puede **&quot;Revisar y Aplicar&quot;** el ingreso, editando cualquier campo y añadiendo el **Nº de Documento ERP**.</li>
                             <li>Una vez &quot;Aplicado&quot;, el ingreso solo puede ser **&quot;Corregido&quot;**, lo que anula el registro original y crea uno nuevo, manteniendo una trazabilidad completa.</li>
+                             <li>Desde aquí también puedes **reimprimir la boleta PDF** de cualquier ingreso.</li>
                         </ul>
                     </li>
                      <li>
@@ -701,6 +679,41 @@ export default function HelpPage() {
                         <strong>Gestión de Bloqueos (<Lock className="inline h-4 w-4"/>):</strong> Una herramienta administrativa para ver qué ubicaciones o contenedores están siendo usados y liberar bloqueos si un usuario deja una sesión abandonada.
                     </li>
                 </ul>
+                <h4 className="font-semibold text-lg pt-4 border-t">Diferencia entre Herramientas Clave</h4>
+                <p className="text-sm">Es común preguntarse cuál es la diferencia entre &quot;Catálogo&quot;, &quot;Gestión de Lotes&quot; y el &quot;Asistente de Recepción&quot;. Aquí tienes una guía rápida:</p>
+                <ul className="list-disc space-y-3 pl-6">
+                    <li>
+                        <strong>Catálogo Clientes y Artículos:</strong> Es el <strong>mapa maestro</strong> de tu almacén. Aquí defines las <strong>reglas</strong>: &quot;el producto A <i>pertenece</i> a la ubicación X&quot;. Es para configurar la distribución ideal.
+                    </li>
+                    <li>
+                        <strong>Asistente de Recepción:</strong> Es tu herramienta principal para el <strong>ingreso diario</strong>. Es un flujo guiado y rápido que te sugiere ubicaciones basadas en el catálogo. Responde a: &quot;Estoy recibiendo este producto, ¿dónde lo pongo?&quot;
+                    </li>
+                     <li>
+                        <strong>Gestión de Lotes/Tarimas:</strong> Es una herramienta más <strong>manual y potente</strong>. Te permite crear una unidad de inventario desde cero, sin un flujo guiado. Es útil para casos especiales o correcciones.
+                    </li>
+                </ul>
+
+                <h4 className="font-semibold text-lg pt-4 border-t">¿Cómo Mover un Artículo de Ubicación?</h4>
+                <ul className="list-disc space-y-3 pl-6">
+                    <li>
+                        <strong>Para cambiar la ubicación designada de un producto (la regla):</strong> Usa <strong>&quot;Catálogo Clientes y Artículos&quot;</strong>. Busca la asignación y edítala para seleccionar la nueva ubicación.
+                    </li>
+                    <li>
+                        <strong>Para mover físicamente un lote/tarima (`U-XXXXX`):</strong> Usa <strong>&quot;Administración de Ingresos&quot;</strong>.
+                        <ol className="list-decimal space-y-2 pl-5 mt-2 text-sm">
+                            <li>Busca la unidad que quieres mover.</li>
+                            <li>Haz clic en &quot;Corregir&quot;.</li>
+                            <li>Cambia la cantidad a <strong>cero (0)</strong> para registrar la salida de la ubicación original y en las notas indica el motivo (ej: &quot;Traslado a R02-B-03&quot;).</li>
+                            <li>Ve al <strong>&quot;Asistente de Recepción&quot;</strong> y crea un nuevo ingreso para ese producto en su <strong>nueva ubicación</strong>.</li>
+                        </ol>
+                        <p className="text-xs text-muted-foreground mt-2">Este proceso asegura que cada movimiento (salida y entrada) quede registrado para una trazabilidad completa.</p>
+                    </li>
+                </ul>
+
+                <h4 className="font-semibold text-lg pt-4 border-t">¿Cómo Identificar Ubicaciones Mixtas?</h4>
+                <p>
+                    Para ayudarte a mantener el orden, el sistema ahora te muestra una insignia roja <strong>(Mixta)</strong> junto al nombre de cualquier ubicación que contenga más de un tipo de producto. Verás este indicador en todas las herramientas del almacén, permitiéndote identificar y corregir estas situaciones rápidamente sin necesidad de generar un reporte.
+                </p>
             </div>
         )
     },
@@ -788,7 +801,7 @@ export default function HelpPage() {
                     </div>
                     <div className="flex items-start gap-4">
                         <Calculator className="mt-1 h-6 w-6 text-orange-600 shrink-0" />
-                        <div><h4 className="font-semibold">Config. Asist. Costos</h4><p>Gestiona los consecutivos y prefijos para los borradores del Asistente de Costos.</p></div>
+                        <div><h4 className="font-semibold">Config. Asist. Costos</h4><p>Gestionar los consecutivos y prefijos para los borradores del Asistente de Costos.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
@@ -842,7 +855,7 @@ export default function HelpPage() {
                  <h4 className="font-semibold text-lg">Proceso de Actualización Seguro</h4>
                 <ol className="list-decimal space-y-3 pl-6">
                     <li>
-                        <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve a <strong>Administración &gt; Mantenimiento</strong> y haz clic en <strong>&quot;Crear Punto de Restauración&quot;</strong>. Esto generará una copia segura de todas las bases de datos del sistema.
+                        <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve a <strong>Administración > Mantenimiento</strong> y haz clic en <strong>&quot;Crear Punto de Restauración&quot;</strong>. Esto generará una copia segura de todas las bases de datos del sistema.
                     </li>
                     <li>
                         <strong>Paso 2: Reemplazar Archivos.</strong> Detén la aplicación (por ejemplo, usando `pm2 stop clic-tools` en Linux o deteniendo el sitio en IIS). Luego, borra todos los archivos y carpetas de la versión anterior **excepto** la carpeta `dbs/` y, si existe, el archivo `.env.local`. Después, copia todos los archivos de la nueva versión en su lugar.
@@ -851,7 +864,7 @@ export default function HelpPage() {
                         <strong>Paso 3: Actualizar y Reconstruir.</strong> Abre una terminal en la carpeta del proyecto, ejecuta `npm install --omit=dev` para instalar cualquier nueva dependencia y luego `npm run build` para compilar la nueva versión.
                     </li>
                     <li>
-                        <strong>Paso 4: Reiniciar y Verificar.</strong> Vuelve a iniciar la aplicación (ej: `pm2 start clic-tools`). Al arrancar, el sistema detectará las diferencias y añadirá las nuevas tablas o columnas automáticamente. Luego, ve a <strong>Administración &gt; Mantenimiento &gt; Centro de Verificación</strong> y ejecuta la auditoría para confirmar que todas las bases de datos tienen la estructura correcta.
+                        <strong>Paso 4: Reiniciar y Verificar.</strong> Vuelve a iniciar la aplicación (ej: `pm2 start clic-tools`). Al arrancar, el sistema detectará las diferencias y añadirá las nuevas tablas o columnas automáticamente. Luego, ve a <strong>Administración > Mantenimiento > Centro de Verificación</strong> y ejecuta la auditoría para confirmar que todas las bases de datos tienen la estructura correcta.
                     </li>
                 </ol>
                 <Alert variant="destructive">
@@ -932,5 +945,3 @@ export default function HelpPage() {
     </main>
   );
 }
-
-  

@@ -394,7 +394,7 @@ export const useQuoter = () => {
     return (products || [])
       .filter((p) => {
         if (!showInactiveProducts && p.active !== "S") return false;
-        const targetText = `${p.id} ${p.description}`.toLowerCase();
+        const targetText = `${p.id} ${p.description} ${p.barcode || ''}`.toLowerCase();
         return searchTerms.every((term) => targetText.includes(term));
       })
       .map((p) => {

@@ -827,7 +827,7 @@ export const usePlanner = () => {
             if (debouncedProductSearch.length < 2) return [];
             const searchTerms = normalizeText(debouncedProductSearch).split(' ').filter(Boolean);
             return products.filter(p => {
-                const targetText = normalizeText(`${p.id} ${p.description}`);
+                const targetText = normalizeText(`${p.id} ${p.description} ${p.barcode || ''}`);
                 return searchTerms.every(term => targetText.includes(term));
             }).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
         }, [products, debouncedProductSearch]),

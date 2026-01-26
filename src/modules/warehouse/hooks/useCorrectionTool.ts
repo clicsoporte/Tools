@@ -376,37 +376,6 @@ export const useCorrectionTool = () => {
         toast({ title: 'Preferencias Guardadas' });
     };
 
-    const actions = {
-        setFilter: (field: keyof State['filters'], value: any) => {
-            updateState({
-                filters: { ...state.filters, [field]: value },
-            });
-        },
-        handleStatusFilterChange: (checked: boolean) => {
-            updateState({
-                filters: { ...state.filters, statusFilter: checked ? 'pending' : 'all' },
-                currentPage: 0,
-            });
-        },
-        handleSearch,
-        handleClearFilters,
-        handleSelectNewProduct,
-        handleModalOpenChange,
-        handleConfirmCorrection,
-        setUnitToCorrect,
-        setNewProductSearch: (term: string) => updateState({ newProductSearch: term }),
-        setNewProductSearchOpen: (isOpen: boolean) => updateState({ isNewProductSearchOpen: isOpen }),
-        setEditableUnitField,
-        resetEditableUnit,
-        handleClearForm,
-        handleSort,
-        handleColumnVisibilityChange,
-        savePreferences,
-        handlePrintTicket,
-        setCurrentPage: (page: number | ((p: number) => number)) => updateState({ currentPage: typeof page === 'function' ? page(state.currentPage) : page }),
-        setRowsPerPage: (size: number) => updateState({ rowsPerPage: size, currentPage: 0 }),
-    };
-
     const sortedResults = useMemo(() => {
         const data = [...state.searchResults];
         data.sort((a, b) => {
@@ -435,14 +404,14 @@ export const useCorrectionTool = () => {
         const end = start + state.rowsPerPage;
         return sortedResults.slice(start, end);
     }, [sortedResults, state.currentPage, state.rowsPerPage]);
-
+    
     const selectors = {
         hasPermission,
         productOptions: useMemo(() => {
             if (debouncedNewProductSearch.length < 2) return [];
             const searchLower = debouncedNewProductSearch.toLowerCase();
             return authProducts
-                .filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower))
+                .filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower) || (p.barcode || '').toLowerCase().includes(searchLower))
                 .map(p => ({ value: p.id, label: `[${p.id}] ${p.description}` }));
         }, [authProducts, debouncedNewProductSearch]),
         getOriginalProductName: () => {
@@ -465,7 +434,7 @@ export const useCorrectionTool = () => {
         totalPages: Math.ceil(sortedResults.length / state.rowsPerPage),
         availableColumns,
         visibleColumnsData: useMemo(() => {
-            return state.visibleColumns.map(id => availableColumns.find(c => c.id === id)).filter(Boolean) as { id: string; label: string; }[];
+            return state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as { id: string; label: string; }[];
         }, [state.visibleColumns]),
         getColumnContent: (item: InventoryUnit, colId: string): { content: any; className?: string; type?: string; variant?: "default" | "secondary" | "destructive" | "outline" | undefined; } => {
             switch (colId) {
@@ -502,6 +471,37 @@ export const useCorrectionTool = () => {
                 default: return { content: null, type: 'string' };
             }
         },
+    };
+    
+    const actions = {
+        setFilter: (field: keyof State['filters'], value: any) => {
+            updateState({
+                filters: { ...state.filters, [field]: value },
+            });
+        },
+        handleStatusFilterChange: (checked: boolean) => {
+            updateState({
+                filters: { ...state.filters, statusFilter: checked ? 'pending' : 'all' },
+                currentPage: 0,
+            });
+        },
+        handleSearch,
+        handleClearFilters,
+        handleSelectNewProduct,
+        handleModalOpenChange,
+        handleConfirmCorrection,
+        setUnitToCorrect,
+        setNewProductSearch: (term: string) => updateState({ newProductSearch: term }),
+        setNewProductSearchOpen: (isOpen: boolean) => updateState({ isNewProductSearchOpen: isOpen }),
+        setEditableUnitField,
+        resetEditableUnit,
+        handleClearForm,
+        handleSort,
+        handleColumnVisibilityChange,
+        savePreferences,
+        handlePrintTicket,
+        setCurrentPage: (page: number | ((p: number) => number)) => updateState({ currentPage: typeof page === 'function' ? page(state.currentPage) : page }),
+        setRowsPerPage: (size: number) => updateState({ rowsPerPage: size, currentPage: 0 }),
     };
 
     return {

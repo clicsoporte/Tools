@@ -14,5 +14,5 @@ export default function AdminLayout({
 }) {
     // This layout simply passes the context of the page title to its children.
     // It inherits the PageTitleProvider from the parent /dashboard/layout.tsx.
-    return <>{children}</>;
+    return children;
 }
