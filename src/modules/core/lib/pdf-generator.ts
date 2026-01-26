@@ -35,6 +35,7 @@ export interface DocumentData {
     paperSize?: 'letter' | 'legal';
     orientation?: 'portrait' | 'landscape';
     topLegend?: string;
+    signatureBlock?: { label: string; value: string }[];
 }
 
 const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
@@ -50,6 +51,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     const margin = 40;
     const pageWidth = doc.internal.pageSize.getWidth();
     let finalY = 0;
+    let pagesDrawnByAutotable = new Set<number>();
+    let totalPages = 1;
+    let currentPage = 1;
 
     const addHeader = () => {
         let currentY = 40; // Initial Y position for the main title
@@ -100,7 +104,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFontSize(11);
         doc.setFont('Helvetica', 'bold');
         if (data.docId) {
+            doc.setTextColor(255, 0, 0); // Red color for ID
             doc.text(data.docId, rightColX, rightY, { align: 'right' });
+            doc.setTextColor(0, 0, 0); // Reset color
             rightY += 15;
         }
 
@@ -132,8 +138,6 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         finalY = Math.max(companyY, rightY) + 20;
     };
 
-    let pagesDrawnByAutotable = new Set<number>();
-    
     const didDrawPage = (hookData: any) => {
         pagesDrawnByAutotable.add(hookData.pageNumber);
         if (hookData.pageNumber > 1) {
@@ -147,52 +151,41 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         autoTable(doc, {
             startY: finalY,
             body: data.blocks.map(b => ([
-                { content: b.title, styles: { fontStyle: 'bold', cellPadding: { top: 0, right: 5, bottom: 2, left: 0 } } },
+                { content: b.title, styles: { fontStyle: 'bold', cellPadding: { top: 0, right: 5, bottom: 2, left: 0 }, minCellHeight: 15 } },
                 { content: b.content, styles: { fontStyle: 'normal', cellPadding: { top: 0, right: 0, bottom: 2, left: 0 } } }
             ])),
             theme: 'plain',
             tableWidth: 'wrap',
             styles: { fontSize: 9, cellPadding: 0 },
-            columnStyles: { 0: { cellWidth: 'wrap' } },
+            columnStyles: { 0: { cellWidth: 'auto', fontStyle: 'bold' } },
             margin: { left: margin, right: margin }
         });
         finalY = (doc as any).lastAutoTable.finalY + 15;
     }
 
-    autoTable(doc, {
-        head: [data.table.columns],
-        body: data.table.rows,
-        startY: finalY,
-        margin: { right: margin, left: margin, bottom: 80 },
-        theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
-        styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
-        columnStyles: data.table.columnStyles,
-        didDrawPage: didDrawPage,
-    });
-    
-    finalY = (doc as any).lastAutoTable.finalY;
-    
-    const pageHeight = doc.internal.pageSize.getHeight();
-    let totalPages = (doc.internal as any).getNumberOfPages();
-    let currentPage = totalPages;
-
-    let bottomContentY = finalY + 20;
-
-    if (bottomContentY > pageHeight - 140) {
-        doc.addPage();
-        currentPage++;
-        totalPages++;
-        bottomContentY = 60; 
-        addHeader();
+    if (data.table && data.table.rows && data.table.rows.length > 0) {
+        autoTable(doc, {
+            head: [data.table.columns],
+            body: data.table.rows,
+            startY: finalY,
+            margin: { right: margin, left: margin, bottom: 120 },
+            theme: 'striped',
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
+            styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
+            columnStyles: data.table.columnStyles,
+            didDrawPage: didDrawPage,
+        });
+        finalY = (doc as any).lastAutoTable.finalY;
     }
     
+    totalPages = (doc.internal as any).getNumberOfPages();
+    currentPage = totalPages;
     doc.setPage(currentPage);
     
-    let leftY = bottomContentY;
-    let rightY = bottomContentY;
-
-    doc.setFontSize(9);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let leftY = finalY + 20;
+    let rightY = finalY + 20;
+    
     if (data.paymentInfo) {
         doc.setFont('Helvetica', 'bold');
         doc.text('Condiciones de Pago:', margin, leftY);
@@ -208,30 +201,60 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFont('Helvetica', 'normal');
         const splitNotes = doc.splitTextToSize(data.notes, (pageWidth / 2) - margin * 2);
         doc.text(splitNotes, margin, leftY);
+        leftY += (splitNotes.length * 10);
     }
     
     const totalsX = pageWidth - margin;
-    const padding = 10; 
-    
+    const padding = 10;
     data.totals.forEach((total, index) => {
         const isLast = index === data.totals.length - 1;
-        
         doc.setFont('Helvetica', isLast ? 'bold' : 'normal');
         doc.setFontSize(isLast ? 12 : 10);
-        
         const valueWidth = doc.getTextWidth(total.value);
         const labelX = totalsX - valueWidth - padding;
-
         doc.text(total.label, labelX, rightY, { align: 'right' });
         doc.text(total.value, totalsX, rightY, { align: 'right' });
-        
         rightY += isLast ? 18 : 14;
     });
 
+    let bottomContentY = Math.max(leftY, rightY);
+    
+    if (data.signatureBlock && data.signatureBlock.length > 0) {
+        if (bottomContentY > pageHeight - 120) {
+            doc.addPage();
+            currentPage++; totalPages++;
+            addHeader();
+            bottomContentY = 80;
+        }
+
+        doc.setFontSize(10).setFont('Helvetica', 'bold');
+        doc.text('ACEPTACIÓN Y RESPONSABILIDAD:', margin, bottomContentY);
+        bottomContentY += 40;
+
+        const signatureWidth = 180;
+        const leftSig = data.signatureBlock[0];
+        if (leftSig) {
+            const x = margin;
+            doc.line(x, bottomContentY, x + signatureWidth, bottomContentY);
+            doc.setFontSize(9).setFont('Helvetica', 'normal');
+            doc.text(leftSig.label, x, bottomContentY + 12);
+            doc.text(leftSig.value, x, bottomContentY + 22);
+        }
+        
+        const rightSig = data.signatureBlock[1];
+        if (rightSig) {
+            const x = pageWidth - margin - signatureWidth;
+            doc.line(x, bottomContentY, x + signatureWidth, bottomContentY);
+            doc.setFontSize(9).setFont('Helvetica', 'normal');
+            doc.text(rightSig.label, x, bottomContentY + 12);
+            doc.text(rightSig.value, x, bottomContentY + 22);
+        }
+    }
+
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        if (!pagesDrawnByAutotable.has(i)) {
-             addHeader();
+        if (!pagesDrawnByAutotable.has(i) && i > 1) {
+            addHeader();
         }
         addFooter(doc, i, totalPages);
     }

@@ -7,11 +7,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { correctInventoryUnit, searchInventoryUnits, applyInventoryUnit } from '@/modules/warehouse/lib/actions';
-import type { InventoryUnit, Product, DateRange } from '@/modules/core/types';
+import { correctInventoryUnit, searchInventoryUnits, applyInventoryUnit, getWarehouseSettings, getLocations } from '@/modules/warehouse/lib/actions';
+import type { InventoryUnit, Product, DateRange, WarehouseSettings, WarehouseLocation } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
-import { subDays } from 'date-fns';
+import { subDays, format, parseISO } from 'date-fns';
+import { generateDocument } from '@/modules/core/lib/pdf-generator';
 
 interface State {
     isSearching: boolean;
@@ -42,10 +43,27 @@ const emptyEditableUnit: Partial<InventoryUnit> = {
     erpDocumentId: '',
 };
 
+const renderLocationPathAsString = (locationId: number | null, locations: WarehouseLocation[]): string => {
+    if (!locationId) return '';
+    const path: WarehouseLocation[] = [];
+    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
+    while (current) {
+        path.unshift(current);
+        const parentId = current.parentId;
+        if (!parentId) break;
+        current = locations.find(l => l.id === parentId);
+    }
+    return path.map(l => l.name).join(' > ');
+};
+
+
 export const useCorrectionTool = () => {
     const { hasPermission } = useAuthorization(['warehouse:correction:execute', 'warehouse:correction:apply']);
     const { toast } = useToast();
-    const { user, products: authProducts } = useAuth();
+    const { user, products: authProducts, companyData: authCompanyData } = useAuth();
+    
+    const [warehouseSettings, setWarehouseSettings] = useState<WarehouseSettings | null>(null);
+    const [allLocations, setAllLocations] = useState<WarehouseLocation[]>([]);
 
     const [state, setState] = useState<State>({
         isSearching: false,
@@ -67,6 +85,13 @@ export const useCorrectionTool = () => {
         newSelectedProduct: null,
         editableUnit: {},
     });
+
+    useEffect(() => {
+        if(hasPermission) {
+            getWarehouseSettings().then(setWarehouseSettings);
+            getLocations().then(setAllLocations);
+        }
+    }, [hasPermission]);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
@@ -174,6 +199,75 @@ export const useCorrectionTool = () => {
         }
     };
 
+    const handlePrintTicket = async (unit: InventoryUnit) => {
+        if (!user || !authCompanyData) {
+            toast({ title: 'Error', description: 'No se pudieron cargar los datos del usuario o la empresa.', variant: 'destructive'});
+            return;
+        }
+    
+        updateState({ isSubmitting: true });
+    
+        try {
+            let docTitle = 'COMPROBANTE DE INGRESO';
+            let mainConsecutive = unit.receptionConsecutive || `U-${unit.unitCode}`;
+            let trazabilidadContent = '';
+    
+            if (unit.status === 'voided' && unit.correctionConsecutive) {
+                docTitle = 'COMPROBANTE DE ANULACIÓN';
+                mainConsecutive = unit.correctionConsecutive;
+                trazabilidadContent = `Este documento ANULA el ingreso: ${unit.receptionConsecutive}`;
+            } else if (unit.correctedFromUnitId) {
+                docTitle = 'COMPROBANTE DE INGRESO (POR CORRECCIÓN)';
+                const originalUnit = state.searchResults.find(u => u.id === unit.correctedFromUnitId);
+                if(originalUnit) {
+                     trazabilidadContent = `Este documento CORRIGE Y REEMPLAZA el ingreso: ${originalUnit.receptionConsecutive}`;
+                }
+            }
+            
+            const product = authProducts.find(p => p.id === unit.productId);
+            const locationPath = renderLocationPathAsString(unit.locationId, allLocations);
+    
+            const detailsBlock = [
+                `Producto:          [${unit.productId}] ${product?.description || 'N/A'}`,
+                `Cantidad Recibida:  ${unit.quantity} Unidades`,
+                `Lote / ID Físico:   ${unit.humanReadableId || 'N/A'}`,
+                `Documento Origen:   ${unit.documentId || 'N/A'}`,
+                `Documento ERP:      ${unit.erpDocumentId || 'N/A'}`,
+                `Ubicación Destino:  ${locationPath}`,
+                `Notas:             ${unit.notes || 'Sin notas.'}`
+            ].join('\n');
+    
+            const doc = generateDocument({
+                docTitle,
+                docId: mainConsecutive,
+                meta: [
+                    { label: 'Fecha de Ingreso', value: format(parseISO(unit.createdAt), 'dd/MM/yyyy HH:mm') },
+                    ...(unit.appliedAt ? [{ label: 'Fecha de Aplicación', value: format(parseISO(unit.appliedAt), 'dd/MM/yyyy HH:mm') }] : [])
+                ],
+                companyData: authCompanyData,
+                blocks: [
+                    ...(trazabilidadContent ? [{ title: 'TRAZABILIDAD:', content: trazabilidadContent }] : []),
+                    { title: 'DETALLES DEL MOVIMIENTO:', content: detailsBlock },
+                ],
+                table: { columns: [], rows: [] },
+                totals: [],
+                topLegend: warehouseSettings?.pdfTopLegend,
+                signatureBlock: [
+                    { label: 'Recibido Por:', value: unit.createdBy },
+                    { label: 'Revisado Por:', value: unit.appliedBy || '' }
+                ],
+            });
+    
+            doc.save(`comprobante_${mainConsecutive}.pdf`);
+            
+        } catch(err: any) {
+            logError("Failed to generate receipt PDF", { error: err.message, unitId: unit.id });
+            toast({ title: 'Error al generar PDF', description: 'No se pudo crear el documento.', variant: 'destructive'});
+        } finally {
+            updateState({ isSubmitting: false });
+        }
+    };
+
     const setEditableUnitField = (field: keyof InventoryUnit, value: any) => {
         updateState({ editableUnit: { ...state.editableUnit, [field]: value } });
     };
@@ -227,6 +321,7 @@ export const useCorrectionTool = () => {
         getProductName: (productId: string) => {
              return authProducts.find(p => p.id === productId)?.description || 'Desconocido';
         },
+        getLocationPath: (locationId: number | null) => renderLocationPathAsString(locationId, allLocations),
         isCorrectionFormValid: useMemo(() => {
             if (!state.unitToCorrect) return false;
             // Check if any of the correctable fields have changed from the original
@@ -256,6 +351,7 @@ export const useCorrectionTool = () => {
             setEditableUnitField,
             resetEditableUnit,
             handleClearForm,
+            handlePrintTicket,
         },
         selectors,
     };
