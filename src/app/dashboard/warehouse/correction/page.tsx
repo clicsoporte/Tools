@@ -16,14 +16,15 @@ import { Calendar } from '@/components/ui/calendar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX, Info, Check, Printer } from 'lucide-react';
+import { Loader2, Save, Search, RotateCcw, Package, AlertTriangle, Calendar as CalendarIcon, FilterX, Info, Check, Printer, ArrowUp, ArrowDown } from 'lucide-react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useCorrectionTool } from '@/modules/warehouse/hooks/useCorrectionTool';
+import { useCorrectionTool, type SortKey } from '@/modules/warehouse/hooks/useCorrectionTool';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { Badge } from '@/components/ui/badge';
+import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
 
 export default function CorrectionPage() {
     useAuthorization(['warehouse:correction:execute']);
@@ -33,17 +34,23 @@ export default function CorrectionPage() {
         isSearching,
         isSubmitting,
         filters,
-        searchResults,
-        unitToCorrect,
         isConfirmModalOpen,
         newProductSearch,
         isNewProductSearchOpen,
         editableUnit,
+        visibleColumns,
+        sortKey,
+        sortDirection,
     } = state;
 
     useEffect(() => {
         setTitle("Administración de Ingresos");
     }, [setTitle]);
+
+    const renderSortIcon = (key: SortKey) => {
+        if (sortKey !== key) return null;
+        return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
+    };
     
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -90,67 +97,44 @@ export default function CorrectionPage() {
                     </CardFooter>
                 </Card>
 
-                {searchResults.length > 0 && (
+                {state.searchResults.length > 0 && (
                     <Card>
                         <CardHeader>
-                            <CardTitle>Resultados de la Búsqueda</CardTitle>
+                           <div className="flex justify-between items-center">
+                                <CardTitle>Resultados de la Búsqueda</CardTitle>
+                                <DialogColumnSelector
+                                    allColumns={selectors.availableColumns}
+                                    visibleColumns={visibleColumns}
+                                    onColumnChange={actions.handleColumnVisibilityChange}
+                                    onSave={actions.savePreferences}
+                                />
+                            </div>
                         </CardHeader>
                         <CardContent>
-                             <div className="relative h-96 w-full overflow-auto rounded-md border">
-                                <Table>
+                            <div className="relative h-96 w-full overflow-auto rounded-md border">
+                                <Table className="min-w-max">
                                     <TableHeader className="sticky top-0 z-10 bg-background">
                                         <TableRow>
-                                            <TableHead>Estado</TableHead>
-                                            <TableHead>Trazabilidad</TableHead>
-                                            <TableHead>Producto</TableHead>
-                                            <TableHead>Lote/ID Físico</TableHead>
-                                            <TableHead>Cant.</TableHead>
-                                            <TableHead>Usuario</TableHead>
-                                            <TableHead>Fecha Ingreso</TableHead>
-                                            <TableHead>Anulado Por</TableHead>
-                                            <TableHead>Fecha Anulación</TableHead>
-                                            <TableHead className="text-right">Acción</TableHead>
+                                            {selectors.visibleColumnsData.map(col => (
+                                                <TableHead key={col.id} className="cursor-pointer" onClick={() => actions.handleSort(col.id as SortKey)}>
+                                                    <div className="flex items-center gap-1">
+                                                        {col.label} {renderSortIcon(col.id as SortKey)}
+                                                    </div>
+                                                </TableHead>
+                                            ))}
+                                            <TableHead className="text-right sticky right-0 bg-background">Acción</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {searchResults.map(unit => {
+                                        {selectors.sortedResults.map(unit => {
                                             const isVoided = !!unit.correctionConsecutive;
                                             return (
                                                 <TableRow key={unit.id} className={cn(isVoided && 'bg-destructive/10 text-destructive')}>
-                                                    <TableCell>
-                                                        {unit.status === 'pending' ? (
-                                                            <Badge variant="secondary">Pendiente</Badge>
-                                                        ) : (
-                                                            <Badge variant="default" className="bg-green-600">Aplicado</Badge>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="font-mono text-xs">
-                                                        {unit.correctionConsecutive ? (
-                                                            <div className="flex flex-col">
-                                                                <Badge variant="destructive" className="mb-1 w-fit">ANULADO</Badge>
-                                                                <span className="line-through">{unit.receptionConsecutive}</span>
-                                                                <span className="text-muted-foreground">→ {unit.correctionConsecutive}</span>
-                                                            </div>
-                                                        ) : unit.correctedFromUnitId ? (
-                                                            <div className="flex flex-col">
-                                                                <Badge variant="outline" className="mb-1 w-fit">CORRECCIÓN</Badge>
-                                                                <span>{unit.receptionConsecutive}</span>
-                                                            </div>
-                                                        ) : (
-                                                            <Badge variant="secondary">{unit.receptionConsecutive}</Badge>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <p className="font-medium">{selectors.getProductName(unit.productId)}</p>
-                                                        <p className="text-sm text-muted-foreground">{unit.productId}</p>
-                                                    </TableCell>
-                                                    <TableCell>{unit.humanReadableId || 'N/A'}</TableCell>
-                                                    <TableCell className="font-bold">{unit.quantity}</TableCell>
-                                                    <TableCell>{unit.createdBy}</TableCell>
-                                                    <TableCell>{unit.createdAt ? format(parseISO(unit.createdAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
-                                                    <TableCell>{unit.annulledBy || ''}</TableCell>
-                                                    <TableCell>{unit.annulledAt ? format(parseISO(unit.annulledAt), 'dd/MM/yyyy HH:mm') : ''}</TableCell>
-                                                    <TableCell className="text-right">
+                                                    {visibleColumns.map(colId => {
+                                                        const { content, className } = selectors.getColumnContent(unit, colId);
+                                                        return <TableCell key={colId} className={cn(className, isVoided && 'text-destructive')}>{content}</TableCell>
+                                                    })}
+                                                    <TableCell className="text-right sticky right-0 bg-card">
                                                         <div className="flex items-center justify-end gap-1">
                                                             {isVoided ? null : unit.status === 'pending' ? (
                                                                 <Button variant="default" size="sm" onClick={() => actions.setUnitToCorrect(unit)} className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap" disabled={!selectors.hasPermission('warehouse:correction:apply')}>
@@ -180,24 +164,24 @@ export default function CorrectionPage() {
                     <DialogContent className="sm:max-w-3xl" aria-describedby="correction-dialog-description">
                         <DialogHeader>
                             <DialogTitle>
-                                {unitToCorrect?.status === 'pending' ? 'Revisar y Aplicar Ingreso' : 'Corregir Ingreso de Unidad'}
+                                {state.unitToCorrect?.status === 'pending' ? 'Revisar y Aplicar Ingreso' : 'Corregir Ingreso de Unidad'}
                             </DialogTitle>
                             <DialogDescription id="correction-dialog-description">
-                                 {unitToCorrect?.status === 'pending' ? 
-                                    `Revisa y completa los datos de la unidad ${unitToCorrect?.receptionConsecutive}. Al aplicar, el ingreso quedará finalizado.`
-                                    : `Modifica los campos necesarios para la unidad ${unitToCorrect?.receptionConsecutive}. Se anulará la unidad original y se creará una nueva.`
+                                 {state.unitToCorrect?.status === 'pending' ? 
+                                    `Revisa y completa los datos de la unidad ${state.unitToCorrect?.receptionConsecutive}. Al aplicar, el ingreso quedará finalizado.`
+                                    : `Modifica los campos necesarios para la unidad ${state.unitToCorrect?.receptionConsecutive}. Se anulará la unidad original y se creará una nueva.`
                                  }
                             </DialogDescription>
                         </DialogHeader>
-                        {unitToCorrect && (
+                        {state.unitToCorrect && (
                             <div className="py-4 space-y-6">
                                 <div className="space-y-4 rounded-lg border p-4">
                                      <h4 className="font-semibold text-muted-foreground">Datos Originales</h4>
                                      <div className="text-sm grid grid-cols-2 gap-2">
                                         <p><strong>Producto:</strong> {selectors.getOriginalProductName()}</p>
-                                        <p><strong>Cantidad:</strong> {unitToCorrect.quantity}</p>
-                                        <p><strong>Lote/ID:</strong> {unitToCorrect.humanReadableId || 'N/A'}</p>
-                                        <p><strong>Documento:</strong> {unitToCorrect.documentId || 'N/A'}</p>
+                                        <p><strong>Cantidad:</strong> {state.unitToCorrect.quantity}</p>
+                                        <p><strong>Lote/ID:</strong> {state.unitToCorrect.humanReadableId || 'N/A'}</p>
+                                        <p><strong>Documento:</strong> {state.unitToCorrect.documentId || 'N/A'}</p>
                                      </div>
                                 </div>
                                 
@@ -235,7 +219,7 @@ export default function CorrectionPage() {
                                     </div>
                                 </div>
 
-                                {unitToCorrect?.status !== 'pending' && (
+                                {state.unitToCorrect?.status !== 'pending' && (
                                     <Alert variant="destructive">
                                         <AlertTriangle className="h-4 w-4" />
                                         <AlertTitle>¡Acción Irreversible!</AlertTitle>
@@ -262,15 +246,15 @@ export default function CorrectionPage() {
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                         <Button disabled={!editableUnit.quantity || editableUnit.quantity < 0 || isSubmitting}>
-                                            {unitToCorrect?.status === 'pending' ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
-                                            {unitToCorrect?.status === 'pending' ? 'Aplicar Ingreso' : 'Aplicar Corrección'}
+                                            {state.unitToCorrect?.status === 'pending' ? <Check className="mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
+                                            {state.unitToCorrect?.status === 'pending' ? 'Aplicar Ingreso' : 'Aplicar Corrección'}
                                         </Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>¿Confirmar Cambios?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                {unitToCorrect?.status === 'pending' ?
+                                                {state.unitToCorrect?.status === 'pending' ?
                                                     "Se guardarán los cambios y el ingreso quedará marcado como 'Aplicado'."
                                                     : "Se va a generar un movimiento de anulación para el ingreso original y se creará un nuevo ingreso con los datos corregidos."
                                                 }

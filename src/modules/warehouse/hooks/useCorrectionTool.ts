@@ -13,6 +13,11 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { subDays, format, parseISO } from 'date-fns';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
+import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
+import { Badge } from '@/components/ui/badge';
+
+export type SortKey = 'status' | 'receptionConsecutive' | 'productId' | 'humanReadableId' | 'quantity' | 'createdBy' | 'createdAt' | 'annulledBy' | 'annulledAt' | 'appliedBy' | 'appliedAt';
+export type SortDirection = 'asc' | 'desc';
 
 interface State {
     isSearching: boolean;
@@ -32,7 +37,10 @@ interface State {
     newProductSearch: string;
     isNewProductSearchOpen: boolean;
     newSelectedProduct: Product | null;
-    editableUnit: Partial<InventoryUnit>; // The state for the form inputs
+    editableUnit: Partial<InventoryUnit>;
+    visibleColumns: string[];
+    sortKey: SortKey;
+    sortDirection: SortDirection;
 }
 
 const emptyEditableUnit: Partial<InventoryUnit> = {
@@ -84,18 +92,29 @@ export const useCorrectionTool = () => {
         isNewProductSearchOpen: false,
         newSelectedProduct: null,
         editableUnit: {},
+        visibleColumns: ['status', 'traceability', 'productDescription', 'quantity', 'createdBy', 'createdAt', 'annulledBy', 'appliedBy'],
+        sortKey: 'createdAt',
+        sortDirection: 'desc',
     });
-
-    useEffect(() => {
-        if(hasPermission) {
-            getWarehouseSettings().then(setWarehouseSettings);
-            getLocations().then(setAllLocations);
-        }
-    }, [hasPermission]);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
+
+    useEffect(() => {
+        const loadPrefsAndData = async () => {
+            if (user && hasPermission('warehouse:correction:execute')) {
+                const prefs = await getUserPreferences(user.id, 'correctionToolPrefs');
+                if (prefs?.visibleColumns) {
+                    updateState({ visibleColumns: prefs.visibleColumns });
+                }
+                const [settings, locations] = await Promise.all([getWarehouseSettings(), getLocations()]);
+                setWarehouseSettings(settings);
+                setAllLocations(locations);
+            }
+        };
+        loadPrefsAndData();
+    }, [hasPermission, user, updateState]);
     
     const [debouncedNewProductSearch] = useDebounce(state.newProductSearch, 300);
 
@@ -200,7 +219,7 @@ export const useCorrectionTool = () => {
     };
 
     const handlePrintTicket = async (unit: InventoryUnit) => {
-        if (!user || !authCompanyData) {
+        if (!user || !authCompanyData || !warehouseSettings) {
             toast({ title: 'Error', description: 'No se pudieron cargar los datos del usuario o la empresa.', variant: 'destructive'});
             return;
         }
@@ -227,7 +246,7 @@ export const useCorrectionTool = () => {
             const product = authProducts.find(p => p.id === unit.productId);
             const locationPath = renderLocationPathAsString(unit.locationId, allLocations);
     
-            const detailsBlock = [
+            const detailsContent = [
                 `Producto:          [${unit.productId}] ${product?.description || 'N/A'}`,
                 `Cantidad Recibida:  ${unit.quantity} Unidades`,
                 `Lote / ID Físico:   ${unit.humanReadableId || 'N/A'}`,
@@ -247,11 +266,11 @@ export const useCorrectionTool = () => {
                 companyData: authCompanyData,
                 blocks: [
                     ...(trazabilidadContent ? [{ title: 'TRAZABILIDAD:', content: trazabilidadContent }] : []),
-                    { title: 'DETALLES DEL MOVIMIENTO:', content: detailsBlock },
+                    { title: 'DETALLES DEL MOVIMIENTO:', content: detailsContent },
                 ],
                 table: { columns: [], rows: [] },
                 totals: [],
-                topLegend: warehouseSettings?.pdfTopLegend,
+                topLegend: warehouseSettings.pdfTopLegend,
                 signatureBlock: [
                     { label: 'Recibido Por:', value: unit.createdBy },
                     { label: 'Revisado Por:', value: unit.appliedBy || '' }
@@ -303,7 +322,29 @@ export const useCorrectionTool = () => {
                 isConfirmModalOpen: true 
             });
         }
-    }
+    };
+
+     const handleSort = (key: SortKey) => {
+        let direction: SortDirection = 'asc';
+        if (state.sortKey === key && state.sortDirection === 'asc') {
+            direction = 'desc';
+        }
+        updateState({ sortKey: key, sortDirection: direction });
+    };
+
+    const handleColumnVisibilityChange = (columnId: string, checked: boolean) => {
+        updateState({
+            visibleColumns: checked
+                ? [...state.visibleColumns, columnId]
+                : state.visibleColumns.filter(id => id !== columnId)
+        });
+    };
+
+    const savePreferences = async () => {
+        if (!user) return;
+        await saveUserPreferences(user.id, 'correctionToolPrefs', { visibleColumns: state.visibleColumns });
+        toast({ title: 'Preferencias Guardadas' });
+    };
 
     const selectors = {
         hasPermission,
@@ -318,13 +359,10 @@ export const useCorrectionTool = () => {
             if (!state.unitToCorrect) return '';
             return authProducts.find(p => p.id === state.unitToCorrect?.productId)?.description || state.unitToCorrect?.productId;
         },
-        getProductName: (productId: string) => {
-             return authProducts.find(p => p.id === productId)?.description || 'Desconocido';
-        },
+        getProductName: (productId: string) => authProducts.find(p => p.id === productId)?.description || 'Desconocido',
         getLocationPath: (locationId: number | null) => renderLocationPathAsString(locationId, allLocations),
         isCorrectionFormValid: useMemo(() => {
             if (!state.unitToCorrect) return false;
-            // Check if any of the correctable fields have changed from the original
             const hasChanged = state.editableUnit.productId !== state.unitToCorrect.productId ||
                                state.editableUnit.quantity !== state.unitToCorrect.quantity ||
                                state.editableUnit.humanReadableId !== (state.unitToCorrect.humanReadableId || '') ||
@@ -332,6 +370,67 @@ export const useCorrectionTool = () => {
                                state.editableUnit.erpDocumentId !== (state.unitToCorrect.erpDocumentId || '');
             return hasChanged;
         }, [state.editableUnit, state.unitToCorrect]),
+        availableColumns: [
+            { id: 'status', label: 'Estado' },
+            { id: 'receptionConsecutive', label: 'Consecutivo Ingreso' },
+            { id: 'traceability', label: 'Trazabilidad' },
+            { id: 'productDescription', label: 'Producto' },
+            { id: 'humanReadableId', label: 'Nº Lote / ID' },
+            { id: 'quantity', label: 'Cant.' },
+            { id: 'createdBy', label: 'Recibido Por' },
+            { id: 'createdAt', label: 'Fecha Ingreso' },
+            { id: 'appliedBy', label: 'Aplicado Por' },
+            { id: 'appliedAt', label: 'Fecha Aplicación' },
+            { id: 'annulledBy', label: 'Anulado Por' },
+            { id: 'annulledAt', label: 'Fecha Anulación' },
+        ],
+        visibleColumnsData: useMemo(() => {
+            return state.visibleColumns.map(id => selectors.availableColumns.find(c => c.id === id)).filter(Boolean) as { id: string; label: string; }[];
+        }, [state.visibleColumns]),
+        sortedResults: useMemo(() => {
+            const data = [...state.searchResults];
+            data.sort((a, b) => {
+                const key = state.sortKey;
+                const dir = state.sortDirection === 'asc' ? 1 : -1;
+                const valA = a[key as keyof InventoryUnit] ?? '';
+                const valB = b[key as keyof InventoryUnit] ?? '';
+                
+                if (key === 'createdAt' || key === 'annulledAt' || key === 'appliedAt') {
+                    return (new Date(valA as string).getTime() - new Date(valB as string).getTime()) * dir;
+                }
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return (valA - valB) * dir;
+                }
+                return String(valA).localeCompare(String(valB)) * dir;
+            });
+            return data;
+        }, [state.searchResults, state.sortKey, state.sortDirection]),
+        getColumnContent: (item: InventoryUnit, colId: string): { content: React.ReactNode, className?: string } => {
+            switch (colId) {
+                case 'status': return { content: <Badge variant={item.status === 'pending' ? 'secondary' : 'default'} className={item.status === 'applied' ? 'bg-green-600' : ''}>{item.status}</Badge> };
+                case 'receptionConsecutive': return { content: item.receptionConsecutive || 'N/A', className: "font-mono text-xs" };
+                case 'traceability':
+                    if (item.correctionConsecutive) {
+                        const correctedUnit = state.searchResults.find(u => u.correctedFromUnitId === item.id);
+                        return { content: <Badge variant="destructive">{`${item.correctionConsecutive} (Anula ${item.receptionConsecutive})`}</Badge> };
+                    }
+                    if (item.correctedFromUnitId) {
+                        const original = state.searchResults.find(u => u.id === item.correctedFromUnitId);
+                        return { content: <Badge variant="outline">{`Corrige a ${original?.receptionConsecutive || 'N/A'}`}</Badge> };
+                    }
+                    return { content: <span className="text-muted-foreground">-</span> };
+                case 'productDescription': return { content: <>{selectors.getProductName(item.productId)}<p className="text-xs text-muted-foreground">{item.productId}</p></> };
+                case 'humanReadableId': return { content: item.humanReadableId || 'N/A' };
+                case 'quantity': return { content: item.quantity, className: 'font-bold' };
+                case 'createdBy': return { content: item.createdBy };
+                case 'createdAt': return { content: item.createdAt ? format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') : '' };
+                case 'annulledBy': return { content: item.annulledBy || '' };
+                case 'annulledAt': return { content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '' };
+                case 'appliedBy': return { content: item.appliedBy || '' };
+                case 'appliedAt': return { content: item.appliedAt ? format(parseISO(item.appliedAt), 'dd/MM/yy HH:mm') : '' };
+                default: return { content: '' };
+            }
+        },
     };
 
     return {
@@ -352,6 +451,9 @@ export const useCorrectionTool = () => {
             resetEditableUnit,
             handleClearForm,
             handlePrintTicket,
+            handleSort,
+            handleColumnVisibilityChange,
+            savePreferences,
         },
         selectors,
     };
