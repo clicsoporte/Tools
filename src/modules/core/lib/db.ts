@@ -1042,16 +1042,19 @@ async function importDataFromSql(type: ImportQuery['type']): Promise<{ count: nu
 export async function importData(type: ImportQuery['type']): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
-    
+
     if (companySettings.importMode === 'sql') {
         return importDataFromSql(type);
     } else {
-        if (['erp_order_headers', 'erp_order_lines', 'erp_purchase_order_headers', 'erp_purchase_order_lines'].includes(type)) {
+        // In file mode, we explicitly do not support ERP Sales Orders, but we DO support Purchase Orders.
+        if (['erp_order_headers', 'erp_order_lines'].includes(type)) {
             return { count: 0, source: 'file (skipped)' };
         }
+        // The cast is now safer because we've excluded the unsupported types.
         return importDataFromFile(type as 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_purchase_order_headers' | 'erp_purchase_order_lines');
     }
 }
+
 
 export async function importAllData(): Promise<{ results: { type: string; count: number; }[], totalTasks: number }> {
     const db = await connectDb();
@@ -1073,7 +1076,7 @@ export async function importAllData(): Promise<{ results: { type: string; count:
                 const filePathKey = `${task.type}FilePath` as keyof Company;
                 const filePath = companySettings[filePathKey] as string | undefined;
 
-                if (!filePath && !['erp_order_headers', 'erp_order_lines', 'erp_purchase_order_headers', 'erp_purchase_order_lines'].includes(task.type)) {
+                if (!filePath && !['erp_order_headers', 'erp_order_lines'].includes(task.type)) {
                     console.log(`Skipping file import for ${task.type}: no file path configured.`);
                     continue;
                 }
