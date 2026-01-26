@@ -481,7 +481,9 @@ export async function confirmModification(orderId: number, updatedBy: string): P
     const db = await connectDb(PLANNER_DB_FILE);
     
     const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
-    if (!currentOrder) throw new Error("Order not found.");
+    if (!currentOrder) {
+        throw new Error("Order not found.");
+    }
 
     const transaction = db.transaction(() => {
         db.prepare('UPDATE production_orders SET hasBeenModified = 0, lastModifiedBy = ?, lastModifiedAt = ? WHERE id = ?').run(updatedBy, new Date().toISOString(), orderId);
@@ -491,7 +493,11 @@ export async function confirmModification(orderId: number, updatedBy: string): P
     });
 
     transaction();
-    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+    const updated = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+    if (!updated) {
+        throw new Error("Failed to retrieve updated order after confirmation.");
+    }
+    return updated;
 }
 
 export async function updateStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {

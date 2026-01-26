@@ -18,7 +18,6 @@ import { logInfo, logWarn, logError } from './logger';
 import { headers } from 'next/headers';
 import { getExchangeRate, getEmailSettings } from './api-actions';
 import { NewUserSchema, UserSchema } from './auth-schemas';
-import { confirmModification as confirmPlannerModificationServer } from '../../planner/lib/db';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
@@ -1067,12 +1066,13 @@ export async function importAllData(): Promise<{ results: { type: string; count:
     for (const taskType of importTasks) {
         try {
             if (companySettings.importMode === 'file') {
+                 // Check if the file path is configured for the given task type
                 const filePathKey = `${taskType}FilePath` as keyof Company;
                 const filePath = companySettings[filePathKey] as string | undefined;
 
                 if (!filePath && taskType !== 'cabys') { // cabys has a default path
                     console.log(`Skipping file import for ${taskType}: no file path configured.`);
-                    continue;
+                    continue; // Skip this task if no file path is set
                 }
             }
             const result = await importData(taskType);
@@ -1652,11 +1652,6 @@ export async function runSingleModuleMigration(moduleId: string): Promise<void> 
         await logError(`Error durante la migración manual del módulo ${dbModule.name}`, { error: error.message });
         throw new Error(`Falló la migración para ${dbModule.name}: ${error.message}`);
     }
-}
-
-// Wrapper to solve re-export issue
-export async function confirmPlannerModification(orderId: number, updatedBy: string): Promise<ProductionOrder> {
-    return await confirmPlannerModificationServer(orderId, updatedBy);
 }
 
 export async function saveWizardSession(userId: number, sessionData: WizardSession): Promise<void> {
