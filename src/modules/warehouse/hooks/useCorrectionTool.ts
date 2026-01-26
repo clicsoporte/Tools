@@ -145,7 +145,7 @@ export const useCorrectionTool = () => {
     
     const [debouncedNewProductSearch] = useDebounce(state.newProductSearch, 300);
 
-    const handleSearch = async () => {
+    const handleSearch = useCallback(async () => {
         updateState({ isSearching: true, searchResults: [] });
         try {
             const results = await searchInventoryUnits(state.filters);
@@ -159,7 +159,7 @@ export const useCorrectionTool = () => {
         } finally {
             updateState({ isSearching: false });
         }
-    };
+    }, [state.filters, toast, updateState]);
     
     const handleClearFilters = () => {
         updateState({
@@ -293,6 +293,7 @@ export const useCorrectionTool = () => {
                     ...(unit.appliedAt ? [{ label: 'Fecha de Aplicación', value: format(parseISO(unit.appliedAt), 'dd/MM/yyyy HH:mm') }] : [])
                 ],
                 companyData: authCompanyData,
+                logoDataUrl: authCompanyData.logoUrl,
                 blocks: [
                     ...(trazabilidadContent ? [{ title: 'TRAZABILIDAD:', content: trazabilidadContent }] : []),
                     { title: 'DETALLES DEL MOVIMIENTO:', content: detailsContent },
@@ -466,7 +467,7 @@ export const useCorrectionTool = () => {
         visibleColumnsData: useMemo(() => {
             return state.visibleColumns.map(id => availableColumns.find(c => c.id === id)).filter(Boolean) as { id: string; label: string; }[];
         }, [state.visibleColumns]),
-        getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string, variant?: 'default' | 'secondary' | 'destructive' | 'outline' } => {
+        getColumnContent: (item: InventoryUnit, colId: string): { content: any; className?: string; type?: string; variant?: "default" | "secondary" | "destructive" | "outline" | undefined; } => {
             switch (colId) {
                 case 'status': return { type: 'badge', content: item.status, variant: item.status === 'pending' ? 'secondary' : (item.status === 'voided' ? 'destructive' : 'default'), className: item.status === 'applied' ? 'bg-green-600' : '' };
                 case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono text-xs" };

@@ -6,18 +6,13 @@
 'use client';
 
 import type { ReactNode } from "react";
-import { PageTitleProvider } from "@/modules/core/hooks/usePageTitle";
 
 export default function AdminLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-    // This provider is essential for all child pages within the /admin route
-    // that use the usePageTitle hook to set the header title.
-    return (
-        <PageTitleProvider initialTitle="Configuración">
-            {children}
-        </PageTitleProvider>
-    );
+    // This layout simply passes the context of the page title to its children.
+    // It inherits the PageTitleProvider from the parent /dashboard/layout.tsx.
+    return <>{children}</>;
 }
