@@ -148,7 +148,7 @@ export function useTransitsReport() {
                 case 'fecha': return (new Date(a.FECHA_HORA).getTime() - new Date(b.FECHA_HORA).getTime()) * dir;
                 case 'cantidad': return (a.CANTIDAD_ORDENADA - b.CANTIDAD_ORDENADA) * dir;
                 case 'articulo': return (a.productDescription || '').localeCompare(b.productDescription || '') * dir;
-                case 'stock': return (a.currentStock || 0) - (b.currentStock || 0) * dir;
+                case 'stock': return ((a.currentStock || 0) - (b.currentStock || 0)) * dir;
                 case 'creadoPor': return (a.CreatedBy || '').localeCompare(b.CreatedBy || '') * dir;
                 default: return 0;
             }

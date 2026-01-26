@@ -140,7 +140,7 @@ export const useCorrectionTool = () => {
                 setAllLocations(locations);
             }
         };
-        if (hasPermission) {
+        if (user && hasPermission('warehouse:correction:execute')) {
             loadPrefsAndData();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
