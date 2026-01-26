@@ -37,6 +37,18 @@ type SearchResultItem = {
     requiresCertificate?: boolean;
 }
 
+const renderLocationPathAsString = (locationId: number | null | undefined, locations: WarehouseLocation[]): string => {
+    if (!locationId) return "N/A";
+    const path: WarehouseLocation[] = [];
+    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
+    while (current) {
+        path.unshift(current);
+        const parentId = current.parentId;
+        current = parentId ? locations.find(l => l.id === parentId) : undefined;
+    }
+    return path.map(l => l.name).join(' > ');
+};
+
 const LocationIcon = ({ type }: { type: WarehouseLocation['type'] }) => {
     switch (type) {
         case 'building': return <Building className="h-5 w-5 text-muted-foreground" />;
@@ -90,18 +102,6 @@ export default function SimpleWarehouseSearchPage() {
         );
     }, [allItemLocations]);
     
-    const renderLocationPathAsString = useCallback((locationId: number | null | undefined, locations: WarehouseLocation[]): string => {
-        if (!locationId) return "N/A";
-        const path: WarehouseLocation[] = [];
-        let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
-        while (current) {
-            path.unshift(current);
-            const parentId = current.parentId;
-            current = parentId ? locations.find(l => l.id === parentId) : undefined;
-        }
-        return path.map(l => l.name).join(' > ');
-    }, []);
-
     const renderLocationPath = useCallback((locationId: number | null | undefined, locations: WarehouseLocation[]) => {
         if (!locationId) return <span className="text-muted-foreground italic">Sin ubicación</span>;
         const path: WarehouseLocation[] = [];

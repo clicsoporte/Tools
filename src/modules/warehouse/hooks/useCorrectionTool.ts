@@ -127,7 +127,7 @@ export const useCorrectionTool = () => {
                 const prefs = await getUserPreferences(user.id, 'correctionToolPrefs');
                 const [settings, locations] = await Promise.all([getWarehouseSettings(), getLocations()]);
                 
-                setState(prevState => ({
+                setState((prevState: State) => ({
                     ...prevState,
                     visibleColumns: prefs?.visibleColumns || prevState.visibleColumns,
                     filters: {
@@ -140,7 +140,10 @@ export const useCorrectionTool = () => {
                 setAllLocations(locations);
             }
         };
-        loadPrefsAndData();
+        if (hasPermission) {
+            loadPrefsAndData();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hasPermission, user]);
     
     const [debouncedNewProductSearch] = useDebounce(state.newProductSearch, 300);
