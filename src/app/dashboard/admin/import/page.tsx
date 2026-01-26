@@ -15,7 +15,7 @@ import { logError, logInfo } from "@/modules/core/lib/logger";
 import { Loader2, FileUp, Database, Save } from "lucide-react";
 import type { Company, SqlConfig, ImportQuery } from '@/modules/core/types';
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
-import { importData, getCompanySettings, saveCompanySettings, testSqlConnection, saveSqlConfig, saveImportQueries, getImportQueries, importAllDataFromFiles } from '@/modules/core/lib/db';
+import { importData, getCompanySettings, saveCompanySettings, testSqlConnection, saveSqlConfig, saveImportQueries, getImportQueries, importAllData } from '@/modules/core/lib/db';
 import { getSqlConfig } from '@/modules/core/lib/config-db';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { Input } from '@/components/ui/input';
@@ -150,10 +150,10 @@ export default function ImportDataPage() {
         setIsProcessing(true);
         toast({ title: "Iniciando Sincronización Completa", description: "Importando todos los datos desde el ERP..." });
         try {
-            const results = await importAllDataFromFiles(); // This function now handles both file and SQL modes based on config.
+            const { results, totalTasks } = await importAllData(); // This function now handles both file and SQL modes based on config.
             toast({
                 title: "Sincronización Completa Exitosa",
-                description: `Se han procesado ${results.length} tipos de datos desde el ERP.`,
+                description: `Se han procesado ${results.length} de ${totalTasks} tipos de datos desde el ERP.`,
             });
             await logInfo("Full ERP data synchronization completed.", { results });
         } catch (error: any) {

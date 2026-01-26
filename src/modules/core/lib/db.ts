@@ -1053,7 +1053,7 @@ export async function importData(type: ImportQuery['type']): Promise<{ count: nu
     }
 }
 
-export async function importAllDataFromFiles(): Promise<{ type: string; count: number; }[]> {
+export async function importAllData(): Promise<{ results: { type: string; count: number; }[], totalTasks: number }> {
     const db = await connectDb();
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
@@ -1096,7 +1096,7 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
     db.prepare('UPDATE company_settings SET lastSyncTimestamp = ? WHERE id = 1')
       .run(new Date().toISOString());
     
-    return results;
+    return { results, totalTasks: importTasks.length };
 }
 
 export async function saveSqlConfig(config: SqlConfig): Promise<void> {

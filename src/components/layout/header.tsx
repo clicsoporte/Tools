@@ -52,10 +52,10 @@ function HeaderActions() {
       setIsSyncing(true);
       toast({ title: "Iniciando Sincronización Completa", description: "Importando todos los datos desde el ERP..." });
       try {
-          const results = await syncAllData();
+          const { results, totalTasks } = await syncAllData();
           toast({
               title: "Sincronización Completa Exitosa",
-              description: `Se han procesado ${results.length} tipos de datos desde el ERP. Los datos se reflejarán automáticamente.`,
+              description: `Se han procesado ${results.length} de ${totalTasks} tipos de datos desde el ERP. Los datos se reflejarán automáticamente.`,
           });
           await logInfo("Full ERP data synchronization completed via header button.", { results });
           if (companyData) {

@@ -5,16 +5,16 @@
 
 import fs from 'fs';
 import path from 'path';
-import { importAllDataFromFiles as importAllData, runWalCheckpoint } from './db';
+import { importAllData, runWalCheckpoint } from './db';
 import { logWarn } from './logger';
 
 /**
  * A server action that triggers a full data synchronization from the configured source (file or SQL).
  * This function is safe to call from client components. It now also triggers a WAL checkpoint.
- * @returns {Promise<{ type: string; count: number; }[]>} A promise that resolves to an array of import results.
+ * @returns {Promise<{ results: { type: string; count: number; }[], totalTasks: number }>} A promise that resolves to an object containing import results and the total number of tasks.
  */
-export async function syncAllData(): Promise<{ type: string; count: number; }[]> {
-    // Run a checkpoint before importing to ensure data is consolidated.
+export async function syncAllData(): Promise<{ results: { type: string; count: number; }[], totalTasks: number }> {
+    // Run a WAL checkpoint before importing to ensure data is consolidated.
     // This is crucial for long-running server environments like IIS/iisnode.
     await runWalCheckpoint();
     return await importAllData();
