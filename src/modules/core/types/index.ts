@@ -480,6 +480,7 @@ export type WarehouseSettings = {
     correctionPrefix: string;
     nextCorrectionNumber: number;
     dispatchNotificationEmails?: string;
+    pdfTopLegend?: string;
 };
 
 export type WarehouseLocation = {
@@ -531,8 +532,11 @@ export type InventoryUnit = {
     notes?: string;
     createdAt: string;
     createdBy: string;
-    annulledAt?: string;
-    annulledBy?: string;
+    status: 'pending' | 'applied' | 'voided';
+    appliedAt?: string | null;
+    appliedBy?: string | null;
+    annulledAt?: string | null;
+    annulledBy?: string | null;
 };
 
 

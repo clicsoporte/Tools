@@ -201,6 +201,25 @@ export default function WarehouseSettingsPage() {
                          </div>
                         <Separator />
                         <Accordion type="multiple" className="w-full space-y-6">
+                             <Card className="border-0 shadow-none p-0">
+                                <AccordionItem value="pdf-legend" className="border-b-0">
+                                    <AccordionTrigger className="p-4 rounded-lg border hover:no-underline">
+                                        <h3 className="font-semibold">Configuración de Boletas PDF</h3>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="p-4 pt-4 border rounded-b-lg">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="pdfTopLegend">Leyenda Superior del PDF (Opcional)</Label>
+                                            <Input
+                                                id="pdfTopLegend"
+                                                value={warehouseSettings.pdfTopLegend || ''}
+                                                onChange={(e) => setWarehouseSettings(prev => prev ? { ...prev, pdfTopLegend: e.target.value } : null)}
+                                                placeholder="Ej: Documento Controlado - ISO9001"
+                                            />
+                                            <p className="text-xs text-muted-foreground">Este texto aparecerá en la parte superior de todas las boletas de ingreso y corrección.</p>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                             </Card>
                             <Card className="border-0 shadow-none">
                                 <AccordionItem value="warehouses" className="border-b-0">
                                     <AccordionTrigger className="p-4 rounded-lg border hover:no-underline">
