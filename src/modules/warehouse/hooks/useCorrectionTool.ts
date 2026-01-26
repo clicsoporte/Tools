@@ -127,7 +127,8 @@ export const useCorrectionTool = () => {
                 const prefs = await getUserPreferences(user.id, 'correctionToolPrefs');
                 const [settings, locations] = await Promise.all([getWarehouseSettings(), getLocations()]);
                 
-                updateState(prevState => ({
+                setState(prevState => ({
+                    ...prevState,
                     visibleColumns: prefs?.visibleColumns || prevState.visibleColumns,
                     filters: {
                         ...prevState.filters,
@@ -140,7 +141,7 @@ export const useCorrectionTool = () => {
             }
         };
         loadPrefsAndData();
-    }, [hasPermission, user, updateState]);
+    }, [hasPermission, user]);
     
     const [debouncedNewProductSearch] = useDebounce(state.newProductSearch, 300);
 
