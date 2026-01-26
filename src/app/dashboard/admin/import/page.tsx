@@ -15,7 +15,8 @@ import { logError, logInfo } from "@/modules/core/lib/logger";
 import { Loader2, FileUp, Database, Save } from "lucide-react";
 import type { Company, SqlConfig, ImportQuery } from '@/modules/core/types';
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
-import { importData, getCompanySettings, saveCompanySettings, testSqlConnection, saveSqlConfig, saveImportQueries, getImportQueries, importAllData } from '@/modules/core/lib/db';
+import { importData, getCompanySettings, saveCompanySettings, testSqlConnection, saveSqlConfig, saveImportQueries, getImportQueries } from '@/modules/core/lib/db';
+import { syncAllData } from '@/modules/core/lib/actions';
 import { getSqlConfig } from '@/modules/core/lib/config-db';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { Input } from '@/components/ui/input';
@@ -145,12 +146,12 @@ export default function ImportDataPage() {
     /**
      * Triggers a full data synchronization from the configured source (file or SQL).
      */
-    const handleFullSqlImport = async () => {
-        setProcessingType('full-sql-import');
+    const handleFullSync = async () => {
+        setProcessingType('full-sync');
         setIsProcessing(true);
         toast({ title: "Iniciando Sincronización Completa", description: "Importando todos los datos desde el ERP..." });
         try {
-            const { results, totalTasks } = await importAllData(); // This function now handles both file and SQL modes based on config.
+            const { results, totalTasks } = await syncAllData();
             toast({
                 title: "Sincronización Completa Exitosa",
                 description: `Se han procesado ${results.length} de ${totalTasks} tipos de datos desde el ERP.`,
@@ -299,8 +300,8 @@ export default function ImportDataPage() {
                         </CardDescription>
                     </CardHeader>
                      <CardContent>
-                        <Button type="button" onClick={handleFullSqlImport} disabled={isProcessing} size="lg">
-                             {isProcessing && processingType === 'full-sql-import' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Database className="mr-2 h-5 w-5" />}
+                        <Button type="button" onClick={handleFullSync} disabled={isProcessing} size="lg">
+                             {isProcessing && processingType === 'full-sync' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Database className="mr-2 h-5 w-5" />}
                             Importar Todos los Datos desde ERP
                         </Button>
                      </CardContent>

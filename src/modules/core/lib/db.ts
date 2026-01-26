@@ -75,7 +75,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         );
         CREATE TABLE IF NOT EXISTS api_settings (id INTEGER PRIMARY KEY, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
         CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT, creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT);
-        CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT, notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT);
+        CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT, notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT, barcode TEXT);
         CREATE TABLE IF NOT EXISTS exemptions (code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT, endDate TEXT, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT);
         CREATE TABLE IF NOT EXISTS quote_drafts (id TEXT PRIMARY KEY, createdAt TEXT NOT NULL, userId INTEGER, customerId TEXT, customerDetails TEXT, lines TEXT, totals TEXT, notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT, deliveryAddress TEXT, deliveryDate TEXT, sellerName TEXT, sellerType TEXT, quoteDate TEXT, validUntilDate TEXT, paymentTerms TEXT, creditDays INTEGER);
         CREATE TABLE IF NOT EXISTS exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT, authNumber TEXT);
@@ -242,6 +242,13 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         if(!usersTable) {
              console.log("Migration check skipped: Main database not initialized yet.");
              return;
+        }
+
+        const productsTableInfo = db.prepare(`PRAGMA table_info(products)`).all() as { name: string }[];
+        const productColumns = new Set(productsTableInfo.map(c => c.name));
+        if (!productColumns.has('barcode')) {
+            console.log("MIGRATION: Adding barcode to products table.");
+            db.exec(`ALTER TABLE products ADD COLUMN barcode TEXT`);
         }
 
         const notificationsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'`).get();
@@ -427,6 +434,25 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         console.error("Failed to apply migrations:", error);
     }
 }
+
+/**
+ * Executes a WAL checkpoint on all open database connections.
+ * This is important for ensuring data integrity before backups or in long-running server environments.
+ */
+export async function runWalCheckpoint(): Promise<void> {
+    console.log("[DB] Running WAL checkpoint on all open connections...");
+    for (const [dbFile, connection] of dbConnections.entries()) {
+        if (connection && connection.open) {
+            try {
+                connection.pragma('wal_checkpoint(TRUNCATE)');
+                console.log(`[DB] Checkpoint successful for ${dbFile}`);
+            } catch (error) {
+                console.error(`[DB] Checkpoint failed for ${dbFile}:`, error);
+            }
+        }
+    }
+}
+
 
 export async function getUserCount(): Promise<number> {
     try {
@@ -679,7 +705,7 @@ export async function getAllProducts(): Promise<Product[]> {
 
 export async function saveAllProducts(products: Product[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood, cabys) VALUES (@id, @description, @classification, @lastEntry, @active, @notes, @unit, @isBasicGood, @cabys)');
+    const insert = db.prepare('INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood, cabys, barcode) VALUES (@id, @description, @classification, @lastEntry, @active, @notes, @unit, @isBasicGood, @cabys, @barcode)');
     
     const transaction = db.transaction((productsToSave) => {
         db.prepare('DELETE FROM products').run();
@@ -867,7 +893,7 @@ export async function getDbModules(): Promise<Omit<DatabaseModule, 'schema'>[]> 
 const createHeaderMapping = (type: ImportQuery['type']) => {
     switch (type) {
         case 'customers': return {'CLIENTE': 'id', 'NOMBRE': 'name', 'DIRECCION': 'address', 'TELEFONO1': 'phone', 'CONTRIBUYENTE': 'taxId', 'MONEDA': 'currency', 'LIMITE_CREDITO': 'creditLimit', 'CONDICION_PAGO': 'paymentCondition', 'VENDEDOR': 'salesperson', 'ACTIVO': 'active', 'E_MAIL': 'email', 'EMAIL_DOC_ELECTRONICO': 'electronicDocEmail'};
-        case 'products': return {'ARTICULO': 'id', 'DESCRIPCION': 'description', 'CLASIFICACION_2': 'classification', 'ULTIMO_INGRESO': 'lastEntry', 'ACTIVO': 'active', 'NOTAS': 'notes', 'UNIDAD_VENTA': 'unit', 'CANASTA_BASICA': 'isBasicGood', 'CODIGO_HACIENDA': 'cabys'};
+        case 'products': return {'ARTICULO': 'id', 'DESCRIPCION': 'description', 'CLASIFICACION_2': 'classification', 'ULTIMO_INGRESO': 'lastEntry', 'ACTIVO': 'active', 'NOTAS': 'notes', 'UNIDAD_VENTA': 'unit', 'CANASTA_BASICA': 'isBasicGood', 'CODIGO_HACIENDA': 'cabys', 'CODIGO_BARRAS_VENT': 'barcode'};
         case 'exemptions': return {'CODIGO': 'code', 'DESCRIPCION': 'description', 'CLIENTE': 'customer', 'NUM_AUTOR': 'authNumber', 'FECHA_RIGE': 'startDate', 'FECHA_VENCE': 'endDate', 'PORCENTAJE': 'percentage', 'TIPO_DOC': 'docType', 'NOMBRE_INSTITUCION': 'institutionName', 'CODIGO_INSTITUCION': 'institutionCode'};
         case 'stock': return {'ARTICULO': 'itemId', 'BODEGA': 'warehouseId', 'CANT_DISPONIBLE': 'stock'};
         case 'locations': return {'CODIGO': 'itemId', 'P. HORIZONTAL': 'hPos', 'P. VERTICAL': 'vPos', 'RACK': 'rack', 'CLIENTE': 'client', 'DESCRIPCION': 'description'};
@@ -1021,46 +1047,42 @@ export async function importData(type: ImportQuery['type']): Promise<{ count: nu
     if (companySettings.importMode === 'sql') {
         return importDataFromSql(type);
     } else {
-        if (['erp_order_headers', 'erp_order_lines'].includes(type)) {
-            return { count: 0, source: 'file (skipped)' };
-        }
         return importDataFromFile(type as 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_purchase_order_headers' | 'erp_purchase_order_lines');
     }
 }
 
-export async function importAllDataFromFiles(): Promise<{ type: string; count: number; }[]> {
+export async function importAllData(): Promise<{ results: { type: string; count: number; }[], totalTasks: number }> {
     const db = await connectDb();
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
     
-    const importTasks: { type: ImportQuery['type'] }[] = [
-        { type: 'customers' }, { type: 'products' }, { type: 'exemptions' },
-        { type: 'stock' }, { type: 'locations' }, { type: 'cabys' }, { type: 'suppliers' },
-        { type: 'erp_order_headers' }, { type: 'erp_order_lines' },
-        { type: 'erp_purchase_order_headers' }, { type: 'erp_purchase_order_lines' },
+    const importTasks: ImportQuery['type'][] = [
+        'customers', 'products', 'exemptions', 'stock', 'locations', 
+        'cabys', 'suppliers', 'erp_order_headers', 'erp_order_lines', 
+        'erp_purchase_order_headers', 'erp_purchase_order_lines'
     ];
     
     const results: { type: string; count: number; }[] = [];
     
-    for (const task of importTasks) {
+    for (const taskType of importTasks) {
         try {
             if (companySettings.importMode === 'file') {
-                const filePathKey = `${task.type}FilePath` as keyof Company;
+                const filePathKey = `${taskType}FilePath` as keyof Company;
                 const filePath = companySettings[filePathKey] as string | undefined;
 
-                if (!filePath && !['erp_order_headers', 'erp_order_lines', 'erp_purchase_order_headers', 'erp_purchase_order_lines'].includes(task.type)) {
-                    console.log(`Skipping file import for ${task.type}: no file path configured.`);
+                if (!filePath && taskType !== 'cabys') { // cabys has a default path
+                    console.log(`Skipping file import for ${taskType}: no file path configured.`);
                     continue;
                 }
             }
-            const result = await importData(task.type);
-            results.push({ type: task.type, count: result.count });
+            const result = await importData(taskType);
+            results.push({ type: taskType, count: result.count });
         } catch (error: any) {
              const queryRow = companySettings.importMode === 'sql' 
-                ? db.prepare('SELECT query FROM import_queries WHERE type = ?').get(task.type) as { query: string } | undefined
+                ? db.prepare('SELECT query FROM import_queries WHERE type = ?').get(taskType) as { query: string } | undefined
                 : undefined;
                 
-            await logError(`Error al importar datos para '${task.type}'`, {
+            await logError(`Error al importar datos para '${taskType}'`, {
                 errorMessage: error.message,
                 importMode: companySettings.importMode,
                 query: queryRow?.query
@@ -1071,7 +1093,7 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
     db.prepare('UPDATE company_settings SET lastSyncTimestamp = ? WHERE id = 1')
       .run(new Date().toISOString());
     
-    return results;
+    return { results, totalTasks: importTasks.length };
 }
 
 export async function saveSqlConfig(config: SqlConfig): Promise<void> {
