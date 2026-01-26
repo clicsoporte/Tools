@@ -110,7 +110,7 @@ export default function CorrectionPage() {
                                             <TableHead>Fecha Ingreso</TableHead>
                                             <TableHead>Anulado Por</TableHead>
                                             <TableHead>Fecha Anulación</TableHead>
-                                            <TableHead className="text-right">Acción</TableHead>
+                                            <TableHead className="text-right w-[240px]">Acción</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
