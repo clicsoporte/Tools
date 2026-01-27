@@ -4,9 +4,9 @@
 'use server';
 
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
-import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers } from '@/modules/core/lib/db';
+import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings } from '@/modules/core/types';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
@@ -25,6 +25,14 @@ interface ReportFilters {
 interface FullProductionReportData {
     reportData: ProductionReportData;
     plannerSettings: PlannerSettings;
+}
+
+export async function getAnalyticsSettings(): Promise<AnalyticsSettings> {
+    return getAnalyticsSettingsDb();
+}
+
+export async function saveAnalyticsSettings(settings: AnalyticsSettings): Promise<void> {
+    return saveAnalyticsSettingsDb(settings);
 }
 
 /**
@@ -108,7 +116,8 @@ export async function getUserPermissionsReportData(): Promise<{ users: User[], r
 }
 
 
-export async function getActiveTransitsReportData(dateRange: DateRange): Promise<TransitReportItem[]> {
+export async function getActiveTransitsReportData(filters: { dateRange: DateRange, statusFilter?: string[] }): Promise<TransitReportItem[]> {
+    const { dateRange, statusFilter } = filters;
     if (!dateRange.from) {
         throw new Error("Date 'from' is required for the transits report.");
     }
@@ -127,8 +136,9 @@ export async function getActiveTransitsReportData(dateRange: DateRange): Promise
     const productMap = new Map<string, string>(allProducts.map(p => [p.id, p.description]));
     const stockMap = new Map<string, number>(allStock.map(s => [s.itemId, s.totalStock]));
 
-    // Updated Filter: Include multiple relevant states, not just 'A'
-    const relevantStates = ['A', 'E', 'O', 'R', 'U'];
+    // Use the status filter if provided, otherwise default to all non-final states
+    const relevantStates = (statusFilter && statusFilter.length > 0) ? statusFilter : ['A', 'E', 'O', 'R', 'U'];
+    
     const filteredHeaders = allHeaders.filter(h => {
         const orderDate = new Date(h.FECHA_HORA);
         return relevantStates.includes(h.ESTADO) && orderDate >= dateRange.from! && orderDate <= toDate;
@@ -292,3 +302,4 @@ export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyR
         throw new Error('No se pudo generar el reporte de ocupación.');
     }
 }
+    

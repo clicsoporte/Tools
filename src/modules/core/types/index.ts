@@ -332,11 +332,11 @@ export type UpdateStatusPayload = {
     status: ProductionOrderStatus;
     notes: string;
     updatedBy: string;
+    reopen: boolean;
     deliveredQuantity?: number;
     defectiveQuantity?: number;
     erpPackageNumber?: string;
     erpTicketNumber?: string;
-    reopen: boolean;
 };
 
 export type UpdateOrderDetailsPayload = {
@@ -534,7 +534,7 @@ export type InventoryUnit = {
     createdBy: string;
     status: 'pending' | 'applied' | 'voided';
     appliedAt?: string | null;
-    appliedBy?: string | null;
+    appliedBy?: string;
     annulledAt?: string | null;
     annulledBy?: string | null;
 };
@@ -831,6 +831,17 @@ export interface OccupancyReportRow {
     }[];
 }
 
+export type TransitStatusAlias = {
+    id: string; // e.g., 'A'
+    name: string; // e.g., 'Activa'
+    color: string; // e.g., '#22c55e'
+};
+
+export type AnalyticsSettings = {
+    transitStatusAliases: TransitStatusAlias[];
+};
+
+
 // --- User Preferences ---
 export interface UserPreferences {
     [key: string]: any;
@@ -918,3 +929,4 @@ export interface EmailSettings {
   recoveryEmailSubject: string;
   recoveryEmailBody: string;
 }
+    

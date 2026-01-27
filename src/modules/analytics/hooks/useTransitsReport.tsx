@@ -9,8 +9,8 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getActiveTransitsReportData } from '@/modules/analytics/lib/actions';
-import type { DateRange, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, Supplier, Product, StockInfo } from '@/modules/core/types';
+import { getActiveTransitsReportData, getAnalyticsSettings } from '@/modules/analytics/lib/actions';
+import type { DateRange, ErpPurchaseOrderLine, TransitStatusAlias, AnalyticsSettings } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { subDays, startOfDay, format, parseISO } from 'date-fns';
 import { useDebounce } from 'use-debounce';
@@ -53,9 +53,11 @@ interface State {
     data: TransitReportItem[];
     searchTerm: string;
     supplierFilter: string[];
+    statusFilter: string[];
     sortKey: SortKey;
     sortDirection: SortDirection;
     visibleColumns: string[];
+    analyticsSettings: AnalyticsSettings | null;
 }
 
 export function useTransitsReport() {
@@ -75,9 +77,11 @@ export function useTransitsReport() {
         data: [],
         searchTerm: '',
         supplierFilter: [],
+        statusFilter: [],
         sortKey: 'fecha',
         sortDirection: 'desc',
         visibleColumns: availableColumns.map(c => c.id),
+        analyticsSettings: null,
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, 500);
@@ -94,7 +98,7 @@ export function useTransitsReport() {
                 toast({ title: "Fecha de inicio requerida", variant: "destructive" });
                 return;
             }
-            const reportData = await getActiveTransitsReportData(state.dateRange);
+            const reportData = await getActiveTransitsReportData({ dateRange: state.dateRange, statusFilter: state.statusFilter });
             updateState({ data: reportData });
         } catch (error: any) {
             logError("Failed to get transits report data", { error: error.message });
@@ -102,14 +106,20 @@ export function useTransitsReport() {
         } finally {
             updateState({ isLoading: false });
         }
-    }, [isAuthorized, state.dateRange, toast, updateState]);
+    }, [isAuthorized, state.dateRange, state.statusFilter, toast, updateState]);
     
-    const loadPrefs = useCallback(async () => {
-        if (user) {
-            const prefs = await getUserPreferences(user.id, 'transitsReportPrefs');
-            if (prefs && prefs.visibleColumns) {
-                updateState({ visibleColumns: prefs.visibleColumns });
-            }
+    const loadPrefsAndSettings = useCallback(async () => {
+        if(user) {
+            const [prefs, settings] = await Promise.all([
+                getUserPreferences(user.id, 'transitsReportPrefs'),
+                getAnalyticsSettings()
+            ]);
+            
+            updateState({
+                analyticsSettings: settings,
+                visibleColumns: prefs?.visibleColumns || availableColumns.map(c => c.id),
+                statusFilter: prefs?.statusFilter || settings.transitStatusAliases.filter(s => s.id !== 'N' && s.id !== 'R').map(s => s.id), // Default to all non-final
+            });
         }
         setIsInitialLoading(false);
     }, [user, updateState]);
@@ -117,10 +127,9 @@ export function useTransitsReport() {
     useEffect(() => {
         setTitle("Reporte de Tránsitos");
         if (isAuthorized) {
-            loadPrefs();
+            loadPrefsAndSettings();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setTitle, isAuthorized]);
+    }, [setTitle, isAuthorized, loadPrefsAndSettings]);
 
     const sortedData = useMemo(() => {
         let filtered = state.data;
@@ -176,8 +185,8 @@ export function useTransitsReport() {
     const handleSaveColumnVisibility = async () => {
         if (!user) return;
         try {
-            await saveUserPreferences(user.id, 'transitsReportPrefs', { visibleColumns: state.visibleColumns });
-            toast({ title: "Preferencias Guardadas", description: "La visibilidad de las columnas ha sido guardada." });
+            await saveUserPreferences(user.id, 'transitsReportPrefs', { visibleColumns: state.visibleColumns, statusFilter: state.statusFilter });
+            toast({ title: "Preferencias Guardadas", description: "La configuración de la vista ha sido guardada." });
         } catch (error: any) {
             logError("Failed to save transits report column visibility", { error: error.message });
             toast({ title: "Error", description: "No se pudo guardar la configuración de columnas.", variant: "destructive" });
@@ -185,12 +194,13 @@ export function useTransitsReport() {
     };
 
     const handleExportExcel = () => {
+        const statusMap = new Map(state.analyticsSettings?.transitStatusAliases.map(s => [s.id, s.name]));
         const headers = ["Nº OC", "Proveedor", "Fecha", "Estado", "Artículo", "Descripción", "Cant. Pendiente", "Inv. Actual", "Creado Por"];
         const dataToExport = sortedData.map(item => [
             item.ORDEN_COMPRA,
             item.proveedorName,
             format(parseISO(item.FECHA_HORA), 'dd/MM/yyyy'),
-            item.ESTADO,
+            statusMap.get(item.ESTADO) || item.ESTADO,
             item.ARTICULO,
             item.productDescription,
             item.CANTIDAD_ORDENADA,
@@ -202,18 +212,19 @@ export function useTransitsReport() {
             sheetName: 'Tránsitos',
             headers,
             data: dataToExport,
-            columnWidths: [15, 30, 15, 10, 20, 40, 15, 15, 15],
+            columnWidths: [15, 30, 15, 15, 20, 40, 15, 15, 15],
         });
     };
 
     const handleExportPDF = () => {
         if (!companyData) return;
-
-        const tableHeaders = ["Nº OC", "Proveedor", "Fecha", "Artículo", "Cant."];
+        const statusMap = new Map(state.analyticsSettings?.transitStatusAliases.map(s => [s.id, s.name]));
+        const tableHeaders = ["Nº OC", "Proveedor", "Fecha", "Estado", "Artículo", "Cant."];
         const tableRows = sortedData.map(item => [
             item.ORDEN_COMPRA,
             item.proveedorName || item.PROVEEDOR,
             format(parseISO(item.FECHA_HORA), 'dd/MM/yyyy'),
+            statusMap.get(item.ESTADO) || item.ESTADO,
             `${item.productDescription}\n(${item.ARTICULO})`,
             item.CANTIDAD_ORDENADA.toLocaleString('es-CR')
         ]);
@@ -227,7 +238,7 @@ export function useTransitsReport() {
             table: {
                 columns: tableHeaders,
                 rows: tableRows,
-                columnStyles: { 4: { halign: 'right' } }
+                columnStyles: { 5: { halign: 'right' } }
             },
             totals: [],
             orientation: 'landscape',
@@ -245,13 +256,23 @@ export function useTransitsReport() {
         return Array.from(uniqueSuppliers.entries()).map(([value, label]) => ({ value, label }));
     }, [state.data]);
 
+    const statusOptions = useMemo(() => {
+        if (!state.analyticsSettings) return [];
+        return state.analyticsSettings.transitStatusAliases.map(alias => ({
+            value: alias.id,
+            label: alias.name,
+        }));
+    }, [state.analyticsSettings]);
+
+
     const actions = {
         setDateRange: (range: DateRange | undefined) => {
             updateState({ dateRange: range || { from: undefined, to: undefined } });
         },
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
         setSupplierFilter: (filter: string[]) => updateState({ supplierFilter: filter }),
-        handleClearFilters: () => updateState({ searchTerm: '', supplierFilter: [] }),
+        setStatusFilter: (filter: string[]) => updateState({ statusFilter: filter }),
+        handleClearFilters: () => updateState({ searchTerm: '', supplierFilter: [], statusFilter: [] }),
         handleSort,
         handleAnalyze,
         handleExportExcel,
@@ -263,6 +284,14 @@ export function useTransitsReport() {
     const selectors = {
         sortedData,
         supplierOptions,
+        statusOptions,
+        statusConfig: useMemo(() => {
+            const config: { [key: string]: { label: string; color: string } } = {};
+            state.analyticsSettings?.transitStatusAliases.forEach(alias => {
+                config[alias.id] = { label: alias.name, color: alias.color };
+            });
+            return config;
+        }, [state.analyticsSettings]),
         availableColumns,
         visibleColumnsData: useMemo(() => {
             return state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][];
@@ -277,3 +306,4 @@ export function useTransitsReport() {
         isInitialLoading,
     };
 }
+    

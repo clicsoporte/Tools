@@ -25,7 +25,7 @@ export default function AnalyticsDashboardPage() {
     const visibleTools = useMemo(() => {
         if (!isAuthorized) return [];
         // Filter tools based on specific sub-permissions for analytics
-        return analyticsTools.filter(tool => {
+        const permittedTools = analyticsTools.filter(tool => {
             if (tool.id === 'purchase-suggestions') {
                 return hasPermission('analytics:purchase-suggestions:read');
             }
@@ -53,9 +53,12 @@ export default function AnalyticsDashboardPage() {
             if (tool.id === 'occupancy-report') {
                 return hasPermission('analytics:occupancy-report:read');
             }
-            // Add other tool checks here as they are created
-            return true;
+            return hasPermission(tool.id);
         });
+
+        // Sort tools alphabetically by name
+        return permittedTools.sort((a, b) => a.name.localeCompare(b.name));
+        
     }, [isAuthorized, hasPermission]);
 
     if (!isAuthReady) {
@@ -96,3 +99,4 @@ export default function AnalyticsDashboardPage() {
       </main>
   );
 }
+    

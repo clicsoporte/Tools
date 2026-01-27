@@ -23,6 +23,28 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [2.6.0] - Publicado
+
+### Funcionalidades y Mejoras Principales
+
+-   **[Funcionalidad Clave] Configuración de Alias para Reporte de Tránsitos:**
+    -   Se ha añadido una nueva sección de configuración en **Administración > Analíticas**.
+    -   Desde aquí, ahora puedes definir **alias de texto y colores personalizados** para cada estado de las órdenes de compra del ERP (ej: `A` = "Activa" en color verde, `E` = "Enviada" en azul).
+    -   Esta funcionalidad, inspirada en la gestión de bodegas, te da control total sobre cómo se interpreta y visualiza la información de tránsito en toda la aplicación.
+-   **[UX Reportes] Filtro de Estados Múltiples en Reporte de Tránsitos:**
+    -   El **Reporte de Tránsitos** ahora incluye un nuevo filtro multi-selección para los **estados**.
+    -   Los estados que aparecen en el filtro utilizan los alias y colores que configuraste en el paso anterior, haciendo la interfaz más intuitiva.
+    -   Por defecto, el filtro seleccionará todos los estados que no sean finales (como "Recibida" o "Anulada"), pero puedes personalizar la vista para incluir o excluir los que necesites.
+    -   Tus preferencias de columnas y filtros de estado ahora se guardan por usuario.
+
+### Correcciones y Mejoras Internas
+
+-   **[Corrección Crítica] Reparación de Importación de Tránsitos:** Se ha corregido un error crítico en el sistema de importación de datos desde archivos. Previamente, el sistema estaba ignorando incorrectamente los archivos de órdenes de compra del ERP (`erp_purchase_order_headers.txt` y `erp_purchase_order_lines.txt`), lo que causaba que el Reporte de Tránsitos no mostrara datos actualizados. Con esta corrección, la sincronización de tránsitos vuelve a funcionar como se esperaba.
+-   **[Estabilidad] Carga Automática en Reportes:** Se ha ajustado la lógica de carga en todos los reportes de Analíticas. Ahora, ningún reporte cargará datos automáticamente al abrir la página. El usuario debe siempre hacer clic en "Generar Reporte" para iniciar la consulta, previniendo sobrecargas de rendimiento con grandes volúmenes de datos.
+-   **[Refactorización]** Se ha centralizado la lógica de obtención de datos para todos los reportes de Analíticas en un archivo de acciones dedicado, mejorando la organización y mantenibilidad del código.
+
+---
+
 ## [2.5.0] - Publicado
 
 ### Mejoras de Experiencia de Usuario (UX)

@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import { initialCompany, initialRoles } from './data';
 import { DB_MODULES } from './db-modules';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession, AnalyticsSettings, TransitStatusAlias } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -73,6 +73,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             details TEXT
         );
         CREATE TABLE IF NOT EXISTS api_settings (id INTEGER PRIMARY KEY, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
+        CREATE TABLE IF NOT EXISTS analytics_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT, creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT);
         CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT, notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT, barcode TEXT);
         CREATE TABLE IF NOT EXISTS exemptions (code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT, endDate TEXT, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT);
@@ -100,10 +101,20 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     const insertRolesTransaction = db.transaction((roles) => { for (const role of roles) insertRole.run({ ...role, permissions: JSON.stringify(role.permissions) }); });
     insertRolesTransaction(initialRoles);
     
-    const insertCompany = db.prepare('INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, publicUrl, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode) VALUES (1, @name, @taxId, @address, @phone, @email, @systemName, @publicUrl, @quotePrefix, @nextQuoteNumber, @decimalPlaces, @quoterShowTaxId, @searchDebounceTime, @syncWarningHours, @importMode)');
+    const insertCompany = db.prepare('INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, publicUrl, quotePrefix, nextQuoteNumber, decimalPlaces INTEGER, quoterShowTaxId BOOLEAN, searchDebounceTime INTEGER, syncWarningHours REAL, importMode TEXT) VALUES (1, @name, @taxId, @address, @phone, @email, @systemName, @publicUrl, @quotePrefix, @nextQuoteNumber, @decimalPlaces, @quoterShowTaxId, @searchDebounceTime, @syncWarningHours, @importMode)');
     insertCompany.run({ ...initialCompany, publicUrl: null, quoterShowTaxId: initialCompany.quoterShowTaxId ? 1 : 0 });
     
     db.prepare(`INSERT OR IGNORE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, 'https://api.hacienda.go.cr/indicadores/tc/dolar', 'https://api.hacienda.go.cr/fe/ex?autorizacion=', 'https://api.hacienda.go.cr/fe/ae?identificacion=')`).run();
+    
+    const defaultTransitAliases: TransitStatusAlias[] = [
+        { id: 'A', name: 'Activa', color: '#22c55e' },
+        { id: 'E', name: 'Enviada', color: '#3b82f6' },
+        { id: 'O', name: 'Ordenada', color: '#f97316' },
+        { id: 'R', name: 'Recibida', color: '#14b8a6' },
+        { id: 'U', name: 'Urgente', color: '#ef4444' },
+        { id: 'N', name: 'Anulada', color: '#64748b' },
+    ];
+    db.prepare(`INSERT OR IGNORE INTO analytics_settings (key, value) VALUES ('transitStatusAliases', ?)`).run(JSON.stringify(defaultTransitAliases));
     
     console.log(`Database ${DB_FILE} initialized.`);
 
@@ -237,10 +248,24 @@ export async function runMainDbMigrations(db: import('better-sqlite3').Database)
 async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
     // Main DB Migrations
     try {
-        const usersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='users'`).get();
+        const usersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='users'`).get() as { name: string } | undefined;
         if(!usersTable) {
              console.log("Migration check skipped: Main database not initialized yet.");
              return;
+        }
+
+        const analyticsSettingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='analytics_settings'`).get() as { name: string } | undefined;
+        if (!analyticsSettingsTable) {
+            db.exec(`CREATE TABLE IF NOT EXISTS analytics_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);`);
+            const defaultTransitAliases: TransitStatusAlias[] = [
+                { id: 'A', name: 'Activa', color: '#22c55e' },
+                { id: 'E', name: 'Enviada', color: '#3b82f6' },
+                { id: 'O', name: 'Ordenada', color: '#f97316' },
+                { id: 'R', name: 'Recibida', color: '#14b8a6' },
+                { id: 'U', name: 'Urgente', color: '#ef4444' },
+                { id: 'N', name: 'Anulada', color: '#64748b' },
+            ];
+            db.prepare(`INSERT OR IGNORE INTO analytics_settings (key, value) VALUES ('transitStatusAliases', ?)`).run(JSON.stringify(defaultTransitAliases));
         }
 
         const productsTableInfo = db.prepare(`PRAGMA table_info(products)`).all() as { name: string }[];
@@ -250,7 +275,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
             db.exec(`ALTER TABLE products ADD COLUMN barcode TEXT`);
         }
 
-        const notificationsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'`).get();
+        const notificationsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'`).get() as { name: string } | undefined;
         if (!notificationsTable) {
             console.log("MIGRATION: Creating notifications table.");
             db.exec(`
@@ -276,13 +301,13 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
             if (!notificationsColumns.has('taskType')) db.exec('ALTER TABLE notifications ADD COLUMN taskType TEXT');
         }
         
-        const userPrefsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='user_preferences'`).get();
+        const userPrefsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='user_preferences'`).get() as { name: string } | undefined;
         if (!userPrefsTable) {
             console.log("MIGRATION: Creating user_preferences table.");
             db.exec(`CREATE TABLE user_preferences (userId INTEGER NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (userId, key));`);
         }
         
-        const emailTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='email_settings'`).get();
+        const emailTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='email_settings'`).get() as { name: string } | undefined;
         if (!emailTable) {
             console.log("MIGRATION: Creating email_settings table.");
             db.exec(`CREATE TABLE email_settings (key TEXT PRIMARY KEY, value TEXT);`);
@@ -340,7 +365,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
             db.prepare(`UPDATE users SET role = 'admin' WHERE id = 1`).run();
         }
 
-        const draftsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='quote_drafts'`).get();
+        const draftsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='quote_drafts'`).get() as { name: string } | undefined;
         if (draftsTable) {
             const draftsTableInfo = db.prepare(`PRAGMA table_info(quote_drafts)`).all() as { name: string }[];
             const draftColumns = new Set(draftsTableInfo.map(c => c.name));
@@ -370,20 +395,20 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
             console.log(`MIGRATION: Successfully hashed ${updatedCount} plaintext password(s).`);
         }
         
-        const apiTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='api_settings'`).get();
+        const apiTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='api_settings'`).get() as { name: string } | undefined;
         if (apiTable) {
             const apiTableInfo = db.prepare(`PRAGMA table_info(api_settings)`).all() as { name: string }[];
             if (!apiTableInfo.some(col => col.name === 'haciendaExemptionApi')) db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaExemptionApi TEXT`);
             if (!apiTableInfo.some(col => col.name === 'haciendaTributariaApi')) db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaTributariaApi TEXT`);
         }
         
-        const suppliersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='suppliers'`).get();
+        const suppliersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='suppliers'`).get() as { name: string } | undefined;
         if (!suppliersTable) {
             console.log("MIGRATION: Creating suppliers table.");
             db.exec(`CREATE TABLE suppliers (id TEXT PRIMARY KEY, name TEXT, alias TEXT, email TEXT, phone TEXT);`);
         }
 
-        const erpHeadersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_order_headers'`).get();
+        const erpHeadersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_order_headers'`).get() as { name: string } | undefined;
         if (!erpHeadersTable) {
             console.log("MIGRATION: Creating erp_order_headers table.");
             db.exec(`CREATE TABLE erp_order_headers (PEDIDO TEXT PRIMARY KEY, ESTADO TEXT, CLIENTE TEXT, FECHA_PEDIDO TEXT, FECHA_PROMETIDA TEXT, ORDEN_COMPRA TEXT);`);
@@ -395,13 +420,13 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
              if (!erpHeadersColumns.has('USUARIO')) db.exec(`ALTER TABLE erp_order_headers ADD COLUMN USUARIO TEXT`);
         }
 
-        const erpLinesTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_order_lines'`).get();
+        const erpLinesTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_order_lines'`).get() as { name: string } | undefined;
         if (!erpLinesTable) {
             console.log("MIGRATION: Creating erp_order_lines table.");
             db.exec(`CREATE TABLE erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));`);
         }
         
-        const erpPoHeadersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_purchase_order_headers'`).get();
+        const erpPoHeadersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_purchase_order_headers'`).get() as { name: string } | undefined;
         if (!erpPoHeadersTable) {
             console.log("MIGRATION: Creating erp_purchase_order_headers table.");
             db.exec(`CREATE TABLE erp_purchase_order_headers (ORDEN_COMPRA TEXT PRIMARY KEY, PROVEEDOR TEXT, FECHA_HORA TEXT, ESTADO TEXT, CreatedBy TEXT);`);
@@ -413,7 +438,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
 
         if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_purchase_order_lines'`).get()) {
             console.log("MIGRATION: Creating erp_purchase_order_lines table.");
-            db.exec(`CREATE TABLE erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY (ORDEN_COMPRA, ARTICULO));`);
+            db.exec(`CREATE TABLE erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL);`);
         } else {
              const erpPOLinesInfo = db.prepare(`PRAGMA table_info(erp_purchase_order_lines)`).all() as { name: string }[];
              const erpPOLinesColumns = new Set(erpPOLinesInfo.map(c => c.name));
@@ -456,7 +481,7 @@ export async function runWalCheckpoint(): Promise<void> {
 export async function getUserCount(): Promise<number> {
     try {
         const db = await connectDb();
-        const row = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+        const row = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number } | undefined;
         return row.count;
     } catch(e) {
         console.error("Error getting user count, likely DB doesn't exist yet.", e);
@@ -640,6 +665,38 @@ export async function saveApiSettings(settings: ApiSettings): Promise<void> {
     }
 }
 
+export async function getAnalyticsSettings(): Promise<AnalyticsSettings> {
+    const db = await connectDb();
+    const defaults: AnalyticsSettings = {
+        transitStatusAliases: [],
+    };
+    try {
+        const rows = db.prepare(`SELECT key, value FROM analytics_settings`).all() as { key: string; value: string }[];
+        if (rows.length === 0) return defaults;
+        
+        const settings: Partial<AnalyticsSettings> = {};
+        for (const row of rows) {
+            if (row.key === 'transitStatusAliases') {
+                settings.transitStatusAliases = JSON.parse(row.value);
+            }
+        }
+        return { ...defaults, ...settings };
+    } catch (error) {
+        console.error("Error fetching analytics settings", error);
+        return defaults;
+    }
+}
+
+export async function saveAnalyticsSettings(settings: AnalyticsSettings): Promise<void> {
+    const db = await connectDb();
+    const transaction = db.transaction(() => {
+        if (settings.transitStatusAliases) {
+            db.prepare(`INSERT OR REPLACE INTO analytics_settings (key, value) VALUES ('transitStatusAliases', ?)`).run(JSON.stringify(settings.transitStatusAliases));
+        }
+    });
+    transaction();
+}
+
 export async function getExemptionLaws(): Promise<ExemptionLaw[]> {
     const db = await connectDb();
     try {
@@ -704,7 +761,7 @@ export async function getAllProducts(): Promise<Product[]> {
 
 export async function saveAllProducts(products: Product[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood, cabys, barcode) VALUES (@id, @description, @classification, @lastEntry, @active, @notes, @unit, @isBasicGood, @cabys, @barcode)');
+    const insert = db.prepare('INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood TEXT, cabys TEXT, barcode TEXT) VALUES (@id, @description, @classification, @lastEntry, @active, @notes, @unit, @isBasicGood, @cabys, @barcode)');
     
     const transaction = db.transaction((productsToSave) => {
         db.prepare('DELETE FROM products').run();
@@ -766,7 +823,7 @@ export async function getAllExemptions(): Promise<Exemption[]> {
 
 export async function saveAllExemptions(exemptions: Exemption[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO exemptions (code, description, customer, authNumber, startDate, endDate, percentage, docType, institutionName, institutionCode) VALUES (@code, @description, @customer, @authNumber, @startDate, @endDate, @percentage, @docType, @institutionName, @institutionCode)');
+    const insert = db.prepare('INSERT OR REPLACE INTO exemptions (code, description, customer, authNumber, startDate, endDate, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT) VALUES (@code, @description, @customer, @authNumber, @startDate, @endDate, @percentage, @docType, @institutionName, @institutionCode)');
     
     const transaction = db.transaction((exemptionsToSave) => {
         db.prepare('DELETE FROM exemptions').run();
@@ -851,7 +908,7 @@ export async function saveQuoteDraft(draft: QuoteDraft): Promise<void> {
     const db = await connectDb();
     
     const transaction = db.transaction(() => {
-        const insertStmt = db.prepare('INSERT OR REPLACE INTO quote_drafts (id, createdAt, userId, customerId, customerDetails, lines, totals, notes, currency, exchangeRate, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, quoteDate, validUntilDate, paymentTerms, creditDays) VALUES (@id, @createdAt, @userId, @customerId, @customerDetails, @lines, @totals, @notes, @currency, @exchangeRate, @purchaseOrderNumber, @deliveryAddress, @deliveryDate, @sellerName, @sellerType, @quoteDate, @validUntilDate, @paymentTerms, @creditDays)');
+        const insertStmt = db.prepare('INSERT OR REPLACE INTO quote_drafts (id, createdAt, userId, customerId, customerDetails, lines, totals, notes, currency, exchangeRate REAL, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, quoteDate, validUntilDate, paymentTerms, creditDays) VALUES (@id, @createdAt, @userId, @customerId, @customerDetails, @lines, @totals, @notes, @currency, @exchangeRate, @purchaseOrderNumber, @deliveryAddress, @deliveryDate, @sellerName, @sellerType, @quoteDate, @validUntilDate, @paymentTerms, @creditDays)');
         
         insertStmt.run({
             ...draft,
@@ -1394,7 +1451,7 @@ export async function factoryReset(moduleId: string): Promise<void> {
 // --- ERP Order Import ---
 export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA, TOTAL_UNIDADES, MONEDA_PEDIDO, USUARIO) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA, @TOTAL_UNIDADES, @MONEDA_PEDIDO, @USUARIO)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA, TOTAL_UNIDADES REAL, MONEDA_PEDIDO, USUARIO) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA, @TOTAL_UNIDADES, @MONEDA_PEDIDO, @USUARIO)');
     
     const transaction = db.transaction((headersToSave: ErpOrderHeader[]) => {
         db.prepare('DELETE FROM erp_order_headers').run();
@@ -1425,7 +1482,7 @@ export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise
 
 export async function saveAllErpOrderLines(lines: ErpOrderLine[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_lines (PEDIDO, PEDIDO_LINEA, ARTICULO, CANTIDAD_PEDIDA, PRECIO_UNITARIO) VALUES (@PEDIDO, @PEDIDO_LINEA, @ARTICULO, @CANTIDAD_PEDIDA, @PRECIO_UNITARIO)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_lines (PEDIDO, PEDIDO_LINEA, ARTICULO, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL) VALUES (@PEDIDO, @PEDIDO_LINEA, @ARTICULO, @CANTIDAD_PEDIDA, @PRECIO_UNITARIO)');
     const transaction = db.transaction((linesToSave) => {
         db.prepare('DELETE FROM erp_order_lines').run();
         for(const line of linesToSave) {
@@ -1442,7 +1499,7 @@ export async function saveAllErpOrderLines(lines: ErpOrderLine[]): Promise<void>
 
 export async function saveAllErpPurchaseOrderHeaders(headers: ErpPurchaseOrderHeader[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_purchase_order_headers (ORDEN_COMPRA, PROVEEDOR, FECHA_HORA, ESTADO, CreatedBy) VALUES (?, ?, ?, ?, ?)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_purchase_order_headers (ORDEN_COMPRA, PROVEEDOR, FECHA_HORA, ESTADO, CreatedBy TEXT) VALUES (?, ?, ?, ?, ?)');
     const transaction = db.transaction((headersToSave: ErpPurchaseOrderHeader[]) => {
         db.prepare('DELETE FROM erp_purchase_order_headers').run();
         for(const header of headersToSave) {
@@ -1461,7 +1518,7 @@ export async function saveAllErpPurchaseOrderHeaders(headers: ErpPurchaseOrderHe
 
 export async function saveAllErpPurchaseOrderLines(lines: ErpPurchaseOrderLine[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_purchase_order_lines (ORDEN_COMPRA, ARTICULO, CANTIDAD_ORDENADA) VALUES (?, ?, ?)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_purchase_order_lines (ORDEN_COMPRA, ARTICULO, CANTIDAD_ORDENADA REAL) VALUES (?, ?, ?)');
     const transaction = db.transaction((linesToSave: ErpPurchaseOrderLine[]) => {
         db.prepare('DELETE FROM erp_purchase_order_lines').run();
         for(const line of linesToSave) {
@@ -1501,7 +1558,7 @@ export async function getAllErpPurchaseOrderLines(): Promise<ErpPurchaseOrderLin
 // --- Notification Functions ---
 export async function createNotification(notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>): Promise<void> {
   const db = await connectDb();
-  db.prepare('INSERT INTO notifications (userId, message, href, isRead, timestamp, entityId, entityType, taskType) VALUES (?, ?, ?, 0, ?, ?, ?, ?)')
+  db.prepare('INSERT INTO notifications (userId, message, href, isRead INTEGER, timestamp TEXT, entityId, entityType, taskType) VALUES (?, ?, ?, 0, ?, ?, ?, ?)')
     .run(notification.userId, notification.message, notification.href, new Date().toISOString(), notification.entityId, notification.entityType, notification.taskType);
 }
 
@@ -1539,7 +1596,7 @@ export async function getUserPreferences(userId: number, key: string): Promise<a
 
 export async function saveUserPreferences(userId: number, key: string, value: any): Promise<void> {
     const db = await connectDb();
-    db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
+    db.prepare('INSERT OR REPLACE INTO user_preferences (userId INTEGER, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
 }
 
 // --- Database Audit ---
@@ -1669,3 +1726,4 @@ export async function getActiveWizardSession(userId: number): Promise<WizardSess
     const row = db.prepare(`SELECT activeWizardSession FROM users WHERE id = ?`).get(userId) as { activeWizardSession: string | null } | undefined;
     return row?.activeWizardSession ? JSON.parse(row.activeWizardSession) : null;
 }
+    

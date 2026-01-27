@@ -43,6 +43,7 @@ import {
   RotateCcw,
   BookUser,
   LayoutGrid,
+  Settings,
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -309,6 +310,14 @@ export const adminTools: Tool[] = [
         icon: Calculator,
         bgColor: 'bg-orange-500',
       },
+       {
+        id: "admin:settings:analytics",
+        name: "Config. Analíticas",
+        description: "Personalizar alias y configuraciones de reportes.",
+        href: "/dashboard/admin/analytics",
+        icon: Settings,
+        bgColor: 'bg-indigo-700',
+      },
       {
         id: "admin:import:run",
         name: "Importar Datos",
@@ -447,3 +456,4 @@ export const analyticsTools: Tool[] = [
  * A combined list of all tools for easy access.
  */
 export const allTools: Tool[] = [...mainTools, ...adminTools, ...analyticsTools];
+    

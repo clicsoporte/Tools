@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Page for the Transits Report.
  * This component visualizes active ERP Purchase Orders.
@@ -33,7 +32,7 @@ export default function TransitsReportPage() {
         isInitialLoading,
     } = useTransitsReport();
 
-    const { isLoading, dateRange, searchTerm, supplierFilter, visibleColumns } = state;
+    const { isLoading, dateRange, searchTerm, supplierFilter, statusFilter, visibleColumns } = state;
     const { sortedData, availableColumns, visibleColumnsData } = selectors;
 
     if (isInitialLoading) {
@@ -54,18 +53,14 @@ export default function TransitsReportPage() {
         return state.sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
     };
 
-    const statusConfig: {[key: string]: {label: string, className: string}} = {
-        'A': { label: 'Activa', className: 'bg-green-100 text-green-800' },
-        'N': { label: 'Anulada', className: 'bg-red-100 text-red-800' },
-        'R': { label: 'Recibida', className: 'bg-blue-100 text-blue-800' }
-    };
-
     const getColumnContent = (item: TransitReportItem, colId: string): React.ReactNode => {
         switch (colId) {
             case 'ordenCompra': return <span className="font-mono">{item.ORDEN_COMPRA}</span>;
             case 'proveedor': return item.proveedorName;
             case 'fecha': return format(new Date(item.FECHA_HORA), 'dd/MM/yyyy');
-            case 'estado': return <Badge className={cn(statusConfig[item.ESTADO]?.className)}>{statusConfig[item.ESTADO]?.label || item.ESTADO}</Badge>;
+            case 'estado': 
+                const statusInfo = selectors.statusConfig[item.ESTADO];
+                return <Badge style={statusInfo ? { backgroundColor: statusInfo.color } : {}} className="text-white">{statusInfo?.label || item.ESTADO}</Badge>;
             case 'articulo': return <><p className="font-medium">{item.productDescription}</p><p className="text-xs text-muted-foreground">{item.ARTICULO}</p></>;
             case 'cantidad': return item.CANTIDAD_ORDENADA.toLocaleString();
             case 'stock': return (item.currentStock ?? 0).toLocaleString();
@@ -102,6 +97,7 @@ export default function TransitsReportPage() {
                         </Popover>
                         <div className="relative flex-1 min-w-[240px]"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar por OC, artículo, proveedor..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="pl-8 w-full" /></div>
                         <MultiSelectFilter title="Proveedor" options={selectors.supplierOptions} selectedValues={supplierFilter} onSelectedChange={actions.setSupplierFilter} className="w-full sm:w-auto" />
+                        <MultiSelectFilter title="Estado" options={selectors.statusOptions} selectedValues={statusFilter} onSelectedChange={actions.setStatusFilter} className="w-full sm:w-auto" />
                         <Button variant="ghost" onClick={actions.handleClearFilters} className="flex-shrink-0"><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
                     </div>
                 </CardContent>

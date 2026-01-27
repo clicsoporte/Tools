@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview The main dashboard page for the admin section.
  * It dynamically displays a grid of available administration tools.
@@ -57,7 +56,7 @@ export default function AdminDashboardPage() {
               Herramientas de Administración
             </h2>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleTools.map((tool) => {
+              {visibleTools.sort((a,b) => a.name.localeCompare(b.name)).map((tool) => {
                 const isSuggestionsTool = tool.id === "admin:suggestions:read";
                 const badgeCount = isSuggestionsTool ? unreadSuggestionsCount : 0;
                 return <ToolCard key={tool.id} tool={tool} badgeCount={badgeCount}/>
@@ -68,3 +67,4 @@ export default function AdminDashboardPage() {
       </main>
   );
 }
+    
