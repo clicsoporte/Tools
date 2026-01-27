@@ -5,7 +5,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { importAllData, runWalCheckpoint } from './db';
+import { importAllData } from './db';
 import { logWarn } from './logger';
 
 /**
@@ -14,9 +14,6 @@ import { logWarn } from './logger';
  * @returns {Promise<{ results: { type: string; count: number; }[], totalTasks: number }>} A promise that resolves to an object containing import results and the total number of tasks.
  */
 export async function syncAllData(): Promise<{ results: { type: string; count: number; }[], totalTasks: number }> {
-    // Run a WAL checkpoint before importing to ensure data is consolidated.
-    // This is crucial for long-running server environments like IIS/iisnode.
-    await runWalCheckpoint();
     return await importAllData();
 }
 
