@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Simplified warehouse search page, optimized for mobile devices and scanners.
  * This component provides a minimal UI for warehouse workers to quickly look up items
@@ -421,3 +422,5 @@ export default function SimpleWarehouseSearchPage() {
         </div>
     );
 }
+
+    
