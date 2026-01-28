@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview A reusable component for a column visibility selector dialog.
  * It provides a standardized "Columnas" button that opens a dialog with a searchable
