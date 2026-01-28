@@ -525,6 +525,16 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
     db.prepare('DELETE FROM item_locations WHERE id = ?').run(itemLocationId);
 }
 
+export async function unassignItemFromLocationByProduct(itemId: string): Promise<void> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    db.prepare('DELETE FROM item_locations WHERE itemId = ?').run(itemId);
+}
+
+export async function unassignItemFromLocationByLocationId(locationId: number): Promise<void> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    db.prepare('DELETE FROM item_locations WHERE locationId = ?').run(locationId);
+}
+
 export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive' | 'status'>): Promise<InventoryUnit> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     

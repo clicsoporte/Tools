@@ -20,6 +20,12 @@ import {
     DialogTrigger 
 } from '@/components/ui/dialog';
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu";
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -27,20 +33,18 @@ import {
     AlertDialogDescription,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
-    AlertDialogFooter,
-  } from '@/components/ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { SearchInput } from '@/components/ui/search-input';
-import { Loader2, Trash2, List, PlusCircle, Search, ChevronLeft, ChevronRight, Edit2 } from 'lucide-react';
+import { Loader2, Trash2, List, PlusCircle, Search, ChevronLeft, ChevronRight, Edit2, ArrowUp, ArrowDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { useItemLocation } from '@/modules/warehouse/hooks/useItemLocation';
+import { useItemLocation, type SortKey } from '@/modules/warehouse/hooks/useItemLocation';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -49,21 +53,47 @@ export default function AssignItemPage() {
     const { setTitle } = usePageTitle();
     const { state, actions, selectors } = useItemLocation();
     
+    const [cleanupType, setCleanupType] = React.useState<'product' | 'location' | null>(null);
+    const [isCleanupDialogOpen, setIsCleanupDialogOpen] = React.useState(false);
+    const [itemToClean, setItemToClean] = React.useState<{ value: string; label: string } | null>(null);
+    const [isConfirmCleanupOpen, setIsConfirmCleanupOpen] = React.useState(false);
+    
     React.useEffect(() => {
         setTitle("Catálogo de Clientes por Artículo");
     }, [setTitle]);
 
     const { 
         isLoading, isSubmitting, isFormOpen, isEditing,
-        globalFilter, currentPage, rowsPerPage,
+        globalFilter, currentPage, rowsPerPage, sortKey, sortDirection,
         formData, productSearchTerm, isProductSearchOpen,
         clientSearchTerm, isClientSearchOpen, locationSearchTerm, isLocationSearchOpen
     } = state;
+    
+    const handleOpenCleanupDialog = (type: 'product' | 'location') => {
+        setCleanupType(type);
+        setItemToClean(null);
+        actions.setProductSearchTerm('');
+        actions.setLocationSearchTerm('');
+        setIsCleanupDialogOpen(true);
+    };
+
+    const handleConfirmCleanup = () => {
+        if (!cleanupType || !itemToClean) return;
+        const id = cleanupType === 'location' ? Number(itemToClean.value) : itemToClean.value;
+        actions.handleCleanup(cleanupType, id);
+        setIsCleanupDialogOpen(false);
+    };
+
+    const renderSortIcon = (key: SortKey) => {
+        if (sortKey !== key) return null;
+        return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
+    };
+
 
     if (isLoading) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
-                 <Skeleton className="h-96 w-full max-w-4xl mx-auto" />
+                 <Skeleton className="h-96 w-full max-w-5xl mx-auto" />
             </main>
         )
     }
@@ -78,11 +108,22 @@ export default function AssignItemPage() {
                                 <CardTitle>Catálogo de Clientes por Artículo</CardTitle>
                                 <CardDescription>Gestiona las ubicaciones y la exclusividad de los productos de tus clientes.</CardDescription>
                             </div>
-                            {selectors.hasPermission('warehouse:item-assignment:create') && (
-                                <Button onClick={actions.openCreateForm}>
-                                    <PlusCircle className="mr-2 h-4 w-4"/>Asociar Producto a Cliente
-                                </Button>
-                            )}
+                            <div className="flex gap-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline"><Trash2 className="mr-2 h-4 w-4"/> Herramientas de Limpieza</Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('product')}>Limpiar por Producto...</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('location')}>Limpiar por Ubicación...</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                {selectors.hasPermission('warehouse:item-assignment:create') && (
+                                    <Button onClick={actions.openCreateForm}>
+                                        <PlusCircle className="mr-2 h-4 w-4"/>Asociar Producto a Cliente
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                          <div className="relative mt-4">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -99,11 +140,20 @@ export default function AssignItemPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Producto</TableHead>
-                                        <TableHead>Cliente</TableHead>
-                                        <TableHead>Ubicación Asignada</TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => actions.handleSort('product')}>
+                                            <div className="flex items-center gap-2">Código {renderSortIcon('product')}</div>
+                                        </TableHead>
+                                        <TableHead>Descripción</TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => actions.handleSort('client')}>
+                                            <div className="flex items-center gap-2">Cliente {renderSortIcon('client')}</div>
+                                        </TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => actions.handleSort('location')}>
+                                            <div className="flex items-center gap-2">Ubicación Asignada {renderSortIcon('location')}</div>
+                                        </TableHead>
                                         <TableHead>Tipo</TableHead>
-                                        <TableHead>Última Actualización</TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => actions.handleSort('updatedAt')}>
+                                            <div className="flex items-center gap-2">Actualizado {renderSortIcon('updatedAt')}</div>
+                                        </TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -111,10 +161,8 @@ export default function AssignItemPage() {
                                     {selectors.paginatedAssignments.length > 0 ? selectors.paginatedAssignments.map(a => {
                                         return (
                                             <TableRow key={a.id}>
-                                                <TableCell className="font-medium">
-                                                    <div>{selectors.getProductName(a.itemId)}</div>
-                                                    <div className="text-xs text-muted-foreground">{a.itemId}</div>
-                                                </TableCell>
+                                                <TableCell className="font-mono text-xs">{a.itemId}</TableCell>
+                                                <TableCell className="font-medium">{selectors.getProductName(a.itemId)}</TableCell>
                                                 <TableCell>{selectors.getClientName(a.clientId)}</TableCell>
                                                 <TableCell>{selectors.getLocationPath(a.locationId)}</TableCell>
                                                 <TableCell>
@@ -160,7 +208,7 @@ export default function AssignItemPage() {
                                         );
                                     }) : (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                                            <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                                                 {globalFilter ? 'No se encontraron asignaciones con ese filtro.' : 'No hay asignaciones creadas.'}
                                             </TableCell>
                                         </TableRow>
@@ -247,6 +295,52 @@ export default function AssignItemPage() {
                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isEditing ? 'Guardar Cambios' : 'Crear Asignación'}
                             </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+                <Dialog open={isCleanupDialogOpen} onOpenChange={setIsCleanupDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Limpiar Asignaciones por {cleanupType === 'product' ? 'Producto' : 'Ubicación'}</DialogTitle>
+                            <DialogDescription>
+                                Selecciona {cleanupType === 'product' ? 'el producto' : 'la ubicación'} para eliminar todas sus asignaciones. Esta acción es irreversible.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <SearchInput
+                                options={cleanupType === 'product' ? selectors.productOptions : selectors.locationOptions}
+                                onSelect={(value) => {
+                                    const options = cleanupType === 'product' ? selectors.productOptions : selectors.locationOptions;
+                                    setItemToClean(options.find(opt => opt.value === value) || null);
+                                }}
+                                value={itemToClean?.label || ''}
+                                onValueChange={cleanupType === 'product' ? actions.setProductSearchTerm : actions.setLocationSearchTerm}
+                                open={cleanupType === 'product' ? isProductSearchOpen : isLocationSearchOpen}
+                                onOpenChange={cleanupType === 'product' ? actions.setIsProductSearchOpen : actions.setIsLocationSearchOpen}
+                                placeholder={`Buscar ${cleanupType === 'product' ? 'producto' : 'ubicación'}...`}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                            <AlertDialog open={isConfirmCleanupOpen} onOpenChange={setIsConfirmCleanupOpen}>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" disabled={!itemToClean || isSubmitting}>
+                                        Limpiar Asignaciones
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Se eliminarán TODAS las asignaciones para <strong>{itemToClean?.label}</strong>. Esta acción no se puede deshacer.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleConfirmCleanup}>Sí, limpiar todo</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>

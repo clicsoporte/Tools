@@ -18,6 +18,8 @@ import {
     getAllItemLocations as getAllItemLocationsServer,
     assignItemToLocation as assignItemToLocationServer,
     unassignItemFromLocation as unassignItemFromLocationServer,
+    unassignItemFromLocationByProduct,
+    unassignItemFromLocationByLocationId,
     getWarehouseData as getWarehouseDataServer,
     getMovements as getMovementsServer,
     addInventoryUnit as addInventoryUnitServer,
@@ -101,13 +103,24 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
     return unassignItemFromLocationServer(itemLocationId);
 }
 
+export async function unassignAllByProduct(itemId: string, userName: string): Promise<void> {
+    await unassignItemFromLocationByProduct(itemId);
+    await logWarn(`All assignments for product ${itemId} were deleted by ${userName}.`);
+}
+
+export async function unassignAllByLocation(locationId: number, userName: string): Promise<void> {
+    await unassignItemFromLocationByLocationId(locationId);
+    await logWarn(`All assignments for location ID ${locationId} were deleted by ${userName}.`);
+}
+
+
 // --- Page-specific data loaders ---
 export const getWarehouseData = async () => getWarehouseDataServer();
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);
 
 // --- Inventory Unit Actions ---
 export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive' | 'status'>): Promise<InventoryUnit> => addInventoryUnitServer(unit);
-export const getInventoryUnits = async (): Promise<InventoryUnit[]> => getInventoryUnitsServer();
+export const getInventoryUnits = async (filters: { dateRange?: DateRange, includeVoided?: boolean } = {}): Promise<InventoryUnit[]> => getInventoryUnitsServer(filters);
 export const deleteInventoryUnit = async (id: number): Promise<void> => deleteInventoryUnitServer(id);
 export const getInventoryUnitById = async (id: string | number): Promise<InventoryUnit | null> => getInventoryUnitByIdServer(id);
 

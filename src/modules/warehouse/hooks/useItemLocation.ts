@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getLocations, getAllItemLocations, assignItemToLocation, unassignItemFromLocation, getSelectableLocations } from '@/modules/warehouse/lib/actions';
+import { getLocations, getAllItemLocations, assignItemToLocation, unassignItemFromLocation, getSelectableLocations, unassignAllByProduct, unassignAllByLocation } from '@/modules/warehouse/lib/actions';
 import type { Product, Customer, WarehouseLocation, ItemLocation } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -39,39 +39,65 @@ const emptyFormData = {
     requiresCertificate: false,
 };
 
+export type SortKey = 'product' | 'client' | 'location' | 'updatedAt';
+export type SortDirection = 'asc' | 'desc';
+
+interface State {
+    isLoading: boolean;
+    isSubmitting: boolean;
+    isFormOpen: boolean;
+    isEditing: boolean;
+    globalFilter: string;
+    currentPage: number;
+    rowsPerPage: number;
+    sortKey: SortKey;
+    sortDirection: SortDirection;
+    formData: typeof emptyFormData;
+    productSearchTerm: string;
+    isProductSearchOpen: boolean;
+    clientSearchTerm: string;
+    isClientSearchOpen: boolean;
+    locationSearchTerm: string;
+    isLocationSearchOpen: boolean;
+}
+
 export function useItemLocation() {
     const { hasPermission, isAuthorized } = useAuthorization(['warehouse:item-assignment:create', 'warehouse:item-assignment:delete']);
     const { toast } = useToast();
     const { user, companyData, products: authProducts, customers: authCustomers } = useAuth();
     
     const [isLoading, setIsLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    // State for the main view
     const [allLocations, setAllLocations] = useState<WarehouseLocation[]>([]);
     const [allAssignments, setAllAssignments] = useState<ItemLocation[]>([]);
-    const [globalFilter, setGlobalFilter] = useState('');
-    const [currentPage, setCurrentPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
-    
-    // State for dialogs and forms
-    const [isFormOpen, setIsFormOpen] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
     const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null);
-    const [formData, setFormData] = useState(emptyFormData);
 
-    // State for search inputs within dialogs
-    const [productSearchTerm, setProductSearchTerm] = useState('');
-    const [isProductSearchOpen, setIsProductSearchOpen] = useState(false);
-    const [clientSearchTerm, setClientSearchTerm] = useState('');
-    const [isClientSearchOpen, setIsClientSearchOpen] = useState(false);
-    const [locationSearchTerm, setLocationSearchTerm] = useState('');
-    const [isLocationSearchOpen, setIsLocationSearchOpen] = useState(false);
+    const [state, setState] = useState<State>({
+        isLoading: true,
+        isSubmitting: false,
+        isFormOpen: false,
+        isEditing: false,
+        globalFilter: '',
+        currentPage: 0,
+        rowsPerPage: 10,
+        sortKey: 'updatedAt',
+        sortDirection: 'desc',
+        formData: emptyFormData,
+        productSearchTerm: '',
+        isProductSearchOpen: false,
+        clientSearchTerm: '',
+        isClientSearchOpen: false,
+        locationSearchTerm: '',
+        isLocationSearchOpen: false,
+    });
     
-    const [debouncedProductSearch] = useDebounce(productSearchTerm, companyData?.searchDebounceTime ?? 500);
-    const [debouncedClientSearch] = useDebounce(clientSearchTerm, companyData?.searchDebounceTime ?? 500);
-    const [debouncedLocationSearch] = useDebounce(locationSearchTerm, companyData?.searchDebounceTime ?? 500);
-    const [debouncedGlobalFilter] = useDebounce(globalFilter, companyData?.searchDebounceTime ?? 500);
+    const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);
+    const [debouncedClientSearch] = useDebounce(state.clientSearchTerm, companyData?.searchDebounceTime ?? 500);
+    const [debouncedLocationSearch] = useDebounce(state.locationSearchTerm, companyData?.searchDebounceTime ?? 500);
+    const [debouncedGlobalFilter] = useDebounce(state.globalFilter, companyData?.searchDebounceTime ?? 500);
+    
+    const updateState = useCallback((newState: Partial<State>) => {
+        setState(prevState => ({ ...prevState, ...newState }));
+    }, []);
 
     const loadInitialData = useCallback(async () => {
         setIsLoading(true);
@@ -84,8 +110,9 @@ export function useItemLocation() {
             toast({ title: "Error de Carga", description: "No se pudieron cargar los datos necesarios.", variant: "destructive" });
         } finally {
             setIsLoading(false);
+            updateState({ isLoading: false });
         }
-    }, [toast]);
+    }, [toast, updateState]);
     
     useEffect(() => {
         if (isAuthorized) {
@@ -117,44 +144,39 @@ export function useItemLocation() {
             .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, allLocations) }));
     }, [allLocations, selectableLocations, debouncedLocationSearch]);
 
-
     const handleSelectProduct = (value: string) => {
-        setIsProductSearchOpen(false);
         const product = authProducts.find(p => p.id === value);
         if (product) {
-            setFormData(prev => ({ ...prev, selectedProductId: value }));
-            setProductSearchTerm(`[${product.id}] ${product.description}`);
+            updateState({ formData: { ...state.formData, selectedProductId: value }, productSearchTerm: `[${product.id}] ${product.description}`, isProductSearchOpen: false });
         }
     };
     
     const handleSelectClient = (value: string | null) => {
-        setIsClientSearchOpen(false);
         const client = value ? authCustomers.find(c => c.id === value) : null;
-        setFormData(prev => ({ ...prev, selectedClientId: client ? client.id : null }));
-        setClientSearchTerm(client ? `[${client.id}] ${client.name}` : '');
+        updateState({ formData: { ...state.formData, selectedClientId: client ? client.id : null }, clientSearchTerm: client ? `[${client.id}] ${client.name}` : '', isClientSearchOpen: false });
     };
 
     const handleSelectLocation = (value: string) => {
-        setIsLocationSearchOpen(false);
         const location = allLocations.find(l => String(l.id) === value);
         if (location) {
-            setFormData(prev => ({ ...prev, selectedLocationId: value }));
-            setLocationSearchTerm(renderLocationPathAsString(location.id, allLocations));
+            updateState({ formData: { ...state.formData, selectedLocationId: value }, locationSearchTerm: renderLocationPathAsString(location.id, allLocations), isLocationSearchOpen: false });
         }
     };
     
     const resetForm = useCallback(() => {
-        setFormData(emptyFormData);
-        setProductSearchTerm('');
-        setClientSearchTerm('');
-        setLocationSearchTerm('');
+        updateState({
+            formData: emptyFormData,
+            productSearchTerm: '',
+            clientSearchTerm: '',
+            locationSearchTerm: '',
+            isEditing: false,
+        });
         setEditingAssignmentId(null);
-        setIsEditing(false);
-    }, []);
+    }, [updateState]);
 
     const openCreateForm = () => {
         resetForm();
-        setIsFormOpen(true);
+        updateState({ isFormOpen: true });
     };
 
     const openEditForm = (assignment: ItemLocation) => {
@@ -162,45 +184,45 @@ export function useItemLocation() {
         const client = assignment.clientId ? authCustomers.find(c => c.id === assignment.clientId) : null;
         const location = allLocations.find(l => l.id === assignment.locationId);
 
-        setFormData({
-            selectedProductId: assignment.itemId,
-            selectedClientId: assignment.clientId || null,
-            selectedLocationId: String(assignment.locationId),
-            isExclusive: assignment.isExclusive === 1,
-            requiresCertificate: assignment.requiresCertificate === 1,
+        updateState({
+            formData: {
+                selectedProductId: assignment.itemId,
+                selectedClientId: assignment.clientId || null,
+                selectedLocationId: String(assignment.locationId),
+                isExclusive: assignment.isExclusive === 1,
+                requiresCertificate: assignment.requiresCertificate === 1,
+            },
+            productSearchTerm: product ? `[${product.id}] ${product.description}` : '',
+            clientSearchTerm: client ? `[${client.id}] ${client.name}` : '',
+            locationSearchTerm: location ? renderLocationPathAsString(location.id, allLocations) : '',
+            isEditing: true,
+            isFormOpen: true,
         });
-
-        setProductSearchTerm(product ? `[${product.id}] ${product.description}` : '');
-        setClientSearchTerm(client ? `[${client.id}] ${client.name}` : '');
-        setLocationSearchTerm(location ? renderLocationPathAsString(location.id, allLocations) : '');
-        
         setEditingAssignmentId(assignment.id);
-        setIsEditing(true);
-        setIsFormOpen(true);
     };
 
     const handleSubmit = async () => {
         if (!user) return;
-        if (!formData.selectedProductId || !formData.selectedLocationId) {
+        if (!state.formData.selectedProductId || !state.formData.selectedLocationId) {
             toast({ title: "Datos Incompletos", description: "Debe seleccionar un producto y una ubicación.", variant: "destructive" });
             return;
         }
 
-        setIsSubmitting(true);
+        updateState({ isSubmitting: true });
         try {
             const payload = {
-                id: isEditing ? editingAssignmentId! : undefined,
-                itemId: formData.selectedProductId,
-                locationId: parseInt(formData.selectedLocationId, 10),
-                clientId: formData.selectedClientId,
-                isExclusive: (formData.isExclusive ? 1 : 0) as 0 | 1,
-                requiresCertificate: (formData.requiresCertificate ? 1 : 0) as 0 | 1,
+                id: state.isEditing ? editingAssignmentId! : undefined,
+                itemId: state.formData.selectedProductId,
+                locationId: parseInt(state.formData.selectedLocationId, 10),
+                clientId: state.formData.selectedClientId,
+                isExclusive: (state.formData.isExclusive ? 1 : 0) as 0 | 1,
+                requiresCertificate: (state.formData.requiresCertificate ? 1 : 0) as 0 | 1,
                 updatedBy: user.name,
             };
 
             const savedAssignment = await assignItemToLocation(payload);
             
-            if (isEditing) {
+            if (state.isEditing) {
                 setAllAssignments(prev => prev.map(a => a.id === savedAssignment.id ? savedAssignment : a));
                 toast({ title: "Asignación Actualizada" });
             } else {
@@ -208,18 +230,18 @@ export function useItemLocation() {
                 toast({ title: "Asignación Creada" });
             }
             
-            setIsFormOpen(false);
+            updateState({ isFormOpen: false });
             resetForm();
         } catch(e: any) {
             logError('Failed to save item assignment', { error: e.message });
             toast({ title: "Error al Guardar", description: `No se pudo guardar la asignación. ${e.message}`, variant: "destructive" });
         } finally {
-            setIsSubmitting(false);
+            updateState({ isSubmitting: false });
         }
     };
 
     const handleDeleteAssignment = async (assignmentId: number) => {
-        setIsSubmitting(true);
+        updateState({ isSubmitting: true });
         try {
             await unassignItemFromLocation(assignmentId);
             setAllAssignments(prev => prev.filter(a => a.id !== assignmentId));
@@ -228,45 +250,99 @@ export function useItemLocation() {
             logError('Failed to delete item assignment', { error: e.message });
             toast({ title: "Error al Eliminar", description: `No se pudo eliminar la asignación. ${e.message}`, variant: "destructive" });
         } finally {
-            setIsSubmitting(false);
+            updateState({ isSubmitting: false });
         }
     };
     
     const filteredAssignments = useMemo(() => {
-        if (!debouncedGlobalFilter) {
-            return allAssignments;
+        let assignments = [...allAssignments];
+        if (debouncedGlobalFilter) {
+            const lowerCaseFilter = debouncedGlobalFilter.toLowerCase();
+            assignments = assignments.filter(a => {
+                const product = authProducts.find(p => p.id === a.itemId);
+                const client = authCustomers.find(c => c.id === a.clientId);
+                const locationString = renderLocationPathAsString(a.locationId, allLocations);
+                return (
+                    product?.id.toLowerCase().includes(lowerCaseFilter) ||
+                    product?.description.toLowerCase().includes(lowerCaseFilter) ||
+                    client?.name.toLowerCase().includes(lowerCaseFilter) ||
+                    locationString.toLowerCase().includes(lowerCaseFilter)
+                );
+            });
         }
-        const lowerCaseFilter = debouncedGlobalFilter.toLowerCase();
-        return allAssignments.filter(a => {
-            const product = authProducts.find(p => p.id === a.itemId);
-            const client = authCustomers.find(c => c.id === a.clientId);
-            const locationString = renderLocationPathAsString(a.locationId, allLocations);
-            return (
-                product?.id.toLowerCase().includes(lowerCaseFilter) ||
-                product?.description.toLowerCase().includes(lowerCaseFilter) ||
-                client?.name.toLowerCase().includes(lowerCaseFilter) ||
-                locationString.toLowerCase().includes(lowerCaseFilter)
-            );
+        
+        assignments.sort((a, b) => {
+            const dir = state.sortDirection === 'asc' ? 1 : -1;
+            let valA: string, valB: string;
+    
+            switch (state.sortKey) {
+                case 'product':
+                    valA = a.itemId;
+                    valB = b.itemId;
+                    break;
+                case 'client':
+                    valA = authCustomers.find(c => c.id === a.clientId)?.name || 'zzzz'; // 'zzzz' to sort empty ones last
+                    valB = authCustomers.find(c => c.id === b.clientId)?.name || 'zzzz';
+                    break;
+                case 'location':
+                    valA = renderLocationPathAsString(a.locationId, allLocations);
+                    valB = renderLocationPathAsString(b.locationId, allLocations);
+                    break;
+                case 'updatedAt':
+                    valA = a.updatedAt || '';
+                    valB = b.updatedAt || '';
+                    // For dates, reverse comparison to sort newest first by default
+                    return (valB.localeCompare(valA)) * dir;
+                default:
+                    return 0;
+            }
+    
+            return valA.localeCompare(valB, 'es', { numeric: true }) * dir;
         });
-    }, [allAssignments, debouncedGlobalFilter, authProducts, authCustomers, allLocations]);
 
-    useEffect(() => { setCurrentPage(0); }, [debouncedGlobalFilter, rowsPerPage]);
+        return assignments;
+    }, [allAssignments, debouncedGlobalFilter, authProducts, authCustomers, allLocations, state.sortKey, state.sortDirection]);
+    
+    useEffect(() => { updateState({ currentPage: 0 }); }, [debouncedGlobalFilter, state.rowsPerPage, updateState]);
     
     const paginatedAssignments = useMemo(() => {
-        const start = currentPage * rowsPerPage;
-        const end = start + rowsPerPage;
+        const start = state.currentPage * state.rowsPerPage;
+        const end = start + state.rowsPerPage;
         return filteredAssignments.slice(start, end);
-    }, [filteredAssignments, currentPage, rowsPerPage]);
+    }, [filteredAssignments, state.currentPage, state.rowsPerPage]);
 
-    const totalPages = Math.ceil(filteredAssignments.length / rowsPerPage);
+    const handleSort = (key: SortKey) => {
+        updateState({ 
+            sortKey: key, 
+            sortDirection: state.sortKey === key && state.sortDirection === 'asc' ? 'desc' : 'asc' 
+        });
+    };
+
+    const handleCleanup = async (type: 'product' | 'location', id: string | number) => {
+        if (!user) return;
+        updateState({ isSubmitting: true });
+        try {
+            if (type === 'product' && typeof id === 'string') {
+                await unassignAllByProduct(id, user.name);
+                toast({ title: "Limpieza Completada", description: `Se eliminaron todas las asignaciones para el producto ${id}.` });
+            } else if (type === 'location' && typeof id === 'number') {
+                const locPath = renderLocationPathAsString(id, allLocations);
+                await unassignAllByLocation(id, user.name);
+                toast({ title: "Limpieza Completada", description: `Se eliminaron todas las asignaciones de la ubicación ${locPath}.` });
+            }
+            await loadInitialData(); // Refresh data
+        } catch (e: any) {
+            logError('Failed to perform cleanup', { error: e.message, type, id });
+            toast({ title: "Error en la Limpieza", description: e.message, variant: "destructive" });
+        } finally {
+            updateState({ isSubmitting: false });
+        }
+    };
+    
+    const totalPages = Math.ceil(filteredAssignments.length / state.rowsPerPage);
 
     return {
-        state: {
-            isLoading, isSubmitting, isFormOpen, isEditing,
-            globalFilter, currentPage, rowsPerPage,
-            formData, productSearchTerm, isProductSearchOpen,
-            clientSearchTerm, isClientSearchOpen, locationSearchTerm, isLocationSearchOpen
-        },
+        state,
         selectors: {
             paginatedAssignments, totalPages, filteredAssignments,
             productOptions, clientOptions, locationOptions, hasPermission,
@@ -275,12 +351,23 @@ export function useItemLocation() {
             getLocationPath: (id: number) => renderLocationPathAsString(id, allLocations)
         },
         actions: {
-            setGlobalFilter, setCurrentPage, setRowsPerPage,
-            setIsFormOpen, openCreateForm, openEditForm, handleSubmit, handleDeleteAssignment, resetForm,
-            setFormData,
-            setProductSearchTerm, setIsProductSearchOpen, handleSelectProduct,
-            setClientSearchTerm, setIsClientSearchOpen, handleSelectClient,
-            setLocationSearchTerm, setIsLocationSearchOpen, handleSelectLocation,
+            setGlobalFilter: (filter: string) => updateState({ globalFilter: filter }),
+            setCurrentPage: (page: number | ((p: number) => number)) => updateState({ currentPage: typeof page === 'function' ? page(state.currentPage) : page }),
+            setRowsPerPage: (size: number) => updateState({ rowsPerPage: size }),
+            setIsFormOpen: (open: boolean) => updateState({ isFormOpen: open }),
+            openCreateForm, openEditForm, handleSubmit, handleDeleteAssignment, resetForm,
+            setFormData: (data: typeof emptyFormData) => updateState({ formData: data }),
+            setProductSearchTerm: (term: string) => updateState({ productSearchTerm: term }),
+            setIsProductSearchOpen: (open: boolean) => updateState({ isProductSearchOpen: open }),
+            handleSelectProduct,
+            setClientSearchTerm: (term: string) => updateState({ clientSearchTerm: term }),
+            setIsClientSearchOpen: (open: boolean) => updateState({ isClientSearchOpen: open }),
+            handleSelectClient,
+            setLocationSearchTerm: (term: string) => updateState({ locationSearchTerm: term }),
+            setIsLocationSearchOpen: (open: boolean) => updateState({ isLocationSearchOpen: open }),
+            handleSelectLocation,
+            handleSort,
+            handleCleanup,
         }
     };
 }
