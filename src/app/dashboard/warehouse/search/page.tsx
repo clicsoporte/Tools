@@ -530,7 +530,7 @@ export default function WarehouseSearchPage() {
                                                         )}
                                                         {item.product && loc.location && (
                                                             <>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/80" onClick={() => handlePrintUnitLabel(item.product!, loc.location!)} title="Imprimir Etiqueta de Unidad">
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-700" onClick={() => handlePrintUnitLabel(item.product!, loc.location!)} title="Imprimir Etiqueta de Unidad">
                                                                     <Printer className="h-4 w-4" />
                                                                 </Button>
                                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-600 hover:text-orange-700" onClick={() => handlePrintProductLocationLabel(item.product!, loc.location!)} title="Imprimir Etiqueta de Escáner">

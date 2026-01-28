@@ -68,14 +68,14 @@ export default function AssignItemPage() {
         isLoading, isSubmitting, isFormOpen, isEditing,
         globalFilter, currentPage, rowsPerPage, sortKey, sortDirection,
         formData, productSearchTerm, isProductSearchOpen,
-        clientSearchTerm, isClientSearchOpen, locationSearchTerm, isLocationSearchOpen
+        clientSearchTerm, isClientSearchOpen, locationSearchTerm, isLocationSearchOpen,
+        cleanupSearchTerm, isCleanupSearchOpen,
     } = state;
     
     const handleOpenCleanupDialog = (type: 'product' | 'location') => {
         setCleanupType(type);
         setItemToClean(null);
-        actions.setProductSearchTerm('');
-        actions.setLocationSearchTerm('');
+        actions.setCleanupSearchTerm('');
         setIsCleanupDialogOpen(true);
     };
 
@@ -310,15 +310,15 @@ export default function AssignItemPage() {
                         </DialogHeader>
                         <div className="py-4">
                             <SearchInput
-                                options={cleanupType === 'product' ? selectors.productOptions : selectors.locationOptions}
+                                options={cleanupType === 'product' ? selectors.cleanupProductOptions : selectors.cleanupLocationOptions}
                                 onSelect={(value) => {
-                                    const options = cleanupType === 'product' ? selectors.productOptions : selectors.locationOptions;
+                                    const options = cleanupType === 'product' ? selectors.cleanupProductOptions : selectors.cleanupLocationOptions;
                                     setItemToClean(options.find(opt => opt.value === value) || null);
                                 }}
-                                value={itemToClean?.label || ''}
-                                onValueChange={cleanupType === 'product' ? actions.setProductSearchTerm : actions.setLocationSearchTerm}
-                                open={cleanupType === 'product' ? isProductSearchOpen : isLocationSearchOpen}
-                                onOpenChange={cleanupType === 'product' ? actions.setIsProductSearchOpen : actions.setIsLocationSearchOpen}
+                                value={cleanupSearchTerm}
+                                onValueChange={actions.setCleanupSearchTerm}
+                                open={isCleanupSearchOpen}
+                                onOpenChange={actions.setIsCleanupSearchOpen}
                                 placeholder={`Buscar ${cleanupType === 'product' ? 'producto' : 'ubicación'}...`}
                             />
                         </div>

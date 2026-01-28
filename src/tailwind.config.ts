@@ -33,7 +33,8 @@ const config: Config = {
     'bg-gray-500',
     'bg-slate-500',
     'bg-rose-600',
-    'bg-sky-700'
+    'bg-sky-700',
+    'bg-indigo-700',
   ],
   theme: {
     extend: {

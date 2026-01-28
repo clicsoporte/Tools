@@ -23,7 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import jsPDF from "jspdf";
 import QRCode from 'qrcode';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import JsBarcode from 'jsbarcode';
 
@@ -245,6 +245,7 @@ export default function SimpleWarehouseSearchPage() {
         setIsPrinting(true);
         try {
             const newUnit = await addInventoryUnit({ productId: product.id, locationId: location.id, createdBy: user.name, notes: 'Etiqueta de unidad generada desde búsqueda simple.', quantity: 1 });
+            
             const qrCodeDataUrl = await QRCode.toDataURL(newUnit.unitCode!, { errorCorrectionLevel: 'H', width: 200 });
 
             const barcodeCanvas = document.createElement('canvas');
@@ -252,8 +253,37 @@ export default function SimpleWarehouseSearchPage() {
             const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
 
             const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 3] });
+            const margin = 0.2;
+            const contentWidth = 4 - (margin * 2);
             
-            // ... (PDF Generation Logic from `search/page.tsx`)
+            const leftColX = margin;
+            const leftColWidth = 1.2;
+            doc.addImage(qrCodeDataUrl, 'PNG', leftColX, margin, leftColWidth, leftColWidth);
+            doc.addImage(barcodeDataUrl, 'PNG', leftColX, margin + leftColWidth + 0.1, leftColWidth, 0.4);
+            doc.setFontSize(10).text(newUnit.unitCode!, leftColX + leftColWidth / 2, margin + leftColWidth + 0.1 + 0.4 + 0.15, { align: 'center' });
+
+            const rightColX = leftColX + leftColWidth + 0.2;
+            const rightColWidth = contentWidth - leftColWidth - 0.2;
+
+            let currentY = margin + 0.1;
+            doc.setFontSize(14).setFont('Helvetica', 'bold').text(`Producto: ${product.id}`, rightColX, currentY);
+            currentY += 0.2;
+            
+            doc.setFontSize(9).setFont('Helvetica', 'normal');
+            const descLines = doc.splitTextToSize(product.description, rightColWidth);
+            doc.text(descLines, rightColX, currentY);
+            currentY += (descLines.length * 0.15) + 0.2;
+            
+            doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Ubicación:`, rightColX, currentY);
+            currentY += 0.15;
+            
+            doc.setFontSize(9).setFont('Helvetica', 'normal');
+            const locLines = doc.splitTextToSize(renderLocationPathAsString(location.id, locations), rightColWidth);
+            doc.text(locLines, rightColX, currentY);
+            
+            const footerY = 3 - margin;
+            doc.setFontSize(8).setTextColor(150);
+            doc.text(`Creado: ${format(new Date(), 'dd/MM/yyyy')} por ${user?.name || 'Sistema'}`, 4 - margin, footerY, { align: 'right' });
             
             doc.save(`etiqueta_unidad_${newUnit.unitCode}.pdf`);
             
@@ -276,8 +306,36 @@ export default function SimpleWarehouseSearchPage() {
 
             const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 3] });
             
-            // ... (PDF Generation Logic from `search/page.tsx`)
+            const margin = 0.2;
+            const contentWidth = 4 - (margin * 2);
             
+            const leftColX = margin;
+            const leftColWidth = 1.2;
+            doc.addImage(qrCodeDataUrl, 'PNG', leftColX, margin, leftColWidth, leftColWidth);
+
+            const rightColX = leftColX + leftColWidth + 0.2;
+            const rightColWidth = contentWidth - leftColWidth - 0.2;
+
+            let currentY = margin + 0.1;
+            doc.setFontSize(14).setFont('Helvetica', 'bold').text(`Producto: ${product.id}`, rightColX, currentY);
+            currentY += 0.2;
+            
+            doc.setFontSize(9).setFont('Helvetica', 'normal');
+            const descLines = doc.splitTextToSize(product.description, rightColWidth);
+            doc.text(descLines, rightColX, currentY);
+            currentY += (descLines.length * 0.15) + 0.2;
+            
+            doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Ubicación:`, rightColX, currentY);
+            currentY += 0.15;
+            
+            doc.setFontSize(9).setFont('Helvetica', 'normal');
+            const locLines = doc.splitTextToSize(renderLocationPathAsString(location.id, locations), rightColWidth);
+            doc.text(locLines, rightColX, currentY);
+            
+            const footerY = 3 - margin;
+            doc.setFontSize(8).setTextColor(150);
+            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy')}`, 4 - margin, footerY, { align: 'right' });
+
             doc.save(`etiqueta_escaner_${product.id}_${location.code}.pdf`);
             toast({ title: "Etiqueta para Escáner Generada" });
         } catch (err: any) {
@@ -356,7 +414,7 @@ export default function SimpleWarehouseSearchPage() {
                                                         {loc.quantity !== undefined && <span className="font-bold text-lg">{loc.quantity}</span>}
                                                         {searchResult.product && loc.location && (
                                                             <>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:text-primary/80" onClick={() => handlePrintUnitLabel(searchResult.product!, loc.location!)} title="Imprimir Etiqueta de Unidad">
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-700" onClick={() => handlePrintUnitLabel(searchResult.product!, loc.location!)} title="Imprimir Etiqueta de Unidad">
                                                                     <Printer className="h-4 w-4" />
                                                                 </Button>
                                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-600 hover:text-orange-700" onClick={() => handlePrintProductLocationLabel(searchResult.product!, loc.location!)} title="Imprimir Etiqueta de Escáner">

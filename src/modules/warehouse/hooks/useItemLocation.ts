@@ -59,6 +59,8 @@ interface State {
     isClientSearchOpen: boolean;
     locationSearchTerm: string;
     isLocationSearchOpen: boolean;
+    cleanupSearchTerm: string;
+    isCleanupSearchOpen: boolean;
 }
 
 export function useItemLocation() {
@@ -88,12 +90,15 @@ export function useItemLocation() {
         isClientSearchOpen: false,
         locationSearchTerm: '',
         isLocationSearchOpen: false,
+        cleanupSearchTerm: '',
+        isCleanupSearchOpen: false,
     });
     
     const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);
     const [debouncedClientSearch] = useDebounce(state.clientSearchTerm, companyData?.searchDebounceTime ?? 500);
     const [debouncedLocationSearch] = useDebounce(state.locationSearchTerm, companyData?.searchDebounceTime ?? 500);
     const [debouncedGlobalFilter] = useDebounce(state.globalFilter, companyData?.searchDebounceTime ?? 500);
+    const [debouncedCleanupSearch] = useDebounce(state.cleanupSearchTerm, companyData?.searchDebounceTime ?? 500);
     
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
@@ -143,6 +148,22 @@ export function useItemLocation() {
         return selectableLocations.filter(l => renderLocationPathAsString(l.id, allLocations).toLowerCase().includes(searchTerm))
             .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, allLocations) }));
     }, [allLocations, selectableLocations, debouncedLocationSearch]);
+
+    const cleanupProductOptions = useMemo(() => {
+        if (!debouncedCleanupSearch) return [];
+        const searchLower = debouncedCleanupSearch.toLowerCase();
+        if (searchLower.length < 2) return [];
+        return authProducts.filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower))
+            .map(p => ({ value: p.id, label: `[${p.id}] ${p.description}` }));
+    }, [authProducts, debouncedCleanupSearch]);
+
+    const cleanupLocationOptions = useMemo(() => {
+        const searchTerm = debouncedCleanupSearch.trim().toLowerCase();
+        if (searchTerm === '*' || searchTerm === '') return selectableLocations.map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, allLocations) }));
+        return selectableLocations.filter(l => renderLocationPathAsString(l.id, allLocations).toLowerCase().includes(searchTerm))
+            .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, allLocations) }));
+    }, [allLocations, selectableLocations, debouncedCleanupSearch]);
+
 
     const handleSelectProduct = (value: string) => {
         const product = authProducts.find(p => p.id === value);
@@ -346,6 +367,7 @@ export function useItemLocation() {
         selectors: {
             paginatedAssignments, totalPages, filteredAssignments,
             productOptions, clientOptions, locationOptions, hasPermission,
+            cleanupProductOptions, cleanupLocationOptions,
             getProductName: (id: string) => authProducts.find(p => p.id === id)?.description || 'Desconocido',
             getClientName: (id: string | null | undefined) => id ? authCustomers.find(c => c.id === id)?.name : 'General',
             getLocationPath: (id: number) => renderLocationPathAsString(id, allLocations)
@@ -366,6 +388,8 @@ export function useItemLocation() {
             setLocationSearchTerm: (term: string) => updateState({ locationSearchTerm: term }),
             setIsLocationSearchOpen: (open: boolean) => updateState({ isLocationSearchOpen: open }),
             handleSelectLocation,
+            setCleanupSearchTerm: (term: string) => updateState({ cleanupSearchTerm: term }),
+            setIsCleanupSearchOpen: (open: boolean) => updateState({ isCleanupSearchOpen: open }),
             handleSort,
             handleCleanup,
         }
