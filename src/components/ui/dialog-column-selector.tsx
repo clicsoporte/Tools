@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview A reusable component for a column visibility selector dialog.
  * It provides a standardized "Columnas" button that opens a dialog with a searchable
@@ -6,7 +7,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -54,6 +55,9 @@ export function DialogColumnSelector({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Seleccionar Columnas Visibles</DialogTitle>
+          <DialogDescription>
+            Elige las columnas que deseas mostrar en la tabla.
+          </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-80">
           <div className="space-y-2 p-1">

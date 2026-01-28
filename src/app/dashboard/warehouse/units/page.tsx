@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Page for managing individual inventory units (pallets, boxes, etc.).
  * Allows creation of unique trackable units, assignment to products and locations,
@@ -24,7 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import jsPDF from "jspdf";
 import QRCode from 'qrcode';
-import JsBarcode from 'jsbarcode';
+import jsbarcode from 'jsbarcode';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { TableCell } from '@/components/ui/table';
@@ -217,10 +218,10 @@ export default function ManageUnitsPage() {
         const location = allLocations.find(l => l.id === unit.locationId);
         
         try {
-            const qrCodeDataUrl = await QRCode.toDataURL(unit.productId, { errorCorrectionLevel: 'H', width: 200 });
+            const qrCodeDataUrl = await QRCode.toDataURL(unit.unitCode!, { errorCorrectionLevel: 'H', width: 200 });
 
             const barcodeCanvas = document.createElement('canvas');
-            JsBarcode(barcodeCanvas, unit.unitCode!, { format: 'CODE128', displayValue: false });
+            jsbarcode(barcodeCanvas, unit.unitCode!, { format: 'CODE128', displayValue: false });
             const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
 
             const doc = new jsPDF({

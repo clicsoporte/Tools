@@ -1,392 +1,249 @@
+
 /**
  * @fileoverview Hook to manage the state and logic for the receiving wizard.
  */
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useToast } from '@/modules/core/hooks/use-toast';
-import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getLocations, getAllItemLocations, addInventoryUnit, getSelectableLocations, assignItemToLocation } from '@/modules/warehouse/lib/actions';
-import type { Product, WarehouseLocation, ItemLocation, InventoryUnit } from '@/modules/core/types';
-import { useAuth } from '@/modules/core/hooks/useAuth';
-import { useDebounce } from 'use-debounce';
-import jsPDF from "jspdf";
-import QRCode from 'qrcode';
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2, PackageCheck, Search, CheckCircle, ArrowRight, List, ArrowLeft, Printer } from 'lucide-react';
+import { useReceivingWizard } from '@/modules/warehouse/hooks/useReceivingWizard';
+import { SearchInput } from '@/components/ui/search-input';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import type { Product } from '@/modules/core/types';
 import jsbarcode from 'jsbarcode';
-import { format } from 'date-fns';
+import QRCode from 'qrcode';
 
-type WizardStep = 'select_product' | 'select_location' | 'confirm_suggested' | 'confirm_new' | 'finished';
-
-const renderLocationPathAsString = (locationId: number, locations: WarehouseLocation[]): string => {
-    if (!locationId) return '';
-    const path: WarehouseLocation[] = [];
-    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
-    while (current) {
-        path.unshift(current);
-        const parentId = current.parentId;
-        if (!parentId) break;
-        current = locations.find(l => l.id === parentId);
-    }
-    return path.map(l => l.name).join(' > ');
-};
-
-export const useReceivingWizard = () => {
-    useAuthorization(['warehouse:receiving:create']);
-    const { setTitle } = usePageTitle();
-    const { toast } = useToast();
-    const { user, companyData, products: authProducts, isAuthReady } = useAuth();
-
-    const [state, setState] = useState({
-        isLoading: true,
-        isSubmitting: false,
-        step: 'select_product' as WizardStep,
-        allLocations: [] as WarehouseLocation[],
-        selectableLocations: [] as WarehouseLocation[],
-        allItemLocations: [] as ItemLocation[],
-        selectedProduct: null as Product | null,
-        suggestedLocations: [] as WarehouseLocation[],
-        selectedLocationId: null as number | null,
-        newLocationId: null as number | null,
-        quantity: '',
-        humanReadableId: '',
-        documentId: '',
-        erpDocumentId: '',
-        lastCreatedUnit: null as InventoryUnit | null,
-        productSearchTerm: '',
-        isProductSearchOpen: false,
-        locationSearchTerm: '',
-        isLocationSearchOpen: false,
-        saveAsDefault: true,
-        // For mixed location confirmation
-        isMixedLocationConfirmOpen: false,
-        conflictingItems: [] as Product[],
-        locationForConfirmation: null as number | null,
-    });
-    
-    const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);
-    const [debouncedLocationSearch] = useDebounce(state.locationSearchTerm, companyData?.searchDebounceTime ?? 500);
-
-    const updateState = useCallback((newState: Partial<typeof state>) => {
-        setState(prevState => ({ ...prevState, ...newState }));
-    }, []);
-
-    useEffect(() => {
-        setTitle("Asistente de Recepción");
-        const loadInitialData = async () => {
-            updateState({ isLoading: true });
-            try {
-                const [locs, itemLocs] = await Promise.all([getLocations(), getAllItemLocations()]);
-                updateState({
-                    allLocations: locs,
-                    selectableLocations: getSelectableLocations(locs),
-                    allItemLocations: itemLocs,
-                });
-            } catch (error: any) {
-                logError("Failed to load initial receiving data", { error: error.message });
-                toast({ title: "Error de Carga", variant: "destructive" });
-            } finally {
-                updateState({ isLoading: false });
-            }
-        };
-        if (isAuthReady) {
-            loadInitialData();
-        }
-    }, [setTitle, isAuthReady, toast, updateState]);
-    
-    const productOptions = useMemo(() => {
-        if (debouncedProductSearch.length < 2) return [];
-        const searchLower = debouncedProductSearch.toLowerCase();
-        return authProducts
-            .filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower))
-            .map(p => ({ value: p.id, label: `[${p.id}] ${p.description}` }));
-    }, [authProducts, debouncedProductSearch]);
-
-    const locationOptions = useMemo(() => {
-        const searchTerm = debouncedLocationSearch.trim().toLowerCase();
-        if (searchTerm === '*' || searchTerm === '') return state.selectableLocations.map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, state.allLocations) }));
-        return state.selectableLocations
-            .filter(l => renderLocationPathAsString(l.id, state.allLocations).toLowerCase().includes(searchTerm))
-            .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, state.allLocations) }));
-    }, [state.allLocations, state.selectableLocations, debouncedLocationSearch]);
-
-    const openMixedLocationDialog = useCallback((locationId: number) => {
-        // Find all items assigned to this location
-        const assignmentsInLocation = state.allItemLocations.filter(il => il.locationId === locationId);
-
-        if (assignmentsInLocation.length === 0) {
-            return false; // No assignments, no conflict.
-        }
-
-        // The product we are currently trying to receive
-        const currentProductId = state.selectedProduct?.id;
-        if (!currentProductId) {
-            return false; // Should not happen, but a good guard.
-        }
-
-        // Find assignments in this location that are for a DIFFERENT product
-        const conflictingAssignments = assignmentsInLocation.filter(il => il.itemId !== currentProductId);
-
-        if (conflictingAssignments.length > 0) {
-            // There's a real conflict with a different product. Show the dialog.
-            const conflictingProducts = conflictingAssignments
-                .map(c => authProducts.find(p => p.id === c.itemId))
-                .filter(Boolean) as Product[];
-            
-            updateState({
-                conflictingItems: conflictingProducts,
-                locationForConfirmation: locationId,
-                isMixedLocationConfirmOpen: true
-            });
-            return true; // Conflict found
-        }
-
-        // If we're here, it means the location is already assigned to the SAME product. This is fine.
-        return false; // No conflict
-    }, [state.allItemLocations, state.selectedProduct, authProducts, updateState]);
-    
-    const handleConfirmAddMixed = useCallback(() => {
-        if (!state.locationForConfirmation) return;
-        const wasSuggested = state.suggestedLocations.some(l => l.id === state.locationForConfirmation);
-        
-        updateState({
-            selectedLocationId: wasSuggested ? state.locationForConfirmation : null,
-            newLocationId: state.locationForConfirmation,
-            step: wasSuggested ? 'confirm_suggested' : 'confirm_new',
-            isMixedLocationConfirmOpen: false,
-            conflictingItems: [],
-            locationForConfirmation: null,
-            saveAsDefault: !wasSuggested,
-        });
-
-        if (!wasSuggested) {
-            updateState({ locationSearchTerm: renderLocationPathAsString(state.locationForConfirmation, state.allLocations) });
-        }
-    }, [state.locationForConfirmation, state.suggestedLocations, state.allLocations, updateState]);
-
-    const handleSelectProduct = useCallback((productId: string) => {
-        const product = authProducts.find(p => p.id === productId);
-        if (!product) return;
-
-        const suggestedLocIds = state.allItemLocations
-            .filter(il => il.itemId === productId)
-            .map(il => il.locationId);
-        
-        const suggested = state.allLocations.filter(loc => suggestedLocIds.includes(loc.id));
-        
-        updateState({
-            selectedProduct: product,
-            productSearchTerm: `[${product.id}] ${product.description}`,
-            suggestedLocations: suggested,
-            step: 'select_location',
-            isProductSearchOpen: false,
-            saveAsDefault: suggested.length === 0,
-        });
-    }, [authProducts, state.allItemLocations, state.allLocations, updateState]);
-    
-    const handleProductSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && productOptions.length > 0) {
-            e.preventDefault();
-            handleSelectProduct(productOptions[0].value);
-        }
-    };
-    
-    const handleUseSuggestedLocation = (locationId: number) => {
-        if (openMixedLocationDialog(locationId)) {
-            return;
-        }
-        updateState({
-            selectedLocationId: locationId,
-            newLocationId: locationId,
-            step: 'confirm_suggested',
-            saveAsDefault: false,
-        });
-    };
-    
-    const handleAssignNewLocation = () => updateState({ step: 'confirm_new' });
-    
-    const handleSelectLocation = (locationIdStr: string) => {
-        const id = Number(locationIdStr);
-        if (openMixedLocationDialog(id)) {
-            updateState({ 
-                isLocationSearchOpen: false,
-                locationSearchTerm: renderLocationPathAsString(id, state.allLocations) 
-            });
-            return;
-        }
-        updateState({
-            newLocationId: id,
-            isLocationSearchOpen: false,
-            locationSearchTerm: renderLocationPathAsString(id, state.allLocations),
-        });
-    };
-
-    const handleGoBack = () => {
-        if (state.step === 'finished' || state.step === 'select_product') return;
-        if (state.step === 'select_location') {
-            updateState({ step: 'select_product', selectedProduct: null, productSearchTerm: '' });
-        } else {
-            const hadSuggestions = state.suggestedLocations.length > 0;
-            updateState({ step: 'select_location', newLocationId: null, locationSearchTerm: '', saveAsDefault: !hadSuggestions });
-        }
-    };
-    
-    const handleReset = () => {
-        updateState({
-            step: 'select_product',
-            selectedProduct: null,
-            productSearchTerm: '',
-            suggestedLocations: [],
-            selectedLocationId: null,
-            newLocationId: null,
-            locationSearchTerm: '',
-            quantity: '',
-            humanReadableId: '',
-            documentId: '',
-            erpDocumentId: '',
-            lastCreatedUnit: null,
-            saveAsDefault: true,
-        });
-    };
-
-    const handlePrintLabel = async (unit: InventoryUnit | null) => {
-        if (!unit || !state.selectedProduct || !companyData) {
-            toast({ title: 'Error de Datos', description: 'No hay información suficiente para imprimir la etiqueta.', variant: 'destructive'});
-            return;
-        }
-
-        try {
-            const canvas = document.createElement('canvas');
-            jsbarcode(canvas, unit.unitCode!, { format: 'CODE128', displayValue: false });
-            const barcodeDataUrl = canvas.toDataURL('image/png');
-
-            const qrCodeDataUrl = await QRCode.toDataURL(unit.unitCode!, { errorCorrectionLevel: 'H', width: 200 });
-
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 3] });
-            
-            const margin = 0.2;
-            const contentWidth = 4 - (margin * 2);
-            
-            const leftColX = margin;
-            const leftColWidth = 1.2;
-            doc.addImage(qrCodeDataUrl, 'PNG', leftColX, margin, leftColWidth, leftColWidth);
-            doc.addImage(barcodeDataUrl, 'PNG', leftColX, margin + leftColWidth + 0.1, leftColWidth, 0.4);
-            doc.setFontSize(10).text(unit.unitCode!, leftColX + leftColWidth / 2, margin + leftColWidth + 0.1 + 0.4 + 0.15, { align: 'center' });
-
-            const rightColX = leftColX + leftColWidth + 0.2;
-            const rightColWidth = contentWidth - leftColWidth - 0.2;
-
-            let currentY = margin + 0.1;
-            doc.setFontSize(12).setFont('Helvetica', 'bold').text(`Producto: ${unit.productId}`, rightColX, currentY);
-            currentY += 0.2;
-            
-            doc.setFontSize(9).setFont('Helvetica', 'normal');
-            const descLines = doc.splitTextToSize(state.selectedProduct.description, rightColWidth);
-            doc.text(descLines, rightColX, currentY);
-            currentY += (descLines.length * 0.15) + 0.2;
-            
-            doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Lote/ID: ${unit.humanReadableId || 'N/A'}`, rightColX, currentY);
-            currentY += 0.15;
-            doc.text(`Documento: ${unit.documentId || 'N/A'}`, rightColX, currentY);
-            currentY += 0.15;
-            doc.text(`Doc. ERP: ${unit.erpDocumentId || 'N/A'}`, rightColX, currentY);
-            currentY += 0.25;
-
-            doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Ubicación:`, rightColX, currentY);
-            currentY += 0.15;
-            
-            doc.setFontSize(9).setFont('Helvetica', 'normal');
-            const locLines = doc.splitTextToSize(renderLocationPathAsString(unit.locationId!, state.allLocations), rightColWidth);
-            doc.text(locLines, rightColX, currentY);
-            
-            const footerY = 3 - margin;
-            doc.setFontSize(8).setTextColor(150);
-            doc.text(`Creado: ${format(new Date(), 'dd/MM/yyyy')} por ${user?.name || 'Sistema'}`, 4 - margin, footerY, { align: 'right' });
-
-
-            doc.save(`etiqueta_unidad_${unit.unitCode}.pdf`);
-
-        } catch (error: any) {
-             logError('Failed to generate label', { error: error.message, unitCode: unit.unitCode });
-            toast({ title: 'Error al Imprimir', description: 'No se pudo generar la etiqueta PDF.', variant: 'destructive' });
-        }
-    };
-    
-    const handleConfirmAndRegister = async () => {
-        if (!user || !state.selectedProduct || !state.newLocationId || !state.quantity) {
-            toast({ title: 'Datos faltantes', variant: 'destructive'});
-            return;
-        }
-        updateState({ isSubmitting: true });
-        try {
-            const unitData = {
-                productId: state.selectedProduct.id,
-                locationId: state.newLocationId,
-                quantity: parseFloat(state.quantity) || 1,
-                humanReadableId: state.humanReadableId,
-                documentId: state.documentId,
-                erpDocumentId: state.erpDocumentId,
-                createdBy: user.name,
-                notes: `Recibido vía asistente: ${state.quantity} unidades.`,
-            };
-            const newUnit = await addInventoryUnit(unitData);
-            
-            if (state.saveAsDefault) {
-                await assignItemToLocation({
-                    itemId: unitData.productId,
-                    locationId: unitData.locationId,
-                    clientId: null,
-                    isExclusive: 0,
-                    updatedBy: user.name,
-                });
-                const updatedItemLocations = await getAllItemLocations();
-                updateState({ allItemLocations: updatedItemLocations });
-            }
-            
-            updateState({
-                step: 'finished',
-                lastCreatedUnit: newUnit,
-            });
-            toast({ title: 'Unidad Registrada', description: `Se creó la unidad ${newUnit.unitCode}.`});
-
-        } catch (error: any) {
-            logError('Failed to register unit', { error: error.message });
-            toast({ title: 'Error al Registrar', description: error.message, variant: 'destructive' });
-        } finally {
-            updateState({ isSubmitting: false });
-        }
-    };
-
-    return {
+export default function ReceivingWizardPage() {
+    const {
         state,
-        actions: {
-            updateState,
-            handleSelectProduct,
-            handleUseSuggestedLocation,
-            handleAssignNewLocation,
-            handleSelectLocation,
-            handleConfirmAndRegister,
-            handleReset,
-            handleGoBack,
-            setProductSearchTerm: (term: string) => updateState({ productSearchTerm: term }),
-            setProductSearchOpen: (isOpen: boolean) => updateState({ isProductSearchOpen: isOpen }),
-            setLocationSearchTerm: (term: string) => updateState({ locationSearchTerm: term }),
-            setLocationSearchOpen: (isOpen: boolean) => updateState({ isLocationSearchOpen: isOpen }),
-            setQuantity: (qty: string) => updateState({ quantity: qty }),
-            setHumanReadableId: (id: string) => updateState({ humanReadableId: id }),
-            setDocumentId: (id: string) => updateState({ documentId: id }),
-            setErpDocumentId: (id: string) => updateState({ erpDocumentId: id }),
-            setSaveAsDefault: (save: boolean) => updateState({ saveAsDefault: save }),
-            handleProductSearchKeyDown,
-            handlePrintLabel,
-            handleConfirmAddMixed,
-            setIsMixedLocationConfirmOpen: (isOpen: boolean) => updateState({ isMixedLocationConfirmOpen: isOpen }),
-        },
-        selectors: {
-            productOptions,
-            locationOptions,
-            renderLocationPath: (locationId: number) => renderLocationPathAsString(locationId, state.allLocations),
-        },
-    };
-};
+        actions,
+        selectors,
+    } = useReceivingWizard();
+
+    const {
+        isLoading,
+        step,
+        selectedProduct,
+        suggestedLocations,
+        isSubmitting,
+        lastCreatedUnit,
+        productSearchTerm,
+        isProductSearchOpen,
+        locationSearchTerm,
+        isLocationSearchOpen,
+        newLocationId,
+        quantity,
+        humanReadableId,
+        documentId,
+        erpDocumentId,
+        saveAsDefault,
+        isMixedLocationConfirmOpen,
+        conflictingItems,
+    } = state;
+
+    if (isLoading) {
+        return (
+            <main className="flex-1 p-4 md:p-6 lg:p-8 flex items-center justify-center">
+                <Skeleton className="h-96 w-full max-w-xl" />
+            </main>
+        )
+    }
+
+    return (
+        <main className="flex-1 p-4 md:p-6 lg:p-8 flex items-center justify-center">
+            <Card className="w-full max-w-xl">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <PackageCheck className="h-6 w-6 text-primary"/>
+                        Asistente de Recepción de Mercadería
+                    </CardTitle>
+                    <CardDescription>
+                        Registra el ingreso de producto terminado o compras a una ubicación de bodega.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {step === 'select_product' && (
+                        <div className="space-y-2">
+                            <Label htmlFor="product-search" className="text-lg font-semibold">1. Buscar o escanear el Producto</Label>
+                            <SearchInput
+                                options={selectors.productOptions}
+                                onSelect={actions.handleSelectProduct}
+                                value={productSearchTerm}
+                                onValueChange={actions.setProductSearchTerm}
+                                onKeyDown={actions.handleProductSearchKeyDown}
+                                open={isProductSearchOpen}
+                                onOpenChange={actions.setProductSearchOpen}
+                                placeholder="Buscar por código o descripción..."
+                                className="h-12 text-base"
+                            />
+                        </div>
+                    )}
+                    {step === 'select_location' && selectedProduct && (
+                        <div className="space-y-4">
+                            <Alert>
+                                <AlertTitle className="flex items-center gap-2">
+                                    <Search className="h-4 w-4" /> Producto Seleccionado
+                                </AlertTitle>
+                                <AlertDescription>
+                                    <strong>{selectedProduct.description}</strong> ({selectedProduct.id})
+                                </AlertDescription>
+                            </Alert>
+                             <div className="space-y-3">
+                                <h3 className="font-semibold">2. Elige una Ubicación</h3>
+                                {suggestedLocations.length > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-sm text-muted-foreground">Ubicaciones sugeridas para este producto:</p>
+                                        {suggestedLocations.map(loc => (
+                                            <Button key={loc.id} variant="outline" className="w-full justify-start" onClick={() => actions.handleUseSuggestedLocation(loc.id)}>
+                                                {selectors.renderLocationPath(loc.id)}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                )}
+                                <Button className="w-full" onClick={actions.handleAssignNewLocation}>
+                                    <ArrowRight className="mr-2 h-4 w-4" />
+                                    Asignar a una Nueva Ubicación
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                    {(step === 'confirm_suggested' || step === 'confirm_new') && selectedProduct && (
+                        <div className="space-y-4">
+                            <Alert>
+                                <AlertTitle className="flex items-center gap-2">
+                                    <Search className="h-4 w-4" /> Producto Seleccionado
+                                </AlertTitle>
+                                <AlertDescription>
+                                    <strong>{selectedProduct.description}</strong> ({selectedProduct.id})
+                                </AlertDescription>
+                            </Alert>
+                             <div className="space-y-2">
+                                <Label className="text-lg font-semibold">
+                                    {step === 'confirm_new' ? '3. Buscar o escanear NUEVA Ubicación' : '3. Confirmar Datos de Ingreso'}
+                                </Label>
+                                {step === 'confirm_new' ? (
+                                    <div className="flex items-center gap-2">
+                                        <SearchInput
+                                            options={selectors.locationOptions}
+                                            onSelect={actions.handleSelectLocation}
+                                            value={locationSearchTerm}
+                                            onValueChange={actions.setLocationSearchTerm}
+                                            placeholder="Buscar ubicación por código o nombre..."
+                                            open={isLocationSearchOpen}
+                                            onOpenChange={actions.setLocationSearchOpen}
+                                        />
+                                        <Button type="button" variant="outline" size="icon" onClick={() => { actions.setLocationSearchTerm('*'); actions.setLocationSearchOpen(true); }}>
+                                            <List className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="p-3 border rounded-md bg-muted">
+                                        {selectors.renderLocationPath(state.selectedLocationId!)}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="quantity">Cantidad Recibida</Label>
+                                    <Input id="quantity" type="number" value={quantity} onChange={e => actions.setQuantity(e.target.value)} placeholder="0" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="humanReadableId">Nº Lote / ID Físico (Opcional)</Label>
+                                    <Input id="humanReadableId" value={humanReadableId} onChange={e => actions.setHumanReadableId(e.target.value)} placeholder="Ej: LOTE-A123" />
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="documentId">Documento (Boleta, etc. Opcional)</Label>
+                                    <Input id="documentId" value={documentId} onChange={e => actions.setDocumentId(e.target.value)} placeholder="Ej: Boleta de entrega #5543" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="erpDocumentId">Documento ERP (Opcional)</Label>
+                                    <Input id="erpDocumentId" value={erpDocumentId} onChange={e => actions.setErpDocumentId(e.target.value)} placeholder="Ej: ENTR-12345" />
+                                </div>
+                            </div>
+                             {step === 'confirm_new' && (
+                                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                                    <Label htmlFor="save-default" className="text-sm font-medium">
+                                        Guardar como ubicación predeterminada para este producto
+                                    </Label>
+                                    <Switch
+                                        id="save-default"
+                                        checked={saveAsDefault}
+                                        onCheckedChange={actions.setSaveAsDefault}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {step === 'finished' && (
+                        <div className="text-center space-y-4 py-8">
+                            <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
+                            <h2 className="text-2xl font-bold">¡Recepción Registrada!</h2>
+                            {lastCreatedUnit && (
+                                <>
+                                    <p className="text-muted-foreground">
+                                        Se registró la unidad <strong>{lastCreatedUnit.unitCode}</strong> para el producto <strong>{state.selectedProduct?.description}</strong> en la ubicación <strong>{selectors.renderLocationPath(lastCreatedUnit.locationId || 0)}</strong>.
+                                    </p>
+                                    <div className='flex gap-2 justify-center'>
+                                        <Button onClick={() => actions.handlePrintLabel(lastCreatedUnit)} variant="outline">
+                                            <Printer className="mr-2 h-4 w-4"/>
+                                            Imprimir Etiqueta
+                                        </Button>
+                                        <Button onClick={actions.handleReset} className="w-auto">
+                                            <PackageCheck className="mr-2 h-4 w-4" />
+                                            Registrar Otro Producto
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </CardContent>
+                 {step !== 'finished' && (
+                    <CardFooter className="flex-col items-start gap-4">
+                        {(step === 'confirm_new' || step === 'confirm_suggested') && (
+                            <Button className="w-full" onClick={actions.handleConfirmAndRegister} disabled={isSubmitting || !newLocationId || !quantity}>
+                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                Confirmar y Registrar Unidad
+                            </Button>
+                        )}
+                        {step !== 'select_product' && (
+                            <Button variant="outline" className="w-full" onClick={actions.handleGoBack}>
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Volver al Paso Anterior
+                            </Button>
+                        )}
+                    </CardFooter>
+                 )}
+            </Card>
+
+            <AlertDialog open={isMixedLocationConfirmOpen} onOpenChange={actions.setIsMixedLocationConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¡Atención! Ubicación Ocupada</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            La ubicación seleccionada ya contiene los siguientes productos:
+                            <ul className="list-disc list-inside mt-2 max-h-40 overflow-y-auto rounded-md bg-muted p-2 text-foreground">
+                                {conflictingItems.map((item: Product) => (
+                                    <li key={item.id}><strong>{item.id}</strong> - {item.description}</li>
+                                ))}
+                            </ul>
+                            ¿Deseas <strong>añadir</strong> el nuevo producto a esta ubicación, creando una ubicación mixta?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={actions.handleConfirmAddMixed}>Sí, Añadir</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </main>
+    );
+}

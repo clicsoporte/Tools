@@ -25,7 +25,7 @@ import jsPDF from "jspdf";
 import QRCode from 'qrcode';
 import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import JsBarcode from 'jsbarcode';
+import jsbarcode from 'jsbarcode';
 
 type SearchResultItem = {
     product: Product | null;
@@ -249,7 +249,7 @@ export default function SimpleWarehouseSearchPage() {
             const qrCodeDataUrl = await QRCode.toDataURL(newUnit.unitCode!, { errorCorrectionLevel: 'H', width: 200 });
 
             const barcodeCanvas = document.createElement('canvas');
-            JsBarcode(barcodeCanvas, newUnit.unitCode!, { format: 'CODE128', displayValue: false });
+            jsbarcode(barcodeCanvas, newUnit.unitCode!, { format: 'CODE128', displayValue: false });
             const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
 
             const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 3] });
