@@ -6,7 +6,7 @@
 import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError } from '@/modules/core/lib/logger';
+import { logError, logInfo } from '@/modules/core/lib/logger';
 import { getLocations, getAllItemLocations, getWarehouseSettings } from '@/modules/warehouse/lib/actions';
 import type { WarehouseLocation, ItemLocation, WarehouseSettings, Product } from '@/modules/core/types';
 import { useDebounce } from 'use-debounce';
@@ -14,6 +14,7 @@ import jsPDF from "jspdf";
 import QRCode from 'qrcode';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { format } from 'date-fns';
+import { generateScannerLabelsPDF } from '@/lib/pdf-generator';
 
 type LabelType = 'location' | 'product_location';
 
@@ -195,91 +196,60 @@ export const useLabelCenter = () => {
             return;
         }
         updateState({ isSubmitting: true });
-        
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
-        doc.deletePage(1);
 
-        for (const location of filteredLocations) {
-            doc.addPage();
-            
-            let qrContent = String(location.id);
-            let mainText = location.code;
-            let secondaryText = renderLocationPathAsString(location.id, state.allLocations);
-            let footerText = '';
-            let clientText = '';
-
+        try {
             if (state.labelType === 'product_location') {
-                const itemAssignment = state.itemLocations.find((il: ItemLocation) => il.locationId === location.id);
-                if (itemAssignment) {
-                    qrContent = `${location.id}>${itemAssignment.itemId}`;
-                    const product = products.find(p => p.id === itemAssignment.itemId);
-                    mainText = product?.id || 'N/A';
-                    secondaryText = product?.description || 'Producto no encontrado';
-                    footerText = renderLocationPathAsString(location.id, state.allLocations);
-                } else {
-                    continue; 
-                }
-            }
-
-            try {
-                const qrCodeDataUrl = await QRCode.toDataURL(qrContent, { errorCorrectionLevel: 'M', width: 200 });
-                const margin = 40;
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const pageHeight = doc.internal.pageSize.getHeight();
-
-                // QR Code
-                doc.addImage(qrCodeDataUrl, 'PNG', margin, margin, 100, 100);
-
-                // Metadata
-                doc.setFontSize(9);
-                doc.setFont('Helvetica', 'normal');
-                doc.setTextColor('#666');
-                doc.text(`Creado: ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - margin, margin, { align: 'right' });
-                if (user) {
-                    doc.text(`por ${user.name}`, pageWidth - margin, margin + 12, { align: 'right' });
-                }
-
-                // Main Content
-                doc.setTextColor('#000');
-                doc.setFontSize(150);
-                doc.setFont('Helvetica', 'bold');
-                const mainTextWidth = doc.getTextWidth(mainText);
-                const mainTextX = (pageWidth - mainTextWidth) / 2;
-                doc.text(mainText, pageWidth/2, pageHeight/2 - 40, { align: 'center'});
-
-                doc.setFontSize(52);
-                doc.setFont('Helvetica', 'normal');
-                const secondaryTextLines = doc.splitTextToSize(secondaryText, pageWidth - margin * 2);
-                doc.text(secondaryTextLines, pageWidth / 2, pageHeight / 2 + 50, { align: 'center' });
-
-                // Footer
-                if (footerText) {
-                    const itemAssignment = state.itemLocations.find(il => il.locationId === location.id);
-                    if (itemAssignment?.clientId) {
-                        // We need to fetch customer name from main context or pass it down
-                    }
-
-                    doc.setFontSize(24);
-                    doc.setFont('Helvetica', 'bold');
-                    doc.text('Ubicación:', margin, pageHeight - 80);
-                    doc.setFontSize(28);
-                    doc.setFont('Helvetica', 'normal');
-                    const footerLines = doc.splitTextToSize(footerText, pageWidth - margin * 2);
-                    doc.text(footerLines, margin, pageHeight - 50);
-                }
+                const itemsToPrint = filteredLocations
+                    .map(location => {
+                        const itemAssignment = state.itemLocations.find((il: ItemLocation) => il.locationId === location.id);
+                        const product = itemAssignment ? products.find(p => p.id === itemAssignment.itemId) : null;
+                        return { location, product };
+                    })
+                    .filter(item => item.product) as { product: Product, location: WarehouseLocation }[];
                 
-            } catch (err: any) {
-                logError('PDF Generation Error', { error: err.message, locationId: location.id });
-            }
-        }
-        
-        if (doc.getNumberOfPages() > 0) {
-            doc.save(`etiquetas_almacen_${Date.now()}.pdf`);
-        } else {
-            toast({ title: 'Sin Etiquetas', description: 'No se encontraron productos asignados para las ubicaciones filtradas.', variant: 'destructive'});
-        }
+                if (itemsToPrint.length === 0) {
+                    toast({ title: 'Sin Productos', description: 'Ninguna de las ubicaciones filtradas tiene un producto asignado.', variant: 'destructive'});
+                    updateState({ isSubmitting: false });
+                    return;
+                }
 
-        updateState({ isSubmitting: false });
+                const doc = await generateScannerLabelsPDF({ itemsToPrint, allLocations: state.allLocations, user });
+                doc.save(`etiquetas_escaner_${Date.now()}.pdf`);
+            } else {
+                // Original logic for location labels
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+                doc.deletePage(1);
+                for (const location of filteredLocations) {
+                    doc.addPage();
+                    const qrContent = String(location.id);
+                    const mainText = location.code;
+                    const secondaryText = renderLocationPathAsString(location.id, state.allLocations);
+                    const qrCodeDataUrl = await QRCode.toDataURL(qrContent, { errorCorrectionLevel: 'M', width: 200 });
+                    const margin = 40;
+                    const pageWidth = doc.internal.pageSize.getWidth();
+                    const pageHeight = doc.internal.pageSize.getHeight();
+                    doc.addImage(qrCodeDataUrl, 'PNG', margin, margin, 100, 100);
+                    doc.setFontSize(9);
+                    doc.setFont('Helvetica', 'normal');
+                    doc.setTextColor('#666');
+                    doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - margin, margin, { align: 'right' });
+                    doc.setTextColor('#000');
+                    doc.setFontSize(150);
+                    doc.setFont('Helvetica', 'bold');
+                    doc.text(mainText, pageWidth / 2, pageHeight / 2, { align: 'center'});
+                    doc.setFontSize(52);
+                    doc.setFont('Helvetica', 'normal');
+                    const secondaryTextLines = doc.splitTextToSize(secondaryText, pageWidth - margin * 2);
+                    doc.text(secondaryTextLines, pageWidth / 2, pageHeight / 2 + 80, { align: 'center' });
+                }
+                doc.save(`etiquetas_ubicacion_${Date.now()}.pdf`);
+            }
+        } catch (err: any) {
+             logError('PDF Generation Error', { error: err.message });
+             toast({ title: 'Error al generar PDF', variant: 'destructive'});
+        } finally {
+            updateState({ isSubmitting: false });
+        }
     };
 
     return {

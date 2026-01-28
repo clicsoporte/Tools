@@ -21,11 +21,12 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { generateScannerLabelsPDF } from '@/lib/pdf-generator';
 import jsPDF from "jspdf";
 import QRCode from 'qrcode';
 import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import jsbarcode from 'jsbarcode';
+import JsBarcode from 'jsbarcode';
 
 type SearchResultItem = {
     product: Product | null;
@@ -249,7 +250,7 @@ export default function SimpleWarehouseSearchPage() {
             const qrCodeDataUrl = await QRCode.toDataURL(newUnit.unitCode!, { errorCorrectionLevel: 'H', width: 200 });
 
             const barcodeCanvas = document.createElement('canvas');
-            jsbarcode(barcodeCanvas, newUnit.unitCode!, { format: 'CODE128', displayValue: false });
+            JsBarcode(barcodeCanvas, newUnit.unitCode!, { format: 'CODE128', displayValue: false });
             const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
 
             const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 3] });
@@ -301,41 +302,11 @@ export default function SimpleWarehouseSearchPage() {
         if (!companyData || !user) return;
         setIsPrinting(true);
         try {
-            const qrContent = `${location.id}>${product.id}`;
-            const qrCodeDataUrl = await QRCode.toDataURL(qrContent, { errorCorrectionLevel: 'H', width: 200 });
-
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 3] });
-            
-            const margin = 0.2;
-            const contentWidth = 4 - (margin * 2);
-            
-            const leftColX = margin;
-            const leftColWidth = 1.2;
-            doc.addImage(qrCodeDataUrl, 'PNG', leftColX, margin, leftColWidth, leftColWidth);
-
-            const rightColX = leftColX + leftColWidth + 0.2;
-            const rightColWidth = contentWidth - leftColWidth - 0.2;
-
-            let currentY = margin + 0.1;
-            doc.setFontSize(14).setFont('Helvetica', 'bold').text(`Producto: ${product.id}`, rightColX, currentY);
-            currentY += 0.2;
-            
-            doc.setFontSize(9).setFont('Helvetica', 'normal');
-            const descLines = doc.splitTextToSize(product.description, rightColWidth);
-            doc.text(descLines, rightColX, currentY);
-            currentY += (descLines.length * 0.15) + 0.2;
-            
-            doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Ubicación:`, rightColX, currentY);
-            currentY += 0.15;
-            
-            doc.setFontSize(9).setFont('Helvetica', 'normal');
-            const locLines = doc.splitTextToSize(renderLocationPathAsString(location.id, locations), rightColWidth);
-            doc.text(locLines, rightColX, currentY);
-            
-            const footerY = 3 - margin;
-            doc.setFontSize(8).setTextColor(150);
-            doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy')}`, 4 - margin, footerY, { align: 'right' });
-
+            const doc = await generateScannerLabelsPDF({
+                itemsToPrint: [{ product, location }],
+                allLocations: locations,
+                user: user
+            });
             doc.save(`etiqueta_escaner_${product.id}_${location.code}.pdf`);
             toast({ title: "Etiqueta para Escáner Generada" });
         } catch (err: any) {
