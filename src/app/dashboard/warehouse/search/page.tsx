@@ -9,6 +9,9 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import jsPDF from "jspdf";
+import QRCode from 'qrcode';
+import JsBarcode from 'jsbarcode';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -27,9 +30,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { generateScannerLabelsPDF } from '@/lib/pdf-generator';
-import JsBarcode from 'jsbarcode';
-import QRCode from 'qrcode';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { Badge } from '@/components/ui/badge';
 
