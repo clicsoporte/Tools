@@ -24,7 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import jsPDF from "jspdf";
 import QRCode from 'qrcode';
-import jsbarcode from 'jsbarcode';
+import JsBarcode from 'jsbarcode';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { TableCell } from '@/components/ui/table';
@@ -116,7 +116,6 @@ export default function ManageUnitsPage() {
     const productOptions = useMemo(() => {
         if (!debouncedProductSearch) return [];
         const searchLower = debouncedProductSearch.toLowerCase();
-
         if (searchLower.length < 2 && !/^\d+$/.test(searchLower)) return [];
 
         const exactMatch = products.find(p => p.id.toLowerCase() === searchLower);
@@ -192,7 +191,7 @@ export default function ManageUnitsPage() {
             setLocationSearchTerm('');
 
         } catch(e: any) {
-            logError('Failed to create inventory unit', { error: e.message });
+            logError('Failed to create inventory unit', { error: e.message, details: newUnit });
             toast({ title: "Error", description: `No se pudo crear la unidad. ${e.message}`, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
@@ -221,7 +220,7 @@ export default function ManageUnitsPage() {
             const qrCodeDataUrl = await QRCode.toDataURL(unit.productId, { errorCorrectionLevel: 'H', width: 200 });
 
             const barcodeCanvas = document.createElement('canvas');
-            jsbarcode(barcodeCanvas, unit.unitCode!, { format: 'CODE128', displayValue: false });
+            JsBarcode(barcodeCanvas, unit.unitCode!, { format: 'CODE128', displayValue: false });
             const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
 
             const doc = new jsPDF({

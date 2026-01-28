@@ -17,6 +17,8 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import type { Product } from '@/modules/core/types';
+import JsBarcode from 'jsbarcode';
+import QRCode from 'qrcode';
 
 export default function ReceivingWizardPage() {
     const {

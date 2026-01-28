@@ -101,7 +101,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     const insertRolesTransaction = db.transaction((roles) => { for (const role of roles) insertRole.run({ ...role, permissions: JSON.stringify(role.permissions) }); });
     insertRolesTransaction(initialRoles);
     
-    const insertCompany = db.prepare('INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, publicUrl, quotePrefix, nextQuoteNumber, decimalPlaces INTEGER, quoterShowTaxId BOOLEAN, searchDebounceTime INTEGER, syncWarningHours REAL, importMode TEXT) VALUES (1, @name, @taxId, @address, @phone, @email, @systemName, @publicUrl, @quotePrefix, @nextQuoteNumber, @decimalPlaces, @quoterShowTaxId, @searchDebounceTime, @syncWarningHours, @importMode)');
+    const insertCompany = db.prepare('INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, publicUrl, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode) VALUES (1, @name, @taxId, @address, @phone, @email, @systemName, @publicUrl, @quotePrefix, @nextQuoteNumber, @decimalPlaces, @quoterShowTaxId, @searchDebounceTime, @syncWarningHours, @importMode)');
     insertCompany.run({ ...initialCompany, publicUrl: null, quoterShowTaxId: initialCompany.quoterShowTaxId ? 1 : 0 });
     
     db.prepare(`INSERT OR IGNORE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, 'https://api.hacienda.go.cr/indicadores/tc/dolar', 'https://api.hacienda.go.cr/fe/ex?autorizacion=', 'https://api.hacienda.go.cr/fe/ae?identificacion=')`).run();
@@ -438,7 +438,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
 
         if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_purchase_order_lines'`).get()) {
             console.log("MIGRATION: Creating erp_purchase_order_lines table.");
-            db.exec(`CREATE TABLE erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL);`);
+            db.exec(`CREATE TABLE erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY (ORDEN_COMPRA, ARTICULO));`);
         } else {
              const erpPOLinesInfo = db.prepare(`PRAGMA table_info(erp_purchase_order_lines)`).all() as { name: string }[];
              const erpPOLinesColumns = new Set(erpPOLinesInfo.map(c => c.name));
@@ -482,7 +482,7 @@ export async function getUserCount(): Promise<number> {
     try {
         const db = await connectDb();
         const row = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number } | undefined;
-        return row.count;
+        return row?.count ?? 0;
     } catch(e) {
         console.error("Error getting user count, likely DB doesn't exist yet.", e);
         return 0;
@@ -761,7 +761,7 @@ export async function getAllProducts(): Promise<Product[]> {
 
 export async function saveAllProducts(products: Product[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood TEXT, cabys TEXT, barcode TEXT) VALUES (@id, @description, @classification, @lastEntry, @active, @notes, @unit, @isBasicGood, @cabys, @barcode)');
+    const insert = db.prepare('INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood, cabys, barcode) VALUES (@id, @description, @classification, @lastEntry, @active, @notes, @unit, @isBasicGood, @cabys, @barcode)');
     
     const transaction = db.transaction((productsToSave) => {
         db.prepare('DELETE FROM products').run();
@@ -823,7 +823,7 @@ export async function getAllExemptions(): Promise<Exemption[]> {
 
 export async function saveAllExemptions(exemptions: Exemption[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO exemptions (code, description, customer, authNumber, startDate, endDate, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT) VALUES (@code, @description, @customer, @authNumber, @startDate, @endDate, @percentage, @docType, @institutionName, @institutionCode)');
+    const insert = db.prepare('INSERT OR REPLACE INTO exemptions (code, description, customer, authNumber, startDate, endDate, percentage, docType, institutionName, institutionCode) VALUES (@code, @description, @customer, @authNumber, @startDate, @endDate, @percentage, @docType, @institutionName, @institutionCode)');
     
     const transaction = db.transaction((exemptionsToSave) => {
         db.prepare('DELETE FROM exemptions').run();
@@ -908,7 +908,7 @@ export async function saveQuoteDraft(draft: QuoteDraft): Promise<void> {
     const db = await connectDb();
     
     const transaction = db.transaction(() => {
-        const insertStmt = db.prepare('INSERT OR REPLACE INTO quote_drafts (id, createdAt, userId, customerId, customerDetails, lines, totals, notes, currency, exchangeRate REAL, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, quoteDate, validUntilDate, paymentTerms, creditDays) VALUES (@id, @createdAt, @userId, @customerId, @customerDetails, @lines, @totals, @notes, @currency, @exchangeRate, @purchaseOrderNumber, @deliveryAddress, @deliveryDate, @sellerName, @sellerType, @quoteDate, @validUntilDate, @paymentTerms, @creditDays)');
+        const insertStmt = db.prepare('INSERT OR REPLACE INTO quote_drafts (id, createdAt, userId, customerId, customerDetails, lines, totals, notes, currency, exchangeRate, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, quoteDate, validUntilDate, paymentTerms, creditDays) VALUES (@id, @createdAt, @userId, @customerId, @customerDetails, @lines, @totals, @notes, @currency, @exchangeRate, @purchaseOrderNumber, @deliveryAddress, @deliveryDate, @sellerName, @sellerType, @quoteDate, @validUntilDate, @paymentTerms, @creditDays)');
         
         insertStmt.run({
             ...draft,
@@ -1451,7 +1451,7 @@ export async function factoryReset(moduleId: string): Promise<void> {
 // --- ERP Order Import ---
 export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA, TOTAL_UNIDADES REAL, MONEDA_PEDIDO, USUARIO) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA, @TOTAL_UNIDADES, @MONEDA_PEDIDO, @USUARIO)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_headers (PEDIDO, ESTADO, CLIENTE, FECHA_PEDIDO, FECHA_PROMETIDA, ORDEN_COMPRA, TOTAL_UNIDADES, MONEDA_PEDIDO, USUARIO) VALUES (@PEDIDO, @ESTADO, @CLIENTE, @FECHA_PEDIDO, @FECHA_PROMETIDA, @ORDEN_COMPRA, @TOTAL_UNIDADES, @MONEDA_PEDIDO, @USUARIO)');
     
     const transaction = db.transaction((headersToSave: ErpOrderHeader[]) => {
         db.prepare('DELETE FROM erp_order_headers').run();
@@ -1482,7 +1482,7 @@ export async function saveAllErpOrderHeaders(headers: ErpOrderHeader[]): Promise
 
 export async function saveAllErpOrderLines(lines: ErpOrderLine[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_lines (PEDIDO, PEDIDO_LINEA, ARTICULO, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL) VALUES (@PEDIDO, @PEDIDO_LINEA, @ARTICULO, @CANTIDAD_PEDIDA, @PRECIO_UNITARIO)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_order_lines (PEDIDO, PEDIDO_LINEA, ARTICULO, CANTIDAD_PEDIDA, PRECIO_UNITARIO) VALUES (@PEDIDO, @PEDIDO_LINEA, @ARTICULO, @CANTIDAD_PEDIDA, @PRECIO_UNITARIO)');
     const transaction = db.transaction((linesToSave) => {
         db.prepare('DELETE FROM erp_order_lines').run();
         for(const line of linesToSave) {
@@ -1499,7 +1499,7 @@ export async function saveAllErpOrderLines(lines: ErpOrderLine[]): Promise<void>
 
 export async function saveAllErpPurchaseOrderHeaders(headers: ErpPurchaseOrderHeader[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_purchase_order_headers (ORDEN_COMPRA, PROVEEDOR, FECHA_HORA, ESTADO, CreatedBy TEXT) VALUES (?, ?, ?, ?, ?)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_purchase_order_headers (ORDEN_COMPRA, PROVEEDOR, FECHA_HORA, ESTADO, CreatedBy) VALUES (?, ?, ?, ?, ?)');
     const transaction = db.transaction((headersToSave: ErpPurchaseOrderHeader[]) => {
         db.prepare('DELETE FROM erp_purchase_order_headers').run();
         for(const header of headersToSave) {
@@ -1518,7 +1518,7 @@ export async function saveAllErpPurchaseOrderHeaders(headers: ErpPurchaseOrderHe
 
 export async function saveAllErpPurchaseOrderLines(lines: ErpPurchaseOrderLine[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_purchase_order_lines (ORDEN_COMPRA, ARTICULO, CANTIDAD_ORDENADA REAL) VALUES (?, ?, ?)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_purchase_order_lines (ORDEN_COMPRA, ARTICULO, CANTIDAD_ORDENADA) VALUES (?, ?, ?)');
     const transaction = db.transaction((linesToSave: ErpPurchaseOrderLine[]) => {
         db.prepare('DELETE FROM erp_purchase_order_lines').run();
         for(const line of linesToSave) {
@@ -1558,7 +1558,7 @@ export async function getAllErpPurchaseOrderLines(): Promise<ErpPurchaseOrderLin
 // --- Notification Functions ---
 export async function createNotification(notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>): Promise<void> {
   const db = await connectDb();
-  db.prepare('INSERT INTO notifications (userId, message, href, isRead INTEGER, timestamp TEXT, entityId, entityType, taskType) VALUES (?, ?, ?, 0, ?, ?, ?, ?)')
+  db.prepare('INSERT INTO notifications (userId, message, href, isRead, timestamp, entityId, entityType, taskType) VALUES (?, ?, ?, 0, ?, ?, ?, ?)')
     .run(notification.userId, notification.message, notification.href, new Date().toISOString(), notification.entityId, notification.entityType, notification.taskType);
 }
 
@@ -1596,7 +1596,7 @@ export async function getUserPreferences(userId: number, key: string): Promise<a
 
 export async function saveUserPreferences(userId: number, key: string, value: any): Promise<void> {
     const db = await connectDb();
-    db.prepare('INSERT OR REPLACE INTO user_preferences (userId INTEGER, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
+    db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
 }
 
 // --- Database Audit ---
@@ -1726,4 +1726,3 @@ export async function getActiveWizardSession(userId: number): Promise<WizardSess
     const row = db.prepare(`SELECT activeWizardSession FROM users WHERE id = ?`).get(userId) as { activeWizardSession: string | null } | undefined;
     return row?.activeWizardSession ? JSON.parse(row.activeWizardSession) : null;
 }
-    

@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { addInventoryUnit } from '@/modules/warehouse/lib/actions';
 import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer, InventoryUnit, Warehouse } from '@/modules/core/types';
-import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, Loader2, Info, User, ChevronRight, Printer, LogOut, Archive } from 'lucide-react';
+import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, RefreshCw, Loader2, Info, User, ChevronRight, Printer, LogOut, Archive } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/modules/core/hooks/use-toast';
@@ -24,6 +24,7 @@ import jsPDF from "jspdf";
 import QRCode from 'qrcode';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import JsBarcode from 'jsbarcode';
 
 type SearchResultItem = {
     product: Product | null;
@@ -246,7 +247,7 @@ export default function SimpleWarehouseSearchPage() {
             const qrCodeDataUrl = await QRCode.toDataURL(newUnit.unitCode!, { errorCorrectionLevel: 'H', width: 200 });
 
             const barcodeCanvas = document.createElement('canvas');
-            jsbarcode(barcodeCanvas, newUnit.unitCode!, { format: 'CODE128', displayValue: false });
+            JsBarcode(barcodeCanvas, newUnit.unitCode!, { format: 'CODE128', displayValue: false });
             const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
 
             const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 3] });
