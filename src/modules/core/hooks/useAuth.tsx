@@ -117,13 +117,22 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, []);
 
   const loadAuthData = useCallback(async (userFromLogin?: User): Promise<User | null> => {
-    // This function will set isAuthReady to true once, and only once,
-    // after the initial authentication check is complete.
     try {
       const currentUser = userFromLogin || await getCurrentUserClient();
       
       if (!currentUser) {
           setUser(null);
+          setUserRole(null);
+          setCompanyData(null);
+          setCustomers([]);
+          setProducts([]);
+          setStockLevels([]);
+          setAllExemptions([]);
+          setExemptionLaws([]);
+          setAllLocations([]);
+          setAllInventory([]);
+          setAllItemLocations([]);
+          setStockSettings(null);
           setIsAuthReady(true);
           return null;
       }
@@ -156,19 +165,26 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       } else {
         setUserRole(null);
       }
+      
+      setIsAuthReady(true); // Signal readiness only after all data is loaded and state is set.
       return currentUser;
+
     } catch (error) {
       console.error("Failed to load authentication context data:", error);
       setUser(null);
       setUserRole(null);
       setCompanyData(null);
+      setIsAuthReady(true); // Signal readiness even on error to avoid hanging.
       return null;
-    } finally {
-      if (!isAuthReady) {
-        setIsAuthReady(true);
-      }
     }
-  }, [isAuthReady]); // Depends on isAuthReady to prevent re-runs
+  // We pass the state setters to the dependency array to be explicit, though they are stable.
+  }, [
+      setCompanyData, setCustomers, setProducts, setStockLevels, setAllExemptions,
+      setExemptionLaws, setAllLocations, setAllInventory, setAllItemLocations,
+      setStockSettings, setExchangeRateData, setUnreadSuggestionsCount,
+      setNotifications, setUnreadNotificationsCount, setUser, setUserRole,
+      setIsAuthReady
+  ]);
   
   const redirectAfterLogin = (path?: string) => {
     const stored = safeInternalPath(sessionStorage.getItem(REDIRECT_URL_KEY));
@@ -185,11 +201,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   useEffect(() => {
-    // Only run on initial mount
-    if (!isAuthReady) {
-        loadAuthData();
-    }
-  }, [isAuthReady, loadAuthData]);
+    // This effect runs only once on initial mount because loadAuthData is memoized with a stable dependency array.
+    loadAuthData();
+  }, [loadAuthData]);
 
   useEffect(() => {
     if (user && isAuthReady) {
