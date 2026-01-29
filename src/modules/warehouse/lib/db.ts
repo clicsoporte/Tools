@@ -505,7 +505,7 @@ export async function getAllItemLocations(): Promise<ItemLocation[]> {
  * Inserts or updates an item-location assignment.
  * If payload.id is provided, it updates. Otherwise, it inserts.
  */
-export async function upsertItemAssignment(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }): Promise<ItemLocation> {
+export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }): Promise<ItemLocation> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { id, itemId, locationId, clientId, isExclusive, requiresCertificate, updatedBy } = payload;
     
@@ -528,15 +528,16 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
     db.prepare('DELETE FROM item_locations WHERE id = ?').run(itemLocationId);
 }
 
-export async function unassignAllByProduct(itemId: string): Promise<void> {
+export async function unassignItemFromLocationByProduct(itemId: string): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     db.prepare('DELETE FROM item_locations WHERE itemId = ?').run(itemId);
 }
 
-export async function unassignAllByLocation(locationId: number): Promise<void> {
+export async function unassignItemFromLocationByLocationId(locationId: number): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     db.prepare('DELETE FROM item_locations WHERE locationId = ?').run(locationId);
 }
+
 
 export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive' | 'status'>): Promise<InventoryUnit> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
@@ -950,3 +951,4 @@ export async function migrateLegacyInventoryUnits(): Promise<number> {
     transaction();
     return updatedCount;
 }
+
