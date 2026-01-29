@@ -45,8 +45,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
             requiresCertificate INTEGER DEFAULT 0,
             updatedBy TEXT,
             updatedAt TEXT,
-            FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE,
-            UNIQUE (itemId, locationId, clientId)
+            FOREIGN KEY (locationId) REFERENCES locations(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS inventory_units (
@@ -502,7 +501,11 @@ export async function getAllItemLocations(): Promise<ItemLocation[]> {
     return JSON.parse(JSON.stringify(itemLocations));
 }
 
-export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }): Promise<ItemLocation> {
+/**
+ * Inserts or updates an item-location assignment.
+ * If payload.id is provided, it updates. Otherwise, it inserts.
+ */
+export async function upsertItemAssignment(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }): Promise<ItemLocation> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { id, itemId, locationId, clientId, isExclusive, requiresCertificate, updatedBy } = payload;
     
@@ -525,12 +528,12 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
     db.prepare('DELETE FROM item_locations WHERE id = ?').run(itemLocationId);
 }
 
-export async function unassignItemFromLocationByProduct(itemId: string): Promise<void> {
+export async function unassignAllByProduct(itemId: string): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     db.prepare('DELETE FROM item_locations WHERE itemId = ?').run(itemId);
 }
 
-export async function unassignItemFromLocationByLocationId(locationId: number): Promise<void> {
+export async function unassignAllByLocation(locationId: number): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     db.prepare('DELETE FROM item_locations WHERE locationId = ?').run(locationId);
 }
