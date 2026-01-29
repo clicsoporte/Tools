@@ -91,6 +91,7 @@ import {
   LockKeyhole,
   RotateCcw,
   BookUser,
+  GitBranch,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -618,7 +619,7 @@ export default function HelpPage() {
                     <li>
                         <strong>¿Cómo se usa?:</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                           <li>Accede al reporte para ver una tabla con todas las asignaciones.</li>
+                           <li>Accede al reporte para ver una tabla con todas las asignaciones. Ahora mostrará las **multi-ubicaciones** agrupadas.</li>
                             <li>Utiliza el nuevo **filtro de fecha** para acotar la búsqueda por cuándo se actualizó la asignación.</li>
                             <li>Filtra por **tipo de asignación** para ver solo las que son de venta General, Exclusivas para un cliente, o las que no tienen cliente asignado.</li>
                             <li>Usa la búsqueda de texto y el filtro de clasificación para encontrar rápidamente lo que necesitas.</li>
@@ -630,90 +631,76 @@ export default function HelpPage() {
         )
     },
     {
-        title: "Guía Maestra: Módulo de Almacenes",
+        title: "Guía Maestra: Módulo de Almacenes (Nuevo)",
         icon: <Warehouse className="mr-4 h-6 w-6 text-cyan-600" />,
         content: (
             <div className="space-y-4">
-                <p>Este módulo te da control total sobre la localización y conteo de tu inventario. Incluye herramientas para mapear tu bodega, registrar conteos y generar etiquetas.</p>
+                <p>Este módulo te da control total sobre la localización y conteo de tu inventario. Con las últimas mejoras, el sistema es más inteligente y flexible.</p>
                 
-                <h4 className="font-semibold text-lg pt-4 border-t">Herramientas Principales de Almacén</h4>
-                 <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800">
-                    <HelpCircle className="h-5 w-5"/>
-                    <p className="text-sm">Una vez configurado, el personal de almacén puede usar las herramientas desde el sub-panel <strong>Almacén</strong>:</p>
-                </div>
-                 <ul className="list-disc space-y-3 pl-6 mt-4">
+                <h4 className="font-semibold text-lg pt-4 border-t">Flujos de Trabajo Inteligentes</h4>
+                <Alert variant="default" className="mt-4">
+                    <GitBranch className="h-4 w-4" />
+                    <AlertTitle>¡Nueva Lógica de Decisión!</AlertTitle>
+                    <AlertDescription>
+                        Para evitar errores y duplicados, ahora el sistema te preguntará qué hacer cuando asignes un producto a una ubicación nueva si este ya tenía una asignación previa.
+                    </AlertDescription>
+                </Alert>
+
+                <ul className="list-disc space-y-4 pl-6 mt-4">
                     <li>
-                        <strong>Búsqueda Rápida (<QrCode className="inline h-4 w-4"/>):</strong> Ideal para dispositivos con escáner. Simplemente escanea el código de un artículo para ver instantáneamente su información, existencias y ubicaciones físicas y del ERP. El campo de búsqueda se limpia automáticamente, listo para el siguiente escaneo.
+                        <strong>Asignar en Catálogo y Recepción: El Flujo Deliberado</strong>
+                        <p className="text-sm text-muted-foreground">Al usar el **"Catálogo Clientes y Artículos"** o el **"Asistente de Recepción"**, si asignas el `Producto A` a una nueva `Ubicación X`, el sistema detectará si ya estaba asignado a una `Ubicación Y` y te preguntará:</p>
+                        <blockquote className="mt-2 border-l-2 pl-4 italic">"Este producto ya está asignado a [Ubicación Y]. ¿Qué deseas hacer?"</blockquote>
+                        <div className="flex gap-2 mt-2">
+                            <Button size="sm" variant="secondary">Mover a la nueva ubicación</Button>
+                            <Button size="sm" variant="outline">Agregar como ubicación adicional</Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Esto te da control total para decidir si estás **moviendo** el producto o si necesitas que tenga **múltiples hogares** (multi-ubicación).</p>
                     </li>
+                    
                     <li>
-                        <strong>Administración de Ingresos (<BookMarked className="inline h-4 w-4 text-red-500"/>):</strong>
-                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li>Permite buscar un ingreso ya registrado por múltiples criterios. Ahora incluye **paginación** para manejar grandes volúmenes de datos.</li>
-                            <li>**Filtro Inteligente:** Por defecto, la herramienta muestra solo los ingresos <strong>&quot;Pendientes&quot;</strong>. Puedes desactivar el filtro para ver todos los ingresos (aplicados, anulados, etc.).</li>
-                            <li>**Flujo de Aprobación:** Los ingresos entran en estado **&quot;Pendiente&quot;**. Un supervisor puede **&quot;Revisar y Aplicar&quot;** el ingreso, editando cualquier campo y añadiendo el **Nº de Documento ERP**.</li>
-                            <li>Una vez &quot;Aplicado&quot;, el ingreso solo puede ser **&quot;Corregido&quot;**, lo que anula el registro original y crea uno nuevo, manteniendo una trazabilidad completa.</li>
-                             <li>Desde aquí también puedes **reimprimir la boleta PDF** de cualquier ingreso.</li>
-                        </ul>
-                    </li>
-                     <li>
-                        <strong>Catálogo Clientes y Artículos (<BookUser className="inline h-4 w-4 text-teal-600"/>):</strong> Esta es la herramienta central para definir qué producto va en qué ubicación y si pertenece a un cliente en específico.
-                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li>Usa el botón **&quot;Asociar Producto a Cliente&quot;** para abrir un diálogo donde puedes buscar un producto, una ubicación y, opcionalmente, un cliente.</li>
-                            <li>Si asignas un cliente, puedes marcar la casilla **&quot;Asignación exclusiva&quot;**. Esto indica que ese producto en esa ubicación es solo para ese cliente y no para venta general.</li>
-                            <li>Toda la tabla se puede filtrar y tienes botones para **editar o eliminar** cada asignación.</li>
-                        </ul>
-                    </li>
-                    <li>
-                        <strong>Asistente de Poblado (<Wand2 className="inline h-4 w-4 text-indigo-500" />):</strong> Permite poblar masivamente las ubicaciones de un rack de forma guiada, ideal para el ingreso de mercadería nueva. Incluye un sistema para retomar sesiones interrumpidas y ahora muestra un indicador de `(Finalizado)` en los niveles que ya se completaron.
-                    </li>
-                    <li>
-                        <strong>Asistente de Recepción (<PackageCheck className="inline h-4 w-4 text-emerald-600"/>):</strong> Registra producto terminado o compras y genera etiquetas QR para las nuevas unidades. Los ingresos creados aquí entrarán en estado &quot;Pendiente&quot;.
-                    </li>
-                     <li>
-                        <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite a los bodegueros registrar conteos físicos de un producto en una ubicación específica. Ahora incluye un **&quot;Modo Escáner&quot;** que, al leer una etiqueta QR con formato `ID_UBICACION&gt;ID_PRODUCTO`, carga automáticamente ambos campos, agilizando el proceso.
-                    </li>
-                     <li>
-                        <strong>Reporte de Inventario Físico (<ClipboardList className="inline h-4 w-4"/>):</strong> (En Analíticas) Es la contraparte de la toma de inventario. Muestra una tabla comparando la `Cantidad Contada` vs. el `Stock del ERP` y resalta las diferencias.
-                    </li>
-                    <li>
-                        <strong>Gestión de Bloqueos (<Lock className="inline h-4 w-4"/>):</strong> Una herramienta administrativa para ver qué ubicaciones o contenedores están siendo usados y liberar bloqueos si un usuario deja una sesión abandonada.
-                    </li>
-                </ul>
-                <h4 className="font-semibold text-lg pt-4 border-t">Diferencia entre Herramientas Clave</h4>
-                <p className="text-sm">Es común preguntarse cuál es la diferencia entre &quot;Catálogo&quot;, &quot;Gestión de Lotes&quot; y el &quot;Asistente de Recepción&quot;. Aquí tienes una guía rápida:</p>
-                <ul className="list-disc space-y-3 pl-6">
-                    <li>
-                        <strong>Catálogo Clientes y Artículos:</strong> Es el <strong>mapa maestro</strong> de tu almacén. Aquí defines las <strong>reglas</strong>: &quot;el producto A <i>pertenece</i> a la ubicación X&quot;. Es para configurar la distribución ideal.
-                    </li>
-                    <li>
-                        <strong>Asistente de Recepción:</strong> Es tu herramienta principal para el <strong>ingreso diario</strong>. Es un flujo guiado y rápido que te sugiere ubicaciones basadas en el catálogo. Responde a: &quot;Estoy recibiendo este producto, ¿dónde lo pongo?&quot;
-                    </li>
-                     <li>
-                        <strong>Gestión de Lotes/Tarimas:</strong> Es una herramienta más <strong>manual y potente</strong>. Te permite crear una unidad de inventario desde cero, sin un flujo guiado. Es útil para casos especiales o correcciones.
+                        <strong>Poblado Rápido: El Flujo Ágil con Auditoría</strong>
+                        <p className="text-sm text-muted-foreground">En el **"Asistente de Poblado"**, la velocidad es clave. Aquí el flujo es diferente para no interrumpirte:</p>
+                        <ol className="list-decimal space-y-2 pl-5 mt-2 text-sm">
+                            <li>El bodeguero escanea el `Producto B` en `R08-C-15`.</li>
+                            <li>El sistema **guarda la asignación inmediatamente** para no perder el dato.</li>
+                            <li>Si detecta que el `Producto B` ya estaba en otra parte, muestra una alerta no intrusiva: <span className="bg-yellow-100 text-yellow-800 p-1 rounded">"¡Ojo! Se creó una ubicación adicional."</span></li>
+                            <li>Al **Finalizar Sesión**, se muestra un resumen resaltando los productos con múltiples ubicaciones y **se envía un correo automático a los supervisores** para su revisión.</li>
+                        </ol>
                     </li>
                 </ul>
 
                 <h4 className="font-semibold text-lg pt-4 border-t">¿Cómo Mover un Artículo de Ubicación?</h4>
-                <ul className="list-disc space-y-3 pl-6">
+                <p>Con la nueva lógica, mover un producto es más fácil y seguro:</p>
+                <ol className="list-decimal space-y-3 pl-6">
                     <li>
-                        <strong>Para cambiar la ubicación designada de un producto (la regla):</strong> Usa <strong>&quot;Catálogo Clientes y Artículos&quot;</strong>. Busca la asignación y edítala para seleccionar la nueva ubicación.
+                        <strong>Usa "Catálogo Clientes y Artículos":</strong> Es la herramienta recomendada para gestionar la "casa" de un producto.
                     </li>
                     <li>
-                        <strong>Para mover físicamente un lote/tarima (`U-XXXXX`):</strong> Usa <strong>&quot;Administración de Ingresos&quot;</strong>.
-                        <ol className="list-decimal space-y-2 pl-5 mt-2 text-sm">
-                            <li>Busca la unidad que quieres mover.</li>
-                            <li>Haz clic en &quot;Corregir&quot;.</li>
-                            <li>Cambia la cantidad a <strong>cero (0)</strong> para registrar la salida de la ubicación original y en las notas indica el motivo (ej: &quot;Traslado a R02-B-03&quot;).</li>
-                            <li>Ve al <strong>&quot;Asistente de Recepción&quot;</strong> y crea un nuevo ingreso para ese producto en su <strong>nueva ubicación</strong>.</li>
-                        </ol>
-                        <p className="text-xs text-muted-foreground mt-2">Este proceso asegura que cada movimiento (salida y entrada) quede registrado para una trazabilidad completa.</p>
+                        <strong>Crea la nueva asignación:</strong> Busca el producto que quieres mover y asígnale su **nueva ubicación**.
+                    </li>
+                    <li>
+                        <strong>Toma la decisión:</strong> Cuando aparezca el diálogo, presiona el botón **"Mover a la nueva ubicación"**.
+                    </li>
+                     <li>
+                        <strong>¡Listo!</strong> El sistema actualizará el registro existente, asegurando que no queden datos obsoletos.
+                    </li>
+                </ol>
+                <p className="text-sm text-muted-foreground">Ya no es necesario hacer un movimiento de salida y luego uno de entrada para trasladar un artículo. El sistema lo maneja de forma limpia.</p>
+
+                <h4 className="font-semibold text-lg pt-4 border-t">Otras Herramientas Principales</h4>
+                 <ul className="list-disc space-y-3 pl-6 mt-4">
+                    <li>
+                        <strong>Búsqueda Rápida (<QrCode className="inline h-4 w-4"/>):</strong> Ideal para dispositivos con escáner. Simplemente escanea el código de un artículo para ver instantáneamente su información, existencias y ubicaciones. El campo de búsqueda se limpia automáticamente, listo para el siguiente escaneo.
+                    </li>
+                    <li>
+                        <strong>Administración de Ingresos (<BookMarked className="inline h-4 w-4 text-red-500"/>):</strong>
+                        Permite buscar, aplicar o corregir ingresos de inventario. Incluye paginación y un filtro inteligente para ver solo los ingresos pendientes.
+                    </li>
+                     <li>
+                        <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite registrar conteos físicos de un producto en una ubicación específica. Ahora incluye un **&quot;Modo Escáner&quot;**.
                     </li>
                 </ul>
-
-                <h4 className="font-semibold text-lg pt-4 border-t">¿Cómo Identificar Ubicaciones Mixtas?</h4>
-                <p>
-                    Para ayudarte a mantener el orden, el sistema ahora te muestra una insignia roja <strong>(Mixta)</strong> junto al nombre de cualquier ubicación que contenga más de un tipo de producto. Verás este indicador en todas las herramientas del almacén, permitiéndote identificar y corregir estas situaciones rápidamente sin necesidad de generar un reporte.
-                </p>
             </div>
         )
     },

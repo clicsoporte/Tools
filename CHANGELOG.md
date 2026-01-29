@@ -23,6 +23,32 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [2.7.0] - Publicado
+
+### Funcionalidades y Mejoras Principales
+
+-   **[Funcionalidad Clave] Lógica Inteligente de Multi-Ubicación para Productos:**
+    -   Se ha rediseñado por completo la lógica de asignación de ubicaciones para reflejar la realidad de un almacén dinámico. El sistema ahora permite de forma intencional que un mismo producto resida en múltiples ubicaciones.
+    -   **Flujo Deliberado con Decisión:** En el **"Catálogo Clientes y Artículos"** y en el **"Asistente de Recepción"**, al asignar un producto a una nueva ubicación, el sistema ahora detecta si ya tiene un "hogar" y presenta un diálogo de decisión claro:
+        -   **Mover a la nueva ubicación:** Actualiza el registro existente, moviendo el producto de su ubicación anterior a la nueva.
+        -   **Agregar como ubicación adicional:** Crea un nuevo registro, permitiendo que el producto tenga múltiples ubicaciones designadas.
+    -   Esta mejora previene errores y la creación de datos duplicados, dando al usuario control total sobre la estructura del catálogo.
+
+-   **[UX Almacén] Asistente de Poblado con Auditoría Automática:**
+    -   Para no sacrificar su velocidad, el asistente **mantiene el guardado inmediato** de cada asignación escaneada, asegurando que no se pierdan datos.
+    -   **Resumen Inteligente al Finalizar:** Al terminar una sesión, el asistente ahora presenta una ventana de resumen que **resalta en rojo** cualquier producto que haya sido asignado a múltiples ubicaciones durante esa sesión.
+    -   **Notificación Automática por Correo:** Junto con el resumen, el sistema **envía automáticamente un correo electrónico** a los supervisores con los detalles de las ubicaciones múltiples detectadas, garantizando una auditoría proactiva sin interrumpir al operario.
+
+-   **[UX Reportes] Reporte de Catálogo Depurado y Preciso:**
+    -   El **Reporte de Catálogo** ha sido mejorado para reflejar la nueva lógica de multi-ubicación.
+    -   En lugar de mostrar filas duplicadas, ahora agrupa las ubicaciones por producto, mostrando todas las ubicaciones asignadas en una sola vista consolidada. Esto ofrece un panorama limpio y preciso del estado actual del inventario.
+
+-   **[Mejora de UX] Optimización del Asistente de Recepción:**
+    -   La opción **"Guardar como ubicación predeterminada"** ahora viene activada por defecto para agilizar el proceso de registro.
+    -   La lista de ubicaciones sugeridas ahora se actualiza en tiempo real dentro de la misma sesión, eliminando la necesidad de salir y volver a entrar para ver los cambios recientes.
+
+---
+
 ## [2.6.0] - Publicado
 
 ### Funcionalidades y Mejoras Principales
