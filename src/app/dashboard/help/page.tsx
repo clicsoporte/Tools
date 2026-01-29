@@ -282,7 +282,7 @@ export default function HelpPage() {
                 <h4 className="font-semibold text-lg pt-2 border-t">Modo 2: Sincronización desde SQL Server (Recomendado)</h4>
                  <ul className="list-disc space-y-3 pl-6">
                     <li>
-                        <strong>¿Cómo funciona?:</strong> En lugar de archivos, la aplicación se conecta directamente a la base de datos de tu ERP (usando un usuario de **solo lectura**) y ejecuta consultas `SELECT` para traer los datos.
+                        <strong>¿Cómo funciona?:</strong> En lugar de archivos, la aplicación se conecta directamente a la base de datos de tu ERP (usando un usuario de <strong>solo lectura</strong>) y ejecuta consultas `SELECT` para traer los datos.
                     </li>
                      <li>
                         <strong>¿Cómo se configura?:</strong> Un administrador debe ir a <strong>Administración &gt; Importar Datos</strong> y:
@@ -301,7 +301,7 @@ export default function HelpPage() {
                  <ul className="list-disc space-y-3 pl-6">
                     <li>Este botón, visible en el encabezado para usuarios con permisos, ejecuta el proceso de importación completo (ya sea desde archivos o SQL) en segundo plano. La notificación de éxito ahora te dirá cuántos tipos de datos se procesaron del total (ej: &quot;10 de 11&quot;).</li>
                     <li>
-                        <strong>Alerta de Sincronización Antigua (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si ha pasado mucho tiempo desde la última sincronización (el tiempo es configurable en Administración &gt; General), el indicador &quot;Última Sinc&quot; y el botón de sincronización se pondrán en **rojo y parpadearán**. Esto es una alerta visual crítica que te indica que los datos de la aplicación (como precios o inventario) pueden estar desactualizados.
+                        <strong>Alerta de Sincronización Antigua (<AlertTriangle className="inline h-4 w-4 text-red-600"/>):</strong> Si ha pasado mucho tiempo desde la última sincronización (el tiempo es configurable en Administración &gt; General), el indicador &quot;Última Sinc&quot; y el botón de sincronización se pondrán en <strong>rojo y parpadearán</strong>. Esto es una alerta visual crítica que te indica que los datos de la aplicación (como precios o inventario) pueden estar desactualizados.
                     </li>
                 </ul>
             </div>
@@ -319,7 +319,7 @@ export default function HelpPage() {
                     <LockKeyhole className="h-4 w-4" />
                     <AlertTitle>¡Mejora de Seguridad Crítica Implementada!</AlertTitle>
                     <AlertDescription>
-                       El sistema de autenticación ahora utiliza **cookies seguras y `httpOnly`**. Esto significa que tu sesión es gestionada por el servidor, haciendo imposible que sea manipulada desde el navegador y previniendo la suplantación de identidad.
+                       El sistema de autenticación ahora utiliza <strong>cookies seguras y `httpOnly`</strong>. Esto significa que tu sesión es gestionada por el servidor, haciendo imposible que sea manipulada desde el navegador y previniendo la suplantación de identidad.
                     </AlertDescription>
                 </Alert>
 
@@ -332,20 +332,20 @@ export default function HelpPage() {
                         <strong>Campos Requeridos:</strong> Se deben ingresar los datos del servidor de correo de la empresa (Host, Puerto, Usuario, Contraseña y Seguridad). Estos datos se guardan de forma segura.
                     </li>
                      <li>
-                        <strong>Plantilla Personalizable:</strong> En esta misma pantalla, se puede personalizar el **asunto y el cuerpo del correo** de recuperación, usando `[NOMBRE_USUARIO]` y `[CLAVE_TEMPORAL]` como placeholders.
+                        <strong>Plantilla Personalizable:</strong> En esta misma pantalla, se puede personalizar el <strong>asunto y el cuerpo del correo</strong> de recuperación, usando `[NOMBRE_USUARIO]` y `[CLAVE_TEMPORAL]` como placeholders.
                     </li>
                     <li>
-                        <strong>Prueba de Conexión:</strong> Es crucial usar el botón **&quot;Enviar Correo de Prueba&quot;** para verificar que la configuración sea correcta.
+                        <strong>Prueba de Conexión:</strong> Es crucial usar el botón <strong>&quot;Enviar Correo de Prueba&quot;</strong> para verificar que la configuración sea correcta.
                     </li>
                 </ul>
 
                 <h4 className="font-semibold text-lg pt-2 border-t">Flujo de Recuperación para Usuarios</h4>
                  <ul className="list-disc space-y-3 pl-6">
                     <li>
-                        <strong>¿Olvidé mi contraseña?:</strong> En la pantalla de login, el usuario hace clic en el enlace, ingresa su correo y el sistema le envía una **contraseña temporal**.
+                        <strong>¿Olvidé mi contraseña?:</strong> En la pantalla de login, el usuario hace clic en el enlace, ingresa su correo y el sistema le envía una <strong>contraseña temporal</strong>.
                     </li>
                     <li>
-                        <strong>Inicio de Sesión Forzado:</strong> Al ingresar con la contraseña temporal, la misma tarjeta de login se transforma y le pide al usuario que establezca una **nueva contraseña personal**.
+                        <strong>Inicio de Sesión Forzado:</strong> Al ingresar con la contraseña temporal, la misma tarjeta de login se transforma y le pide al usuario que establezca una <strong>nueva contraseña personal</strong>.
                     </li>
                     <li>
                         <strong>Proceso Finalizado:</strong> Una vez que establece su nueva contraseña, se le informa que el cambio fue exitoso y se le pide que vuelva a la pantalla de login para ingresar normalmente.
@@ -354,7 +354,7 @@ export default function HelpPage() {
 
                  <h4 className="font-semibold text-lg pt-2 border-t">Creación de Nuevos Usuarios</h4>
                  <ul className="list-disc space-y-3 pl-6">
-                    <li>Al crear un nuevo usuario, el administrador ahora tiene una casilla: **&quot;Forzar cambio de contraseña en el próximo inicio de sesión&quot;**.</li>
+                    <li>Al crear un nuevo usuario, el administrador ahora tiene una casilla: <strong>&quot;Forzar cambio de contraseña en el próximo inicio de sesión&quot;</strong>.</li>
                     <li>Si se marca, el nuevo usuario seguirá el mismo flujo de cambio de contraseña forzado la primera vez que ingrese, asegurando que establezca una clave personal y segura.</li>
                  </ul>
             </div>
@@ -403,25 +403,25 @@ export default function HelpPage() {
                     <li>
                         <strong>Paso 2: Añadir Costos y Manejar Descuentos.</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li>Ingresa el costo total de **Transporte** y de **Otros Costos** (como aduanas, comisiones, etc.). El sistema **prorrateará** estos costos automáticamente entre todos los artículos cargados.</li>
-                            <li>**Manejo de Descuentos:** En la misma tarjeta, puedes decidir cómo tratar los descuentos de la factura: si se aplican para **reducir el costo** del producto (beneficiando al cliente final) o si se consideran como **parte de la ganancia** de la empresa.</li>
+                            <li>Ingresa el costo total de <strong>Transporte</strong> y de <strong>Otros Costos</strong> (como aduanas, comisiones, etc.). El sistema <strong>prorrateará</strong> estos costos automáticamente entre todos los artículos cargados.</li>
+                            <li><strong>Manejo de Descuentos:</strong> En la misma tarjeta, puedes decidir cómo tratar los descuentos de la factura: si se aplican para <strong>reducir el costo</strong> del producto (beneficiando al cliente final) o si se consideran como <strong>parte de la ganancia</strong> de la empresa.</li>
                         </ul>
                     </li>
                     <li>
                         <strong>Paso 3: Ajustar y Calcular Precios.</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>En la tabla de &quot;Artículos Extraídos&quot;, puedes editar la mayoría de los campos.</li>
-                            <li><strong>Costo Unit. (s/IVA):</strong> Este es el costo real del artículo (costo de factura + costo prorrateado +/- efecto del descuento). Puedes **sobrescribirlo manually** si necesitas ajustar el costo base para un artículo específico.</li>
+                            <li><strong>Costo Unit. (s/IVA):</strong> Este es el costo real del artículo (costo de factura + costo prorrateado +/- efecto del descuento). Puedes <strong>sobrescribirlo manually</strong> si necesitas ajustar el costo base para un artículo específico.</li>
                             <li><strong>Imp. %:</strong> El sistema extrae el impuesto del XML, pero puedes editarlo aquí si es necesario (ej. de &quot;13&quot; a &quot;1&quot;).</li>
                             <li><strong>Margen:</strong> Introduce el margen de ganancia deseado (ej. &quot;20&quot; para un 20%).</li>
-                            <li>El sistema calculará automáticamente el **P.V.P. Unitario Sugerido** y la **Ganancia por Línea** en tiempo real.</li>
+                            <li>El sistema calculará automáticamente el <strong>P.V.P. Unitario Sugerido</strong> y la <strong>Ganancia por Línea</strong> en tiempo real.</li>
                         </ul>
                     </li>
                      <li>
                         <strong>Paso 4: Guardar o Exportar.</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li><strong>Guardar Borrador (<Save className="inline h-4 w-4"/>):</strong> Si necesitas continuar más tarde, guarda tu análisis como un borrador. Podrás cargarlo desde el botón &quot;Cargar Borradores&quot;.</li>
-                            <li><strong>Exportar a Excel (<FileDown className="inline h-4 w-4"/>):</strong> Cuando los precios estén listos, haz clic en este botón. Se generará un archivo **Excel (.xlsx)** con los datos exactos que ves en pantalla, ideal para análisis externos o para archivar el cálculo.</li>
+                            <li><strong>Exportar a Excel (<FileDown className="inline h-4 w-4"/>):</strong> Cuando los precios estén listos, haz clic en este botón. Se generará un archivo <strong>Excel (.xlsx)</strong> con los datos exactos que ves en pantalla, ideal para análisis externos o para archivar el cálculo.</li>
                         </ul>
                     </li>
                 </ol>
@@ -442,13 +442,13 @@ export default function HelpPage() {
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>Empieza a escribir el nombre, código o cédula del cliente en el campo &quot;Buscar Cliente&quot;. El sistema te mostrará una lista de sugerencias. Haz clic o presiona `Enter` para seleccionarlo.</li>
                             <li>Al seleccionar, aparecerá una tarjeta con los <strong>datos críticos del ERP</strong> (<CreditCard className="inline h-4 w-4"/>): cédula, límite de crédito, condición de pago y vendedor asignado. Esto te da una visión instantánea del estado del cliente.</li>
-                            <li><strong>Verificar Exoneración (<ShieldQuestion className="inline h-4 w-4" />):</strong> Si el cliente tiene una exoneración en el ERP, aparecerá una segunda tarjeta. El sistema consultará a Hacienda **en tiempo real** y te mostrará dos estados para que los compares: el del ERP y el de Hacienda. Esto te permite confirmar si la exoneración sigue vigente antes de aplicarla.</li>
+                            <li><strong>Verificar Exoneración (<ShieldQuestion className="inline h-4 w-4" />):</strong> Si el cliente tiene una exoneración en el ERP, aparecerá una segunda tarjeta. El sistema consultará a Hacienda <strong>en tiempo real</strong> y te mostrará dos estados para que los compares: el del ERP y el de Hacienda. Esto te permite confirmar si la exoneración sigue vigente antes de aplicarla.</li>
                         </ul>
                     </li>
                     <li>
                         <strong>Paso 2: Agregar Productos y Consultar Detalles.</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li>En el campo &quot;Agregar Producto&quot;, busca por código, descripción o **código de barras**. El sistema te sugerirá productos y te mostrará el **inventario actual del ERP** entre paréntesis.</li>
+                            <li>En el campo &quot;Agregar Producto&quot;, busca por código, descripción o <strong>código de barras</strong>. El sistema te sugerirá productos y te mostrará el <strong>inventario actual del ERP</strong> entre paréntesis.</li>
                             <li>Presiona `Enter` o haz clic para añadir el producto a la cotización. El sistema aplicará el impuesto automáticamente (13% por defecto, 1% para canasta básica, o 0% si el cliente tiene una exoneración válida).</li>
                             <li><strong>Consultar Info del Producto (<BadgeInfo className="inline h-4 w-4"/>):</strong> Haz clic en cualquier parte de la fila de un producto ya agregado. Aparecerá una tarjeta con información detallada del ERP: su <strong>clasificación</strong>, la <strong>fecha del último ingreso</strong> y notas importantes.</li>
                         </ul>
@@ -484,8 +484,8 @@ export default function HelpPage() {
                 <p>Las solicitudes pasan por varios estados para un seguimiento claro:</p>
                 <ul className="list-disc space-y-3 pl-6">
                     <li><strong>Pendiente:</strong> La solicitud ha sido creada y está esperando revisión.</li>
-                    <li><strong>Revisión Compras:</strong> El equipo de compras está revisando la solicitud. Desde aquí, pueden **regresar a Pendiente** si se necesita una corrección.</li>
-                    <li><strong>Pendiente Aprobación:</strong> La solicitud ha sido enviada para su aprobación final. Desde aquí, se puede **regresar a Revisión Compras**.</li>
+                    <li><strong>Revisión Compras:</strong> El equipo de compras está revisando la solicitud. Desde aquí, pueden <strong>regresar a Pendiente</strong> si se necesita una corrección.</li>
+                    <li><strong>Pendiente Aprobación:</strong> La solicitud ha sido enviada para su aprobación final. Desde aquí, se puede <strong>regresar a Revisión Compras</strong>.</li>
                     <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> Un usuario con permisos ha aprobado la compra.</li>
                     <li><strong>Ordenada (<Truck className="inline h-4 w-4 text-blue-600"/>):</strong> Ya se realizó el pedido al proveedor.</li>
                     <li><strong>Recibida (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> (Paso opcional) El producto ha llegado. Este paso se activa en Administración.</li>
@@ -518,7 +518,7 @@ export default function HelpPage() {
                     <strong>Pasos Opcionales:</strong> En <strong>Administración &gt; Config. Compras</strong>, puedes activar el paso de &quot;Recibido en Bodega&quot; y el paso final &quot;Ingresado en ERP&quot; para un control más detallado del proceso logístico.
                 </li>
                 <li>
-                    <strong>Exportación:</strong> Puedes generar un archivo **PDF** o **Excel (.xlsx)** del reporte actual, incluyendo los filtros que hayas aplicado.
+                    <strong>Exportación:</strong> Puedes generar un archivo <strong>PDF</strong> o <strong>Excel (.xlsx)</strong> del reporte actual, incluyendo los filtros que hayas aplicado.
                 </li>
                 </ul>
             </div>
@@ -537,8 +537,8 @@ export default function HelpPage() {
                 <p>Las órdenes pasan por varias etapas para un control preciso. Ahora puedes avanzar y retroceder en el flujo para corregir errores.</p>
                 <ul className="list-disc space-y-3 pl-6">
                     <li><strong>Pendiente:</strong> La orden ha sido creada. Desde aquí, un usuario con permisos la envía al siguiente paso.</li>
-                    <li><strong>Pendiente Revisión (<Send className="inline h-4 w-4 text-cyan-600"/>):</strong> La orden espera la revisión de un supervisor o encargado de producción. Desde aquí se puede **regresar a Pendiente** (<Undo2 className="inline h-4 w-4 text-orange-600"/>) si hay algo que corregir.</li>
-                    <li><strong>Pendiente Aprobación (<ShoppingBag className="inline h-4 w-4 text-orange-600"/>):</strong> La orden ha sido revisada y ahora espera la aprobación final de un gerente. Desde aquí, se puede **regresar a Revisión** (<Undo2 className="inline h-4 w-4 text-orange-600"/>).</li>
+                    <li><strong>Pendiente Revisión (<Send className="inline h-4 w-4 text-cyan-600"/>):</strong> La orden espera la revisión de un supervisor o encargado de producción. Desde aquí se puede <strong>regresar a Pendiente</strong> (<Undo2 className="inline h-4 w-4 text-orange-600"/>) si hay algo que corregir.</li>
+                    <li><strong>Pendiente Aprobación (<ShoppingBag className="inline h-4 w-4 text-orange-600"/>):</strong> La orden ha sido revisada y ahora espera la aprobación final de un gerente. Desde aquí, se puede <strong>regresar a Revisión</strong> (<Undo2 className="inline h-4 w-4 text-orange-600"/>).</li>
                     <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> La orden está autorizada para producción.</li>
                     <li><strong>En Cola, En Progreso, etc.:</strong> El resto del flujo continúa como antes (En Cola, En Progreso, Completada, etc.).</li>
                 </ul>
@@ -587,14 +587,14 @@ export default function HelpPage() {
                             <li>Selecciona un rango de fechas de los pedidos del ERP que quieres analizar y haz clic en <strong>&quot;Analizar Pedidos&quot;</strong>.</li>
                             <li>El sistema te mostrará una tabla con los artículos faltantes. Para cada artículo, verás la cantidad total que necesitas, cuánto tienes en inventario, y el faltante exacto.</li>
                             <li>**Ordena los resultados:** Haz clic en el encabezado de cualquier columna (ej: <strong>&quot;Próxima Entrega&quot;</strong> o <strong>&quot;Faltante Total&quot;</strong>) para ordenar la tabla según ese criterio. Una flecha te indicará el orden actual.</li>
-                            <li>Usa los filtros de búsqueda y de clasificación (que ahora permite **selección múltiple**) para refinar la lista.</li>
+                            <li>Usa los filtros de búsqueda y de clasificación (que ahora permite <strong>selección múltiple</strong>) para refinar la lista.</li>
                             <li>
                                 <strong>Crear Solicitudes:</strong> Marca los artículos que quieres comprar y haz clic en <strong>&quot;Crear Solicitudes&quot;</strong>. El sistema creará las solicitudes automáticamente en segundo plano, dejándolas &quot;Pendientes&quot; para que Compras complete la información faltante, como el precio.
                             </li>
                              <li>
-                                <strong>Alerta de Duplicados (<Info className="inline h-4 w-4 text-amber-500"/>):</strong> Si intentas crear una solicitud para un artículo que ya tiene una solicitud activa, el sistema te mostrará una **alerta con detalles**, incluyendo el número de la solicitud existente y quién la creó. Podrás decidir si quieres crear el duplicado o no.
+                                <strong>Alerta de Duplicados (<Info className="inline h-4 w-4 text-amber-500"/>):</strong> Si intentas crear una solicitud para un artículo que ya tiene una solicitud activa, el sistema te mostrará una <strong>alerta con detalles</strong>, incluyendo el número de la solicitud existente y quién la creó. Podrás decidir si quieres crear el duplicado o no.
                             </li>
-                            <li>Puedes exportar esta vista a **Excel** para un análisis más profundo.</li>
+                            <li>Puedes exportar esta vista a <strong>Excel</strong> para un análisis más profundo.</li>
                         </ul>
                     </li>
                 </ol>
@@ -609,7 +609,7 @@ export default function HelpPage() {
                             <li>Accede al reporte para ver la tabla completa.</li>
                             <li>Usa la barra de búsqueda para filtrar rápidamente por nombre de usuario, correo o nombre del rol.</li>
                             <li>Haz clic en los encabezados de columna <strong>&quot;Usuario&quot;</strong> o <strong>&quot;Rol&quot;</strong> para ordenar la lista.</li>
-                            <li>Exporta la vista actual a **PDF** o **Excel** para compartirla o archivarla como un registro de auditoría de seguridad.</li>
+                            <li>Exporta la vista actual a <strong>PDF</strong> o <strong>Excel</strong> para compartirla o archivarla como un registro de auditoría de seguridad.</li>
                         </ul>
                     </li>
                 </ol>
@@ -621,7 +621,7 @@ export default function HelpPage() {
                     <li>
                         <strong>¿Cómo se usa?:</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                           <li>Accede al reporte para ver una tabla con todas las asignaciones. Ahora mostrará las **multi-ubicaciones** agrupadas.</li>
+                           <li>Accede al reporte para ver una tabla con todas las asignaciones. Ahora mostrará las <strong>multi-ubicaciones</strong> agrupadas.</li>
                             <li>Utiliza el nuevo **filtro de fecha** para acotar la búsqueda por cuándo se actualizó la asignación.</li>
                             <li>Filtra por **tipo de asignación** para ver solo las que son de venta General, Exclusivas para un cliente, o las que no tienen cliente asignado.</li>
                             <li>Usa la búsqueda de texto y el filtro de clasificación para encontrar rápidamente lo que necesitas.</li>
@@ -651,23 +651,23 @@ export default function HelpPage() {
                 <ul className="list-disc space-y-4 pl-6 mt-4">
                     <li>
                         <strong>Asignar en Catálogo y Recepción: El Flujo Deliberado</strong>
-                        <p className="text-sm text-muted-foreground">Al usar el **"Catálogo Clientes y Artículos"** o el **"Asistente de Recepción"**, si asignas el `Producto A` a una nueva `Ubicación X`, el sistema detectará si ya estaba asignado a una `Ubicación Y` y te preguntará:</p>
-                        <blockquote className="mt-2 border-l-2 pl-4 italic">"Este producto ya está asignado a [Ubicación Y]. ¿Qué deseas hacer?"</blockquote>
+                        <p className="text-sm text-muted-foreground">Al usar el <strong>&quot;Catálogo Clientes y Artículos&quot;</strong> o el <strong>&quot;Asistente de Recepción&quot;</strong>, si asignas el `Producto A` a una nueva `Ubicación X`, el sistema detectará si ya estaba asignado a una `Ubicación Y` y te preguntará:</p>
+                        <blockquote className="mt-2 border-l-2 pl-4 italic">&quot;Este producto ya está asignado a [Ubicación Y]. ¿Qué deseas hacer?&quot;</blockquote>
                         <div className="flex gap-2 mt-2">
                             <Button size="sm" variant="secondary">Mover a la nueva ubicación</Button>
                             <Button size="sm" variant="outline">Agregar como ubicación adicional</Button>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">Esto te da control total para decidir si estás **moviendo** el producto o si necesitas que tenga **múltiples hogares** (multi-ubicación).</p>
+                        <p className="text-xs text-muted-foreground mt-1">Esto te da control total para decidir si estás <strong>moviendo</strong> el producto o si necesitas que tenga <strong>múltiples hogares</strong> (multi-ubicación).</p>
                     </li>
                     
                     <li>
                         <strong>Poblado Rápido: El Flujo Ágil con Auditoría</strong>
-                        <p className="text-sm text-muted-foreground">En el **"Asistente de Poblado"**, la velocidad es clave. Aquí el flujo es diferente para no interrumpirte:</p>
+                        <p className="text-sm text-muted-foreground">En el <strong>&quot;Asistente de Poblado&quot;</strong>, la velocidad es clave. Aquí el flujo es diferente para no interrumpirte:</p>
                         <ol className="list-decimal space-y-2 pl-5 mt-2 text-sm">
                             <li>El bodeguero escanea el `Producto B` en `R08-C-15`.</li>
-                            <li>El sistema **guarda la asignación inmediatamente** para no perder el dato.</li>
-                            <li>Si detecta que el `Producto B` ya estaba en otra parte, muestra una alerta no intrusiva: <span className="bg-yellow-100 text-yellow-800 p-1 rounded">"¡Ojo! Se creó una ubicación adicional."</span></li>
-                            <li>Al **Finalizar Sesión**, se muestra un resumen resaltando los productos con múltiples ubicaciones y **se envía un correo automático a los supervisores** para su revisión.</li>
+                            <li>El sistema <strong>guarda la asignación inmediatamente</strong> para no perder el dato.</li>
+                            <li>Si detecta que el `Producto B` ya estaba en otra parte, muestra una alerta no intrusiva: <span className="bg-yellow-100 text-yellow-800 p-1 rounded">&quot;¡Ojo! Se creó una ubicación adicional.&quot;</span></li>
+                            <li>Al <strong>Finalizar Sesión</strong>, se muestra un resumen resaltando los productos con múltiples ubicaciones y <strong>se envía un correo automático a los supervisores</strong> para su revisión.</li>
                         </ol>
                     </li>
                 </ul>
@@ -676,13 +676,13 @@ export default function HelpPage() {
                 <p>Con la nueva lógica, mover un producto es más fácil y seguro:</p>
                 <ol className="list-decimal space-y-3 pl-6">
                     <li>
-                        <strong>Usa "Catálogo Clientes y Artículos":</strong> Es la herramienta recomendada para gestionar la "casa" de un producto.
+                        <strong>Usa &quot;Catálogo Clientes y Artículos&quot;:</strong> Es la herramienta recomendada para gestionar la &quot;casa&quot; de un producto.
                     </li>
                     <li>
-                        <strong>Crea la nueva asignación:</strong> Busca el producto que quieres mover y asígnale su **nueva ubicación**.
+                        <strong>Crea la nueva asignación:</strong> Busca el producto que quieres mover y asígnale su <strong>nueva ubicación</strong>.
                     </li>
                     <li>
-                        <strong>Toma la decisión:</strong> Cuando aparezca el diálogo, presiona el botón **"Mover a la nueva ubicación"**.
+                        <strong>Toma la decisión:</strong> Cuando aparezca el diálogo, presiona el botón <strong>&quot;Mover a la nueva ubicación&quot;</strong>.
                     </li>
                      <li>
                         <strong>¡Listo!</strong> El sistema actualizará el registro existente, asegurando que no queden datos obsoletos.
@@ -700,7 +700,7 @@ export default function HelpPage() {
                         Permite buscar, aplicar o corregir ingresos de inventario. Incluye paginación y un filtro inteligente para ver solo los ingresos pendientes.
                     </li>
                      <li>
-                        <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite registrar conteos físicos de un producto en una ubicación específica. Ahora incluye un **&quot;Modo Escáner&quot;**.
+                        <strong>Toma de Inventario Físico (<ClipboardCheck className="inline h-4 w-4"/>):</strong> Permite registrar conteos físicos de un producto en una ubicación específica. Ahora incluye un <strong>&quot;Modo Escáner&quot;</strong>.
                     </li>
                 </ul>
             </div>
