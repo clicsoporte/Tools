@@ -17,7 +17,6 @@ import QRCode from 'qrcode';
 import JsBarcode from 'jsbarcode';
 import { format } from 'date-fns';
 
-
 type WizardStep = 'select_product' | 'select_location' | 'confirm_suggested' | 'confirm_new' | 'finished';
 
 const renderLocationPathAsString = (locationId: number | null, locations: WarehouseLocation[]): string => {
@@ -165,7 +164,12 @@ export const useReceivingWizard = () => {
                     locationId: state.newLocationId,
                     clientId: null,
                     updatedBy: user.name,
+                    isExclusive: 0,
+                    requiresCertificate: 0,
                 });
+                // Re-fetch item locations to update suggestions for the next run
+                const updatedItemLocations = await getAllItemLocations();
+                updateState({ itemLocations: updatedItemLocations });
             }
 
             const newUnit = await addInventoryUnit({
