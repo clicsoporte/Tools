@@ -1,5 +1,5 @@
 /**
- * @fileoverview Hook to manage the state and logic for the receiving wizard.
+ * @fileoverview Hook to manage the logic for the receiving wizard.
  */
 'use client';
 
@@ -52,7 +52,7 @@ export const useReceivingWizard = () => {
         humanReadableId: '',
         documentId: '',
         erpDocumentId: '',
-        saveAsDefault: false,
+        saveAsDefault: true,
         lastCreatedUnit: null as InventoryUnit | null,
         isMixedLocationConfirmOpen: false,
         conflictingItems: [] as Product[],
@@ -152,6 +152,15 @@ export const useReceivingWizard = () => {
                 break;
         }
     };
+    
+    const refreshItemLocations = useCallback(async () => {
+        try {
+            const itemLocs = await getAllItemLocations();
+            updateState({ itemLocations: itemLocs });
+        } catch (error) {
+            logError("Failed to refresh item locations in wizard", { error });
+        }
+    }, [updateState]);
 
     const performRegistration = async () => {
         if (!user || !state.selectedProduct || !state.newLocationId || !state.quantity) return;
@@ -159,7 +168,7 @@ export const useReceivingWizard = () => {
         
         try {
             if (state.saveAsDefault) {
-                await assignItemToLocation({
+                 await assignItemToLocation({
                     itemId: state.selectedProduct.id,
                     locationId: state.newLocationId,
                     clientId: null,
@@ -168,8 +177,7 @@ export const useReceivingWizard = () => {
                     requiresCertificate: 0,
                 });
                 // Re-fetch item locations to update suggestions for the next run
-                const updatedItemLocations = await getAllItemLocations();
-                updateState({ itemLocations: updatedItemLocations });
+                await refreshItemLocations();
             }
 
             const newUnit = await addInventoryUnit({
@@ -229,7 +237,7 @@ export const useReceivingWizard = () => {
             humanReadableId: '',
             documentId: '',
             erpDocumentId: '',
-            saveAsDefault: false,
+            saveAsDefault: true,
             lastCreatedUnit: null,
         });
     };
