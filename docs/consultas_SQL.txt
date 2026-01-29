@@ -1,0 +1,93 @@
+==================================================
+Consultas SQL Predefinidas para Importación
+==================================================
+
+Este archivo contiene las consultas SQL por defecto que utiliza el sistema
+en el modo de importación "Desde SQL Server". Estas consultas pueden ser
+modificadas desde la interfaz de Administración > Importar Datos.
+
+---
+-- Clientes
+---
+SELECT [CLIENTE], [NOMBRE], [DIRECCION], [TELEFONO1], [CONTRIBUYENTE], [MONEDA], [LIMITE_CREDITO], [CONDICION_PAGO], [VENDEDOR], [ACTIVO], [E_MAIL], [EMAIL_DOC_ELECTRONICO] FROM [GAREND].[CLIENTE]
+
+
+---
+-- Artículos
+---
+SELECT [ARTICULO], [DESCRIPCION], [CLASIFICACION_2], [ULTIMO_INGRESO], [ACTIVO], [NOTAS], [UNIDAD_VENTA], [CANASTA_BASICA], [CODIGO_HACIENDA], [CODIGO_BARRAS_VENT] FROM [SOFTLAND].[GAREND].[ARTICULO]
+
+
+---
+-- Exoneraciones
+---
+SELECT [CODIGO], [DESCRIPCION], [CLIENTE], [NUM_AUTOR], [FECHA_RIGE], [FECHA_VENCE], [PORCENTAJE], [TIPO_DOC], [NOMBRE_INSTITUCION], [CODIGO_INSTITUCION] FROM [GAREND].[EXENCION]
+
+
+---
+-- Existencias (Inventario)
+---
+SELECT [ARTICULO], [BODEGA], [CANT_DISPONIBLE] FROM [GAREND].[EXISTENCIA_BODEGA]
+
+
+---
+-- Proveedores
+---
+SELECT [PROVEEDOR], [NOMBRE], [ALIAS], [E_MAIL], [TELEFONO1] FROM [GAREND].[PROVEEDOR]
+
+
+---
+-- Cabeceras de Pedidos de Venta (ERP)
+-- Nota: Filtra los pedidos de los últimos 60 días que no estén Facturados (F) o Anulados (C).
+---
+SELECT T0.[PEDIDO], T0.[ESTADO], T0.[CLIENTE], T0.[FECHA_PEDIDO], T0.[FECHA_PROMETIDA], T0.[ORDEN_COMPRA], T0.[TOTAL_UNIDADES], T0.[MONEDA_PEDIDO], T0.[USUARIO] FROM [GAREND].[PEDIDO] AS T0 WHERE T0.[FECHA_PEDIDO] >= DATEADD(day, -60, GETDATE()) AND T0.[ESTADO] NOT IN ('F', 'C') ORDER BY T0.[FECHA_PEDIDO] DESC
+
+
+---
+-- Líneas de Pedidos de Venta (ERP)
+-- Nota: Filtra las líneas correspondientes a las cabeceras de los últimos 60 días.
+---
+SELECT T1.[PEDIDO], T1.[PEDIDO_LINEA], T1.[ARTICULO], T1.[CANTIDAD_PEDIDA], T1.[PRECIO_UNITARIO] FROM [GAREND].[PEDIDO_LINEA] AS T1 INNER JOIN [GAREND].[PEDIDO] AS T0 ON T1.PEDIDO = T0.PEDIDO WHERE T0.FECHA_PEDIDO >= DATEADD(day, -60, GETDATE()) AND T1.[ESTADO] NOT IN ('F', 'C')
+
+
+---
+-- Cabeceras de Órdenes de Compra (ERP)
+---
+SELECT [ORDEN_COMPRA], [PROVEEDOR], [FECHA_HORA], [ESTADO], [CreatedBy] FROM [SOFTLAND].[GAREND].[ORDEN_COMPRA]
+
+
+---
+-- Líneas de Órdenes de Compra (ERP)
+---
+SELECT [ORDEN_COMPRA], [ARTICULO], [CANTIDAD_ORDENADA] FROM [SOFTLAND].[GAREND].[ORDEN_COMPRA_LINEA]
+
+
+---
+-- Ubicaciones (Legacy - si se usara)
+---
+SELECT [CODIGO], [P. HORIZONTAL], [P. VERTICAL], [RACK], [CLIENTE], [DESCRIPCION] FROM [GAREND].[UBICACION]
+
+
+---
+-- Empleados (RRHH - Sin consulta por defecto)
+---
+
+
+---
+-- Departamentos (RRHH - Sin consulta por defecto)
+---
+
+
+---
+-- Puestos (RRHH - Sin consulta por defecto)
+---
+
+
+---
+-- Nóminas (RRHH - Sin consulta por defecto)
+---
+
+
+---
+-- Vendedores (RRHH - Sin consulta por defecto)
+---
