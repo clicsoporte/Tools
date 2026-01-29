@@ -69,25 +69,30 @@ SELECT [CODIGO], [P. HORIZONTAL], [P. VERTICAL], [RACK], [CLIENTE], [DESCRIPCION
 
 
 ---
--- Empleados (RRHH - Sin consulta por defecto)
+-- Empleados (RRHH)
 ---
+SELECT [EMPLEADO], [NOMBRE], [ACTIVO], [DEPARTAMENTO], [PUESTO], [NOMINA] FROM [SOFTLAND].[GAREND].[EMPLEADO]
 
 
 ---
--- Departamentos (RRHH - Sin consulta por defecto)
+-- Departamentos (RRHH)
 ---
+SELECT [DEPARTAMENTO], [DESCRIPCION], [ACTIVO] FROM [SOFTLAND].[GAREND].[DEPARTAMENTO]
 
 
 ---
--- Puestos (RRHH - Sin consulta por defecto)
+-- Puestos (RRHH)
 ---
+SELECT [PUESTO], [DESCRIPCION], [ACTIVO] FROM [SOFTLAND].[GAREND].[PUESTO]
 
 
 ---
--- Nóminas (RRHH - Sin consulta por defecto)
+-- Nóminas (RRHH)
 ---
+SELECT [NOMINA], [DESCRIPCION], [TIPO_NOMINA] FROM [SOFTLAND].[GAREND].[NOMINA]
 
 
 ---
--- Vendedores (RRHH - Sin consulta por defecto)
+-- Vendedores (RRHH)
 ---
+SELECT [VENDEDOR], [NOMBRE], [EMPLEADO] FROM [SOFTLAND].[GAREND].[VENDEDOR]
