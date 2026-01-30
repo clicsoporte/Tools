@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
@@ -1619,20 +1620,20 @@ export async function runDatabaseAudit(userName: string): Promise<AuditResult[]>
             const db = await connectDb(dbModule.dbFile);
             
             // Check for failed migration artifacts
-            const oldTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%_old'`).get() as { name: string } | undefined;
-            const tempTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%_temp_migration'`).get() as { name: string } | undefined;
+            const oldTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%_old'").get() as { name: string } | undefined;
+            const tempTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%_temp_migration'").get() as { name: string } | undefined;
 
             if (oldTable) {
                 audit.status = 'ERROR';
                 overallStatus = 'ERROR';
-                const issue = `MIGRACIÓN FALLIDA: Se encontró una tabla de respaldo '${oldTable.name}'. Esto indica que una actualización anterior falló.`;
+                const issue = "MIGRACIÓN FALLIDA: Se encontró una tabla de respaldo '" + oldTable.name + "'. Esto indica que una actualización anterior falló.";
                 audit.issues.push(issue);
                 allIssues.push(issue);
             }
              if (tempTable) {
                 audit.status = 'ERROR';
                 overallStatus = 'ERROR';
-                const issue = `MIGRACIÓN INCOMPLETA: Se encontró una tabla temporal '${tempTable.name}'.`;
+                const issue = "MIGRACIÓN INCOMPLETA: Se encontró una tabla temporal '" + tempTable.name + "'.";
                 audit.issues.push(issue);
                 allIssues.push(issue);
             }
@@ -1656,7 +1657,7 @@ export async function runDatabaseAudit(userName: string): Promise<AuditResult[]>
                     if (!existingColumns.has(expectedColumn)) {
                         audit.status = 'ERROR';
                         overallStatus = 'ERROR';
-                        const issue = `FALTA COLUMNA: '${expectedColumn}' en la tabla '${expectedTable}' de ${dbModule.dbFile}.`;
+                        const issue = "FALTA COLUMNA: '" + expectedColumn + "' en la tabla '" + expectedTable + "' de " + dbModule.dbFile + ".";
                         audit.issues.push(issue);
                         allIssues.push(issue);
                     }
@@ -1665,7 +1666,7 @@ export async function runDatabaseAudit(userName: string): Promise<AuditResult[]>
         } catch (error: any) {
             audit.status = 'ERROR';
             overallStatus = 'ERROR';
-            const issue = `Error al auditar '${dbModule.name}': ${error.message}`;
+            const issue = "Error al auditar '" + dbModule.name + "': " + error.message;
             audit.issues.push(issue);
             allIssues.push(issue);
         }
@@ -1727,3 +1728,5 @@ export async function getActiveWizardSession(userId: number): Promise<WizardSess
     const row = db.prepare(`SELECT activeWizardSession FROM users WHERE id = ?`).get(userId) as { activeWizardSession: string | null } | undefined;
     return row?.activeWizardSession ? JSON.parse(row.activeWizardSession) : null;
 }
+
+    
