@@ -1620,20 +1620,20 @@ export async function runDatabaseAudit(userName: string): Promise<AuditResult[]>
             const db = await connectDb(dbModule.dbFile);
             
             // Check for failed migration artifacts
-            const oldTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%_old'").get() as { name: string } | undefined;
-            const tempTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%_temp_migration'").get() as { name: string } | undefined;
+            const oldTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%_old'`).get() as { name: string } | undefined;
+            const tempTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%_temp_migration'`).get() as { name: string } | undefined;
 
             if (oldTable) {
                 audit.status = 'ERROR';
                 overallStatus = 'ERROR';
-                const issue = "MIGRACIÓN FALLIDA: Se encontró una tabla de respaldo '" + oldTable.name + "'. Esto indica que una actualización anterior falló.";
+                const issue = `MIGRACIÓN FALLIDA: Se encontró una tabla de respaldo &apos;${oldTable.name}&apos;. Esto indica que una actualización anterior falló.`;
                 audit.issues.push(issue);
                 allIssues.push(issue);
             }
              if (tempTable) {
                 audit.status = 'ERROR';
                 overallStatus = 'ERROR';
-                const issue = "MIGRACIÓN INCOMPLETA: Se encontró una tabla temporal '" + tempTable.name + "'.";
+                const issue = `MIGRACIÓN INCOMPLETA: Se encontró una tabla temporal &apos;${tempTable.name}&apos;.`;
                 audit.issues.push(issue);
                 allIssues.push(issue);
             }
@@ -1644,7 +1644,7 @@ export async function runDatabaseAudit(userName: string): Promise<AuditResult[]>
                 if (tableInfo.length === 0) {
                     audit.status = 'ERROR';
                     overallStatus = 'ERROR';
-                    const issue = `FALTA TABLA: La tabla '${expectedTable}' no existe en ${dbModule.dbFile}.`;
+                    const issue = `FALTA TABLA: La tabla &apos;${expectedTable}&apos; no existe en ${dbModule.dbFile}.`;
                     audit.issues.push(issue);
                     allIssues.push(issue);
                     continue; // Skip column check for this table
@@ -1657,7 +1657,7 @@ export async function runDatabaseAudit(userName: string): Promise<AuditResult[]>
                     if (!existingColumns.has(expectedColumn)) {
                         audit.status = 'ERROR';
                         overallStatus = 'ERROR';
-                        const issue = "FALTA COLUMNA: '" + expectedColumn + "' en la tabla '" + expectedTable + "' de " + dbModule.dbFile + ".";
+                        const issue = `FALTA COLUMNA: &apos;${expectedColumn}&apos; en la tabla &apos;${expectedTable}&apos; de ${dbModule.dbFile}.`;
                         audit.issues.push(issue);
                         allIssues.push(issue);
                     }
@@ -1666,7 +1666,7 @@ export async function runDatabaseAudit(userName: string): Promise<AuditResult[]>
         } catch (error: any) {
             audit.status = 'ERROR';
             overallStatus = 'ERROR';
-            const issue = "Error al auditar '" + dbModule.name + "': " + error.message;
+            const issue = `Error al auditar &apos;${dbModule.name}&apos;: ${error.message}`;
             audit.issues.push(issue);
             allIssues.push(issue);
         }
