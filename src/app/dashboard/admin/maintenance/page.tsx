@@ -67,23 +67,23 @@ export default function MaintenancePage() {
     // State for module reset
     const [isResetConfirmOpen, setResetConfirmOpen] = useState(false);
     const [resetStep, setResetStep] = useState(0);
-    const [resetConfirmationText, setResetConfirmationText] = useState('');
-    const [moduleToReset, setModuleToReset] = useState<string>('');
+    const [resetConfirmationText, setResetConfirmationText] = useState("");
+    const [moduleToReset, setModuleToReset] = useState<string>("");
 
     // State for full reset
     const [isFullResetConfirmOpen, setFullResetConfirmOpen] = useState(false);
     const [fullResetStep, setFullResetStep] = useState(0);
-    const [fullResetConfirmationText, setFullResetConfirmationText] = useState('');
+    const [fullResetConfirmationText, setFullResetConfirmationText] = useState("");
 
     const [showAllRestorePoints, setShowAllRestorePoints] = useState(false);
-    const [selectedRestoreTimestamp, setSelectedRestoreTimestamp] = useState<string>('');
+    const [selectedRestoreTimestamp, setSelectedRestoreTimestamp] = useState<string>("");
 
     // State for single module restore
     const [isSingleRestoreOpen, setIsSingleRestoreOpen] = useState(false);
-    const [moduleToRestore, setModuleToRestore] = useState<string>('');
+    const [moduleToRestore, setModuleToRestore] = useState<string>("");
     const [fileToRestore, setFileToRestore] = useState<File | null>(null);
     const [singleRestoreStep, setSingleRestoreStep] = useState(0);
-    const [singleRestoreConfirmationText, setSingleRestoreConfirmationText] = useState('');
+    const [singleRestoreConfirmationText, setSingleRestoreConfirmationText] = useState("");
     
     // State for audit
     const [isAuditing, setIsAuditing] = useState(false);
@@ -242,7 +242,7 @@ export default function MaintenancePage() {
     }
 
     const handleSingleModuleRestore = async () => {
-        if (singleRestoreStep !== 2 || singleRestoreConfirmationText !== 'RESTAURAR' || !moduleToRestore || !fileToRestore) {
+        if (singleRestoreStep !== 2 || singleRestoreConfirmationText !== "RESTAURAR" || !moduleToRestore || !fileToRestore) {
             toast({ title: "Confirmación requerida", description: "Debe seleccionar un módulo, un archivo y seguir los pasos para confirmar.", variant: "destructive" });
             return;
         }
@@ -271,7 +271,7 @@ export default function MaintenancePage() {
     };
 
     const handleFactoryReset = async () => {
-        if (resetStep !== 2 || resetConfirmationText !== 'RESETEAR' || !moduleToReset) {
+        if (resetStep !== 2 || resetConfirmationText !== "RESETEAR" || !moduleToReset) {
             toast({ title: "Confirmación requerida", description: "Debe seleccionar un módulo y seguir los pasos para confirmar la acción.", variant: "destructive" });
             return;
         }
@@ -301,7 +301,7 @@ export default function MaintenancePage() {
     }
     
     const handleFullFactoryReset = async () => {
-        if (fullResetStep !== 2 || fullResetConfirmationText !== 'RESETEAR TODO') {
+        if (fullResetStep !== 2 || fullResetConfirmationText !== "RESETEAR TODO") {
             toast({ title: "Confirmación Estricta Requerida", description: "Debe seguir todos los pasos para confirmar esta acción irreversible.", variant: "destructive" });
             return;
         }
@@ -705,7 +705,7 @@ export default function MaintenancePage() {
                                                 <h3 className="font-semibold">Restaurar Módulo Individual</h3>
                                                 <p className="text-sm text-muted-foreground">Reemplaza la base de datos de un módulo con un archivo .db que subas desde tu computadora.</p>
                                                 <Dialog open={isSingleRestoreOpen} onOpenChange={(open: boolean) => {
-                                                    if (!open) { setSingleRestoreStep(0); setSingleRestoreConfirmationText(''); setModuleToRestore(''); setFileToRestore(null); }
+                                                    if (!open) { setSingleRestoreStep(0); setSingleRestoreConfirmationText(""); setModuleToRestore(""); setFileToRestore(null); }
                                                     setIsSingleRestoreOpen(open);
                                                 }}>
                                                     <DialogTrigger asChild>
@@ -736,13 +736,13 @@ export default function MaintenancePage() {
                                                             {singleRestoreStep > 0 && (
                                                                 <div className="space-y-2">
                                                                     <Label htmlFor="restore-single-confirmation-text">Para confirmar, escribe &quot;RESTAURAR&quot;:</Label>
-                                                                    <Input id="restore-single-confirmation-text" value={singleRestoreConfirmationText} onChange={(e) => { setSingleRestoreConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESTAURAR') {setSingleRestoreStep(2);} else {setSingleRestoreStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
+                                                                    <Input id="restore-single-confirmation-text" value={singleRestoreConfirmationText} onChange={(e) => { setSingleRestoreConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === "RESTAURAR") {setSingleRestoreStep(2);} else {setSingleRestoreStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
                                                                 </div>
                                                             )}
                                                         </div>
                                                         <DialogFooter>
                                                             <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                                                            <Button variant="destructive" onClick={handleSingleModuleRestore} disabled={isProcessing || singleRestoreStep !== 2 || singleRestoreConfirmationText !== 'RESTAURAR'}>
+                                                            <Button variant="destructive" onClick={handleSingleModuleRestore} disabled={isProcessing || singleRestoreStep !== 2 || singleRestoreConfirmationText !== "RESTAURAR"}>
                                                                 {processingAction === 'single-restore' ? <Loader2 className="mr-2 animate-spin"/> : <RotateCcw className="mr-2"/>} Sí, Restaurar Módulo
                                                             </Button>
                                                         </DialogFooter>
@@ -755,20 +755,20 @@ export default function MaintenancePage() {
                                             <p className="text-sm text-muted-foreground">Borra todos los datos de un módulo y lo devuelve a su estado inicial. Útil si un módulo está corrupto.</p>
                                             <div className='flex flex-wrap gap-4 items-end'>
                                                 <div className="flex-1 min-w-[200px] space-y-2"><Label htmlFor="reset-module-select">Módulo a Resetear</Label><Select value={moduleToReset} onValueChange={setModuleToReset}><SelectTrigger id="reset-module-select"><SelectValue placeholder="Seleccionar..." /></SelectTrigger><SelectContent>{dbModules.map(m => (<SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>))}</SelectContent></Select></div>
-                                                <AlertDialog open={isResetConfirmOpen} onOpenChange={(open: boolean) => { setResetConfirmOpen(open); if(!open) { setResetStep(0); setResetConfirmationText(''); }}}>
+                                                <AlertDialog open={isResetConfirmOpen} onOpenChange={(open: boolean) => { setResetConfirmOpen(open); if(!open) { setResetStep(0); setResetConfirmationText(""); }}}>
                                                     <AlertDialogTrigger asChild><Button variant="destructive" disabled={isProcessing || !moduleToReset}><TrashIcon className="mr-2 h-4 w-4" />Resetear Módulo</Button></AlertDialogTrigger>
                                                     <AlertDialogContent>
                                                         <AlertDialogHeader>
                                                             <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitle>
-                                                            <AlertDialogDescription>Esta acción borrará **TODA** la información del módulo &quot;{dbModules.find(m => m.id === moduleToReset)?.name || ''}&quot;.</AlertDialogDescription>
+                                                            <AlertDialogDescription>Esta acción borrará **TODA** la información del módulo &quot;{dbModules.find(m => m.id === moduleToReset)?.name || ""}&quot;.</AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <div className="py-4 space-y-4">
                                                             <div className="flex items-center space-x-2"><Checkbox id="reset-confirm-checkbox" onCheckedChange={(checked) => setResetStep(checked ? 1 : 0)} /><Label htmlFor="reset-confirm-checkbox" className="font-medium text-destructive">Entiendo las consecuencias.</Label></div>
-                                                            {resetStep > 0 && (<div className="space-y-2"><Label htmlFor="reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR&quot;:</Label><Input id="reset-confirmation-text" value={resetConfirmationText} onChange={(e) => { setResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR') {setResetStep(2);} else {setResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" /></div>)}
+                                                            {resetStep > 0 && (<div className="space-y-2"><Label htmlFor="reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR&quot;:</Label><Input id="reset-confirmation-text" value={resetConfirmationText} onChange={(e) => { setResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === "RESETEAR") {setResetStep(2);} else {setResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" /></div>)}
                                                         </div>
                                                         <AlertDialogFooter>
                                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={handleFactoryReset} disabled={isProcessing || resetStep !== 2 || resetConfirmationText !== 'RESETEAR'}>{processingAction === 'factory-reset' ? <Loader2 className="mr-2 animate-spin"/> : <TrashIcon className="mr-2"/>}Sí, Borrar Módulo</AlertDialogAction>
+                                                            <AlertDialogAction onClick={handleFactoryReset} disabled={isProcessing || resetStep !== 2 || resetConfirmationText !== "RESETEAR"}>{processingAction === 'factory-reset' ? <Loader2 className="mr-2 animate-spin"/> : <TrashIcon className="mr-2"/>}Sí, Borrar Módulo</AlertDialogAction>
                                                         </AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
@@ -777,7 +777,7 @@ export default function MaintenancePage() {
                                          <div className="space-y-4 rounded-lg border p-4">
                                             <h3 className="font-semibold">Resetear Todo el Sistema</h3>
                                             <p className="text-sm text-muted-foreground">Devuelve la aplicación completa a su estado de fábrica. Se borrarán todos los usuarios, configuraciones y datos. Es una acción irreversible.</p>
-                                            <AlertDialog open={isFullResetConfirmOpen} onOpenChange={(open: boolean) => { setFullResetConfirmOpen(open); if(!open) { setFullResetStep(0); setFullResetConfirmationText(''); }}}>
+                                            <AlertDialog open={isFullResetConfirmOpen} onOpenChange={(open: boolean) => { setFullResetConfirmOpen(open); if(!open) { setFullResetStep(0); setFullResetConfirmationText(""); }}}>
                                                 <AlertDialogTrigger asChild><Button variant="destructive" className='w-full'><Skull className="mr-2 h-4 w-4" />Resetear Sistema de Fábrica</Button></AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
@@ -786,11 +786,11 @@ export default function MaintenancePage() {
                                                     </AlertDialogHeader>
                                                     <div className="py-4 space-y-4">
                                                         <div className="flex items-center space-x-2"><Checkbox id="full-reset-confirm-checkbox" onCheckedChange={(checked) => setFullResetStep(checked ? 1 : 0)} /><Label htmlFor="full-reset-confirm-checkbox" className="font-medium text-destructive">Entiendo que esto borrará toda la información.</Label></div>
-                                                        {fullResetStep > 0 && (<div className="space-y-2"><Label htmlFor="full-reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR TODO&quot;:</Label><Input id="full-reset-confirmation-text" value={fullResetConfirmationText} onChange={(e) => { setFullResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR TODO') {setFullResetStep(2);} else {setFullResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" /></div>)}
+                                                        {fullResetStep > 0 && (<div className="space-y-2"><Label htmlFor="full-reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR TODO&quot;:</Label><Input id="full-reset-confirmation-text" value={fullResetConfirmationText} onChange={(e) => { setFullResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === "RESETEAR TODO") {setFullResetStep(2);} else {setFullResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" /></div>)}
                                                     </div>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={handleFullFactoryReset} disabled={isProcessing || fullResetStep !== 2 || fullResetConfirmationText !== 'RESETEAR TODO'}>{processingAction === 'full-factory-reset' ? <Loader2 className="mr-2 animate-spin"/> : <Skull className="mr-2"/>}Sí, Borrar Todo</AlertDialogAction>
+                                                        <AlertDialogAction onClick={handleFullFactoryReset} disabled={isProcessing || fullResetStep !== 2 || fullResetConfirmationText !== "RESETEAR TODO"}>{processingAction === 'full-factory-reset' ? <Loader2 className="mr-2 animate-spin"/> : <Skull className="mr-2"/>}Sí, Borrar Todo</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
