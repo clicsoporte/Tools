@@ -33,7 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules, getCurrentVersion, runDatabaseAudit, runSingleModuleMigration } from '@/modules/core/lib/db';
 import { cleanupAllExportFiles } from '@/modules/core/lib/actions';
-import { migrateLegacyInventoryUnits } from '@/modules/warehouse/lib/actions';
+import { migrateLegacyInventoryUnits, initializePopulationStatus } from '@/modules/warehouse/lib/actions';
 import type { UpdateBackupInfo, DatabaseModule, AuditResult } from '@/modules/core/types';
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -91,6 +91,7 @@ export default function MaintenancePage() {
 
     // State for legacy migration
     const [isMigratingLegacy, setIsMigratingLegacy] = useState(false);
+    const [isInitializingPopulation, setIsInitializingPopulation] = useState(false);
 
 
     const fetchMaintenanceData = useCallback(async () => {
@@ -176,7 +177,7 @@ export default function MaintenancePage() {
                 duration: 10000,
             });
             
-            await logWarn(`System restore initiated by ${user?.name} from backup point ${selectedRestoreTimestamp}. A manual server restart is required.`);
+            await logWarn(`System restore initiated by user ${user?.name} from backup point ${selectedRestoreTimestamp}. A manual server restart is required.`);
 
         } catch (error: any) {
              toast({
@@ -369,6 +370,21 @@ export default function MaintenancePage() {
             toast({ title: "Error de Migración", description: "No se pudo completar el proceso.", variant: "destructive" });
         } finally {
             setIsMigratingLegacy(false);
+        }
+    };
+
+    const handleInitializePopulationStatus = async () => {
+        if (!user) return;
+        setIsInitializingPopulation(true);
+        try {
+            const { updated } = await initializePopulationStatus();
+            toast({ title: "Inicialización Completa", description: `Se revisaron y actualizaron ${updated} ubicaciones al nuevo sistema de estado.` });
+            logInfo(`User ${user.name} initialized the population status for ${updated} locations.`);
+        } catch (error: any) {
+            logError("Error initializing population status", { error: error.message });
+            toast({ title: "Error de Inicialización", description: "No se pudo completar el proceso.", variant: "destructive" });
+        } finally {
+            setIsInitializingPopulation(false);
         }
     };
 
@@ -592,7 +608,7 @@ export default function MaintenancePage() {
                                             </div>
                                         </div>
                                     </AccordionTrigger>
-                                    <AccordionContent className="p-6 pt-0 space-y-6">
+                                    <AccordionContent className="p-6 pt-0 grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2 rounded-lg border p-4">
                                             <h3 className="font-semibold">Actualizar Ingresos de Almacén Antiguos</h3>
                                             <p className="text-sm text-muted-foreground">
@@ -615,6 +631,32 @@ export default function MaintenancePage() {
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                                         <AlertDialogAction onClick={handleRunLegacyMigration}>Sí, actualizar</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                         <div className="space-y-2 rounded-lg border p-4">
+                                            <h3 className="font-semibold">Inicializar Estado de Poblado</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                Analiza las ubicaciones y asignaciones existentes para establecer el estado inicial ('Ocupado' o 'Pendiente'). Ejecutar después de actualizar a v2.8+.
+                                            </p>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                     <Button variant="secondary" disabled={isInitializingPopulation}>
+                                                        {isInitializingPopulation ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle className="mr-2 h-4 w-4"/>}
+                                                        Inicializar Estado de Poblado
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Inicializar Estados de Ubicación?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            El sistema revisará todas las ubicaciones. Si una ya tiene un producto asignado, se marcará como 'Ocupada'; si no, como 'Pendiente'. Esto es seguro y solo afecta a ubicaciones no procesadas por el nuevo sistema.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={handleInitializePopulationStatus}>Sí, inicializar</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>

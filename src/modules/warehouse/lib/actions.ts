@@ -18,8 +18,8 @@ import {
     getAllItemLocations as getAllItemLocationsServer,
     assignItemToLocation as assignItemToLocationServer,
     unassignItemFromLocation as unassignItemFromLocationServer,
-    unassignItemFromLocationByProduct,
-    unassignItemFromLocationByLocationId,
+    unassignAllByProduct as unassignAllByProductServer,
+    unassignAllByLocation as unassignAllByLocationServer,
     getWarehouseData as getWarehouseDataServer,
     getMovements as getMovementsServer,
     addInventoryUnit as addInventoryUnitServer,
@@ -36,6 +36,7 @@ import {
     applyInventoryUnit as applyInventoryUnitServer,
     searchInventoryUnits as searchInventoryUnitsServer,
     migrateLegacyInventoryUnits as migrateLegacyInventoryUnitsServer,
+    initializePopulationStatus as initializePopulationStatusServer,
 } from './db';
 import { getStockSettings as getStockSettingsDb, saveStockSettings as saveStockSettingsDb } from '@/modules/core/lib/db';
 import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User, DateRange } from '@/modules/core/types';
@@ -104,12 +105,12 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
 }
 
 export async function unassignAllByProduct(itemId: string, userName: string): Promise<void> {
-    await unassignItemFromLocationByProduct(itemId);
+    await unassignAllByProductServer(itemId);
     await logWarn(`All assignments for product ${itemId} were deleted by ${userName}.`);
 }
 
 export async function unassignAllByLocation(locationId: number, userName: string): Promise<void> {
-    await unassignItemFromLocationByLocationId(locationId);
+    await unassignAllByLocationServer(locationId);
     await logWarn(`All assignments for location ID ${locationId} were deleted by ${userName}.`);
 }
 
@@ -166,4 +167,5 @@ export const getChildLocations = async (parentIds: number[]): Promise<WarehouseL
 
 // --- Migration Actions ---
 export const migrateLegacyInventoryUnits = async (): Promise<number> => migrateLegacyInventoryUnitsServer();
+export const initializePopulationStatus = async (): Promise<{ updated: number }> => initializePopulationStatusServer();
     

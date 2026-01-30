@@ -22,6 +22,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
             isLocked INTEGER DEFAULT 0,
             lockedBy TEXT,
             lockedBySessionId TEXT,
+            population_status TEXT DEFAULT 'P', -- 'P' for Pending, 'O' for Occupied, 'S' for Skipped
             FOREIGN KEY (parentId) REFERENCES locations(id) ON DELETE CASCADE
         );
 
@@ -120,6 +121,16 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
 
 export async function runWarehouseMigrations(db: import('better-sqlite3').Database) {
     try {
+        const locationsTableInfo = db.prepare(`PRAGMA table_info(locations)`).all() as { name: string }[];
+        if (locationsTableInfo.length > 0) {
+            if (!locationsTableInfo.some(c => c.name === 'population_status')) {
+                db.exec(`ALTER TABLE locations ADD COLUMN population_status TEXT DEFAULT 'P'`);
+            }
+             if (!locationsTableInfo.some(c => c.name === 'isLocked')) db.exec('ALTER TABLE locations ADD COLUMN isLocked INTEGER DEFAULT 0');
+            if (!locationsTableInfo.some(c => c.name === 'lockedBy')) db.exec('ALTER TABLE locations ADD COLUMN lockedBy TEXT');
+            if (!locationsTableInfo.some(c => c.name === 'lockedBySessionId')) db.exec('ALTER TABLE locations ADD COLUMN lockedBySessionId TEXT');
+        }
+        
         const inventoryTableInfo = db.prepare(`PRAGMA table_info(inventory)`).all() as { name: string }[];
         if (inventoryTableInfo.length > 0 && !inventoryTableInfo.some(c => c.name === 'updatedBy')) {
             db.exec('ALTER TABLE inventory ADD COLUMN updatedBy TEXT');
@@ -131,13 +142,6 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
             if (!itemLocationsTableInfo.some(c => c.name === 'updatedAt')) db.exec('ALTER TABLE item_locations ADD COLUMN updatedAt TEXT');
             if (!itemLocationsTableInfo.some(c => c.name === 'isExclusive')) db.exec('ALTER TABLE item_locations ADD COLUMN isExclusive INTEGER DEFAULT 0');
             if (!itemLocationsTableInfo.some(c => c.name === 'requiresCertificate')) db.exec('ALTER TABLE item_locations ADD COLUMN requiresCertificate INTEGER DEFAULT 0');
-        }
-        
-        const locationsTableInfo = db.prepare(`PRAGMA table_info(locations)`).all() as { name: string }[];
-        if (locationsTableInfo.length > 0) {
-            if (!locationsTableInfo.some(c => c.name === 'isLocked')) db.exec('ALTER TABLE locations ADD COLUMN isLocked INTEGER DEFAULT 0');
-            if (!locationsTableInfo.some(c => c.name === 'lockedBy')) db.exec('ALTER TABLE locations ADD COLUMN lockedBy TEXT');
-            if (!locationsTableInfo.some(c => c.name === 'lockedBySessionId')) db.exec('ALTER TABLE locations ADD COLUMN lockedBySessionId TEXT');
         }
         
         const unitsTableExists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='inventory_units'`).get();
@@ -509,33 +513,61 @@ export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, '
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { id, itemId, locationId, clientId, isExclusive, requiresCertificate, updatedBy } = payload;
     
-    if (id) { // Update existing
-        db.prepare('UPDATE item_locations SET clientId = ?, isExclusive = ?, requiresCertificate = ?, updatedBy = ?, updatedAt = datetime(\'now\') WHERE id = ?')
-          .run(clientId || null, isExclusive, requiresCertificate, updatedBy, id);
-        const updatedItem = db.prepare('SELECT * FROM item_locations WHERE id = ?').get(id) as ItemLocation;
-        return updatedItem;
-    } else { // Insert new
-        const info = db.prepare('INSERT INTO item_locations (itemId, locationId, clientId, isExclusive, requiresCertificate, updatedBy, updatedAt) VALUES (?, ?, ?, ?, ?, ?, datetime(\'now\'))')
-          .run(itemId, locationId, clientId || null, isExclusive, requiresCertificate, updatedBy);
-        const newItem = db.prepare('SELECT * FROM item_locations WHERE id = ?').get(info.lastInsertRowid) as ItemLocation;
-        return newItem;
-    }
-}
+    let savedItem: ItemLocation;
 
+    db.transaction(() => {
+        if (id) { // Update existing
+            db.prepare('UPDATE item_locations SET clientId = ?, isExclusive = ?, requiresCertificate = ?, updatedBy = ?, updatedAt = datetime(\'now\') WHERE id = ?')
+              .run(clientId || null, isExclusive, requiresCertificate, updatedBy, id);
+            savedItem = db.prepare('SELECT * FROM item_locations WHERE id = ?').get(id) as ItemLocation;
+        } else { // Insert new
+            const info = db.prepare('INSERT INTO item_locations (itemId, locationId, clientId, isExclusive, requiresCertificate, updatedBy, updatedAt) VALUES (?, ?, ?, ?, ?, ?, datetime(\'now\'))')
+              .run(itemId, locationId, clientId || null, isExclusive, requiresCertificate, updatedBy);
+            savedItem = db.prepare('SELECT * FROM item_locations WHERE id = ?').get(info.lastInsertRowid) as ItemLocation;
+        }
+        // Mark the location as occupied
+        db.prepare('UPDATE locations SET population_status = \'O\' WHERE id = ?').run(locationId);
+    })();
+    
+    return savedItem!;
+}
 
 export async function unassignItemFromLocation(itemLocationId: number): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
-    db.prepare('DELETE FROM item_locations WHERE id = ?').run(itemLocationId);
+    const location = db.prepare('SELECT locationId FROM item_locations WHERE id = ?').get(itemLocationId) as { locationId: number };
+    
+    db.transaction(() => {
+        db.prepare('DELETE FROM item_locations WHERE id = ?').run(itemLocationId);
+        // If this was the last assignment for this location, mark it as pending again.
+        const remaining = db.prepare('SELECT COUNT(*) as count FROM item_locations WHERE locationId = ?').get(location.locationId) as { count: number };
+        if (remaining.count === 0) {
+            db.prepare('UPDATE locations SET population_status = \'P\' WHERE id = ?').run(location.locationId);
+        }
+    })();
 }
 
-export async function unassignItemFromLocationByProduct(itemId: string): Promise<void> {
+export async function unassignAllByProduct(itemId: string): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
-    db.prepare('DELETE FROM item_locations WHERE itemId = ?').run(itemId);
+    const locationsToUpdate = db.prepare('SELECT DISTINCT locationId FROM item_locations WHERE itemId = ?').all(itemId).map((row: any) => row.locationId);
+    
+    db.transaction(() => {
+        db.prepare('DELETE FROM item_locations WHERE itemId = ?').run(itemId);
+        // Check each affected location and reset if it's now empty.
+        for (const locationId of locationsToUpdate) {
+            const remaining = db.prepare('SELECT COUNT(*) as count FROM item_locations WHERE locationId = ?').get(locationId) as { count: number };
+            if (remaining.count === 0) {
+                db.prepare('UPDATE locations SET population_status = \'P\' WHERE id = ?').run(locationId);
+            }
+        }
+    })();
 }
 
-export async function unassignItemFromLocationByLocationId(locationId: number): Promise<void> {
+export async function unassignAllByLocation(locationId: number): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
-    db.prepare('DELETE FROM item_locations WHERE locationId = ?').run(locationId);
+    db.transaction(() => {
+        db.prepare('DELETE FROM item_locations WHERE locationId = ?').run(locationId);
+        db.prepare('UPDATE locations SET population_status = \'P\' WHERE id = ?').run(locationId);
+    })();
 }
 
 
@@ -952,3 +984,36 @@ export async function migrateLegacyInventoryUnits(): Promise<number> {
     return updatedCount;
 }
 
+export async function initializePopulationStatus(): Promise<{ updated: number }> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    let updatedCount = 0;
+
+    const transaction = db.transaction(() => {
+        // Ensure the column exists
+        const tableInfo = db.prepare(`PRAGMA table_info(locations)`).all() as { name: string }[];
+        if (!tableInfo.some(c => c.name === 'population_status')) {
+            db.exec(`ALTER TABLE locations ADD COLUMN population_status TEXT DEFAULT 'P'`);
+        }
+        
+        const allLocations = db.prepare('SELECT id FROM locations').all() as { id: number }[];
+        const occupiedLocationIds = new Set(
+            db.prepare('SELECT DISTINCT locationId FROM item_locations WHERE locationId IS NOT NULL').all().map((row: any) => row.locationId)
+        );
+
+        const updateStmt = db.prepare('UPDATE locations SET population_status = ? WHERE id = ?');
+
+        for (const location of allLocations) {
+            const currentStatus = db.prepare('SELECT population_status FROM locations WHERE id = ?').get(location.id) as { population_status: string } | undefined;
+            
+            // Only update if the status is the default 'P' (Pending) to avoid overwriting 'S' (Skipped)
+            if (currentStatus?.population_status === 'P') {
+                const newStatus = occupiedLocationIds.has(location.id) ? 'O' : 'P';
+                updateStmt.run(newStatus, location.id);
+                updatedCount++;
+            }
+        }
+    });
+
+    transaction();
+    return { updated: updatedCount };
+}
