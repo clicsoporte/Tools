@@ -10,6 +10,12 @@ import path from 'path';
 
 const WAREHOUSE_DB_FILE = 'warehouse.db';
 
+const updateLocationMixedStatus = (db: import('better-sqlite3').Database, locationId: number) => {
+    const result = db.prepare('SELECT COUNT(DISTINCT itemId) as count FROM item_locations WHERE locationId = ?').get(locationId) as { count: number };
+    const newIsMixed = result.count > 1 ? 1 : 0;
+    db.prepare('UPDATE locations SET is_mixed = ? WHERE id = ?').run(newIsMixed, locationId);
+};
+
 // This function is automatically called when the database is first created.
 export async function initializeWarehouseDb(db: import('better-sqlite3').Database) {
     const schema = `
@@ -23,6 +29,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
             lockedBy TEXT,
             lockedBySessionId TEXT,
             population_status TEXT DEFAULT 'P', -- 'P' for Pending, 'O' for Occupied, 'S' for Skipped
+            is_mixed INTEGER DEFAULT 0, -- 0 for false, 1 for true
             FOREIGN KEY (parentId) REFERENCES locations(id) ON DELETE CASCADE
         );
 
@@ -123,12 +130,11 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
     try {
         const locationsTableInfo = db.prepare(`PRAGMA table_info(locations)`).all() as { name: string }[];
         if (locationsTableInfo.length > 0) {
-            if (!locationsTableInfo.some(c => c.name === 'population_status')) {
-                db.exec(`ALTER TABLE locations ADD COLUMN population_status TEXT DEFAULT 'P'`);
-            }
-             if (!locationsTableInfo.some(c => c.name === 'isLocked')) db.exec('ALTER TABLE locations ADD COLUMN isLocked INTEGER DEFAULT 0');
+            if (!locationsTableInfo.some(c => c.name === 'population_status')) db.exec(`ALTER TABLE locations ADD COLUMN population_status TEXT DEFAULT 'P'`);
+            if (!locationsTableInfo.some(c => c.name === 'isLocked')) db.exec('ALTER TABLE locations ADD COLUMN isLocked INTEGER DEFAULT 0');
             if (!locationsTableInfo.some(c => c.name === 'lockedBy')) db.exec('ALTER TABLE locations ADD COLUMN lockedBy TEXT');
             if (!locationsTableInfo.some(c => c.name === 'lockedBySessionId')) db.exec('ALTER TABLE locations ADD COLUMN lockedBySessionId TEXT');
+            if (!locationsTableInfo.some(c => c.name === 'is_mixed')) db.exec('ALTER TABLE locations ADD COLUMN is_mixed INTEGER DEFAULT 0');
         }
         
         const inventoryTableInfo = db.prepare(`PRAGMA table_info(inventory)`).all() as { name: string }[];
@@ -527,6 +533,7 @@ export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, '
         }
         // Mark the location as occupied
         db.prepare('UPDATE locations SET population_status = \'O\' WHERE id = ?').run(locationId);
+        updateLocationMixedStatus(db, locationId!);
     })();
     
     return savedItem!;
@@ -541,7 +548,9 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
         // If this was the last assignment for this location, mark it as pending again.
         const remaining = db.prepare('SELECT COUNT(*) as count FROM item_locations WHERE locationId = ?').get(location.locationId) as { count: number };
         if (remaining.count === 0) {
-            db.prepare('UPDATE locations SET population_status = \'P\' WHERE id = ?').run(location.locationId);
+            db.prepare('UPDATE locations SET population_status = \'P\', is_mixed = 0 WHERE id = ?').run(location.locationId);
+        } else {
+             updateLocationMixedStatus(db, location.locationId);
         }
     })();
 }
@@ -556,7 +565,9 @@ export async function unassignAllByProduct(itemId: string): Promise<void> {
         for (const locationId of locationsToUpdate) {
             const remaining = db.prepare('SELECT COUNT(*) as count FROM item_locations WHERE locationId = ?').get(locationId) as { count: number };
             if (remaining.count === 0) {
-                db.prepare('UPDATE locations SET population_status = \'P\' WHERE id = ?').run(locationId);
+                db.prepare('UPDATE locations SET population_status = \'P\', is_mixed = 0 WHERE id = ?').run(locationId);
+            } else {
+                updateLocationMixedStatus(db, locationId);
             }
         }
     })();
@@ -566,7 +577,7 @@ export async function unassignAllByLocation(locationId: number): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     db.transaction(() => {
         db.prepare('DELETE FROM item_locations WHERE locationId = ?').run(locationId);
-        db.prepare('UPDATE locations SET population_status = \'P\' WHERE id = ?').run(locationId);
+        db.prepare('UPDATE locations SET population_status = \'P\', is_mixed = 0 WHERE id = ?').run(locationId);
     })();
 }
 
@@ -1017,3 +1028,49 @@ export async function initializePopulationStatus(): Promise<{ updated: number }>
     transaction();
     return { updated: updatedCount };
 }
+
+export async function cleanupAndInitializeLocationFlags(): Promise<{ deletedCount: number; mixedCount: number; initializedCount: number; }> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    const transaction = db.transaction(() => {
+        // Step 1: Find and delete duplicate item_locations
+        const duplicateGroups = db.prepare(`
+            SELECT itemId, locationId
+            FROM item_locations
+            GROUP BY itemId, locationId
+            HAVING COUNT(id) > 1
+        `).all() as { itemId: string; locationId: number }[];
+
+        let deletedCount = 0;
+        for (const group of duplicateGroups) {
+            const idsToDelete = db.prepare(`
+                SELECT id FROM item_locations 
+                WHERE itemId = ? AND locationId = ? 
+                ORDER BY id DESC
+            `).all(group.itemId, group.locationId).map((row: any) => row.id).slice(1);
+            
+            if (idsToDelete.length > 0) {
+                const result = db.prepare(`DELETE FROM item_locations WHERE id IN (${idsToDelete.map(() => '?').join(',')})`).run(...idsToDelete);
+                deletedCount += result.changes;
+            }
+        }
+
+        // Step 2: Initialize/recalculate is_mixed flag for all locations
+        const allLocations = db.prepare('SELECT id FROM locations').all() as { id: number }[];
+        const updateStmt = db.prepare('UPDATE locations SET is_mixed = ? WHERE id = ?');
+        let mixedCount = 0;
+
+        for (const loc of allLocations) {
+            const result = db.prepare('SELECT COUNT(DISTINCT itemId) as count FROM item_locations WHERE locationId = ?').get(loc.id) as { count: number };
+            const isMixed = result.count > 1 ? 1 : 0;
+            if (isMixed === 1) {
+                mixedCount++;
+            }
+            updateStmt.run(isMixed, loc.id);
+        }
+
+        return { deletedCount, mixedCount, initializedCount: allLocations.length };
+    });
+
+    return transaction();
+}
+    

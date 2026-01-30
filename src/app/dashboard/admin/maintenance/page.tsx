@@ -505,7 +505,7 @@ export default function MaintenancePage() {
                                                         const backupInfo = updateBackups.find(b => b.date === ts);
                                                         return (
                                                             <SelectItem key={ts} value={ts}>
-                                                                {format(parseISO(ts), "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es })}
+                                                                {format(parseISO(ts), "dd/MM/yyyy &apos;a las&apos; HH:mm:ss", { locale: es })}
                                                                 {backupInfo?.version && <span className="ml-2 text-xs text-muted-foreground"> (v{backupInfo.version})</span>}
                                                             </SelectItem>
                                                         )
@@ -638,7 +638,7 @@ export default function MaintenancePage() {
                                          <div className="space-y-2 rounded-lg border p-4">
                                             <h3 className="font-semibold">Inicializar Estado de Poblado</h3>
                                             <p className="text-sm text-muted-foreground">
-                                                Analiza las ubicaciones y asignaciones existentes para establecer el estado inicial ('Ocupado' o 'Pendiente'). Ejecutar después de actualizar a v2.8+.
+                                                Analiza las ubicaciones y asignaciones existentes para establecer el estado inicial (&apos;Ocupado&apos; o &apos;Pendiente&apos;). Ejecutar después de actualizar a v2.8+.
                                             </p>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
@@ -651,7 +651,7 @@ export default function MaintenancePage() {
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>¿Inicializar Estados de Ubicación?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            El sistema revisará todas las ubicaciones. Si una ya tiene un producto asignado, se marcará como 'Ocupada'; si no, como 'Pendiente'. Esto es seguro y solo afecta a ubicaciones no procesadas por el nuevo sistema.
+                                                            El sistema revisará todas las ubicaciones. Si una ya tiene un producto asignado, se marcará como &apos;Ocupada&apos;; si no, como &apos;Pendiente&apos;. Esto es seguro y solo afecta a ubicaciones no procesadas por el nuevo sistema.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
@@ -812,5 +812,3 @@ export default function MaintenancePage() {
         </main>
     );
 }
-
-  
