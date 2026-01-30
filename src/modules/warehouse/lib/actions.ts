@@ -37,6 +37,7 @@ import {
     searchInventoryUnits as searchInventoryUnitsServer,
     migrateLegacyInventoryUnits as migrateLegacyInventoryUnitsServer,
     initializePopulationStatus as initializePopulationStatusServer,
+    cleanupAndInitializeLocationFlags as cleanupAndInitializeLocationFlagsServer,
 } from './db';
 import { getStockSettings as getStockSettingsDb, saveStockSettings as saveStockSettingsDb } from '@/modules/core/lib/db';
 import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User, DateRange } from '@/modules/core/types';
@@ -168,4 +169,10 @@ export const getChildLocations = async (parentIds: number[]): Promise<WarehouseL
 // --- Migration Actions ---
 export const migrateLegacyInventoryUnits = async (): Promise<number> => migrateLegacyInventoryUnitsServer();
 export const initializePopulationStatus = async (): Promise<{ updated: number }> => initializePopulationStatusServer();
+export const cleanupAndInitializeLocationFlags = async (): Promise<{ deletedCount: number; mixedCount: number; initializedCount: number; }> => {
+    logInfo('Cleanup and initialization of location flags initiated.');
+    const result = await cleanupAndInitializeLocationFlagsServer();
+    logInfo(`Cleanup complete. Deleted: ${result.deletedCount}, Marked as mixed: ${result.mixedCount}, Initialized: ${result.initializedCount}`);
+    return result;
+};
     

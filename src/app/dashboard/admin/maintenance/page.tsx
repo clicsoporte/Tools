@@ -33,7 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules, getCurrentVersion, runDatabaseAudit, runSingleModuleMigration } from '@/modules/core/lib/db';
 import { cleanupAllExportFiles } from '@/modules/core/lib/actions';
-import { migrateLegacyInventoryUnits, initializePopulationStatus } from '@/modules/warehouse/lib/actions';
+import { migrateLegacyInventoryUnits, initializePopulationStatus, cleanupAndInitializeLocationFlags } from '@/modules/warehouse/lib/actions';
 import type { UpdateBackupInfo, DatabaseModule, AuditResult } from '@/modules/core/types';
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -92,6 +92,7 @@ export default function MaintenancePage() {
     // State for legacy migration
     const [isMigratingLegacy, setIsMigratingLegacy] = useState(false);
     const [isInitializingPopulation, setIsInitializingPopulation] = useState(false);
+    const [isCleaningUp, setIsCleaningUp] = useState(false);
 
 
     const fetchMaintenanceData = useCallback(async () => {
@@ -388,6 +389,25 @@ export default function MaintenancePage() {
         }
     };
 
+    const handleCleanupAndRecalculate = async () => {
+        if (!user) return;
+        setIsCleaningUp(true);
+        try {
+            const { deletedCount, mixedCount } = await cleanupAndInitializeLocationFlags();
+            toast({
+                title: "Proceso de Saneamiento Completado",
+                description: `Se eliminaron ${deletedCount} asignaciones duplicadas y se marcaron ${mixedCount} ubicaciones como mixtas.`,
+                duration: 7000
+            });
+            await logInfo(`User ${user.name} ran location cleanup. Deleted: ${deletedCount}, Marked as mixed: ${mixedCount}.`);
+        } catch (error: any) {
+            logError("Error running location cleanup", { error: error.message });
+            toast({ title: "Error en la Limpieza", description: "No se pudo completar el proceso de saneamiento.", variant: "destructive" });
+        } finally {
+            setIsCleaningUp(false);
+        }
+    };
+
     const uniqueTimestamps = [...new Set(updateBackups.map(b => b.date))].sort((a,b) => new Date(b).getTime() - new Date(a).getTime());
 
     const oldBackupsCount = uniqueTimestamps.length > 1 ? uniqueTimestamps.length - 1 : 0;
@@ -457,7 +477,7 @@ export default function MaintenancePage() {
                                                 {result.issues.length > 0 && (
                                                     <CardContent>
                                                         <ul className="list-disc space-y-1 pl-5 text-sm text-destructive">
-                                                            {result.issues.map((issue, i) => <li key={i}>{issue}</li>)}
+                                                            {result.issues.map((issue, i) => <li key={i} dangerouslySetInnerHTML={{ __html: issue.replace(/'/g, "&apos;") }} />)}
                                                         </ul>
                                                     </CardContent>
                                                 )}
@@ -657,6 +677,32 @@ export default function MaintenancePage() {
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                                         <AlertDialogAction onClick={handleInitializePopulationStatus}>Sí, inicializar</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                         <div className="space-y-2 rounded-lg border p-4">
+                                            <h3 className="font-semibold">Limpiar y Recalcular Ubicaciones Mixtas</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                Elimina asignaciones duplicadas de versiones antiguas y recalcula qué ubicaciones son mixtas. Ejecutar una vez tras actualizar a v2.8+.
+                                            </p>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="secondary" disabled={isCleaningUp}>
+                                                        {isCleaningUp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                                        Limpiar y Recalcular
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Confirmar Saneamiento de Datos?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Esta acción buscará y eliminará asignaciones duplicadas (producto/ubicación) y recalculará las banderas &quot;mixtas&quot; de todas las ubicaciones. Es seguro ejecutarlo, pero se recomienda hacerlo solo una vez.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={handleCleanupAndRecalculate}>Sí, continuar</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>

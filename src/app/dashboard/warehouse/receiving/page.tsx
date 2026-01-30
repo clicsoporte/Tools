@@ -46,6 +46,7 @@ export default function ReceivingWizardPage() {
         saveAsDefault,
         isMixedLocationConfirmOpen,
         conflictingItems,
+        isTargetLocationMixed,
     } = state;
 
     if (isLoading) {
@@ -235,7 +236,11 @@ export default function ReceivingWizardPage() {
                                     <li key={item.id}><strong>{item.id}</strong> - {item.description}</li>
                                 ))}
                             </ul>
-                            ¿Deseas <strong>añadir</strong> el nuevo producto a esta ubicación, creando una ubicación mixta?
+                            {isTargetLocationMixed ? (
+                                'Esta ubicación ya es mixta. ¿Deseas añadir este artículo adicional?'
+                            ) : (
+                                '¿Deseas convertir esta ubicación en mixta añadiendo este nuevo producto?'
+                            )}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

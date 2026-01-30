@@ -56,6 +56,7 @@ export const useReceivingWizard = () => {
         lastCreatedUnit: null as InventoryUnit | null,
         isMixedLocationConfirmOpen: false,
         conflictingItems: [] as Product[],
+        isTargetLocationMixed: false,
         // Search states
         productSearchTerm: '',
         isProductSearchOpen: false,
@@ -210,11 +211,20 @@ export const useReceivingWizard = () => {
             return;
         }
         
+        const location = state.allLocations.find(l => l.id === state.newLocationId);
         const unitsInLocation = state.itemLocations.filter(il => il.locationId === state.newLocationId);
-        const productsInLocation = unitsInLocation.map(il => authProducts.find(p => p.id === il.itemId)).filter(Boolean) as Product[];
+        
+        const uniqueProductIdsInLocation = new Set(unitsInLocation.map(il => il.itemId));
+        const uniqueConflictingProducts = Array.from(uniqueProductIdsInLocation)
+            .map(id => authProducts.find(p => p.id === id))
+            .filter(Boolean) as Product[];
 
-        if (productsInLocation.length > 0 && !productsInLocation.some(p => p.id === state.selectedProduct!.id)) {
-            updateState({ conflictingItems: productsInLocation, isMixedLocationConfirmOpen: true });
+        if (uniqueConflictingProducts.length > 0 && !uniqueConflictingProducts.some(p => p.id === state.selectedProduct!.id)) {
+            updateState({ 
+                conflictingItems: uniqueConflictingProducts, 
+                isMixedLocationConfirmOpen: true,
+                isTargetLocationMixed: location?.is_mixed === 1
+            });
             return;
         }
         
