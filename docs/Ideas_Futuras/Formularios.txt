@@ -1,0 +1,76 @@
+============================================================
+PLAN DE DISEÑO: MÓDULO DE FORMULARIOS DINÁMICOS (CTO)
+============================================================
+
+Resumen: Este documento resume la lluvia de ideas y el análisis de factibilidad para crear un nuevo "Centro de Trazabilidad y Operaciones" (CTO) que permita la creación y gestión de formularios digitales dinámicos, reemplazando procesos en papel para cumplir con la norma ISO 9001.
+
+---
+### 1. Visión General y Objetivos
+---
+- **Problema:** Múltiples procesos de la empresa (entregas, movimientos de bodega, muestras, devoluciones) se gestionan con boletas de papel, lo que dificulta la trazabilidad y la eficiencia.
+- **Solución Propuesta:** Crear un módulo donde los administradores puedan diseñar formularios digitales simples sin necesidad de programar. Los usuarios podrán llenar estos formularios, que luego entrarán en un flujo de aprobación y firma digital.
+- **Cumplimiento ISO 9001:** Este sistema mejora radicalmente la trazabilidad (Cláusula 8.5.2) y el control de la información documentada (Cláusula 7.5).
+
+---
+### 2. Arquitectura y Diseño Técnico (Aprendizajes del Ejemplo)
+---
+
+La arquitectura se basará en patrones modulares y flexibles, inspirados en el código de ejemplo analizado.
+
+#### **2.1. El Diseñador de Formularios (Interfaz de Administrador)**
+- Se creará una nueva sección en `Administración > Config. Operaciones`.
+- El administrador podrá seleccionar un "Tipo de Boleta" (ej. "Entrega a Bodega") y editar su formulario.
+- La interfaz de diseño será simple: una lista de campos con un botón "Añadir Campo".
+- Para cada campo, se podrá definir:
+    - `Etiqueta` (ej: "Número de Lote")
+    - `Tipo de Campo` (Menú desplegable: Texto Corto, Texto Largo, Número, Fecha, Checkbox, Selección Múltiple)
+    - `Requerido` (Checkbox)
+    - `Opciones` (Para campos de selección múltiple)
+- **Aprendizaje Clave:** Evitar un editor de arrastrar y soltar en la v1 para mantener la complejidad baja.
+
+#### **2.2. Almacenamiento en Base de Datos (`operations.db`)**
+- **Tabla `operations_document_types`:** Se le añadirá una columna `formStructure` (TEXT) que guardará la definición completa del formulario como un objeto JSON.
+- **Nueva Tabla `operations_document_data`:**
+    - `id` (PK)
+    - `documentId` (FK a `operations_documents`)
+    - `formData` (TEXT): Almacenará los datos ingresados por el usuario para una instancia específica del formulario, también en formato JSON (`{ "nombre_campo": "valor_ingresado", ... }`).
+- **Aprendizaje Clave:** Esta estructura de almacenar la definición y los datos como JSON es la más flexible y escalable.
+
+#### **2.3. El Renderizador de Formularios (Frontend)**
+- Se creará un componente React, `<DynamicFormRenderer formDefinition={json} />`.
+- Este componente recibirá el JSON de `formStructure`.
+- Usará un `switch` para iterar sobre la definición y renderizar el componente de UI de ShadCN apropiado para cada tipo de campo (`<Input>`, `<Textarea>`, `<Checkbox>`, etc.).
+- Manejará el estado del formulario y la validación de campos requeridos.
+
+#### **2.4. Flujo de Aprobación y Firmas Digitales**
+- **Flujo de Estados:** Se reutilizará la lógica del Planificador y Compras: `Pendiente` -> `En Revisión` -> `Aprobado` -> `Procesado/Firmado` -> `Completado`.
+- **Firmas Digitales:** No serán firmas gráficas. Serán "firmas de confirmación". Al hacer clic en "Firmar", el sistema guardará de forma inmutable el `userId`, `userName` y `timestamp` en la tabla `operations_documents` en columnas dedicadas (ej. `requesterSignedAt`, `processorSignatureData`). Esto es más seguro y auditable para ISO 9001.
+
+---
+### 3. Aprendizajes Avanzados del Ejemplo (Para Futuras Versiones)
+---
+
+#### **3.1. Creación de Formularios con IA**
+- **Concepto:** Permitir que un administrador describa un formulario con texto plano (ej: "Crea un formulario para registrar la salida de material a producción con campos para orden de producción, código de artículo, cantidad y un campo de notas") y que la IA genere el JSON de la estructura.
+- **Implementación Inspirada:**
+    1.  Crear un archivo `FormFieldSchemas.ts` que defina con Zod la estructura estricta de cada tipo de campo posible.
+    2.  Crear una función `generateFormPrompt` que construya una instrucción detallada para el LLM, incluyendo los esquemas de Zod como parte del prompt. Esto obliga a la IA a devolver un JSON con el formato exacto que necesitamos.
+- **Beneficio:** Reducción drástica del tiempo de configuración para los administradores.
+
+#### **3.2. Sistema de Integraciones Modulares**
+- **Concepto:** Permitir que el envío de un formulario dispare acciones en sistemas externos (ej: notificar por Slack, añadir una fila a un Google Sheet).
+- **Implementación Inspirada:**
+    1.  **Tabla `form_integrations`:** Almacenará el tipo de integración (`slack`, `webhook`) y su configuración (ej. la URL del webhook) en una columna JSON.
+    2.  **Patrón de Manejadores (`Handlers`):** Crear una clase o función base `AbstractIntegrationHandler` y luego una específica para cada servicio (`SlackIntegration.ts`, `WebhookIntegration.ts`).
+    3.  **Disparador:** Cuando un formulario se envía y aprueba, el sistema revisará las integraciones activas y ejecutará el manejador correspondiente pasándole los datos del formulario.
+- **Beneficio:** Sistema "enchufable" y extremadamente escalable.
+
+#### **3.3. Procesamiento en Segundo Plano (Jobs)**
+- **Concepto:** Cuando un usuario envía un formulario, el sistema responde inmediatamente con "¡Gracias!" y delega el trabajo pesado (guardar en la base de datos, ejecutar integraciones) a un proceso en segundo plano.
+- **Implementación Inspirada:** El `StoreFormSubmissionJob` del ejemplo nos muestra que debemos separar la respuesta al usuario del procesamiento de datos.
+- **Beneficio:** Mejora la percepción de velocidad y la experiencia del usuario final.
+
+---
+### Plan de Acción (Pausado)
+---
+La implementación de este módulo se ha pausado para priorizar otras tareas, pero este documento sirve como una guía técnica detallada para cuando se retome el proyecto. La primera fase consistiría en implementar la infraestructura básica (base de datos, permisos, y la sección de administración del Diseñador de Formularios).
