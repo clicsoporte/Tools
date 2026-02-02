@@ -33,8 +33,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules, getCurrentVersion, runDatabaseAudit, runSingleModuleMigration } from '@/modules/core/lib/db';
 import { cleanupAllExportFiles } from '@/modules/core/lib/actions';
-import { migrateLegacyInventoryUnits, initializePopulationStatus, cleanupAndInitializeLocationFlags } from '@/modules/warehouse/lib/actions';
-import type { UpdateBackupInfo, DatabaseModule, AuditResult } from '@/modules/core/types';
+import { migrateLegacyInventoryUnits, initializePopulationStatus, cleanupAndInitializeLocationFlags, getWarehouseSettings } from '@/modules/warehouse/lib/actions';
+import type { UpdateBackupInfo, DatabaseModule, AuditResult, WarehouseSettings } from '@/modules/core/types';
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
@@ -60,6 +60,7 @@ export default function MaintenancePage() {
     const [systemVersion, setSystemVersion] = useState<string | null>(null);
     const [updateBackups, setUpdateBackups] = useState<UpdateBackupInfo[]>([]);
     const [dbModules, setDbModules] = useState<Omit<DatabaseModule, 'schema'>[]>([]);
+    const [warehouseSettings, setWarehouseSettings] = useState<WarehouseSettings | null>(null);
     const [isRestoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
     const [isClearBackupsConfirmOpen, setClearBackupsConfirmOpen] = useState(false);
     const [isClearExportsConfirmOpen, setClearExportsConfirmOpen] = useState(false);
@@ -99,14 +100,16 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('load');
         try {
-            const [backups, modules, version] = await Promise.all([
+            const [backups, modules, version, whSettings] = await Promise.all([
                 listAllUpdateBackups(),
                 getDbModules(),
-                getCurrentVersion()
+                getCurrentVersion(),
+                getWarehouseSettings(),
             ]);
             setUpdateBackups(backups);
             setDbModules(modules);
             setSystemVersion(version);
+            setWarehouseSettings(whSettings);
             if (backups.length > 0) {
                 const latestTimestamp = backups.reduce((latest: string, current: UpdateBackupInfo) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
                 setSelectedRestoreTimestamp(latestTimestamp);
@@ -363,9 +366,9 @@ export default function MaintenancePage() {
         if (!user) return;
         setIsMigratingLegacy(true);
         try {
-            const count = await migrateLegacyInventoryUnits();
-            toast({ title: "Migración Completada", description: `Se actualizaron ${count} ingresos antiguos.` });
-            await logInfo(`User ${user.name} ran the legacy inventory unit migration, updating ${count} records.`);
+            await migrateLegacyInventoryUnits();
+            toast({ title: "Migración Completada", description: `Se actualizaron los ingresos antiguos.` });
+            await fetchMaintenanceData();
         } catch (error: any) {
             logError("Error running legacy inventory migration", { error: error.message });
             toast({ title: "Error de Migración", description: "No se pudo completar el proceso.", variant: "destructive" });
@@ -380,7 +383,7 @@ export default function MaintenancePage() {
         try {
             const { updated } = await initializePopulationStatus();
             toast({ title: "Inicialización Completa", description: `Se revisaron y actualizaron ${updated} ubicaciones al nuevo sistema de estado.` });
-            logInfo(`User ${user.name} initialized the population status for ${updated} locations.`);
+            await fetchMaintenanceData();
         } catch (error: any) {
             logError("Error initializing population status", { error: error.message });
             toast({ title: "Error de Inicialización", description: "No se pudo completar el proceso.", variant: "destructive" });
@@ -399,7 +402,7 @@ export default function MaintenancePage() {
                 description: `Se eliminaron ${deletedCount} asignaciones duplicadas y se marcaron ${mixedCount} ubicaciones como mixtas.`,
                 duration: 7000
             });
-            await logInfo(`User ${user.name} ran location cleanup. Deleted: ${deletedCount}, Marked as mixed: ${mixedCount}.`);
+            await fetchMaintenanceData();
         } catch (error: any) {
             logError("Error running location cleanup", { error: error.message });
             toast({ title: "Error en la Limpieza", description: "No se pudo completar el proceso de saneamiento.", variant: "destructive" });
@@ -525,7 +528,7 @@ export default function MaintenancePage() {
                                                         const backupInfo = updateBackups.find(b => b.date === ts);
                                                         return (
                                                             <SelectItem key={ts} value={ts}>
-                                                                {format(parseISO(ts), "dd/MM/yyyy &apos;a las&apos; HH:mm:ss", { locale: es })}
+                                                                {format(parseISO(ts), "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es })}
                                                                 {backupInfo?.version && <span className="ml-2 text-xs text-muted-foreground"> (v{backupInfo.version})</span>}
                                                             </SelectItem>
                                                         )
@@ -654,6 +657,9 @@ export default function MaintenancePage() {
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
+                                             {warehouseSettings?.lastLegacyMigration && (
+                                                <p className="text-xs text-muted-foreground pt-2">Última ejecución: {format(parseISO(warehouseSettings.lastLegacyMigration), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}</p>
+                                            )}
                                         </div>
                                          <div className="space-y-2 rounded-lg border p-4">
                                             <h3 className="font-semibold">Inicializar Estado de Poblado</h3>
@@ -680,6 +686,9 @@ export default function MaintenancePage() {
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
+                                            {warehouseSettings?.lastPopulationInit && (
+                                                <p className="text-xs text-muted-foreground pt-2">Última ejecución: {format(parseISO(warehouseSettings.lastPopulationInit), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}</p>
+                                            )}
                                         </div>
                                          <div className="space-y-2 rounded-lg border p-4">
                                             <h3 className="font-semibold">Limpiar y Recalcular Ubicaciones Mixtas</h3>
@@ -706,6 +715,9 @@ export default function MaintenancePage() {
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
+                                            {warehouseSettings?.lastCleanup && (
+                                                <p className="text-xs text-muted-foreground pt-2">Última ejecución: {format(parseISO(warehouseSettings.lastCleanup), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}</p>
+                                            )}
                                         </div>
                                     </AccordionContent>
                                 </AccordionItem>

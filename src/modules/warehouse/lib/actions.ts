@@ -44,7 +44,7 @@ import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, Move
 import { logInfo, logWarn } from '@/modules/core/lib/logger';
 
 export const getWarehouseSettings = async (): Promise<WarehouseSettings> => getWarehouseSettingsServer();
-export async function saveWarehouseSettings(settings: WarehouseSettings): Promise<void> {
+export async function saveWarehouseSettings(settings: Partial<WarehouseSettings>): Promise<void> {
     await logInfo("Warehouse settings updated.");
     return saveWarehouseSettingsServer(settings);
 }
@@ -167,12 +167,19 @@ export const forceReleaseLock = async (locationId: number): Promise<void> => for
 export const getChildLocations = async (parentIds: number[]): Promise<WarehouseLocation[]> => getChildLocationsServer(parentIds);
 
 // --- Migration Actions ---
-export const migrateLegacyInventoryUnits = async (): Promise<number> => migrateLegacyInventoryUnitsServer();
-export const initializePopulationStatus = async (): Promise<{ updated: number }> => initializePopulationStatusServer();
-export const cleanupAndInitializeLocationFlags = async (): Promise<{ deletedCount: number; mixedCount: number; initializedCount: number; }> => {
-    logInfo('Cleanup and initialization of location flags initiated.');
-    const result = await cleanupAndInitializeLocationFlagsServer();
-    logInfo(`Cleanup complete. Deleted: ${result.deletedCount}, Marked as mixed: ${result.mixedCount}, Initialized: ${result.initializedCount}`);
+export const migrateLegacyInventoryUnits = async (): Promise<number> => {
+    const count = await migrateLegacyInventoryUnitsServer();
+    await logInfo(`Legacy inventory unit migration run, updating ${count} records.`);
+    return count;
+};
+export const initializePopulationStatus = async (): Promise<{ updated: number }> => {
+    const result = await initializePopulationStatusServer();
+    await logInfo(`Population status initialized for ${result.updated} locations.`);
     return result;
 };
-    
+export const cleanupAndInitializeLocationFlags = async (): Promise<{ deletedCount: number; mixedCount: number; initializedCount: number; }> => {
+    await logInfo('Cleanup and initialization of location flags initiated.');
+    const result = await cleanupAndInitializeLocationFlagsServer();
+    await logInfo(`Cleanup complete. Deleted: ${result.deletedCount}, Marked as mixed: ${result.mixedCount}, Initialized: ${result.initializedCount}`);
+    return result;
+};

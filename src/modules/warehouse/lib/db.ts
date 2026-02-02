@@ -117,6 +117,9 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
         nextCorrectionNumber: 1,
         dispatchNotificationEmails: '',
         pdfTopLegend: 'Documento de Control Interno',
+        lastLegacyMigration: null,
+        lastPopulationInit: null,
+        lastCleanup: null,
     };
     db.prepare(`
         INSERT OR IGNORE INTO warehouse_config (key, value) VALUES ('settings', ?)
@@ -180,6 +183,9 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
                  if (settings.correctionPrefix === undefined) settings.correctionPrefix = 'COR-';
                  if (settings.nextCorrectionNumber === undefined) settings.nextCorrectionNumber = 1;
                  if (settings.pdfTopLegend === undefined) settings.pdfTopLegend = 'Documento de Control Interno';
+                 if (settings.lastLegacyMigration === undefined) settings.lastLegacyMigration = null;
+                 if (settings.lastPopulationInit === undefined) settings.lastPopulationInit = null;
+                 if (settings.lastCleanup === undefined) settings.lastCleanup = null;
                  db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(settings));
              }
         }
@@ -209,6 +215,9 @@ export async function getWarehouseSettings(): Promise<WarehouseSettings> {
         nextCorrectionNumber: 1,
         dispatchNotificationEmails: '',
         pdfTopLegend: 'Documento de Control Interno',
+        lastLegacyMigration: null,
+        lastPopulationInit: null,
+        lastCleanup: null,
     };
     try {
         const row = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string } | undefined;
@@ -222,11 +231,13 @@ export async function getWarehouseSettings(): Promise<WarehouseSettings> {
     return defaults;
 }
 
-export async function saveWarehouseSettings(settings: WarehouseSettings): Promise<void> {
+export async function saveWarehouseSettings(settings: Partial<WarehouseSettings>): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
+    const currentSettings = await getWarehouseSettings();
+    const newSettings = { ...currentSettings, ...settings };
     db.prepare(`
         INSERT OR REPLACE INTO warehouse_config (key, value) VALUES ('settings', ?)
-    `).run(JSON.stringify(settings));
+    `).run(JSON.stringify(newSettings));
 }
 
 // Helper function to recursively find all final child nodes (bins) of a location.
@@ -992,6 +1003,10 @@ export async function migrateLegacyInventoryUnits(): Promise<number> {
     });
 
     transaction();
+    
+    const currentSettings = await getWarehouseSettings();
+    await saveWarehouseSettings({ ...currentSettings, lastLegacyMigration: new Date().toISOString() });
+
     return updatedCount;
 }
 
@@ -1014,10 +1029,10 @@ export async function initializePopulationStatus(): Promise<{ updated: number }>
         const updateStmt = db.prepare('UPDATE locations SET population_status = ? WHERE id = ?');
 
         for (const location of allLocations) {
-            const currentStatus = db.prepare('SELECT population_status FROM locations WHERE id = ?').get(location.id) as { population_status: string } | undefined;
+            const currentStatus = db.prepare('SELECT population_status FROM locations WHERE id = ?').get(location.id) as { population_status: string | null } | undefined;
             
-            // Only update if the status is the default 'P' (Pending) to avoid overwriting 'S' (Skipped)
-            if (currentStatus?.population_status === 'P') {
+            // Only update if the status is the default 'P' or NULL to avoid overwriting 'S' (Skipped)
+            if (!currentStatus?.population_status || currentStatus.population_status === 'P') {
                 const newStatus = occupiedLocationIds.has(location.id) ? 'O' : 'P';
                 updateStmt.run(newStatus, location.id);
                 updatedCount++;
@@ -1026,6 +1041,10 @@ export async function initializePopulationStatus(): Promise<{ updated: number }>
     });
 
     transaction();
+
+    const currentSettings = await getWarehouseSettings();
+    await saveWarehouseSettings({ ...currentSettings, lastPopulationInit: new Date().toISOString() });
+
     return { updated: updatedCount };
 }
 
@@ -1071,6 +1090,10 @@ export async function cleanupAndInitializeLocationFlags(): Promise<{ deletedCoun
         return { deletedCount, mixedCount, initializedCount: allLocations.length };
     });
 
-    return transaction();
+    const result = transaction();
+
+    const currentSettings = await getWarehouseSettings();
+    await saveWarehouseSettings({ ...currentSettings, lastCleanup: new Date().toISOString() });
+
+    return result;
 }
-    

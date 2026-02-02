@@ -481,6 +481,9 @@ export type WarehouseSettings = {
     nextCorrectionNumber: number;
     dispatchNotificationEmails?: string;
     pdfTopLegend?: string;
+    lastLegacyMigration?: string | null;
+    lastPopulationInit?: string | null;
+    lastCleanup?: string | null;
 };
 
 export type WarehouseLocation = {
@@ -492,6 +495,7 @@ export type WarehouseLocation = {
     isLocked?: 0 | 1;
     lockedBy?: string | null;
     lockedBySessionId?: string;
+    population_status?: 'P' | 'O' | 'S';
     is_mixed?: 0 | 1;
 };
 
@@ -930,4 +934,3 @@ export interface EmailSettings {
   recoveryEmailSubject: string;
   recoveryEmailBody: string;
 }
-    
