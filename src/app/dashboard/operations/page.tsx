@@ -26,7 +26,7 @@ export default function OperationsPage() {
                         </div>
                         <CardTitle className="mt-4 text-2xl">Módulo en Construcción</CardTitle>
                         <CardDescription className="max-w-md mx-auto">
-                            El nuevo "Centro de Trazabilidad y Operaciones" se está desarrollando. Pronto podrás gestionar todas tus boletas y formularios digitales desde aquí.
+                            El nuevo &quot;Centro de Trazabilidad y Operaciones&quot; se está desarrollando. Pronto podrás gestionar todas tus boletas y formularios digitales desde aquí.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
