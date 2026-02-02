@@ -32,8 +32,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules, getCurrentVersion, runDatabaseAudit, runSingleModuleMigration } from '@/modules/core/lib/db';
-import { cleanupAllExportFiles } from '@/modules/core/lib/actions';
-import { migrateLegacyInventoryUnits, initializePopulationStatus, cleanupAndInitializeLocationFlags, getWarehouseSettings } from '@/modules/warehouse/lib/actions';
+import { cleanupAllExportFiles, cleanupAndInitializeLocationFlags } from '@/modules/core/lib/actions';
+import { migrateLegacyInventoryUnits, initializePopulationStatus, getWarehouseSettings } from '@/modules/warehouse/lib/actions';
 import type { UpdateBackupInfo, DatabaseModule, AuditResult, WarehouseSettings } from '@/modules/core/types';
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -94,6 +94,25 @@ export default function MaintenancePage() {
     const [isMigratingLegacy, setIsMigratingLegacy] = useState(false);
     const [isInitializingPopulation, setIsInitializingPopulation] = useState(false);
     const [isCleaningUp, setIsCleaningUp] = useState(false);
+
+    /**
+     * Parses a timestamp string from a backup filename.
+     * Backup filenames replace colons with hyphens. This function reverses that.
+     * @param timestampString The timestamp string from the filename (e.g., '2024-07-25T16-04-30.123Z').
+     * @returns A valid Date object.
+     */
+    const parseBackupTimestamp = (timestampString: string): Date => {
+        const parts = timestampString.split('T');
+        if (parts.length !== 2) {
+            // Fallback for unexpected formats, might result in Invalid Date but won't crash format()
+            return parseISO(timestampString);
+        }
+        const datePart = parts[0];
+        const timePart = parts[1];
+        // Replace hyphens in the time part back to colons
+        const correctedTimePart = timePart.replace(/-/g, ':');
+        return parseISO(`${datePart}T${correctedTimePart}`);
+    };
 
 
     const fetchMaintenanceData = useCallback(async () => {
@@ -528,7 +547,7 @@ export default function MaintenancePage() {
                                                         const backupInfo = updateBackups.find(b => b.date === ts);
                                                         return (
                                                             <SelectItem key={ts} value={ts}>
-                                                                {format(parseISO(ts), "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es })}
+                                                                {format(parseBackupTimestamp(ts), "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es })}
                                                                 {backupInfo?.version && <span className="ml-2 text-xs text-muted-foreground"> (v{backupInfo.version})</span>}
                                                             </SelectItem>
                                                         )
@@ -580,7 +599,7 @@ export default function MaintenancePage() {
                                                         <div key={b.fileName} className="flex items-center justify-between rounded-md p-2 hover:bg-muted">
                                                             <div>
                                                                 <p className="font-semibold text-sm">{b.moduleName} {b.version && <span className="font-normal text-xs text-muted-foreground">(v{b.version})</span>}</p>
-                                                                <p className="text-xs text-muted-foreground">{format(parseISO(b.date), "dd/MM/yyyy HH:mm:ss", { locale: es })}</p>
+                                                                <p className="text-xs text-muted-foreground">{format(parseBackupTimestamp(b.date), "dd/MM/yyyy HH:mm:ss", { locale: es })}</p>
                                                             </div>
                                                             <a href={`/api/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
                                                                 <Button variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
@@ -658,7 +677,7 @@ export default function MaintenancePage() {
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                              {warehouseSettings?.lastLegacyMigration && (
-                                                <p className="text-xs text-muted-foreground pt-2">Última ejecución: {format(parseISO(warehouseSettings.lastLegacyMigration), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}</p>
+                                                <p className="text-xs text-muted-foreground pt-2">Última ejecución: {format(parseISO(warehouseSettings.lastLegacyMigration), 'dd/MM/yyyy HH:mm', { locale: es })}</p>
                                             )}
                                         </div>
                                          <div className="space-y-2 rounded-lg border p-4">
@@ -687,7 +706,7 @@ export default function MaintenancePage() {
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                             {warehouseSettings?.lastPopulationInit && (
-                                                <p className="text-xs text-muted-foreground pt-2">Última ejecución: {format(parseISO(warehouseSettings.lastPopulationInit), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}</p>
+                                                <p className="text-xs text-muted-foreground pt-2">Última ejecución: {format(parseISO(warehouseSettings.lastPopulationInit), 'dd/MM/yyyy HH:mm', { locale: es })}</p>
                                             )}
                                         </div>
                                          <div className="space-y-2 rounded-lg border p-4">
@@ -716,7 +735,7 @@ export default function MaintenancePage() {
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                             {warehouseSettings?.lastCleanup && (
-                                                <p className="text-xs text-muted-foreground pt-2">Última ejecución: {format(parseISO(warehouseSettings.lastCleanup), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}</p>
+                                                <p className="text-xs text-muted-foreground pt-2">Última ejecución: {format(parseISO(warehouseSettings.lastCleanup), 'dd/MM/yyyy HH:mm', { locale: es })}</p>
                                             )}
                                         </div>
                                     </AccordionContent>
