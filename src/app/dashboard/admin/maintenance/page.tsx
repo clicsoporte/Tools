@@ -32,8 +32,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, restoreDatabase, backupAllForUpdate, factoryReset, getDbModules, getCurrentVersion, runDatabaseAudit, runSingleModuleMigration } from '@/modules/core/lib/db';
-import { cleanupAllExportFiles, cleanupAndInitializeLocationFlags } from '@/modules/core/lib/actions';
-import { migrateLegacyInventoryUnits, initializePopulationStatus, getWarehouseSettings } from '@/modules/warehouse/lib/actions';
+import { cleanupAllExportFiles } from '@/modules/core/lib/actions';
+import { migrateLegacyInventoryUnits, initializePopulationStatus, cleanupAndInitializeLocationFlags } from '@/modules/warehouse/lib/actions';
 import type { UpdateBackupInfo, DatabaseModule, AuditResult, WarehouseSettings } from '@/modules/core/types';
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -46,6 +46,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { shutdownServer } from '@/modules/core/lib/actions';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { getWarehouseSettings } from '@/modules/warehouse/lib/db';
 
 
 export default function MaintenancePage() {
