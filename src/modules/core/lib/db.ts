@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
@@ -24,6 +22,7 @@ import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db'
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
 import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
+import { initializeOperationsDb, runOperationsMigrations } from '../../operations/lib/db';
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
@@ -139,6 +138,7 @@ async function runMigrations(dbModule: Omit<DatabaseModule, 'schema'>, db: Datab
         case 'production-planner': migrationFn = runPlannerMigrations; break;
         case 'warehouse-management': migrationFn = runWarehouseMigrations; break;
         case 'cost-assistant': migrationFn = runCostAssistantMigrations; break;
+        case 'operations': migrationFn = runOperationsMigrations; break;
         default: break;
     }
 
@@ -215,6 +215,8 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
                 await initializeWarehouseDb(db);
             } else if (dbModule.id === 'cost-assistant') {
                 await initializeCostAssistantDb(db);
+            } else if (dbModule.id === 'operations') {
+                await initializeOperationsDb(db);
             }
         }
         // Always run migrations on an existing DB to check for updates.
@@ -1698,6 +1700,7 @@ export async function runSingleModuleMigration(moduleId: string): Promise<void> 
             case 'production-planner': migrationFn = runPlannerMigrations; break;
             case 'warehouse-management': migrationFn = runWarehouseMigrations; break;
             case 'cost-assistant': migrationFn = runCostAssistantMigrations; break;
+            case 'operations': migrationFn = runOperationsMigrations; break;
             default: break;
         }
 

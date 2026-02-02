@@ -44,6 +44,7 @@ import {
   BookUser,
   LayoutGrid,
   Settings,
+  FileSignature,
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -118,6 +119,14 @@ export const mainTools: Tool[] = [
     href: '/dashboard/cost-assistant',
     icon: Calculator,
     bgColor: 'bg-orange-600',
+  },
+  {
+    id: 'operations',
+    name: 'Operaciones',
+    description: 'Boletas digitales de movimiento, entregas y más.',
+    href: '/dashboard/operations',
+    icon: FileSignature,
+    bgColor: 'bg-teal-700',
   },
    {
     id: "warehouse",

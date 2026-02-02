@@ -25,6 +25,11 @@ export function useAuthorization(requiredPermissions: string[] = []): UseAuthori
     const hasPermission = useCallback((permission: string): boolean => {
         if (!isAuthReady || !userRole) return false;
         if (userRole.id === 'admin') return true;
+        // Check for wildcard access (e.g., 'requests:read' implies 'requests:read:all')
+        const permissionBase = permission.split(':')[0];
+        const hasBaseAccess = userPermissions.includes(`${permissionBase}:access`);
+        if (hasBaseAccess) return true;
+        
         return userPermissions.includes(permission);
     }, [isAuthReady, userRole, userPermissions]);
 

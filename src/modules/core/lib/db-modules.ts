@@ -11,6 +11,7 @@ import { plannerSchema } from '../../planner/lib/schema';
 import { requestSchema } from '../../requests/lib/schema';
 import { warehouseSchema } from '../../warehouse/lib/schema';
 import { costAssistantSchema } from '../../cost-assistant/lib/schema';
+import { operationsSchema } from '../../operations/lib/schema';
 import { mainDbSchema } from './schema';
 
 /**
@@ -48,4 +49,10 @@ export const DB_MODULES: Omit<DatabaseModule, 'initFn' | 'migrationFn'>[] = [
         dbFile: 'cost_assistant.db', 
         schema: costAssistantSchema,
     },
+    {
+        id: 'operations',
+        name: 'Centro de Operaciones',
+        dbFile: 'operations.db',
+        schema: operationsSchema,
+    }
 ];

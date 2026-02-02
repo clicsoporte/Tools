@@ -20,6 +20,7 @@ export const allAdminPermissions = [
     "warehouse:units:create", "warehouse:units:delete", "warehouse:locks:manage",
     "warehouse:correction:execute", "warehouse:correction:apply", "warehouse:labels:generate",
     "hacienda:query",
+    "operations:access", "operations:create", "operations:read:all", "operations:approve", "operations:sign",
     "analytics:read", "analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read",
     "users:create", "users:read", "users:update", "users:delete",
     "roles:create", "roles:read", "roles:update", "roles:delete", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics",
@@ -40,6 +41,7 @@ export const permissionGroups = {
     "Planificador de Producción (Edición y Acciones)": ["planner:edit:pending", "planner:edit:approved", "planner:reopen", "planner:receive", "planner:status:review", "planner:status:approve", "planner:status:in-progress", "planner:status:on-hold", 
     "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request", "planner:status:unapprove-request:approve", "planner:priority:update", "planner:machine:assign", "planner:schedule"],
     "Asistente de Costos": ["cost-assistant:access", "cost-assistant:drafts:read-write"],
+    "Centro de Operaciones y Trazabilidad (Nuevo)": ["operations:access", "operations:create", "operations:read:all", "operations:approve", "operations:sign"],
     "Gestión de Almacenes": [
         "warehouse:access", "warehouse:search:full", "warehouse:search:simple",
         "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create",
@@ -74,6 +76,7 @@ export const permissionTranslations: { [key: string]: string } = {
     "planner:edit:pending": "Plan.: Editar (Pendientes)", "planner:edit:approved": "Plan.: Editar (Aprobadas)", "planner:reopen": "Plan.: Reabrir Órdenes", "planner:receive": "Plan.: Recibir en Bodega", "planner:status:review": "Plan.: Enviar a Revisión", "planner:status:approve": "Plan.: Cambiar a Aprobada", "planner:status:in-progress": "Plan.: Cambiar a En Progreso", "planner:status:on-hold": "Plan.: Cambiar a En Espera", 
     "planner:status:completed": "Plan.: Cambiar a Completada", "planner:status:cancel": "Plan.: Cancelar (Pendientes)", "planner:status:cancel-approved": "Plan.: Cancelar (Aprobadas)", "planner:priority:update": "Plan.: Cambiar Prioridad", "planner:machine:assign": "Plan.: Asignar Máquina", "planner:status:unapprove-request": "Plan.: Solicitar Desaprobación", "planner:status:unapprove-request:approve": "Plan.: Aprobar Desaprobación", "planner:schedule": "Plan.: Programar Fechas",
     "cost-assistant:access": "Asist. Costos: Acceso", "cost-assistant:drafts:read-write": "Asist. Costos: Guardar Borradores",
+    "operations:access": "Operaciones: Acceso General", "operations:create": "Operaciones: Crear Documentos", "operations:read:all": "Operaciones: Ver Todos", "operations:approve": "Operaciones: Aprobar Documentos", "operations:sign": "Operaciones: Firmar Entregas/Recibos",
     "warehouse:access": "Almacén: Acceso General", "warehouse:search:full": "Almacén: Consulta Completa", "warehouse:search:simple": "Almacén: Búsqueda Rápida", 
     "warehouse:receiving-wizard:use": "Almacén: Usar Asist. Recepción", "warehouse:population-wizard:use": "Almacén: Usar Asist. Poblado", "warehouse:inventory-count:create": "Almacén: Registrar Conteo",
     "warehouse:item-assignment:create": "Almacén: Asignar Ubic./Prod.", "warehouse:item-assignment:delete": "Almacén: Eliminar Asignación",
@@ -98,6 +101,7 @@ export const permissionTree: Record<string, string[]> = {
     "warehouse:access": ["warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", "warehouse:correction:execute", "warehouse:correction:apply", "warehouse:labels:generate"],
     "requests:read": ["requests:read:all", "requests:create"],
     "planner:read": ["planner:read:all", "planner:create"],
+    "operations:access": ["operations:create", "operations:read:all", "operations:approve", "operations:sign"],
 
     // Second-level dependencies
     "users:read": ["users:create", "users:update", "users:delete"],

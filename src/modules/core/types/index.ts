@@ -924,6 +924,55 @@ export type CostAssistantSettings = {
     discountHandling: 'customer' | 'company';
 };
 
+// --- Operations Module Types ---
+export type OperationsDocumentType = {
+    id: string;
+    name: string;
+    description: string;
+    prefix: string;
+    nextNumber: number;
+};
+
+export type OperationsDocumentStatus = 'pending' | 'in_review' | 'approved' | 'processed' | 'completed';
+
+export type OperationsDocument = {
+    id: number;
+    consecutive: string;
+    documentTypeId: string;
+    status: OperationsDocumentStatus;
+    requestDate: string;
+    notes?: string;
+    relatedProductionOrderId?: number;
+    relatedPurchaseRequestId?: number;
+    relatedCustomerId?: string;
+    requesterId?: number;
+    requesterName?: string;
+    requesterSignedAt?: string;
+    processorId?: number;
+    processorName?: string;
+    processorSignedAt?: string;
+};
+
+export type OperationsDocumentLine = {
+    id: number;
+    documentId: number;
+    itemId: string;
+    itemDescription?: string;
+    quantity: number;
+    lotId?: string;
+    sourceLocationId?: number;
+    destinationLocationId?: number;
+};
+
+export type OperationsDocumentHistory = {
+    id: number;
+    documentId: number;
+    timestamp: string;
+    status: OperationsDocumentStatus;
+    notes?: string;
+    updatedBy: string;
+};
+
 // --- Email Types ---
 export interface EmailSettings {
   smtpHost: string;
