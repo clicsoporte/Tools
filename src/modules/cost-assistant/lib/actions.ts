@@ -29,12 +29,10 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
     
-    // If a comma exists, it is the decimal separator. Remove dots, replace comma.
     if (s.includes(',')) {
         return parseFloat(s.replace(/\./g, '').replace(',', '.'));
     }
     
-    // If no comma exists, treat as a standard float, respecting the dot as decimal separator
     return parseFloat(s);
 };
 
@@ -108,18 +106,18 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         if (cantidad === 0) continue;
         
         let supplierCode = 'N/A';
-        let supplierCodeType = '04'; // Default to 'Uso Interno'
-        const codigosComercialesRaw = linea.CodigoComercial || [];
-        const codigosComerciales = Array.isArray(codigosComercialesRaw) ? codigosComercialesRaw : [codigosComercialesRaw];
+        let supplierCodeType = '99'; // Default to 'Otros'
+        const codigosComerciales = linea.CodigoComercial || []; // It's now always an array
         
         if (codigosComerciales.length > 0) {
+            // Prioritize type '01' (Código del producto del vendedor)
             const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01');
             if (preferredCodeNode && preferredCodeNode.Codigo) {
                 supplierCode = preferredCodeNode.Codigo;
                 supplierCodeType = preferredCodeNode.Tipo;
-            } else if (codigosComerciales.length > 0 && codigosComerciales[0].Codigo) {
+            } else if (codigosComerciales[0].Codigo) { // Fallback to the first available code
                 supplierCode = codigosComerciales[0].Codigo;
-                supplierCodeType = codigosComerciales[0].Tipo;
+                supplierCodeType = codigosComerciales[0].Tipo || '99';
             }
         }
         
@@ -152,6 +150,10 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         
         const numeroLinea = getValue(linea, ['NumeroLinea'], index + 1);
 
+        // Clean up the description field
+        const rawDescription = getValue(linea, ['Detalle']);
+        const cleanDescription = rawDescription.split(';')[0].trim();
+
         lines.push({
             id: `${numeroConsecutivo}-${numeroLinea}-${supplierCode}-${index}`,
             invoiceKey: numeroConsecutivo,
@@ -159,7 +161,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             cabysCode: cabysCode,
             supplierCode: supplierCode,
             supplierCodeType: supplierCodeType,
-            description: getValue(linea, ['Detalle']),
+            description: cleanDescription,
             quantity: cantidad,
             discountAmount,
             unitCostWithTax: unitCostWithTaxInColones,

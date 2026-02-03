@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FacturaElectronica xmlns="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.4/facturaElectronica" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+	<Clave>50601022600310133465800100001010000179603100296567</Clave>
+	<ProveedorSistemas>3101334658</ProveedorSistemas>
+	<CodigoActividadEmisor>6110.0</CodigoActividadEmisor>
+	<CodigoActividadReceptor>4651.0</CodigoActividadReceptor>
+	<NumeroConsecutivo>00100001010000179603</NumeroConsecutivo>
+	<FechaEmision>2026-02-01T06:32:30-06:00</FechaEmision>
+	<Emisor>
+		<Nombre>Callmyway NY</Nombre>
+		<Identificacion>
+			<Tipo>02</Tipo>
+			<Numero>3101334658</Numero>
+		</Identificacion>
+		<Ubicacion>
+			<Provincia>1</Provincia>
+			<Canton>01</Canton>
+			<Distrito>05</Distrito>
+			<Barrio>San Gerardo (parte)</Barrio>
+			<OtrasSenas>COSTADO NORTE COLEGIO ABOGADOS FRENTE ENTRADA PRINCIPAL</OtrasSenas>
+		</Ubicacion>
+		<Telefono>
+			<CodigoPais>506</CodigoPais>
+			<NumTelefono>40004000</NumTelefono>
+		</Telefono>
+		<CorreoElectronico>facturacion@callmyway.com</CorreoElectronico>
+	</Emisor>
+	<Receptor>
+		<Nombre>CLIC SOPORTE &amp; CLIC TIENDA SOCIEDAD DE RESPONSABILIDAD LIMITADA</Nombre>
+		<Identificacion>
+			<Tipo>02</Tipo>
+			<Numero>3102894538</Numero>
+		</Identificacion>
+		<CorreoElectronico>cxp@clicsoporte.com</CorreoElectronico>
+	</Receptor>
+	<CondicionVenta>01</CondicionVenta>
+	<PlazoCredito>0</PlazoCredito>
+	<DetalleServicio>
+		<LineaDetalle>
+			<NumeroLinea>1</NumeroLinea>
+			<CodigoCABYS>8429000000000</CodigoCABYS>
+			<CodigoComercial>
+				<Tipo>04</Tipo>
+				<Codigo>TR</Codigo>
+			</CodigoComercial>
+			<Cantidad>1</Cantidad>
+			<UnidadMedida>St</UnidadMedida>
+			<Detalle>Consumo Mensual (Celular) (2026-01)(7m25s)</Detalle>
+			<PrecioUnitario>162.42492</PrecioUnitario>
+			<MontoTotal>162.42492</MontoTotal>
+			<SubTotal>162.42492</SubTotal>
+			<BaseImponible>162.42492</BaseImponible>
+			<Impuesto>
+				<Codigo>01</Codigo>
+				<CodigoTarifaIVA>08</CodigoTarifaIVA>
+				<Tarifa>13.00</Tarifa>
+				<Monto>21.11524</Monto>
+			</Impuesto>
+			<ImpuestoAsumidoEmisorFabrica>0</ImpuestoAsumidoEmisorFabrica>
+			<ImpuestoNeto>21.11524</ImpuestoNeto>
+			<MontoTotalLinea>183.54016</MontoTotalLinea>
+		</LineaDetalle>
+		<LineaDetalle>
+			<NumeroLinea>2</NumeroLinea>
+			<CodigoCABYS>8429000000000</CodigoCABYS>
+			<CodigoComercial>
+				<Tipo>04</Tipo>
+				<Codigo>TR</Codigo>
+			</CodigoComercial>
+			<Cantidad>1</Cantidad>
+			<UnidadMedida>St</UnidadMedida>
+			<Detalle>Mensualidad SIP TRUNK 40000630</Detalle>
+			<PrecioUnitario>1997.48000</PrecioUnitario>
+			<MontoTotal>1997.48000</MontoTotal>
+			<SubTotal>1997.48000</SubTotal>
+			<BaseImponible>1997.48000</BaseImponible>
+			<Impuesto>
+				<Codigo>01</Codigo>
+				<CodigoTarifaIVA>08</CodigoTarifaIVA>
+				<Tarifa>13.00</Tarifa>
+				<Monto>259.67240</Monto>
+			</Impuesto>
+			<ImpuestoAsumidoEmisorFabrica>0</ImpuestoAsumidoEmisorFabrica>
+			<ImpuestoNeto>259.67240</ImpuestoNeto>
+			<MontoTotalLinea>2257.15240</MontoTotalLinea>
+		</LineaDetalle>
+		<LineaDetalle>
+			<NumeroLinea>3</NumeroLinea>
+			<CodigoCABYS>8429000000000</CodigoCABYS>
+			<CodigoComercial>
+				<Tipo>04</Tipo>
+				<Codigo>TR</Codigo>
+			</CodigoComercial>
+			<Cantidad>1</Cantidad>
+			<UnidadMedida>St</UnidadMedida>
+			<Detalle>Mensualidad SIP TRUNK 40003591</Detalle>
+			<PrecioUnitario>1997.48000</PrecioUnitario>
+			<MontoTotal>1997.48000</MontoTotal>
+			<SubTotal>1997.48000</SubTotal>
+			<BaseImponible>1997.48000</BaseImponible>
+			<Impuesto>
+				<Codigo>01</Codigo>
+				<CodigoTarifaIVA>08</CodigoTarifaIVA>
+				<Tarifa>13.00</Tarifa>
+				<Monto>259.67240</Monto>
+			</Impuesto>
+			<ImpuestoAsumidoEmisorFabrica>0</ImpuestoAsumidoEmisorFabrica>
+			<ImpuestoNeto>259.67240</ImpuestoNeto>
+			<MontoTotalLinea>2257.15240</MontoTotalLinea>
+		</LineaDetalle>
+	</DetalleServicio>
+	<OtrosCargos>
+		<TipoDocumentoOC>01</TipoDocumentoOC>
+		<Detalle>Contribucion Cruz Roja</Detalle>
+		<PorcentajeOC>1</PorcentajeOC>
+		<MontoCargo>41.57385</MontoCargo>
+	</OtrosCargos>
+	<OtrosCargos>
+		<TipoDocumentoOC>01</TipoDocumentoOC>
+		<Detalle>Contribucion 911</Detalle>
+		<PorcentajeOC>0.75</PorcentajeOC>
+		<MontoCargo>31.18039</MontoCargo>
+	</OtrosCargos>
+	<ResumenFactura>
+		<CodigoTipoMoneda>
+			<CodigoMoneda>CRC</CodigoMoneda>
+			<TipoCambio>1</TipoCambio>
+		</CodigoTipoMoneda>
+		<TotalServGravados>4157.38492</TotalServGravados>
+		<TotalServExentos>0.00000</TotalServExentos>
+		<TotalServExonerado>0.00000</TotalServExonerado>
+		<TotalServNoSujeto>0.00000</TotalServNoSujeto>
+		<TotalMercanciasGravadas>0.00000</TotalMercanciasGravadas>
+		<TotalMercanciasExentas>0.00000</TotalMercanciasExentas>
+		<TotalMercExonerada>0.00000</TotalMercExonerada>
+		<TotalMercNoSujeta>0.00000</TotalMercNoSujeta>
+		<TotalGravado>4157.38492</TotalGravado>
+		<TotalExento>0.00000</TotalExento>
+		<TotalExonerado>0.00000</TotalExonerado>
+		<TotalNoSujeto>0.00000</TotalNoSujeto>
+		<TotalVenta>4157.38492</TotalVenta>
+		<TotalDescuentos>0.00000</TotalDescuentos>
+		<TotalVentaNeta>4157.38492</TotalVentaNeta>
+		<TotalDesgloseImpuesto>
+			<Codigo>01</Codigo>
+			<CodigoTarifaIVA>08</CodigoTarifaIVA>
+			<TotalMontoImpuesto>540.46004</TotalMontoImpuesto>
+		</TotalDesgloseImpuesto>
+		<TotalImpuesto>540.46004</TotalImpuesto>
+		<TotalOtrosCargos>72.75424</TotalOtrosCargos>
+		<MedioPago>
+			<TipoMedioPago>04</TipoMedioPago>
+			<TotalMedioPago>4770.59920</TotalMedioPago>
+		</MedioPago>
+		<TotalComprobante>4770.59920</TotalComprobante>
+	</ResumenFactura>
+<ds:Signature Id="xmldsig-7c47b94c-6987-452f-9414-700ec7a3141d">
+	<ds:SignedInfo>
+		<ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+		<ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+		<ds:Reference Id="xmldsig-7c47b94c-6987-452f-9414-700ec7a3141d-ref0" URI="">
+			<ds:Transforms>
+				<ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+			</ds:Transforms>
+			<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+			<ds:DigestValue>cdXpxwfUPdTfJ5ALC+mFPLZ4Ylg3gTpDshbaZHJl1cI=</ds:DigestValue>
+		</ds:Reference>
+		<ds:Reference Type="http://uri.etsi.org/01903#SignedProperties" URI="#xmldsig-7c47b94c-6987-452f-9414-700ec7a3141d-signedprops">
+			<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+			<ds:DigestValue>9p3p9D1mncnigb5cjkeXpbAjgJqGcO5V+RX2XrgfXrY=</ds:DigestValue>
+		</ds:Reference>
+	</ds:SignedInfo>
+	<ds:SignatureValue Id="xmldsig-7c47b94c-6987-452f-9414-700ec7a3141d-sigvalue">NRwVXUYhlPtjZYH/syB2K7OO10ok3ksWcUAttaKOoX/kU7Mmuc5afqCkKcbjcFoJJJWmpOskURa4iQFIM9TCkeNXFt5ZjJBMDVuh/D79pomLtr7AoTZ4AlSXyOkVxWiLiIz4zys8sSYSAXztpK3H06qtixjNN+EYnCZ0Alehz7XrFFP+iiB7XOwwNtj8GCtr7WQv9d9ZGu0GozVweB6OdTw+glTjsRVeclk7c7cFjilBkL5Crj0Cb3Q4R5JbCt9nA/fYVoI9PMj30D12PyyNv0d/9vZDm4JSQ/K+p2H1t8f0GQQEcuM9Fag0Xu0h/FXeabnr6x+uiBcUIeiFEk/IDw==</ds:SignatureValue>
+	<ds:KeyInfo>
+		<ds:X509Data>
+			<ds:X509Certificate>MIIFHzCCAwegAwIBAgIGAZfw6h87MA0GCSqGSIb3DQEBCwUAMFoxCzAJBgNVBAYTAkNSMR8wHQYDVQQKDBZNSU5JU1RFUklPIERFIEhBQ0lFTkRBMQwwCgYDVQQLDANER1QxHDAaBgNVBAMME0NBIFBFUlNPTkEgSlVSSURJQ0EwHhcNMjUwNzA5MjAzOTI0WhcNMjkwNzA4MjAzOTI0WjB6MRkwFwYDVQQFExBDUEotMy0xMDEtMzM0NjU4MQswCQYDVQQGEwJDUjEZMBcGA1UECgwQUEVSU09OQSBKVVJJRElDQTEMMAoGA1UECwwDQ1BKMScwJQYDVQQDDB5DQUxMTVlXQVkgTiBZIFNPQ0lFREFEIEFOT05JTUEwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCseJXD+/4eLWbc5WsGVEAmPDpHkC6vW/sUBqxMXi9cNNGTnwzmrFzF0+TaryhJMr1beiplV8HbWnJ6HA5OHdF0O3JZWScFkHuBla5Rg7K1UDftcrGnqyHS5d4wBja1PnLij2Q1RV4jnmP3FOr/lPLxzAA9fDWHXO87MuG6QVJCW/62nFKjsJoJ5b5O8ivtlulvOfcZK3DNv/GSYiQrECPEg2THBzin+adCU1vX0vGYCl3SWakBDccI/P3mYMJ8H+TeNk5vo0mDlaxRAGANgp2XBUTTmSa9+ud3cvpwiG2PDzreh86oDXxeFbEKhhTNDy1/FMOxRXkIeN102fDAAa5FAgMBAAGjgcowgccwHwYDVR0jBBgwFoAUO21X9dZ86Z4QAiBB470azM+zTpUwHQYDVR0OBBYEFGhaLO6L8nuCx2eA597dFzUV5oiHMAsGA1UdDwQEAwIGwDATBgNVHSUEDDAKBggrBgEFBQcDBDBjBggrBgEFBQcBAQRXMFUwUwYIKwYBBQUHMAKGR2h0dHBzOi8vcGtpLmNvbXByb2JhbnRlc2VsZWN0cm9uaWNvcy5nby5jci9wcm9kL2ludGVybWVkaWF0ZS1wai1wZW0uY3J0MA0GCSqGSIb3DQEBCwUAA4ICAQA02oI1g0sgaw7lCxgnJkiclVQ6C4ADmWGE+UPeNgbqKQYYpkL8oHSaX8o41KSrPzag/0ZlTRA2PJrNrNwuLxDV9Dv/FpXYwjplmHJGeEeQSFyztRhfOilKGtiP+ED3I+4ZGb1KhfBuxN3KkeR0YOJYm6+XYVtfLljL08atJ68+U53ezW6BY3uNH19MoVzEuiN9ZlVXG2UESkIvVmOIEfmFB8SoNCzj85qIp1VDsV1kqRhW0THYdvCtI7cuCsvhnlC8+RU908gTOh7r3+yMTiMnM827xTh23oKstbvHTvviDrFLMWRUPrrVMDP3r+YdeFbQuI3S35ccJlRy/RT9gN5Z69h5n6kOc7hcWiZrAQe8SuWgBh37zvD9t9MV0fM5IyTivzMUOwAkDrbjsEmRrhiV4fIPc8Y1pd+mdSIGzMReJ6rLHtUi5dpBOyl6z0g8xfA6mm5Fu3scYfigwHB8Py6IAlTnlXaVDmm5rB3Wr7z70X8G0L8zTIngj/eI+ix8sRBy+/5NuUg3Ungx+RQEkORdl8+PN9fkIGgpsJFiTkBfHcf9fH9JQaAoXLDY4fe0udmw+1yq+3yqdjTYedQfJ83sfCzwz+eU72vgAfVTMSjLjM3YISwEpWuJSpP9kkTaoUwP7H3JfJHQDK0XIRZac17bZuEufEQqrjxC0E8CifDXbg==</ds:X509Certificate>
+		</ds:X509Data>
+	</ds:KeyInfo>
+	<ds:Object>
+		<xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" xmlns:xades141="http://uri.etsi.org/01903/v1.4.1#" Target="#xmldsig-7c47b94c-6987-452f-9414-700ec7a3141d">
+			<xades:SignedProperties Id="xmldsig-7c47b94c-6987-452f-9414-700ec7a3141d-signedprops">
+				<xades:SignedSignatureProperties>
+					<xades:SigningTime>2026-02-01T06:40:06-06:00</xades:SigningTime>
+					<xades:SigningCertificate>
+						<xades:Cert>
+							<xades:CertDigest>
+								<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+								<ds:DigestValue>Wd/LXMKbs2lHQbQ1UwE+5oQKRLOQWuyGVUV6lcXl0Bc=</ds:DigestValue>
+							</xades:CertDigest>
+							<xades:IssuerSerial>
+								<ds:X509IssuerName>CN=CA PERSONA JURIDICA,OU=DGT,O=MINISTERIO DE HACIENDA,C=CR</ds:X509IssuerName>
+								<ds:X509SerialNumber>1752093564731</ds:X509SerialNumber>
+							</xades:IssuerSerial>
+						</xades:Cert>
+					</xades:SigningCertificate>
+					<xades:SignaturePolicyIdentifier>
+						<xades:SignaturePolicyId>
+							<xades:SigPolicyId>
+								<xades:Identifier>https://tribunet.hacienda.go.cr/docs/esquemas/2016/v4/Resolucion%20Comprobantes%20Electronicos%20%20DGT-R-48-2016.pdf</xades:Identifier>
+							</xades:SigPolicyId>
+							<xades:SigPolicyHash>
+								<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+								<ds:DigestValue>V8lVVNGDCPen6VELRD1Ja8HARFk=</ds:DigestValue>
+							</xades:SigPolicyHash>
+						</xades:SignaturePolicyId>
+					</xades:SignaturePolicyIdentifier>
+				</xades:SignedSignatureProperties>
+			</xades:SignedProperties>
+		</xades:QualifyingProperties>
+	</ds:Object>
+</ds:Signature></FacturaElectronica>

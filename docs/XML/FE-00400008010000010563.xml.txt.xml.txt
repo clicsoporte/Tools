@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FacturaElectronica xmlns="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.4/facturaElectronica" xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xsi:schemaLocation="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.4/facturaElectronica schema.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Clave>50631012600310105544400400008010000010563136252441</Clave>
+  <ProveedorSistemas>PROPIO</ProveedorSistemas>
+  <CodigoActividadEmisor>4759.0</CodigoActividadEmisor>
+  <NumeroConsecutivo>00400008010000010563</NumeroConsecutivo>
+  <FechaEmision>2026-01-31T17:20:15</FechaEmision>
+  <Emisor>
+    <Nombre>Distribuidora Jivis S.A.</Nombre>
+    <Identificacion>
+      <Tipo>02</Tipo>
+      <Numero>3101055444</Numero>
+    </Identificacion>
+    <NombreComercial>Jivis</NombreComercial>
+    <Ubicacion>
+      <Provincia>1</Provincia>
+      <Canton>04</Canton>
+      <Distrito>01</Distrito>
+      <Barrio>Santiago</Barrio>
+      <OtrasSenas>Costado noreste del parque de Puriscal</OtrasSenas>
+    </Ubicacion>
+    <Telefono>
+      <CodigoPais>506</CodigoPais>
+      <NumTelefono>24166270</NumTelefono>
+    </Telefono>
+    <CorreoElectronico>jivisfacturaelectronica@jiviscr.com</CorreoElectronico>
+  </Emisor>
+  <Receptor>
+    <Nombre>Clic Soporte y Clic Tienda SRL</Nombre>
+    <Identificacion>
+      <Tipo>01</Tipo>
+      <Numero>107570437</Numero>
+    </Identificacion>
+    <NombreComercial>Clic Soporte y Clic Tienda SRL</NombreComercial>
+  </Receptor>
+  <CondicionVenta>01</CondicionVenta>
+  <DetalleServicio>
+    <LineaDetalle>
+      <NumeroLinea>1</NumeroLinea>
+      <CodigoCABYS>4481704040000</CodigoCABYS>
+      <CodigoComercial>
+        <Tipo>04</Tipo>
+        <Codigo>34415</Codigo>
+      </CodigoComercial>
+      <Cantidad>1</Cantidad>
+      <UnidadMedida>Unid</UnidadMedida>
+      <Detalle>PLANTILLA INDUCCION NAVAR 2 DISCOS DELUXE BT-18D2DX</Detalle>
+      <PrecioUnitario>92831.86000</PrecioUnitario>
+      <MontoTotal>92831.86000</MontoTotal>
+      <Descuento>
+        <MontoDescuento>7831.75000</MontoDescuento>
+        <CodigoDescuento>06</CodigoDescuento>
+        <NaturalezaDescuento>Descuento</NaturalezaDescuento>
+      </Descuento>
+      <SubTotal>85000.11000</SubTotal>
+      <BaseImponible>85000.11000</BaseImponible>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifaIVA>08</CodigoTarifaIVA>
+        <Tarifa>13</Tarifa>
+        <Monto>11049.89000</Monto>
+      </Impuesto>
+      <ImpuestoAsumidoEmisorFabrica>0.00000</ImpuestoAsumidoEmisorFabrica>
+      <ImpuestoNeto>11049.89000</ImpuestoNeto>
+      <MontoTotalLinea>96050.00000</MontoTotalLinea>
+    </LineaDetalle>
+  </DetalleServicio>
+  <ResumenFactura>
+    <CodigoTipoMoneda>
+      <CodigoMoneda>CRC</CodigoMoneda>
+      <TipoCambio>1.00</TipoCambio>
+    </CodigoTipoMoneda>
+    <TotalServGravados>0.00000</TotalServGravados>
+    <TotalServExentos>0.00000</TotalServExentos>
+    <TotalMercanciasGravadas>92831.86000</TotalMercanciasGravadas>
+    <TotalMercanciasExentas>0.00000</TotalMercanciasExentas>
+    <TotalMercExonerada>0.00000</TotalMercExonerada>
+    <TotalGravado>92831.86000</TotalGravado>
+    <TotalExento>0.00000</TotalExento>
+    <TotalExonerado>0.00000</TotalExonerado>
+    <TotalVenta>92831.86000</TotalVenta>
+    <TotalDescuentos>7831.75000</TotalDescuentos>
+    <TotalVentaNeta>85000.11000</TotalVentaNeta>
+    <TotalDesgloseImpuesto>
+      <Codigo>01</Codigo>
+      <CodigoTarifaIVA>08</CodigoTarifaIVA>
+      <TotalMontoImpuesto>11049.89000</TotalMontoImpuesto>
+    </TotalDesgloseImpuesto>
+    <TotalImpuesto>11049.89000</TotalImpuesto>
+    <MedioPago>
+      <TipoMedioPago>02</TipoMedioPago>
+      <TotalMedioPago>96050.00000</TotalMedioPago>
+    </MedioPago>
+    <TotalComprobante>96050.00000</TotalComprobante>
+  </ResumenFactura>
+<ds:Signature Id="xmldsig-6e42e33b-0cc2-4bb9-bd98-44a806d2b8b0"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" /><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256" /><ds:Reference Id="xmldsig-6e42e33b-0cc2-4bb9-bd98-44a806d2b8b0-ref0" URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>T80b8kJ5Dp+1Rk2txozAPlRPp/ZkzfMkNQoHJJx1SKw=</ds:DigestValue></ds:Reference><ds:Reference Type="http://uri.etsi.org/01903#SignedProperties" URI="#SignedProperties"><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" /></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></ds:DigestMethod><ds:DigestValue>Kg2lBKiZok/NZ4bfzkrGZ4TgR295fKBXUc5IS/NF9Uo=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue Id="xmldsig-6e42e33b-0cc2-4bb9-bd98-44a806d2b8b0-sigvalue">eBOuhC2ws3iaT1oLM4WuitVqoGY/47o260D+j9JUWaO7qwDik6T6hoArKCQz0qGC9tRMEYkPZJ5M83u1QD5NnYfZk4tRa8WG9lKY5lkozMs5bsC4/Hh2YiucWYaPlwl+Qgz35o8sEr7mfwlTAPBOOKtZz0B3BgxM8Hzt1WRxzTbhPwyZ21KfqibPHtEJUeHyP3rFsNEOFdNcTp0vN7Z559V3zX7Q/TB35o9F5MSW64HhdJPdHKNgna6eQqbl3VrLmBqw5JOgjo7BTt3T2VahTKtH0JiMle0XXJeKvioF1Lo1GLTgyqqBTfwv7fylPxC6Hf3PK9SYSbDEwMM5jHww5w==</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509Certificate>MIIFJjCCAw6gAwIBAgIGAZZkcWhZMA0GCSqGSIb3DQEBCwUAMFoxCzAJBgNVBAYTAkNSMR8wHQYDVQQKDBZNSU5JU1RFUklPIERFIEhBQ0lFTkRBMQwwCgYDVQQLDANER1QxHDAaBgNVBAMME0NBIFBFUlNPTkEgSlVSSURJQ0EwHhcNMjUwNDIzMjA1NzU2WhcNMjkwNDIyMjA1NzU2WjCBgDEZMBcGA1UEBRMQQ1BKLTMtMTAxLTA1NTQ0NDELMAkGA1UEBhMCQ1IxGTAXBgNVBAoMEFBFUlNPTkEgSlVSSURJQ0ExDDAKBgNVBAsMA0NQSjEtMCsGA1UEAwwkRElTVFJJQlVJRE9SQSBKSVZJUyBTT0NJRURBRCBBTk9OSU1BMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkDDv2l0l9HhuURj3Xz9DZhBvBTseU6p3G3vEJsBcJ2b1l4mwUFc7dU8iYI+U+lUFW5/LAX4C2E8ot4+VSYIbXe8cCbA3u5skjcsnvEaNgGeDRoU3Bh2+Rm58EJD6X+Sbppr6qZcU2y2WsPlvvv+I7O36XOE2w5mVG02mq/ohbYBBAArWQQxflsW2n3tjwcV0YoCuycNa8mr4+caX4/o3s6Mn09y65WSItwS4i15pmk03KU4ISGMraFVeMuJFH3sQYGGYS45XtZbObIh7pCwedZ4gy7W/5p6jIs0EiANpLsmY0Og5lxMfneDmCpZIIY+FYjqlS86Ai5bixm0/7Sl99wIDAQABo4HKMIHHMB8GA1UdIwQYMBaAFDttV/XWfOmeEAIgQeO9GszPs06VMB0GA1UdDgQWBBTxrFaElsOXqcdPV8QiTi/+mOWU7zALBgNVHQ8EBAMCBsAwEwYDVR0lBAwwCgYIKwYBBQUHAwQwYwYIKwYBBQUHAQEEVzBVMFMGCCsGAQUFBzAChkdodHRwczovL3BraS5jb21wcm9iYW50ZXNlbGVjdHJvbmljb3MuZ28uY3IvcHJvZC9pbnRlcm1lZGlhdGUtcGotcGVtLmNydDANBgkqhkiG9w0BAQsFAAOCAgEAX4DqKisolODn9ztyY+bxCuLqJSlkmFLYOXlqzFq4w6iB/k8VNUoLxszYPa9wdD0ql7HwXXs34k6qYFhfX/9qfyqK75cIfQDlbrIYFa+br0302xJfcN5TMzkYHvSQUgAHHSLelRf1ffWjcQU/DgboMs4uc+qSQcHSCbADNgpxYLKunPOKmjbIW2VCKchBbhp4Pwgqd4mOQSX7wMNRLKhCd+1cRtjgcX/nmVNZbql/hjb8KBRxnv2mu6X6PtSeH4uw7Gjbfu3/ByeY5DqHhbbZerz8JAfULDoMeRPqs55bGwrtW+gelYXcXLcOUGlyMi/NDkMcXRwqI6kxHDvlv5Y3aRpzkt4UwvqJbM+RZX8V56+qTeLPBeNVn+JHh+0ZyhVbbc8JnolO0LlAQjMTu/moYNJyYxsw1n+DPVYQRmj6gvR1yOSImiurmoG600+hFBa++uJ2FrXaY7z4EZYyIxnBDPYoOx4uWU9Mh0alER1D0367pPyk7TmYWDfxe5wV81D8a5QK9BTwl5ZciWyOiD424XD6RgyllEVs3E4NXHOisMJCwNFR+pEflirXj32GB7L51Q9jn0/Uy0G1ZtNwJ2wnoR9g1RpEo0VXqJy9v+ygKy9UWdmwN+Gh2K6BbqV57uLjInD8W9SEJyZ+3t0KyY0a3UT9nejQHq1u7bT9B45DIXU=</ds:X509Certificate><ds:X509SubjectName>CN=DISTRIBUIDORA JIVIS SOCIEDAD ANONIMA, OU=CPJ, O=PERSONA JURIDICA, C=CR, SERIALNUMBER=CPJ-3-101-055444</ds:X509SubjectName><ds:X509IssuerSerial><ds:X509IssuerName>CN=CA PERSONA JURIDICA, OU=DGT, O=MINISTERIO DE HACIENDA, C=CR</ds:X509IssuerName><ds:X509SerialNumber>1745441876057</ds:X509SerialNumber></ds:X509IssuerSerial></ds:X509Data></ds:KeyInfo><ds:Object><xades:QualifyingProperties Target="#xmldsig-6e42e33b-0cc2-4bb9-bd98-44a806d2b8b0" xmlns:xades141="http://uri.etsi.org/01903/v1.4.1#" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#"><xades:SignedProperties Id="SignedProperties"><xades:SignedSignatureProperties><xades:SigningTime>2019-11-05T17:00:00Z</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>teVaiT/KFysYBWEq0wkueMLvZQ3EnVwEdcQGDwnCiw4=</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>CN=CA PERSONA JURIDICA, OU=DGT, O=MINISTERIO DE HACIENDA, C=CR</ds:X509IssuerName><ds:X509SerialNumber>1745441876057</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate><xades:SignaturePolicyIdentifier><xades:SignaturePolicyId><xades:SigPolicyId><xades:Identifier>https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.4/facturaElectronica</xades:Identifier></xades:SigPolicyId><xades:SigPolicyHash><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></ds:DigestMethod><ds:DigestValue>nVCrSwvK8dNnGHwfLYAzNAQMe5FCQjMl2Pf+Nfu5IBw=</ds:DigestValue></xades:SigPolicyHash></xades:SignaturePolicyId></xades:SignaturePolicyIdentifier></xades:SignedSignatureProperties></xades:SignedProperties></xades:QualifyingProperties></ds:Object></ds:Signature></FacturaElectronica>

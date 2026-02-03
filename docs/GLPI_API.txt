@@ -1,0 +1,196 @@
+
+# Conexión con GLPI a través de la API REST
+
+## Requisitos Previos
+
+1.  **Habilitar la API de GLPI**:
+    *   Ve a `Configuración` > `General` > `API`.
+    *   Asegúrate de que la API REST esté habilitada.
+
+2.  **Crear un cliente de API**:
+    *   En la misma sección de configuración de la API, puedes agregar clientes de API.
+    *   Define un `App-Token`, que es una cadena de autorización para tu aplicación.
+    *   Puedes restringir el acceso por IP si es necesario.
+
+3.  **Obtener un Token de Usuario**:
+    *   Para autenticarte sin usar usuario y contraseña en cada solicitud, puedes usar un `user_token`.
+    *   Ve a las `Preferencias` de un usuario y busca la "Clave de acceso remoto".
+
+## ¿Cómo funciona la conexión?
+
+La conexión con la API de GLPI sigue estos pasos:
+
+1.  **Iniciar Sesión (`initSession`)**: Primero, necesitas obtener un `session_token` enviando tus credenciales (usuario/contraseña o `user_token`) y el `App-Token`.
+2.  **Realizar Solicitudes**: Una vez que tienes el `session_token`, puedes usarlo para hacer llamadas a los diferentes *endpoints* de la API.
+3.  **Cerrar Sesión (`killSession`)**: Cuando termines, es una buena práctica cerrar la sesión para liberar recursos en el servidor.
+
+---
+
+## Código de Ejemplo para Conectar tu Sistema a GLPI
+
+A continuación, se muestra cómo puedes conectar tu sistema a GLPI para obtener datos del inventario.
+
+### 1. Iniciar Sesión para Obtener un `session_token`
+
+Puedes autenticarte de dos maneras:
+
+**Opción A: Con `user_token` (Recomendado)**
+
+```bash
+# Reemplaza con tus datos
+GLPI_URL="http://path/to/glpi"
+APP_TOKEN="tu_app_token"
+USER_TOKEN="tu_user_token"
+
+# Hacer la solicitud para obtener el session_token
+SESSION_TOKEN=$(curl -s -X GET \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: user_token ${USER_TOKEN}" \
+  -H "App-Token: ${APP_TOKEN}" \
+  "${GLPI_URL}/apirest.php/initSession" | jq -r '.session_token')
+
+echo "Session Token: ${SESSION_TOKEN}"
+```
+
+**Opción B: Con Usuario y Contraseña**
+
+```bash
+# Reemplaza con tus datos
+GLPI_URL="http://path/to/glpi"
+APP_TOKEN="tu_app_token"
+GLPI_USER="tu_usuario"
+GLPI_PASSWORD="tu_contraseña"
+
+# Codificar credenciales en Base64
+AUTH_HEADER=$(echo -n "${GLPI_USER}:${GLPI_PASSWORD}" | base64)
+
+# Hacer la solicitud
+SESSION_TOKEN=$(curl -s -X GET \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Basic ${AUTH_HEADER}" \
+  -H "App-Token: ${APP_TOKEN}" \
+  "${GLPI_URL}/apirest.php/initSession" | jq -r '.session_token')
+
+echo "Session Token: ${SESSION_TOKEN}"
+```
+
+### 2. Descargar Datos del Inventario
+
+Una vez que tienes el `session_token`, puedes hacer consultas.
+
+**Ejemplo: Obtener una lista de todos los ordenadores**
+
+```bash
+curl -X GET \
+  -H 'Content-Type: application/json' \
+  -H "Session-Token: ${SESSION_TOKEN}" \
+  -H "App-Token: ${APP_TOKEN}" \
+  "${GLPI_URL}/apirest.php/Computer/"
+```
+
+**Ejemplo: Obtener datos adicionales de un ordenador específico (ID = 71)**
+
+Para obtener más detalles, como software, puertos de red, documentos, etc., puedes usar los parámetros `with_*`.
+
+```bash
+curl -X GET \
+  -H 'Content-Type: application/json' \
+  -H "Session-Token: ${SESSION_TOKEN}" \
+  -H "App-Token: ${APP_TOKEN}" \
+  "${GLPI_URL}/apirest.php/Computer/71?with_softwares=true&with_networkports=true&with_documents=true&with_tickets=true"
+```
+
+El resultado será un objeto JSON con los datos del ordenador y arrays adicionales para el software, los puertos de red, los documentos y los tickets asociados.
+
+### 3. Ejemplo de Script en Python para Automatizar la Descarga
+
+Este script de Python muestra cómo conectar a la API, obtener el inventario de ordenadores y guardar los datos en un archivo JSON.
+
+```python
+import requests
+import json
+import base64
+
+# --- Configuración ---
+GLPI_URL = "http://path/to/glpi"
+APP_TOKEN = "tu_app_token"
+USER_TOKEN = "tu_user_token" # Opcional si usas usuario/contraseña
+GLPI_USER = "tu_usuario"     # Opcional si usas user_token
+GLPI_PASSWORD = "tu_contraseña" # Opcional si usas user_token
+
+def get_session_token():
+    """Inicia sesión en GLPI y obtiene un token de sesión."""
+    headers = {
+        'Content-Type': 'application/json',
+        'App-Token': APP_TOKEN
+    }
+
+    # Elige el método de autenticación
+    if USER_TOKEN:
+        headers['Authorization'] = f"user_token {USER_TOKEN}"
+    else:
+        auth_string = f"{GLPI_USER}:{GLPI_PASSWORD}"
+        auth_header = base64.b64encode(auth_string.encode()).decode()
+        headers['Authorization'] = f"Basic {auth_header}"
+
+    try:
+        response = requests.get(f"{GLPI_URL}/apirest.php/initSession", headers=headers)
+        response.raise_for_status()  # Lanza un error si la solicitud falla
+        return response.json()['session_token']
+    except requests.exceptions.RequestException as e:
+        print(f"Error al iniciar sesión: {e}")
+        return None
+
+def get_inventory(session_token):
+    """Obtiene el inventario completo de ordenadores."""
+    headers = {
+        'Content-Type': 'application/json',
+        'Session-Token': session_token,
+        'App-Token': APP_TOKEN
+    }
+    
+    all_computers = []
+    start = 0
+    range_size = 50 # Número de elementos a obtener por página
+
+    while True:
+        try:
+            # Pide una página de resultados
+            response = requests.get(
+                f"{GLPI_URL}/apirest.php/Computer?range={start}-{start + range_size}&expand_dropdowns=true&with_softwares=true",
+                headers=headers
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            if not data:
+                break # Si no hay más datos, sal del bucle
+            
+            all_computers.extend(data)
+            start += range_size
+            
+            # Comprueba si hemos llegado al final de los resultados
+            if len(data) < range_size:
+                break
+        except requests.exceptions.RequestException as e:
+            print(f"Error al obtener el inventario: {e}")
+            return None
+            
+    return all_computers
+
+if __name__ == "__main__":
+    session_token = get_session_token()
+    if session_token:
+        print("Sesión iniciada con éxito.")
+        inventory = get_inventory(session_token)
+        
+        if inventory:
+            # Guardar los datos en un archivo JSON
+            with open("glpi_inventory.json", "w") as f:
+                json.dump(inventory, f, indent=4)
+            print(f"Inventario descargado con éxito. Se encontraron {len(inventory)} ordenadores.")
+        else:
+            print("No se pudo descargar el inventario.")
+```
+
+Este documento proporciona una guía completa para que puedas integrar tu sistema con GLPI y acceder a sus datos de manera programática.
