@@ -728,10 +728,10 @@ export default function HelpPage() {
                         <strong>Crear Conocimiento:</strong> Crea notas para documentar procedimientos de soporte, guías de configuración, soluciones a problemas recurrentes, o cualquier información técnica relevante.
                     </li>
                     <li>
-                        <strong>Vincular a Módulos:</strong> La característica más potente es la capacidad de vincular una nota a un módulo específico de la aplicación. Por ejemplo, puedes crear una "Guía para Solicitudes de Compra" y vincularla al módulo de "Compras".
+                        <strong>Vincular a Módulos:</strong> La característica más potente es la capacidad de vincular una nota a un módulo específico de la aplicación. Por ejemplo, puedes crear una &quot;Guía para Solicitudes de Compra&quot; y vincularla al módulo de &quot;Compras&quot;.
                     </li>
                     <li>
-                        <strong>Búsqueda y Filtrado:</strong> Usa la barra de búsqueda para encontrar notas por título o contenido, y utiliza el filtro de "Módulo" para ver solo la documentación relevante para un área específica del sistema.
+                        <strong>Búsqueda y Filtrado:</strong> Usa la barra de búsqueda para encontrar notas por título o contenido, y utiliza el filtro de &quot;Módulo&quot; para ver solo la documentación relevante para un área específica del sistema.
                     </li>
                 </ul>
             </div>
@@ -870,10 +870,10 @@ export default function HelpPage() {
                             <ul className="list-disc pl-5 text-sm space-y-1 mt-2">
                                 <li><strong>Centro de Verificación:</strong> Audita la integridad y estructura de todas las bases de datos para asegurar que las tablas y columnas sean correctas, una herramienta vital después de una actualización. Si encuentra un error, permite intentar una reparación automática.</li>
                                 <li>
-                                    <strong>Backups y Puntos de Restauración:</strong> Gestiona backups de <strong>todo el sistema</strong>. La acción <strong>"Crear Punto de Restauración"</strong> ahora es más segura, ya que consolida los datos (ejecuta un `checkpoint`) antes de crear la copia.
+                                    <strong>Backups y Puntos de Restauración:</strong> Gestiona backups de <strong>todo el sistema</strong>. La acción <strong>&quot;Crear Punto de Restauración&quot;</strong> ahora es más segura, ya que consolida los datos (ejecuta un `checkpoint`) antes de crear la copia.
                                 </li>
                                 <li>
-                                    <strong>Zona de Peligro:</strong> Contiene acciones críticas. Aquí puedes restaurar la base de datos de un solo módulo, resetear un módulo a su estado de fábrica, o usar el nuevo botón <strong>"Forzar Consolidación de Datos"</strong> para asegurar que todos los cambios pendientes se escriban en los archivos principales de la base de datos.
+                                    <strong>Zona de Peligro:</strong> Contiene acciones críticas. Aquí puedes restaurar la base de datos de un solo módulo, resetear un módulo a su estado de fábrica, o usar el nuevo botón <strong>&quot;Forzar Consolidación de Datos&quot;</strong> para asegurar que todos los cambios pendientes se escriban en los archivos principales de la base de datos.
                                 </li>
                             </ul>
                         </div>
