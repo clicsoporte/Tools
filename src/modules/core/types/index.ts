@@ -983,3 +983,15 @@ export interface EmailSettings {
   recoveryEmailSubject: string;
   recoveryEmailBody: string;
 }
+
+// --- IT Tools Module Types ---
+export type ITNote = {
+    id: number;
+    title: string;
+    content: string | null;
+    tags: string | null;
+    linkedModule: string | null;
+    createdBy: string;
+    createdAt: string;
+    updatedAt: string;
+};

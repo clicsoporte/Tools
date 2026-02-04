@@ -93,6 +93,10 @@ import {
   RotateCcw,
   BookUser,
   GitBranch,
+  Construction,
+  BookCopy,
+  Cpu,
+  FileSignature,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -396,8 +400,9 @@ export default function HelpPage() {
                     <li>
                         <strong>Paso 1: Cargar Facturas XML (<UploadCloud className="inline h-4 w-4"/>).</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li>Usa el botón &quot;Cargar Facturas XML&quot; para seleccionar una o varias facturas de compra en formato XML de Hacienda. El sistema extraerá automáticamente todos los artículos, cantidades y costos.</li>
+                            <li>Usa el botón &quot;Cargar Facturas XML&quot; para seleccionar una o varias facturas de compra en formato XML de Hacienda (v4.3 o v4.4). El sistema extraerá automáticamente todos los artículos, cantidades y costos.</li>
                             <li>Verás las facturas procesadas en la tarjeta de &quot;Facturas Procesadas&quot;, indicando si la extracción fue exitosa o si hubo algún error (ej. XML malformado).</li>
+                            <li>El sistema ahora es más inteligente: limpiará automáticamente la descripción del artículo (quitando datos como `...;IVA1;...`) y dará prioridad al código de producto del proveedor si está presente.</li>
                         </ul>
                     </li>
                     <li>
@@ -707,6 +712,57 @@ export default function HelpPage() {
         )
     },
     {
+        title: "Guía: Herramientas de TI",
+        icon: <Cpu className="mr-4 h-6 w-6 text-slate-700" />,
+        content: (
+            <div className="space-y-4">
+                <p>
+                Este es un nuevo panel de control diseñado para centralizar la documentación y las herramientas del departamento de Tecnologías de la Información.
+                </p>
+                <h4 className="font-semibold text-lg pt-2 border-t">Notas Técnicas (<BookCopy className="inline h-5 w-5 text-blue-600"/>)</h4>
+                <p>
+                La primera herramienta de este módulo es una base de conocimiento interna. Su objetivo es simple: documentar todo.
+                </p>
+                <ul className="list-disc space-y-3 pl-6">
+                    <li>
+                        <strong>Crear Conocimiento:</strong> Crea notas para documentar procedimientos de soporte, guías de configuración, soluciones a problemas recurrentes, o cualquier información técnica relevante.
+                    </li>
+                    <li>
+                        <strong>Vincular a Módulos:</strong> La característica más potente es la capacidad de vincular una nota a un módulo específico de la aplicación. Por ejemplo, puedes crear una "Guía para Solicitudes de Compra" y vincularla al módulo de "Compras".
+                    </li>
+                    <li>
+                        <strong>Búsqueda y Filtrado:</strong> Usa la barra de búsqueda para encontrar notas por título o contenido, y utiliza el filtro de "Módulo" para ver solo la documentación relevante para un área específica del sistema.
+                    </li>
+                </ul>
+            </div>
+        )
+    },
+    {
+        title: "Guía: Centro de Trazabilidad y Operaciones (CTO)",
+        icon: <FileSignature className="mr-4 h-6 w-6 text-teal-700" />,
+        content: (
+            <div className="space-y-4">
+                <Alert variant="default" className="mt-4">
+                    <Construction className="h-4 w-4" />
+                    <AlertTitle>Módulo en Desarrollo</AlertTitle>
+                    <AlertDescription>
+                        Este módulo está actualmente en construcción y sentará las bases para la digitalización de formularios y procesos operativos.
+                    </AlertDescription>
+                </Alert>
+                <p>
+                El objetivo del CTO es reemplazar las boletas de papel por formularios digitales para cumplir con normativas como la ISO 9001 y mejorar la trazabilidad.
+                </p>
+                 <h4 className="font-semibold text-lg pt-2 border-t">Funcionalidades Planeadas</h4>
+                <ul className="list-disc space-y-2 pl-6">
+                    <li>Formularios para entrega de producción a bodega.</li>
+                    <li>Boletas de salida de material a producción.</li>
+                    <li>Registro de movimientos internos de inventario.</li>
+                    <li>Gestión de muestras y devoluciones de clientes.</li>
+                </ul>
+            </div>
+        )
+    },
+    {
         title: "Tutorial: Consultas a Hacienda",
         icon: <Search className="mr-4 h-6 w-6 text-indigo-500" />,
         content: (
@@ -768,10 +824,6 @@ export default function HelpPage() {
                         <ShieldCheck className="mt-1 h-6 w-6 text-green-500 shrink-0" />
                         <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: &quot;Supervisor&quot;) y asignar permisos granulares para cada módulo. Al marcar un permiso &quot;padre&quot; (como &quot;Compras: Lectura y Creación&quot;), se marcarán automáticamente todos sus permisos hijos.</p></div>
                     </div>
-                     <div className="flex items-start gap-4">
-                        <BellRing className="mt-1 h-6 w-6 text-yellow-500 shrink-0" />
-                        <div><h4 className="font-semibold">Gestor de Automatización (En Desarrollo)</h4><p>Actualmente en desarrollo, esta sección permitirá en el futuro definir reglas de notificación automática y tareas programadas (Cron Jobs).</p></div>
-                    </div>
                     <div className="flex items-start gap-4">
                         <Mail className="mt-1 h-6 w-6 text-purple-600 shrink-0" />
                         <div><h4 className="font-semibold">Configuración de Correo</h4><p>Configura tu servidor de correo (SMTP) para habilitar el envío de notificaciones y la recuperación de contraseñas. Permite personalizar las plantillas de los correos.</p></div>
@@ -817,8 +869,12 @@ export default function HelpPage() {
                             <p>Herramientas críticas, ahora separadas en secciones para mayor claridad y seguridad:</p>
                             <ul className="list-disc pl-5 text-sm space-y-1 mt-2">
                                 <li><strong>Centro de Verificación:</strong> Audita la integridad y estructura de todas las bases de datos para asegurar que las tablas y columnas sean correctas, una herramienta vital después de una actualización. Si encuentra un error, permite intentar una reparación automática.</li>
-                                <li><strong>Backups y Puntos de Restauración:</strong> Gestiona backups de **todo el sistema**. Permite crear un &quot;Punto de Restauración&quot; antes de una actualización y restaurar el sistema a ese punto si algo sale mal.</li>
-                                <li><strong>Zona de Peligro:</strong> Contiene acciones que afectan módulos **individuales**. Aquí puedes restaurar la base de datos de un solo módulo (ej: `planner.db`) desde un archivo que subas, o resetear un módulo a su estado de fábrica si está corrupto. Estas acciones requieren confirmación estricta para evitar accidentes.</li>
+                                <li>
+                                    <strong>Backups y Puntos de Restauración:</strong> Gestiona backups de <strong>todo el sistema</strong>. La acción <strong>"Crear Punto de Restauración"</strong> ahora es más segura, ya que consolida los datos (ejecuta un `checkpoint`) antes de crear la copia.
+                                </li>
+                                <li>
+                                    <strong>Zona de Peligro:</strong> Contiene acciones críticas. Aquí puedes restaurar la base de datos de un solo módulo, resetear un módulo a su estado de fábrica, o usar el nuevo botón <strong>"Forzar Consolidación de Datos"</strong> para asegurar que todos los cambios pendientes se escriban en los archivos principales de la base de datos.
+                                </li>
                             </ul>
                         </div>
                     </div>

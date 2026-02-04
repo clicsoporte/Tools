@@ -23,6 +23,31 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [2.8.0] - Publicado
+
+### Funcionalidades y Mejoras Principales
+
+-   **[NUEVO MÓDULO] Herramientas de TI:**
+    -   Se ha creado un nuevo panel de control dedicado para el departamento de Tecnologías de la Información.
+    -   **Primer Sub-módulo: Notas Técnicas.** Permite crear una base de conocimiento interna para documentar procedimientos, guías y soluciones a problemas comunes.
+    -   **Vinculación Inteligente:** Cada nota puede ser vinculada a un módulo específico de la aplicación (ej: una guía para el "Planificador" o un procedimiento para "Compras"), permitiendo un filtrado contextual y una búsqueda más eficiente.
+
+-   **[NUEVO MÓDULO] Centro de Trazabilidad y Operaciones (CTO) - Cimientos:**
+    -   Se ha añadido la infraestructura base (menú, base de datos y permisos) para un futuro módulo de gestión de formularios digitales (boletas de entrega, movimientos de bodega, etc.) para el cumplimiento de la norma ISO 9001. La interfaz de usuario se encuentra actualmente en construcción.
+
+-   **[MEJORA] Mantenimiento del Sistema Robusto:**
+    -   **Backups Íntegros:** La acción **"Crear Punto de Restauración"** ahora ejecuta automáticamente una consolidación de la base de datos (checkpoint WAL) *antes* de crear el backup, garantizando que cada copia de seguridad sea completa y segura.
+    -   **Consolidación Manual:** Se ha añadido un nuevo botón **"Forzar Consolidación de Datos"** en la "Zona de Peligro" de Mantenimiento, dando a los administradores control explícito para consolidar los archivos de la base de datos cuando sea necesario.
+
+### Correcciones y Mejoras Internas
+
+-   **[Corrección Crítica] Asistente de Costos Mejorado:**
+    -   Se ha corregido un error que causaba que la descripción de los artículos en el Asistente de Costos incluyera datos extra (ej: `...;IVA1;0.00`). El sistema ahora limpia este campo automáticamente.
+    -   Se ha mejorado la lógica de análisis para dar prioridad al código de producto del proveedor (`Tipo 01`), aumentando la compatibilidad con diferentes formatos de facturas XML v4.3 y v4.4.
+-   **[UI]** Se han añadido los nuevos módulos ("Herramientas de TI" y "Operaciones") a la barra de navegación lateral para un acceso rápido.
+
+---
+
 ## [2.7.0] - Publicado
 
 ### Funcionalidades y Mejoras Principales
