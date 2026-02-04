@@ -15,7 +15,7 @@ import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
 import { logInfo, logWarn, logError } from './logger';
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 import { getExchangeRate, getEmailSettings } from './api-actions';
 import { NewUserSchema, UserSchema } from './auth-schemas';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
@@ -1316,6 +1316,9 @@ export async function getCurrentVersion(): Promise<string | null> {
 const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
 
 export async function backupAllForUpdate(): Promise<void> {
+    // Run checkpoint BEFORE creating the backup.
+    await runWalCheckpoint();
+    
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
     
     // Create a Windows-compatible timestamp
@@ -1732,4 +1735,11 @@ export async function getActiveWizardSession(userId: number): Promise<WizardSess
     return row?.activeWizardSession ? JSON.parse(row.activeWizardSession) : null;
 }
 
-    
+/**
+ * Forces a WAL checkpoint on all open databases to consolidate data.
+ * This is a server action intended to be called from the UI.
+ */
+export async function forceWalCheckpoint(): Promise<void> {
+    await logInfo("Manual WAL checkpoint initiated by admin.");
+    await runWalCheckpoint();
+}
