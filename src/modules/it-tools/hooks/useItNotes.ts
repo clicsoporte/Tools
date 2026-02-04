@@ -95,6 +95,7 @@ export const useItNotes = () => {
             const payload: Omit<ITNote, 'id' | 'createdAt' | 'updatedAt'> & { id?: number } = {
                 title: state.currentTitle,
                 content: state.currentContent,
+                tags: null, // Fix: Add missing 'tags' property
                 linkedModule: state.currentLinkedModule === 'none' ? null : state.currentLinkedModule,
                 createdBy: user.name,
                 ...(state.noteToEdit && { id: state.noteToEdit.id }),
