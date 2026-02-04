@@ -21,6 +21,7 @@ export const allAdminPermissions = [
     "warehouse:correction:execute", "warehouse:correction:apply", "warehouse:labels:generate",
     "hacienda:query",
     "operations:access", "operations:create", "operations:read:all", "operations:approve", "operations:sign",
+    "it-tools:access", "it-tools:notes:read", "it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete",
     "analytics:read", "analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read",
     "users:create", "users:read", "users:update", "users:delete",
     "roles:create", "roles:read", "roles:update", "roles:delete", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics",
@@ -42,6 +43,7 @@ export const permissionGroups = {
     "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request", "planner:status:unapprove-request:approve", "planner:priority:update", "planner:machine:assign", "planner:schedule"],
     "Asistente de Costos": ["cost-assistant:access", "cost-assistant:drafts:read-write"],
     "Centro de Operaciones y Trazabilidad (Nuevo)": ["operations:access", "operations:create", "operations:read:all", "operations:approve", "operations:sign"],
+    "Herramientas de TI (Nuevo)": ["it-tools:access", "it-tools:notes:read", "it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
     "Gestión de Almacenes": [
         "warehouse:access", "warehouse:search:full", "warehouse:search:simple",
         "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create",
@@ -77,6 +79,7 @@ export const permissionTranslations: { [key: string]: string } = {
     "planner:status:completed": "Plan.: Cambiar a Completada", "planner:status:cancel": "Plan.: Cancelar (Pendientes)", "planner:status:cancel-approved": "Plan.: Cancelar (Aprobadas)", "planner:priority:update": "Plan.: Cambiar Prioridad", "planner:machine:assign": "Plan.: Asignar Máquina", "planner:status:unapprove-request": "Plan.: Solicitar Desaprobación", "planner:status:unapprove-request:approve": "Plan.: Aprobar Desaprobación", "planner:schedule": "Plan.: Programar Fechas",
     "cost-assistant:access": "Asist. Costos: Acceso", "cost-assistant:drafts:read-write": "Asist. Costos: Guardar Borradores",
     "operations:access": "Operaciones: Acceso General", "operations:create": "Operaciones: Crear Documentos", "operations:read:all": "Operaciones: Ver Todos", "operations:approve": "Operaciones: Aprobar Documentos", "operations:sign": "Operaciones: Firmar Entregas/Recibos",
+    "it-tools:access": "TI: Acceso General", "it-tools:notes:read": "TI: Ver Notas", "it-tools:notes:create": "TI: Crear Notas", "it-tools:notes:update": "TI: Editar Notas", "it-tools:notes:delete": "TI: Eliminar Notas",
     "warehouse:access": "Almacén: Acceso General", "warehouse:search:full": "Almacén: Consulta Completa", "warehouse:search:simple": "Almacén: Búsqueda Rápida", 
     "warehouse:receiving-wizard:use": "Almacén: Usar Asist. Recepción", "warehouse:population-wizard:use": "Almacén: Usar Asist. Poblado", "warehouse:inventory-count:create": "Almacén: Registrar Conteo",
     "warehouse:item-assignment:create": "Almacén: Asignar Ubic./Prod.", "warehouse:item-assignment:delete": "Almacén: Eliminar Asignación",
@@ -102,6 +105,7 @@ export const permissionTree: Record<string, string[]> = {
     "requests:read": ["requests:read:all", "requests:create"],
     "planner:read": ["planner:read:all", "planner:create"],
     "operations:access": ["operations:create", "operations:read:all", "operations:approve", "operations:sign"],
+    "it-tools:access": ["it-tools:notes:read"],
 
     // Second-level dependencies
     "users:read": ["users:create", "users:update", "users:delete"],
@@ -109,6 +113,10 @@ export const permissionTree: Record<string, string[]> = {
     "admin:import:run": ["admin:import:files", "admin:import:sql", "admin:import:sql-config"],
     "admin:logs:read": ["admin:logs:clear"],
     "admin:maintenance:backup": ["admin:maintenance:restore", "admin:maintenance:reset"],
+    "it-tools:notes:read": ["it-tools:notes:create"],
+    "it-tools:notes:create": ["it-tools:notes:update"],
+    "it-tools:notes:update": ["it-tools:notes:delete"],
+
 
     "requests:create": ["requests:notes:add", "requests:edit:pending", "requests:create:duplicate"],
     "requests:edit:pending": ["requests:status:review"],

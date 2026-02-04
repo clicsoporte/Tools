@@ -23,6 +23,7 @@ import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/d
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
 import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
 import { initializeOperationsDb, runOperationsMigrations } from '../../operations/lib/db';
+import { initializeItToolsDb, runItToolsMigrations } from '../../it-tools/lib/db';
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
@@ -139,6 +140,7 @@ async function runMigrations(dbModule: Omit<DatabaseModule, 'schema'>, db: Datab
         case 'warehouse-management': migrationFn = runWarehouseMigrations; break;
         case 'cost-assistant': migrationFn = runCostAssistantMigrations; break;
         case 'operations': migrationFn = runOperationsMigrations; break;
+        case 'it-tools': migrationFn = runItToolsMigrations; break;
         default: break;
     }
 
@@ -217,6 +219,8 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
                 await initializeCostAssistantDb(db);
             } else if (dbModule.id === 'operations') {
                 await initializeOperationsDb(db);
+            } else if (dbModule.id === 'it-tools') {
+                await initializeItToolsDb(db);
             }
         }
         // Always run migrations on an existing DB to check for updates.
@@ -1704,6 +1708,7 @@ export async function runSingleModuleMigration(moduleId: string): Promise<void> 
             case 'warehouse-management': migrationFn = runWarehouseMigrations; break;
             case 'cost-assistant': migrationFn = runCostAssistantMigrations; break;
             case 'operations': migrationFn = runOperationsMigrations; break;
+            case 'it-tools': migrationFn = runItToolsMigrations; break;
             default: break;
         }
 

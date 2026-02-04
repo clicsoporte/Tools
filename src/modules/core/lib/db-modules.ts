@@ -12,6 +12,7 @@ import { requestSchema } from '../../requests/lib/schema';
 import { warehouseSchema } from '../../warehouse/lib/schema';
 import { costAssistantSchema } from '../../cost-assistant/lib/schema';
 import { operationsSchema } from '../../operations/lib/schema';
+import { itToolsSchema } from '../../it-tools/lib/schema';
 import { mainDbSchema } from './schema';
 
 /**
@@ -54,5 +55,11 @@ export const DB_MODULES: Omit<DatabaseModule, 'initFn' | 'migrationFn'>[] = [
         name: 'Centro de Operaciones',
         dbFile: 'operations.db',
         schema: operationsSchema,
+    },
+    {
+        id: 'it-tools',
+        name: 'Herramientas de TI',
+        dbFile: 'it_tools.db',
+        schema: itToolsSchema,
     }
 ];

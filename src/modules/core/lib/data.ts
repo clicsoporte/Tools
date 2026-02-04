@@ -45,6 +45,7 @@ import {
   LayoutGrid,
   Settings,
   FileSignature,
+  Cpu,
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -135,6 +136,14 @@ export const mainTools: Tool[] = [
     href: "/dashboard/warehouse",
     icon: Warehouse,
     bgColor: "bg-cyan-600",
+  },
+   {
+    id: "it-tools",
+    name: "Herramientas de TI",
+    description: "Gestionar notas técnicas y documentación interna de TI.",
+    href: "/dashboard/it-tools/notes",
+    icon: Cpu,
+    bgColor: "bg-gray-700",
   },
      {
       id: "hacienda-query",
