@@ -46,6 +46,7 @@ import {
   Settings,
   FileSignature,
   Cpu,
+  BookCopy,
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -141,7 +142,7 @@ export const mainTools: Tool[] = [
     id: "it-tools",
     name: "Herramientas de TI",
     description: "Gestionar notas técnicas y documentación interna de TI.",
-    href: "/dashboard/it-tools/notes",
+    href: "/dashboard/it-tools",
     icon: Cpu,
     bgColor: "bg-gray-700",
   },
@@ -252,6 +253,17 @@ export const warehouseTools: Tool[] = [
         href: '/dashboard/warehouse/locks',
         icon: Lock,
         bgColor: 'bg-slate-500',
+    }
+];
+
+export const itTools: Tool[] = [
+    {
+        id: 'it-tools:notes:read',
+        name: 'Notas Técnicas',
+        description: 'Base de conocimiento para procedimientos, guías y soluciones de TI.',
+        href: '/dashboard/it-tools/notes',
+        icon: BookCopy,
+        bgColor: 'bg-slate-700',
     }
 ];
 
@@ -473,5 +485,5 @@ export const analyticsTools: Tool[] = [
 /**
  * A combined list of all tools for easy access.
  */
-export const allTools: Tool[] = [...mainTools, ...adminTools, ...analyticsTools];
+export const allTools: Tool[] = [...mainTools, ...adminTools, ...analyticsTools, ...warehouseTools, ...itTools];
     

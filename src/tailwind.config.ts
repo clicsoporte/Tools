@@ -1,4 +1,3 @@
-
 import type {Config} from 'tailwindcss';
 
 const config: Config = {
@@ -39,6 +38,7 @@ const config: Config = {
     'bg-indigo-700',
     'bg-teal-700',
     'bg-gray-700',
+    'bg-slate-700',
   ],
   theme: {
     extend: {
