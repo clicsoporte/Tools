@@ -31,6 +31,8 @@ import {
   Search,
   BarChartBig,
   Calculator,
+  FileSignature,
+  Cpu,
 } from "lucide-react";
 import type { Tool } from "@/modules/core/types";
 import { UserNav } from "./user-nav";
@@ -127,6 +129,20 @@ export function AppSidebar() {
       description: 'Calcular costos y precios a partir de facturas XML.',
       href: '/dashboard/cost-assistant',
       icon: Calculator,
+    },
+    {
+      id: 'operations',
+      name: 'Operaciones',
+      description: 'Boletas digitales de movimiento, entregas y más.',
+      href: '/dashboard/operations',
+      icon: FileSignature,
+    },
+    {
+      id: "it-tools",
+      name: "Herramientas de TI",
+      description: "Gestionar notas técnicas y documentación interna de TI.",
+      href: "/dashboard/it-tools",
+      icon: Cpu,
     },
     {
       id: "warehouse",
