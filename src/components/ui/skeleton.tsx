@@ -1,4 +1,4 @@
-import { Cog } from "lucide-react"
+import { Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 function Skeleton({
@@ -13,7 +13,7 @@ function Skeleton({
       )}
       {...props}
     >
-      <Cog className="h-16 w-16 text-accent animate-spin" />
+      <Settings className="h-16 w-16 text-accent animate-spin" />
     </div>
   )
 }
