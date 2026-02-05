@@ -18,6 +18,8 @@ import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db'
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations, getLocations as getWarehouseLocationsDb, getInventory as getWarehouseInventoryDb, getAllItemLocations as getAllItemLocationsDb } from '../../warehouse/lib/db';
 import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
+import { initializeOperationsDb, runOperationsMigrations } from '../../operations/lib/db';
+import { initializeItToolsDb, runItToolsMigrations } from '../../it-tools/lib/db';
 import { getWarehouseData } from '../../warehouse/lib/db';
 import { revalidatePath } from 'next/cache';
 
@@ -34,16 +36,23 @@ const SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
  */
 export async function hasPermission(userId: number, permission: string): Promise<boolean> {
     const db = await connectDb();
-    const userRoleInfo = db.prepare('SELECT role FROM users WHERE id = ?').get(userId) as { role: string } | undefined;
+    try {
+        const userRoleInfo = db.prepare('SELECT role FROM users WHERE id = ?').get(userId) as { role: string } | undefined;
 
-    if (!userRoleInfo) return false;
-    if (userRoleInfo.role === 'admin') return true; // Admins have all permissions
+        if (!userRoleInfo) return false;
+        if (userRoleInfo.role === 'admin') return true; // Admins have all permissions
 
-    const role = db.prepare('SELECT permissions FROM roles WHERE id = ?').get(userRoleInfo.role) as { permissions: string } | undefined;
-    if (!role) return false;
+        const role = db.prepare('SELECT permissions FROM roles WHERE id = ?').get(userRoleInfo.role) as { permissions: string } | undefined;
+        if (!role) return false;
 
-    const permissions: string[] = JSON.parse(role.permissions);
-    return permissions.includes(permission);
+        const permissions: string[] = JSON.parse(role.permissions);
+        const hasWildcardAccess = permissions.includes(`${permission.split(':')[0]}:access`);
+
+        return hasWildcardAccess || permissions.includes(permission);
+    } catch (error: any) {
+        await logError('Error in hasPermission check', { error: error.message, userId, permission });
+        return false;
+    }
 }
 
 
@@ -64,18 +73,15 @@ export async function login(email: string, passwordProvided: string, clientInfo:
     if (user && user.password) {
       const isMatch = await bcrypt.compare(passwordProvided, user.password);
       if (isMatch) {
-        // Correctly exclude the password from the returned object.
         const { password: _, ...userWithoutPassword } = user;
-        
-        // Use an environment variable to control the 'secure' flag. Default to false for LAN.
         const useSecureCookie = process.env.CLIC_TOOLS_COOKIE_SECURE === 'true';
 
-        // Create session cookie
         cookies().set(SESSION_COOKIE_NAME, String(user.id), {
             httpOnly: true,
             secure: useSecureCookie,
-            maxAge: SESSION_DURATION / 1000, // seconds
+            maxAge: SESSION_DURATION / 1000,
             path: '/',
+            sameSite: 'lax'
         });
 
         await logInfo(`User '${user.name}' logged in successfully.`, logMeta);
@@ -107,12 +113,12 @@ export async function logout(): Promise<void> {
     
     const useSecureCookie = process.env.CLIC_TOOLS_COOKIE_SECURE === 'true';
     
-    // Invalidate the cookie
     cookieStore.set(SESSION_COOKIE_NAME, '', {
         httpOnly: true,
         secure: useSecureCookie,
         maxAge: 0,
         path: '/',
+        sameSite: 'lax',
     });
 }
 
@@ -155,7 +161,6 @@ export async function getAllUsersForReport(): Promise<User[]> {
     try {
         const stmt = db.prepare('SELECT * FROM users ORDER BY name');
         const users = stmt.all() as User[];
-        // Ensure passwords are never sent to the client.
         return users.map(u => {
             const { password: _, ...userWithoutPassword } = u;
             return userWithoutPassword;
@@ -173,15 +178,12 @@ export async function getAllUsersForReport(): Promise<User[]> {
  */
 export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string, forcePasswordChange: boolean }): Promise<User> {
   const db = await connectDb();
-
-  // Validate data against the schema first
   const validationResult = NewUserSchema.safeParse(userData);
   if (!validationResult.success) {
       throw new Error(`Validation failed: ${validationResult.error.errors.map(e => e.message).join(', ')}`);
   }
   
   const hashedPassword = bcrypt.hashSync(validationResult.data.password, SALT_ROUNDS);
-
   const highestIdResult = db.prepare('SELECT MAX(id) as maxId FROM users').get() as { maxId: number | null };
   const nextId = (highestIdResult.maxId || 0) + 1;
 
@@ -232,17 +234,10 @@ export async function saveAllUsers(users: User[]): Promise<void> {
     INSERT INTO users (id, name, email, password, phone, whatsapp, erpAlias, avatar, role, recentActivity, securityQuestion, securityAnswer, forcePasswordChange) 
     VALUES (@id, @name, @email, @password, @phone, @whatsapp, @erpAlias, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer, @forcePasswordChange)
     ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name,
-        email = excluded.email,
-        password = excluded.password,
-        phone = excluded.phone,
-        whatsapp = excluded.whatsapp,
-        erpAlias = excluded.erpAlias,
-        avatar = excluded.avatar,
-        role = excluded.role,
-        recentActivity = excluded.recentActivity,
-        securityQuestion = excluded.securityQuestion,
-        securityAnswer = excluded.securityAnswer,
+        name = excluded.name, email = excluded.email, password = excluded.password,
+        phone = excluded.phone, whatsapp = excluded.whatsapp, erpAlias = excluded.erpAlias,
+        avatar = excluded.avatar, role = excluded.role, recentActivity = excluded.recentActivity,
+        securityQuestion = excluded.securityQuestion, securityAnswer = excluded.securityAnswer,
         forcePasswordChange = excluded.forcePasswordChange
    `);
 
@@ -252,11 +247,10 @@ export async function saveAllUsers(users: User[]): Promise<void> {
         );
 
         for (const user of usersToSave) {
-          // Validate each user object before processing
           const validationResult = UserSchema.safeParse(user);
           if (!validationResult.success) {
               logError(`Skipping user save due to validation error for user ID ${user.id}`, { errors: validationResult.error.flatten() });
-              continue; // Skip this invalid user and continue with the next
+              continue;
           }
 
           const validatedUser = validationResult.data;
@@ -264,7 +258,7 @@ export async function saveAllUsers(users: User[]): Promise<void> {
           const existingUserData = existingUsersMap.get(validatedUser.id);
           
           if (passwordToSave && passwordToSave !== existingUserData?.pass) {
-              if (!passwordToSave.startsWith('$2a$')) { // Basic check if it's not already a hash
+              if (!passwordToSave.startsWith('$2a$')) {
                   passwordToSave = bcrypt.hashSync(passwordToSave, SALT_ROUNDS);
               }
           } else {
@@ -272,12 +266,9 @@ export async function saveAllUsers(users: User[]): Promise<void> {
           }
 
           const userToInsert = {
-            ...validatedUser,
-            password: passwordToSave,
-            phone: validatedUser.phone || null,
-            whatsapp: validatedUser.whatsapp || null,
-            erpAlias: validatedUser.erpAlias || null,
-            securityQuestion: validatedUser.securityQuestion || null,
+            ...validatedUser, password: passwordToSave,
+            phone: validatedUser.phone || null, whatsapp: validatedUser.whatsapp || null,
+            erpAlias: validatedUser.erpAlias || null, securityQuestion: validatedUser.securityQuestion || null,
             securityAnswer: validatedUser.securityAnswer || null,
             forcePasswordChange: validatedUser.forcePasswordChange ? 1 : 0,
           };
@@ -304,10 +295,7 @@ export async function saveAllUsers(users: User[]): Promise<void> {
 export async function comparePasswords(userId: number, password: string, clientInfo?: { ip: string, host: string }): Promise<boolean> {
     const db = await connectDb();
     const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId) as User | undefined;
-
-    if (!user || !user.password) {
-        return false;
-    }
+    if (!user || !user.password) return false;
     
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
@@ -318,15 +306,8 @@ export async function comparePasswords(userId: number, password: string, clientI
 
 /**
  * Retrieves the currently authenticated user based on the session cookie.
- * This is a server-only function.
- * It's marked as dynamic to prevent caching issues when the user logs in/out.
- * @returns {Promise<User | null>} The user object or null if not authenticated.
  */
 export async function getCurrentUser(): Promise<User | null> {
-    // This line tells Next.js that this function's output depends on cookies
-    // and should not be cached across requests. This solves the stale session problem.
-    cookies();
-
     const cookieStore = cookies();
     const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
 
@@ -339,83 +320,66 @@ export async function getCurrentUser(): Promise<User | null> {
         return null;
     }
 
-    const db = await connectDb();
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | undefined;
+    try {
+        const db = await connectDb();
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | undefined;
 
-    if (!user) {
+        if (!user) {
+            return null;
+        }
+
+        const { password: _, ...userWithoutPassword } = user;
+        return userWithoutPassword as User;
+
+    } catch (error) {
+        console.error("Error getting current user:", error);
         return null;
     }
-
-    const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword as User;
 }
 
 /**
  * Fetches all the initial data required for the application's authentication context.
- * This is a server action that aggregates data from various database functions.
  */
 export async function getInitialAuthData() {
-    const db = await connectDb();
-    // Ensure all databases are initialized on first authenticated load
-    const dbModules = await getDbModules();
-    for (const dbModule of dbModules) {
-        await connectDb(dbModule.dbFile);
-    }
-    
-    const [
-        roles,
-        companySettings,
-        customers,
-        products,
-        stock,
-        exemptions,
-        exemptionLaws,
-        exchangeRate,
-        unreadSuggestions,
-        warehouseData
-    ] = await Promise.all([
-        getAllRoles(),
-        getCompanySettings(),
-        getAllCustomers(),
-        getAllProducts(),
-        getAllStock(),
-        getAllExemptions(),
-        getExemptionLaws(),
-        getExchangeRate(),
-        getUnreadSuggestions(),
-        getWarehouseData()
-    ]);
-    
-    let rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
-    const exchangeRateResponse = exchangeRate as ExchangeRateApiResponse;
-    if (exchangeRateResponse?.venta?.valor) {
-        rateData.rate = exchangeRateResponse.venta.valor;
-        rateData.date = new Date(exchangeRateResponse.venta.fecha).toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: '2-digit' });
-    }
+  try {
+      const db = await connectDb();
+      const dbModules = await getDbModules();
+      for (const dbModule of dbModules) {
+          await connectDb(dbModule.dbFile);
+      }
+      
+      const [
+          roles, companySettings, customers, products, stock, exemptions,
+          exemptionLaws, exchangeRate, unreadSuggestions, warehouseData
+      ] = await Promise.all([
+          getAllRoles(), getCompanySettings(), getAllCustomers(), getAllProducts(),
+          getAllStock(), getAllExemptions(), getExemptionLaws(), getExchangeRate(),
+          getUnreadSuggestions(), getWarehouseData()
+      ]);
+      
+      let rateData = { rate: null, date: null };
+      const exchangeRateResponse = exchangeRate as ExchangeRateApiResponse;
+      if (exchangeRateResponse?.venta?.valor) {
+          rateData.rate = exchangeRateResponse.venta.valor;
+          rateData.date = new Date(exchangeRateResponse.venta.fecha).toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+      }
 
-    return {
-        roles,
-        companySettings,
-        customers,
-        products,
-        stock,
-        exemptions,
-        exemptionLaws,
-        exchangeRate: rateData,
-        unreadSuggestions,
-        allLocations: warehouseData.locations,
-        allInventory: warehouseData.inventory,
-        allItemLocations: warehouseData.itemLocations,
-        stockSettings: warehouseData.stockSettings,
-    };
+      return {
+          roles, companySettings, customers, products, stock, exemptions,
+          exemptionLaws, exchangeRate: rateData, unreadSuggestions,
+          allLocations: warehouseData.locations, allInventory: warehouseData.inventory,
+          allItemLocations: warehouseData.itemLocations, stockSettings: warehouseData.stockSettings,
+      };
+  } catch (error) {
+      console.error("Critical error in getInitialAuthData:", error);
+      // Re-throw the error to be caught by the AuthProvider
+      throw new Error(`Failed to load initial application data: ${(error as Error).message}`);
+  }
 }
 
 
 /**
  * Handles the password recovery process.
- * Generates a temporary password, updates the user's record, and sends an email.
- * @param email - The email of the user requesting recovery.
- * @param clientInfo - Information about the client making the request.
  */
 export async function sendPasswordRecoveryEmail(email: string, clientInfo: { ip: string; host: string; }): Promise<void> {
     const db = await connectDb();
@@ -424,7 +388,6 @@ export async function sendPasswordRecoveryEmail(email: string, clientInfo: { ip:
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
     if (!user) {
         await logWarn('Password recovery requested for non-existent email.', logMeta);
-        // We don't throw an error to prevent email enumeration attacks. The UI will show a generic message.
         return;
     }
 
@@ -444,12 +407,7 @@ export async function sendPasswordRecoveryEmail(email: string, clientInfo: { ip:
             .replace('[NOMBRE_USUARIO]', user.name)
             .replace('[CLAVE_TEMPORAL]', tempPassword);
             
-        await sendEmail({
-            to: user.email,
-            subject: emailSettings.recoveryEmailSubject || 'Recuperación de Contraseña',
-            html: emailBody
-        });
-
+        await sendEmail({ to: user.email, subject: emailSettings.recoveryEmailSubject || 'Recuperación de Contraseña', html: emailBody });
         await logInfo(`Password recovery email sent successfully to ${user.name}.`, logMeta);
     } catch (error: any) {
         await logError('Failed to send password recovery email.', { ...logMeta, error: error.message });

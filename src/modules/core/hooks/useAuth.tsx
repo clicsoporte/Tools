@@ -63,7 +63,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * @param {ReactNode} props.children - The child components to render.
  */
 export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
-  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [companyData, setCompanyData] = useState<Company | null>(null);
@@ -122,14 +121,15 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     if (userRole.id === 'admin') return true;
 
     const userPermissions = userRole.permissions || [];
-
+    
     if (Array.isArray(permission)) {
-        // If it's an array, check if the user has at least ONE of the required permissions (OR logic)
         return permission.some(p => userPermissions.includes(p));
     }
 
-    // For a single permission string, perform a strict check
-    return userPermissions.includes(permission);
+    const permissionBase = permission.split(':')[0];
+    const hasBaseAccess = userPermissions.includes(`${permissionBase}:access`);
+    
+    return hasBaseAccess || userPermissions.includes(permission);
   }, [userRole]);
 
   const loadAuthData = useCallback(async (userFromLogin?: User): Promise<User | null> => {
@@ -182,7 +182,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         setUserRole(null);
       }
       
-      setIsAuthReady(true); // Signal readiness only after all data is loaded and state is set.
+      setIsAuthReady(true);
       return currentUser;
 
     } catch (error) {
@@ -190,34 +190,27 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setUser(null);
       setUserRole(null);
       setCompanyData(null);
-      setIsAuthReady(true); // Signal readiness even on error to avoid hanging.
+      setIsAuthReady(true);
       return null;
     }
-  // We pass the state setters to the dependency array to be explicit, though they are stable.
-  }, [
-      setCompanyData, setCustomers, setProducts, setStockLevels, setAllExemptions,
-      setExemptionLaws, setAllLocations, setAllInventory, setAllItemLocations,
-      setStockSettings, setExchangeRateData, setUnreadSuggestionsCount,
-      setNotifications, setUnreadNotificationsCount, setUser, setUserRole,
-      setIsAuthReady
-  ]);
+  }, []);
   
   const redirectAfterLogin = (path?: string) => {
     const stored = safeInternalPath(sessionStorage.getItem(REDIRECT_URL_KEY));
     sessionStorage.removeItem(REDIRECT_URL_KEY);
-    router.replace(stored ?? path ?? "/dashboard");
+    // Force a full page reload to ensure server sees the new cookie
+    window.location.href = stored ?? path ?? "/dashboard";
   };
 
   const handleLogout = async () => {
-    await clientLogout(); // Invalidates the cookie on the server
-    // Update the state to reflect that the user is logged out.
-    // The DashboardLayout's useEffect will then handle the redirection.
+    await clientLogout();
     setUser(null);
     setUserRole(null);
+    // Force a full page reload to the login page
+    window.location.href = '/';
   };
 
   useEffect(() => {
-    // This effect runs only once on initial mount because loadAuthData is memoized with a stable dependency array.
     loadAuthData();
   }, [loadAuthData]);
 
@@ -236,31 +229,13 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, [user, isAuthReady, updateUnreadSuggestionsCount, fetchUnreadNotifications]);
 
   const contextValue: AuthContextType = {
-    user,
-    userRole,
-    companyData,
-    customers,
-    products,
-    stockLevels,
-    allExemptions,
-    exemptionLaws,
-    allLocations,
-    allInventory,
-    allItemLocations,
-    stockSettings,
-    isAuthReady,
-    exchangeRateData,
-    unreadSuggestionsCount,
-    notifications,
-    unreadNotificationsCount,
-    fetchUnreadNotifications,
-    refreshAuth: loadAuthData,
-    redirectAfterLogin,
-    logout: handleLogout,
-    refreshExchangeRate: fetchExchangeRate,
-    setCompanyData,
-    updateUnreadSuggestionsCount,
-    hasPermission,
+    user, userRole, companyData, customers, products, stockLevels,
+    allExemptions, exemptionLaws, allLocations, allInventory, allItemLocations,
+    stockSettings, isAuthReady, exchangeRateData, unreadSuggestionsCount,
+    notifications, unreadNotificationsCount, fetchUnreadNotifications,
+    refreshAuth: loadAuthData, redirectAfterLogin, logout: handleLogout,
+    refreshExchangeRate: fetchExchangeRate, setCompanyData,
+    updateUnreadSuggestionsCount, hasPermission,
   };
 
   return (
@@ -272,8 +247,6 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
 /**
  * A custom hook to easily access the central authentication context.
- * Throws an error if used outside of an AuthProvider.
- * @returns {AuthContextType} The authentication context value.
  */
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);

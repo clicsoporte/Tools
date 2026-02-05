@@ -31,7 +31,7 @@ import {
 import { getAllRoles, saveAllRoles, resetDefaultRoles } from '@/modules/core/lib/db';
 import type { Role } from '@/modules/core/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PlusCircle, Save, Trash2, ShieldQuestion } from 'lucide-react';
+import { PlusCircle, Save, Trash2, ShieldQuestion, Copy } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -71,6 +71,15 @@ export default function RolesClient() {
     setCurrentRole(role ? { ...role } : { id: '', name: '', permissions: [] });
     setDialogOpen(true);
   };
+  
+  const handleCopyRole = (role: Role) => {
+    setCurrentRole({
+        id: '', // New role, so no ID
+        name: `Copia de ${role.name}`,
+        permissions: [...role.permissions] // Copy permissions
+    });
+    setDialogOpen(true);
+  }
 
   const handleSaveRole = async () => {
     if (!currentRole || !currentRole.name.trim()) {
@@ -203,7 +212,7 @@ export default function RolesClient() {
     const parentPermission = Object.keys(permissionTree).find(p => permissionTree[p].includes(permissions[0]));
 
     return (
-      <details key={groupName} open className="space-y-2">
+      <details key={groupName} className="space-y-2">
         <summary className="cursor-pointer font-medium">{groupName}</summary>
         <div className="pl-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 border-l-2 ml-2 pl-4">
           {permissions.map((permission) => {
@@ -285,6 +294,14 @@ export default function RolesClient() {
                     <CardDescription>ID: {role.id}</CardDescription>
                   </div>
                   <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleCopyRole(role)}
+                      disabled={!hasPermission('roles:create')}
+                    >
+                      <Copy className="mr-2 h-4 w-4"/>
+                      Copiar Rol
+                    </Button>
                     <Button
                       variant="ghost"
                       onClick={() => handleOpenDialog(role)}
