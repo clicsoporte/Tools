@@ -186,27 +186,20 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       return currentUser;
 
     } catch (error) {
-      console.error("Failed to load authentication context data:", error);
-      setUser(null);
-      setUserRole(null);
-      setCompanyData(null);
-      setIsAuthReady(true);
-      return null;
-    }
+      console.error("Critical error in getInitialAuthData:", error);
+      // Re-throw the error to be caught by the AuthProvider
+      throw new Error(`Failed to load initial application data: ${(error as Error).message}`);
+  }
   }, []);
   
   const redirectAfterLogin = (path?: string) => {
     const stored = safeInternalPath(sessionStorage.getItem(REDIRECT_URL_KEY));
     sessionStorage.removeItem(REDIRECT_URL_KEY);
     const destination = stored ?? path ?? "/dashboard";
-
-    // If inside an iframe, redirect the top-level window to break out.
-    if (window.self !== window.top) {
-        window.top.location.href = destination;
-    } else {
-        // Otherwise, perform the normal reload.
-        window.location.href = destination;
-    }
+    
+    // Always use window.location.href for a full page reload to ensure session is picked up.
+    // This avoids issues with client-side router cache and iframe contexts.
+    window.location.href = destination;
   };
 
   const handleLogout = async () => {
