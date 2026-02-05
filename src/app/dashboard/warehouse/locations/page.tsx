@@ -316,9 +316,9 @@ export default function ManageLocationsPage() {
     };
     
     const handleDeleteLocationAction = useCallback(async () => {
-        if (!locationToDelete) return;
+        if (!locationToDelete || !user) return;
         try {
-            await deleteLocation(locationToDelete.id);
+            await deleteLocation(locationToDelete.id, user.name);
             const locationsData = await getLocations();
             setLocations(locationsData);
             toast({ title: "Ubicación Eliminada" });
@@ -327,7 +327,7 @@ export default function ManageLocationsPage() {
              logError("Failed to delete location", { error: error.message });
             toast({ title: "Error", description: error.message, variant: "destructive" });
         }
-    }, [locationToDelete, toast]);
+    }, [locationToDelete, toast, user]);
     
     const openLocationForm = (loc?: WarehouseLocation) => {
         if (loc) {
