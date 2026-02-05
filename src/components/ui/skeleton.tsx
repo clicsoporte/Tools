@@ -1,4 +1,4 @@
-
+import { Cog } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 function Skeleton({
@@ -7,9 +7,14 @@ function Skeleton({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("animate-pulse rounded-md bg-muted", className)}
+      className={cn(
+        "animate-pulse rounded-md bg-muted flex items-center justify-center",
+        className
+      )}
       {...props}
-    />
+    >
+      <Cog className="h-8 w-8 text-accent/80 animate-spin" />
+    </div>
   )
 }
 

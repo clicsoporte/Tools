@@ -1,4 +1,3 @@
-
 import type {Config} from 'tailwindcss';
 
 const config: Config = {
@@ -115,10 +114,16 @@ const config: Config = {
             height: '0',
           },
         },
+        pulse: {
+          '50%': {
+            opacity: '.5',
+          },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       fontFamily: {
         sans: ['var(--font-sans)'],
