@@ -1,4 +1,5 @@
 
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   swcMinify: true,
@@ -17,8 +18,16 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '50mb',
+      // Esto permite que las Server Actions funcionen detrás del proxy de IDX
+      allowedOrigins: [
+          'localhost:3000', 
+          '*.cloudworkstations.dev', 
+          '*.googleusercontent.com',
+          '*.idx.dev'
+      ],
     },
   },
 };
 
 module.exports = nextConfig;
+
