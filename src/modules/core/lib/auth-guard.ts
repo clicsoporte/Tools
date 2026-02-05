@@ -10,17 +10,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser, hasPermission as hasPermissionServer } from './auth';
 import { logWarn } from './logger';
 import type { User } from '@/modules/core/types';
-
-/**
- * Custom error class for authorization failures.
- * This allows for specific error handling in try/catch blocks.
- */
-export class AuthError extends Error {
-  constructor(message = "Acceso Denegado") {
-    super(message);
-    this.name = "AuthError";
-  }
-}
+import { AuthError } from '../types';
 
 /**
  * Memoized function to get the current user's data from the session.

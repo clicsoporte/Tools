@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Server-side authentication and user management functions.
  * These functions interact directly with the database to handle user data.
@@ -16,7 +14,6 @@ import { logInfo, logWarn, logError } from './logger';
 import { headers, cookies } from 'next/headers';
 import { getExchangeRate, getEmailSettings } from './api-actions';
 import { NewUserSchema, UserSchema } from './auth-schemas';
-import { confirmModification as confirmPlannerModificationServer } from '../../planner/lib/db';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations, getLocations as getWarehouseLocationsDb, getInventory as getWarehouseInventoryDb, getAllItemLocations as getAllItemLocationsDb } from '../../warehouse/lib/db';
@@ -459,5 +456,3 @@ export async function sendPasswordRecoveryEmail(email: string, clientInfo: { ip:
         throw new Error("No se pudo enviar el correo de recuperación. Revisa la configuración de SMTP.");
     }
 }
-
-    

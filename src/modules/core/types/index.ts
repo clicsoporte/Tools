@@ -995,3 +995,14 @@ export type ITNote = {
     createdAt: string;
     updatedAt: string;
 };
+
+/**
+ * Custom error class for authorization failures.
+ * This allows for specific error handling in try/catch blocks.
+ */
+export class AuthError extends Error {
+  constructor(message = "Acceso Denegado") {
+    super(message);
+    this.name = "AuthError";
+  }
+}

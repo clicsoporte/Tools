@@ -117,6 +117,21 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }
   }, []);
 
+  const hasPermission = useCallback((permission: string | string[]): boolean => {
+    if (!userRole) return false;
+    if (userRole.id === 'admin') return true;
+
+    const userPermissions = userRole.permissions || [];
+
+    if (Array.isArray(permission)) {
+        // If it's an array, check if the user has at least ONE of the required permissions (OR logic)
+        return permission.some(p => userPermissions.includes(p));
+    }
+
+    // For a single permission string, perform a strict check
+    return userPermissions.includes(permission);
+  }, [userRole]);
+
   const loadAuthData = useCallback(async (userFromLogin?: User): Promise<User | null> => {
     try {
       const currentUser = userFromLogin || await getCurrentUserClient();
@@ -186,21 +201,6 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setNotifications, setUnreadNotificationsCount, setUser, setUserRole,
       setIsAuthReady
   ]);
-
-   const hasPermission = useCallback((permission: string | string[]): boolean => {
-    if (!userRole) return false;
-    if (userRole.id === 'admin') return true;
-
-    const userPermissions = userRole.permissions || [];
-
-    if (Array.isArray(permission)) {
-        // If it's an array, check if the user has at least ONE of the required permissions (OR logic)
-        return permission.some(p => userPermissions.includes(p));
-    }
-
-    // For a single permission string, perform a strict check
-    return userPermissions.includes(permission);
-  }, [userRole]);
   
   const redirectAfterLogin = (path?: string) => {
     const stored = safeInternalPath(sessionStorage.getItem(REDIRECT_URL_KEY));
