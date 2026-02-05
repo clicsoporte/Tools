@@ -198,8 +198,15 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const redirectAfterLogin = (path?: string) => {
     const stored = safeInternalPath(sessionStorage.getItem(REDIRECT_URL_KEY));
     sessionStorage.removeItem(REDIRECT_URL_KEY);
-    // Force a full page reload to ensure server sees the new cookie
-    window.location.href = stored ?? path ?? "/dashboard";
+    const destination = stored ?? path ?? "/dashboard";
+
+    // If inside an iframe, redirect the top-level window to break out.
+    if (window.self !== window.top) {
+        window.top.location.href = destination;
+    } else {
+        // Otherwise, perform the normal reload.
+        window.location.href = destination;
+    }
   };
 
   const handleLogout = async () => {

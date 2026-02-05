@@ -18,6 +18,17 @@ import {
   DialogTitle,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -45,6 +56,7 @@ export default function RolesClient() {
 
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [currentRole, setCurrentRole] = useState<Role | null>(null);
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
@@ -135,8 +147,9 @@ export default function RolesClient() {
     setDialogOpen(false);
   };
 
-  const handleDeleteRole = async (roleId: string) => {
-    if (roleId === 'admin') {
+  const handleDeleteRole = async () => {
+    if (!roleToDelete) return;
+    if (roleToDelete.id === 'admin') {
       toast({
         title: 'Acción no permitida',
         description: 'No se puede eliminar el rol de Administrador.',
@@ -144,15 +157,16 @@ export default function RolesClient() {
       });
       return;
     }
-    const updatedRoles = roles.filter((r) => r.id !== roleId);
+    const updatedRoles = roles.filter((r) => r.id !== roleToDelete.id);
     await saveAllRoles(updatedRoles);
     setRoles(updatedRoles);
     toast({
       title: 'Rol Eliminado',
-      description: 'El rol ha sido eliminado.',
+      description: `El rol "${roleToDelete.name}" ha sido eliminado.`,
       variant: 'destructive',
     });
-    await logInfo('Role deleted', { roleId });
+    await logInfo('Role deleted', { roleId: roleToDelete.id });
+    setRoleToDelete(null);
   };
 
   const handleResetAdmin = async () => {
@@ -311,15 +325,31 @@ export default function RolesClient() {
                     >
                       Editar Permisos
                     </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => handleDeleteRole(role.id)}
-                      disabled={
-                        role.id === 'admin' || !hasPermission('roles:delete')
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                     <AlertDialog onOpenChange={(open) => !open && setRoleToDelete(null)}>
+                        <AlertDialogTrigger asChild>
+                             <Button
+                                variant="destructive"
+                                disabled={
+                                    role.id === 'admin' || !hasPermission('roles:delete')
+                                }
+                                onClick={() => setRoleToDelete(role)}
+                                >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar el rol &quot;{roleToDelete?.name}&quot;?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Los usuarios con este rol perderán sus permisos.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteRole}>Sí, Eliminar</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </CardHeader>
