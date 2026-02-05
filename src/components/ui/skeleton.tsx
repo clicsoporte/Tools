@@ -13,7 +13,7 @@ function Skeleton({
       )}
       {...props}
     >
-      <Cog className="h-8 w-8 text-accent/80 animate-spin" />
+      <Cog className="h-16 w-16 text-accent animate-spin" />
     </div>
   )
 }
