@@ -67,6 +67,7 @@ import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getInitials } from "@/lib/utils";
+import { authorizePage } from "@/modules/core/lib/auth-guard";
 
 type NewUserForm = Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & {
     password: string;
@@ -90,7 +91,8 @@ const emptyUser: NewUserForm = {
  * Handles fetching users and roles, and provides UI for all CRUD operations.
  */
 export default function UsersPage() {
-    const { isAuthorized } = useAuthorization(['users:create', 'users:read', 'users:update', 'users:delete']);
+    authorizePage('users:read');
+    const { hasPermission } = useAuthorization();
     const { toast } = useToast();
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
@@ -140,11 +142,9 @@ export default function UsersPage() {
 
     useEffect(() => {
         setTitle("Gestión de Usuarios");
-        if (isAuthorized) {
-            fetchAllData();
-        }
+        fetchAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAuthorized]);
+    }, []);
 
     /**
      * Persists the current state of users to the database.
@@ -154,8 +154,8 @@ export default function UsersPage() {
         try {
             await saveAllUsers(updatedUsers);
             setUsers(updatedUsers); // Update local state to match DB
-        } catch (error) {
-            logError("Failed to save users to DB", { error });
+        } catch (error: any) {
+            logError("Failed to save users to DB", { error: error.message });
             toast({ title: "Error", description: "No se pudieron guardar los cambios en la base de datos.", variant: "destructive" });
         }
     }
@@ -247,10 +247,6 @@ export default function UsersPage() {
         setEditDialogOpen(true);
     }
 
-    if (isAuthorized === null) {
-        return null;
-    }
-
     if (isLoading) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -286,7 +282,7 @@ export default function UsersPage() {
                 </div>
                 <Dialog open={isAddUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button>
+                        <Button disabled={!hasPermission('users:create')}>
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Añadir Usuario
                         </Button>
@@ -390,20 +386,21 @@ export default function UsersPage() {
                                     <TableCell>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                                        <Button aria-haspopup="true" size="icon" variant="ghost" disabled={!hasPermission('users:update') && !hasPermission('users:delete')}>
                                             <MoreHorizontal className="h-4 w-4" />
                                             <span className="sr-only">Toggle menu</span>
                                         </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                        <DropdownMenuItem onSelect={() => openEditDialog(user)}>Editar</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => openEditDialog(user)} disabled={!hasPermission('users:update')}>Editar</DropdownMenuItem>
                                         <AlertDialog onOpenChange={(open) => !open && setUserToDelete(null)}>
                                             <AlertDialogTrigger asChild>
                                                 <Button
                                                     variant="ghost"
                                                     className="w-full justify-start px-2 py-1.5 text-sm font-normal text-destructive hover:bg-destructive/10"
                                                     onClick={() => setUserToDelete(user)}
+                                                    disabled={!hasPermission('users:delete')}
                                                     >
                                                     Eliminar
                                                 </Button>

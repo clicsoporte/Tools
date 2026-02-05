@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { permissionGroups, permissionTranslations, permissionTree } from "@/modules/core/lib/permissions";
+import { authorizePage } from "@/modules/core/lib/auth-guard";
 
 const emptyRole: Role = {
     id: "",
@@ -63,7 +64,8 @@ const emptyRole: Role = {
 }
 
 export default function RolesPage() {
-    const { isAuthorized } = useAuthorization(['roles:read', 'roles:create', 'roles:update', 'roles:delete']);
+    authorizePage('roles:read');
+    const { hasPermission } = useAuthorization();
     const { toast } = useToast();
     const [roles, setRoles] = useState<Role[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -88,10 +90,8 @@ export default function RolesPage() {
 
     useEffect(() => {
         setTitle("Gestión de Roles");
-        if (isAuthorized) {
-            fetchRoles();
-        }
-    }, [isAuthorized, fetchRoles, setTitle]);
+        fetchRoles();
+    }, [fetchRoles, setTitle]);
     
     const getParentPermissions = (permission: string): string[] => {
         const parents: string[] = [];
@@ -205,10 +205,6 @@ export default function RolesPage() {
         toast({ title: "Roles Reiniciados", description: "Los roles por defecto han sido restaurados." });
         await logWarn("Los roles por defecto han sido reiniciados por un administrador.");
     }
-    
-    if (isAuthorized === null) {
-        return null;
-    }
 
     if (isLoading) {
         return (
@@ -260,7 +256,7 @@ export default function RolesPage() {
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
-                    <Button onClick={openNewBlankDialog}>
+                    <Button onClick={openNewBlankDialog} disabled={!hasPermission('roles:create')}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Crear Rol
                     </Button>
@@ -276,18 +272,18 @@ export default function RolesPage() {
                     <Badge variant="secondary" className="w-fit">{role.id}</Badge>
                   </div>
                   <div className="flex items-center gap-2">
-                     <Button variant="outline" size="sm" onClick={() => openEditDialog(role)}>
+                     <Button variant="outline" size="sm" onClick={() => openEditDialog(role)} disabled={!hasPermission('roles:update')}>
                         <Edit2 className="mr-2 h-4 w-4" />
                         Editar Permisos
                     </Button>
-                     <Button variant="outline" size="sm" onClick={() => openCopyDialog(role)}>
+                     <Button variant="outline" size="sm" onClick={() => openCopyDialog(role)} disabled={!hasPermission('roles:create')}>
                         <Copy className="mr-2 h-4 w-4" />
                         Copiar
                     </Button>
                     {role.id !== 'admin' && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={() => setRoleToDelete(role)}>
+                                <Button variant="ghost" size="icon" onClick={() => setRoleToDelete(role)} disabled={!hasPermission('roles:delete')}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                             </AlertDialogTrigger>

@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
+import { authorizePage } from '@/modules/core/lib/auth-guard';
 
 const emptyLocation: Omit<WarehouseLocation, 'id'> = { name: '', code: '', type: 'building', parentId: null };
 const initialWizardState = { name: '', prefix: '', levels: '', positions: '', depth: '', parentId: null as number | null };
@@ -223,7 +224,8 @@ function LocationTree({ locations, onEdit, onDelete }: { locations: WarehouseLoc
 }
 
 export default function ManageLocationsPage() {
-    const { isAuthorized } = useAuthorization(['warehouse:locations:manage']);
+    authorizePage('warehouse:locations:create');
+    const { isAuthorized, hasPermission } = useAuthorization();
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user } = useAuth();
@@ -262,12 +264,10 @@ export default function ManageLocationsPage() {
     
     useEffect(() => {
         setTitle("Gestión de Ubicaciones de Almacén");
-        if(isAuthorized){
-            fetchAllData();
-        }
-    }, [setTitle, fetchAllData, isAuthorized]);
+        fetchAllData();
+    }, [setTitle, fetchAllData]);
 
-    const handleAddLevel = () => {
+    const handleAddLevel = async () => {
         if (!settings || !newLevelName.trim()) return;
         const newLevels = [...(settings.locationLevels || []), { type: `level${(settings.locationLevels?.length || 0) + 1}`, name: newLevelName.trim() }];
         setSettings({ ...settings, locationLevels: newLevels });
@@ -316,9 +316,9 @@ export default function ManageLocationsPage() {
     };
     
     const handleDeleteLocationAction = useCallback(async () => {
-        if (!locationToDelete || !user) return;
+        if (!locationToDelete) return;
         try {
-            await deleteLocation(locationToDelete.id, user.name);
+            await deleteLocation(locationToDelete.id);
             const locationsData = await getLocations();
             setLocations(locationsData);
             toast({ title: "Ubicación Eliminada" });
@@ -327,7 +327,7 @@ export default function ManageLocationsPage() {
              logError("Failed to delete location", { error: error.message });
             toast({ title: "Error", description: error.message, variant: "destructive" });
         }
-    }, [locationToDelete, toast, user]);
+    }, [locationToDelete, toast]);
     
     const openLocationForm = (loc?: WarehouseLocation) => {
         if (loc) {
@@ -394,10 +394,6 @@ export default function ManageLocationsPage() {
                 </div>
             </main>
         );
-    }
-    
-    if (!isAuthorized) {
-        return null;
     }
 
     return (

@@ -1,57 +1,61 @@
 /**
- * @fileoverview Custom hook to handle authorization for specific pages or components.
- * It checks if the current user's role includes at least one of the required permissions.
- * If not, it denies access and can optionally redirect the user.
+ * @fileoverview Custom hook to handle client-side authorization checks.
+ * It provides a clean, reusable interface for components to determine if the
+ * current user has the necessary permissions to view a component or perform an action.
  */
 'use client';
 
-import { useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import { logInfo } from '../lib/logger';
 
 type UseAuthorizationReturn = {
-  isAuthorized: boolean | null;
-  hasPermission: (permission: string) => boolean;
-  userPermissions: string[];
+  isAuthorized: boolean;
+  isLoading: boolean;
+  hasPermission: (permission: string | string[]) => boolean;
 };
 
-export function useAuthorization(requiredPermissions: string[] = []): UseAuthorizationReturn {
+/**
+ * Custom hook to determine authorization based on the current user's permissions.
+ *
+ * @param requiredPermissions - A permission string or an array of permission strings.
+ * If an array is provided, the user is considered authorized if they have AT LEAST ONE of the permissions.
+ * @param redirectTo - Optional path to redirect to if authorization fails.
+ * @returns An object containing the authorization status, loading state, and the `hasPermission` function.
+ */
+export function useAuthorization(requiredPermissions: string | string[] = [], redirectTo: string | null = null): UseAuthorizationReturn {
     const router = useRouter();
-    const { user, userRole, isAuthReady } = useAuth(); // Use isAuthReady from the central auth context
+    // Get the centralized permission checker and auth readiness state from useAuth
+    const { hasPermission, isAuthReady } = useAuth(); 
 
-    const userPermissions = useMemo(() => userRole?.permissions || [], [userRole]);
-
-    const hasPermission = useCallback((permission: string): boolean => {
-        if (!isAuthReady || !userRole) return false;
-        if (userRole.id === 'admin') return true;
-        // Check for wildcard access (e.g., 'requests:read' implies 'requests:read:all')
-        const permissionBase = permission.split(':')[0];
-        const hasBaseAccess = userPermissions.includes(`${permissionBase}:access`);
-        if (hasBaseAccess) return true;
-        
-        return userPermissions.includes(permission);
-    }, [isAuthReady, userRole, userPermissions]);
-
+    // isAuthorized is now derived directly and memoized from the hasPermission function
     const isAuthorized = useMemo(() => {
-        if (!isAuthReady) return null; // Wait until all auth data is ready before making a decision.
-        if (!user || !userRole) return false; // No user or role, not authorized.
+        if (!isAuthReady) {
+            return false; // Not authorized until auth state is fully loaded
+        }
         
-        // If no specific permissions are required, being logged in and ready is enough.
-        if (requiredPermissions.length === 0) return true;
-        
-        // Use the memoized hasPermission function for checking.
-        return requiredPermissions.some(p => hasPermission(p));
-    }, [isAuthReady, user, userRole, requiredPermissions, hasPermission]);
+        const permissionsToCheck = Array.isArray(requiredPermissions) 
+            ? requiredPermissions 
+            : [requiredPermissions];
+            
+        if (permissionsToCheck.length === 0) {
+            return true; // No specific permissions required, just being logged in is enough.
+        }
+
+        return hasPermission(permissionsToCheck);
+    }, [isAuthReady, requiredPermissions, hasPermission]);
 
     useEffect(() => {
-        // This effect is now simplified. The main redirect logic is in DashboardLayout.
-        // It's kept in case specific pages need to react to authorization changes in the future,
-        // but it no longer handles the primary redirection responsibility.
-        if (isAuthReady && isAuthorized && user) {
-            // This is a good place to log module access if needed.
+        // Optional client-side redirect if authorization fails.
+        // This is a secondary check; server-side `authorizePage` is the primary guard.
+        if (isAuthReady && !isAuthorized && redirectTo) {
+            router.replace(redirectTo);
         }
-    }, [isAuthorized, isAuthReady, user]);
+    }, [isAuthReady, isAuthorized, redirectTo, router]);
 
-    return { isAuthorized, hasPermission, userPermissions };
+    return {
+        isAuthorized,
+        isLoading: !isAuthReady, // Loading state is simply the inverse of auth readiness
+        hasPermission, // Expose the central hasPermission function for convenience
+    };
 }

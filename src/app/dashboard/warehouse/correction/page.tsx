@@ -28,10 +28,11 @@ import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
 import type { InventoryUnit } from '@/modules/core/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { authorizePage } from '@/modules/core/lib/auth-guard';
 
 
 export default function CorrectionPage() {
-    useAuthorization(['warehouse:correction:execute']);
+    authorizePage('warehouse:correction:execute');
     const { setTitle } = usePageTitle();
     const { state, actions, selectors } = useCorrectionTool();
     const {
