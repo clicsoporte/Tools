@@ -88,7 +88,7 @@ export default function LogViewerPage() {
 
   const handleClearLogs = async () => {
     if (!user) return;
-    await clearLogs(user.name, logTypeToDelete, deleteAllTime);
+    await clearLogs(logTypeToDelete, deleteAllTime);
     setClearLogDialogOpen(false); // Close dialog after action
     await fetchLogs(true); // Refresh logs to show the result
   };

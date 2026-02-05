@@ -1,13 +1,50 @@
-
 /**
  * @fileoverview Centralized logging functions that interact with the database logger.
  * These server-side functions abstract away the direct database calls, providing a clean API
- * for logging different types of events (Info, Warn, Error).
+ * for logging different types of events (Info, Warn, Error), and automatically enrich logs
+ * with user and request context.
  */
 "use server";
 
 import { addLog as dbAddLog, getLogs as dbGetLogs, clearLogs as dbClearLogs } from '@/modules/core/lib/db';
 import type { LogEntry, DateRange } from "@/modules/core/types";
+import { headers } from 'next/headers';
+import { getCurrentUser } from './auth';
+import { authorizeAction } from './auth-guard';
+
+
+/**
+ * Enriches log details with user and request context.
+ * This is an internal helper function.
+ * @param details The original details object.
+ * @returns The enriched details object.
+ */
+async function enrichLogDetails(details?: Record<string, any>): Promise<Record<string, any>> {
+    const enrichedDetails = { ...details };
+    
+    try {
+        const user = await getCurrentUser();
+        if (user) {
+            enrichedDetails.user = { id: user.id, name: user.name, role: user.role };
+        }
+    } catch (e) {
+        // Ignore errors, as logging might happen outside a user session
+    }
+
+    try {
+        const headerList = headers();
+        enrichedDetails.request = {
+            ip: headerList.get("x-forwarded-for") || "N/A",
+            host: headerList.get("host") || "N/A",
+            userAgent: headerList.get("user-agent") || "N/A",
+        };
+    } catch (e) {
+        // Ignore errors, as headers() might not be available in all contexts
+    }
+
+    return enrichedDetails;
+}
+
 
 /**
  * Logs an informational message.
@@ -15,7 +52,8 @@ import type { LogEntry, DateRange } from "@/modules/core/types";
  * @param details Optional structured data to include.
  */
 export async function logInfo(message: string, details?: Record<string, any>) {
-  await dbAddLog({ type: "INFO", message, details });
+    const enrichedDetails = await enrichLogDetails(details);
+    await dbAddLog({ type: "INFO", message, details: enrichedDetails });
 }
 
 /**
@@ -24,16 +62,25 @@ export async function logInfo(message: string, details?: Record<string, any>) {
  * @param details Optional structured data to include.
  */
 export async function logWarn(message: string, details?: Record<string, any>) {
-  await dbAddLog({ type: "WARN", message, details });
+    const enrichedDetails = await enrichLogDetails(details);
+    await dbAddLog({ type: "WARN", message, details: enrichedDetails });
 }
 
 /**
  * Logs an error message.
- * @param message The error message to log.
+ * @param context A string describing the context where the error occurred.
  * @param details Optional structured data, often including the error object.
  */
 export async function logError(context: string, details?: Record<string, any>) {
-  await dbAddLog({ type: "ERROR", message: context, details });
+    const enrichedDetails = await enrichLogDetails(details);
+    // Ensure error messages are properly serialized
+    if (enrichedDetails.error instanceof Error) {
+        enrichedDetails.error = {
+            message: enrichedDetails.error.message,
+            stack: enrichedDetails.error.stack,
+        };
+    }
+    await dbAddLog({ type: "ERROR", message: context, details: enrichedDetails });
 }
 
 /**
@@ -51,10 +98,11 @@ export async function getLogs(filters: {
 
 /**
  * Clears logs from the database based on specified criteria.
- * @param {string} clearedBy - The name of the user clearing the logs.
+ * This is a protected server action that requires 'admin:logs:clear' permission.
  * @param {'operational' | 'system' | 'all'} type - The type of logs to clear.
  * @param {boolean} deleteAllTime - If true, ignores the 30-day retention period and deletes all specified logs.
  */
-export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
-  return await dbClearLogs(clearedBy, type, deleteAllTime);
+export async function clearLogs(type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
+    const user = await authorizeAction('admin:logs:clear');
+    return await dbClearLogs(user.name, type, deleteAllTime);
 }
