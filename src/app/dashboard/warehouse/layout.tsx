@@ -3,12 +3,14 @@
  * within the /dashboard/warehouse path. It ensures that Next.js can
  * correctly nest and display pages within this URL segment.
  */
+'use client';
+
 import type { ReactNode } from 'react';
 
 export default function WarehouseLayout({
   children,
 }: {
-  children: ReactNode;
+  children: React.ReactNode;
 }) {
   return <>{children}</>;
 }
