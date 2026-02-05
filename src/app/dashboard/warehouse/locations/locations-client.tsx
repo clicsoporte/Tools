@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -219,7 +219,7 @@ function LocationTree({ locations, onEdit, onDelete }: { locations: WarehouseLoc
 }
 
 export default function ManageLocationsClient() {
-    const { isAuthorized } = useAuthorization(['warehouse:locations:manage']);
+    const { isAuthorized } = useAuthorization(['warehouse:locations:update', 'warehouse:locations:delete']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user } = useAuth();

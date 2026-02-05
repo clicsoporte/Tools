@@ -1,19 +1,19 @@
 'use client';
 
 import React from 'react';
-import { useCorrectionTool } from '@/modules/warehouse/hooks/useCorrectionTool';
+import { useCorrectionTool, type SortKey } from '@/modules/warehouse/hooks/useCorrectionTool';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Loader2, Search, FilterX, Edit2, Undo2, Save, Printer, AlertTriangle } from 'lucide-react';
+import { Loader2, Search, FilterX, Edit2, Undo2, Save, Printer, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -76,7 +76,7 @@ export default function CorrectionClient() {
                         </div>
                         <div className="flex flex-wrap gap-4 items-center">
                             <div className="flex items-center space-x-2">
-                                <Checkbox id="show-voided" checked={filters.showVoided} onCheckedChange={(checked) => actions.setFilter('showVoided', checked)} />
+                                <Checkbox id="show-voided" checked={filters.showVoided} onCheckedChange={(checked) => actions.setFilter('showVoided', !!checked)} />
                                 <Label htmlFor="show-voided" className="font-normal">Mostrar anulados</Label>
                             </div>
                              <div className="flex items-center space-x-2">

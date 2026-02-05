@@ -8,7 +8,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import {
   Dialog,
@@ -17,7 +16,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -29,7 +27,6 @@ import {
   permissionGroups,
   permissionTranslations,
   permissionTree,
-  allAdminPermissions,
 } from '@/modules/core/lib/permissions';
 import { getAllRoles, saveAllRoles, resetDefaultRoles } from '@/modules/core/lib/db';
 import type { Role } from '@/modules/core/types';
@@ -40,7 +37,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
 export default function RolesClient() {
-  const { hasPermission } = useAuthorization();
+  const { hasPermission } = useAuthorization(['roles:create', 'roles:read', 'roles:update', 'roles:delete']);
   const { toast } = useToast();
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
