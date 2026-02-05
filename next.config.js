@@ -25,9 +25,12 @@ const nextConfig = {
           '*.googleusercontent.com',
           '*.idx.dev'
       ],
+      // Si tu versión de Next lo soporta, esto desactiva el chequeo estricto (ÚSALO SOLO EN DEV)
+      checkOrigin: false 
     },
   },
 };
 
 module.exports = nextConfig;
+
 
