@@ -81,8 +81,12 @@ export default function CorrectionClient() {
                                 <Label htmlFor="show-voided" className="font-normal">Mostrar anulados</Label>
                             </div>
                              <div className="flex items-center space-x-2">
-                                <Checkbox id="show-pending" checked={filters.statusFilter === 'pending'} onCheckedChange={actions.handleStatusFilterChange} />
+                                <Checkbox id="show-pending" checked={filters.statusFilter.includes('pending')} onCheckedChange={(checked) => actions.handleStatusFilterChange('pending', !!checked)} />
                                 <Label htmlFor="show-pending" className="font-normal">Mostrar solo pendientes</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="show-applied" checked={filters.statusFilter.includes('applied')} onCheckedChange={(checked) => actions.handleStatusFilterChange('applied', !!checked)} />
+                                <Label htmlFor="show-applied" className="font-normal">Mostrar solo aplicados</Label>
                             </div>
                             <Button onClick={actions.handleSearch} disabled={isSearching}>
                                 {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4" />}
@@ -91,6 +95,9 @@ export default function CorrectionClient() {
                             <Button variant="ghost" onClick={actions.handleClearFilters}>
                                 <FilterX className="mr-2 h-4 w-4" />
                                 Limpiar Filtros
+                            </Button>
+                            <Button variant="outline" onClick={actions.savePreferences}>
+                                <Save className="mr-2 h-4 w-4"/> Guardar Preferencias
                             </Button>
                         </div>
                     </CardContent>
@@ -171,7 +178,7 @@ export default function CorrectionClient() {
                     )}
                 </Card>
                 <Dialog open={isConfirmModalOpen} onOpenChange={actions.handleModalOpenChange}>
-                    <DialogContent className="sm:max-w-3xl">
+                    <DialogContent className="max-w-4xl">
                         <DialogHeader>
                             <DialogTitle>
                                 {unitToCorrect?.status === 'pending' ? 'Revisar y Aplicar Ingreso' : 'Corregir Ingreso de Inventario'}

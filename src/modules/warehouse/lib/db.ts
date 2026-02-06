@@ -4,7 +4,7 @@
 "use server";
 
 import { connectDb, getAllStock as getAllStockFromMain, getStockSettings as getStockSettingsFromMain } from '@/modules/core/lib/db';
-import type { WarehouseLocation, WarehouseInventoryItem, MovementLog, WarehouseSettings, StockSettings, StockInfo, ItemLocation, InventoryUnit, DateRange, User } from '@/modules/core/types';
+import type { WarehouseLocation, WarehouseInventoryItem, MovementLog, WarehouseSettings, StockSettings, StockInfo, ItemLocation, InventoryUnit, DateRange, User, Product } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import path from 'path';
 
@@ -526,13 +526,20 @@ export async function getAllItemLocations(): Promise<ItemLocation[]> {
  * Inserts or updates an item-location assignment.
  * If payload.id is provided, it updates. Otherwise, it inserts.
  */
-export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }): Promise<ItemLocation> {
+export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }, mode?: 'move' | 'add_and_mix' | 'add_and_new_mix' | 'move_and_new_mix'): Promise<ItemLocation> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { id, itemId, locationId, clientId, isExclusive, requiresCertificate, updatedBy } = payload;
     
     let savedItem: ItemLocation;
 
     db.transaction(() => {
+        if (mode === 'move' || mode === 'move_and_new_mix') {
+            const existingAssignment = db.prepare('SELECT * FROM item_locations WHERE itemId = ?').get(itemId) as ItemLocation | undefined;
+            if (existingAssignment) {
+                db.prepare('UPDATE item_locations SET locationId = ? WHERE id = ?').run(locationId, existingAssignment.id);
+            }
+        }
+        
         if (id) { // Update existing
             db.prepare('UPDATE item_locations SET clientId = ?, isExclusive = ?, requiresCertificate = ?, updatedBy = ?, updatedAt = datetime(\'now\') WHERE id = ?')
               .run(clientId || null, isExclusive, requiresCertificate, updatedBy, id);
@@ -678,7 +685,7 @@ export async function searchInventoryUnits(filters: {
     documentId?: string;
     receptionConsecutive?: string;
     showVoided?: boolean;
-    statusFilter?: 'pending' | 'all';
+    statusFilter?: string[];
 }): Promise<InventoryUnit[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     let query = 'SELECT * FROM inventory_units';
@@ -720,8 +727,10 @@ export async function searchInventoryUnits(filters: {
         whereClauses.push("correctionConsecutive IS NULL");
     }
     
-    if (filters.statusFilter === 'pending') {
-        whereClauses.push("status = 'pending'");
+    if (filters.statusFilter && filters.statusFilter.length > 0) {
+        const placeholders = filters.statusFilter.map(() => '?').join(',');
+        whereClauses.push(`status IN (${placeholders})`);
+        params.push(...filters.statusFilter);
     }
     
     if (whereClauses.length > 0) {
@@ -1096,4 +1105,26 @@ export async function cleanupAndInitializeLocationFlags(): Promise<{ deletedCoun
     await saveWarehouseSettings({ ...currentSettings, lastCleanup: new Date().toISOString() });
 
     return result;
+}
+
+export async function checkAssignmentConflict(payload: { itemId: string, locationId: number }): Promise<{ productHasOtherLocations: boolean; locationHasOtherProducts: boolean; conflictingProduct?: Product }> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    const { itemId, locationId } = payload;
+    
+    const otherAssignmentsForProduct = db.prepare('SELECT COUNT(*) as count FROM item_locations WHERE itemId = ?').get(itemId) as { count: number };
+    
+    const assignmentsInLocation = db.prepare('SELECT itemId FROM item_locations WHERE locationId = ?').all(locationId) as { itemId: string }[];
+    const otherProductsInLocation = assignmentsInLocation.filter(a => a.itemId !== itemId);
+    
+    let conflictingProduct: Product | undefined = undefined;
+    if (otherProductsInLocation.length > 0) {
+        const mainDb = await connectDb();
+        conflictingProduct = mainDb.prepare('SELECT * FROM products WHERE id = ?').get(otherProductsInLocation[0].itemId) as Product;
+    }
+    
+    return {
+        productHasOtherLocations: otherAssignmentsForProduct.count > 0,
+        locationHasOtherProducts: otherProductsInLocation.length > 0,
+        conflictingProduct: conflictingProduct
+    };
 }

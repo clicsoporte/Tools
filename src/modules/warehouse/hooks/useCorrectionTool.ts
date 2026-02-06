@@ -3,17 +3,21 @@
  */
 'use client';
 
+import React from 'react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { correctInventoryUnit, searchInventoryUnits, applyInventoryUnit, getWarehouseSettings, getLocations } from '@/modules/warehouse/lib/actions';
-import type { InventoryUnit, Product, DateRange, WarehouseSettings, WarehouseLocation } from '@/modules/core/types';
+import type { InventoryUnit, Product, DateRange, WarehouseSettings, WarehouseLocation, UserPreferences } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { subDays, format, parseISO } from 'date-fns';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Save } from 'lucide-react';
 
 export type SortKey = 'status' | 'receptionConsecutive' | 'productId' | 'humanReadableId' | 'quantity' | 'createdBy' | 'createdAt' | 'annulledBy' | 'annulledAt' | 'appliedBy' | 'appliedAt';
 export type SortDirection = 'asc' | 'desc';
@@ -29,7 +33,7 @@ interface State {
         documentId: string;
         receptionConsecutive: string;
         showVoided: boolean;
-        statusFilter: 'pending' | 'all';
+        statusFilter: string[];
     };
     searchResults: InventoryUnit[];
     unitToCorrect: InventoryUnit | null;
@@ -81,6 +85,12 @@ const availableColumns = [
     { id: 'annulledAt', label: 'Fecha Anulación' },
 ];
 
+const statusTranslations: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    pending: { label: 'Pendiente', variant: 'secondary' },
+    applied: { label: 'Aplicado', variant: 'default' },
+    voided: { label: 'Anulado', variant: 'destructive' },
+};
+
 
 export const useCorrectionTool = () => {
     const { hasPermission } = useAuthorization(['warehouse:correction:execute', 'warehouse:correction:apply']);
@@ -101,7 +111,7 @@ export const useCorrectionTool = () => {
             documentId: '',
             receptionConsecutive: '',
             showVoided: false,
-            statusFilter: 'pending',
+            statusFilter: ['pending'],
         },
         searchResults: [],
         unitToCorrect: null,
@@ -124,15 +134,18 @@ export const useCorrectionTool = () => {
     useEffect(() => {
         const loadPrefsAndData = async () => {
             if (user && hasPermission('warehouse:correction:execute')) {
-                const prefs = await getUserPreferences(user.id, 'correctionToolPrefs');
-                const [settings, locations] = await Promise.all([getWarehouseSettings(), getLocations()]);
+                const [prefs, settings, locations] = await Promise.all([
+                    getUserPreferences(user.id, 'correctionToolPrefs'),
+                    getWarehouseSettings(), 
+                    getLocations()
+                ]);
                 
                 setState((prevState: State) => ({
                     ...prevState,
                     visibleColumns: prefs?.visibleColumns || prevState.visibleColumns,
                     filters: {
                         ...prevState.filters,
-                        statusFilter: prefs?.statusFilter === 'all' ? 'all' : 'pending',
+                        statusFilter: Array.isArray(prefs?.statusFilter) ? prefs.statusFilter : ['pending'],
                     }
                 }));
 
@@ -143,7 +156,6 @@ export const useCorrectionTool = () => {
         if (user && hasPermission('warehouse:correction:execute')) {
             loadPrefsAndData();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hasPermission, user]);
     
     const [debouncedNewProductSearch] = useDebounce(state.newProductSearch, 300);
@@ -174,7 +186,7 @@ export const useCorrectionTool = () => {
                 documentId: '',
                 receptionConsecutive: '',
                 showVoided: false,
-                statusFilter: 'pending',
+                statusFilter: ['pending'],
             },
             searchResults: [],
             currentPage: 0,
@@ -378,6 +390,18 @@ export const useCorrectionTool = () => {
         await saveUserPreferences(user.id, 'correctionToolPrefs', { visibleColumns: state.visibleColumns, statusFilter: state.filters.statusFilter });
         toast({ title: 'Preferencias Guardadas' });
     };
+    
+    const handleStatusFilterChange = (status: 'pending' | 'applied', checked: boolean) => {
+        updateState({
+            filters: {
+                ...state.filters,
+                statusFilter: checked
+                    ? [...state.filters.statusFilter, status]
+                    : state.filters.statusFilter.filter(s => s !== status),
+            },
+            currentPage: 0,
+        });
+    };
 
     const sortedResults = useMemo(() => {
         const data = [...state.searchResults];
@@ -440,8 +464,9 @@ export const useCorrectionTool = () => {
             return state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as { id: string; label: string; }[];
         }, [state.visibleColumns]),
         getColumnContent: (item: InventoryUnit, colId: string): { content: any; className?: string; type?: string; variant?: "default" | "secondary" | "destructive" | "outline" | undefined; } => {
+            const statusInfo = statusTranslations[item.status] || { label: item.status, variant: 'outline' };
             switch (colId) {
-                case 'status': return { type: 'badge', content: item.status, variant: item.status === 'pending' ? 'secondary' : (item.status === 'voided' ? 'destructive' : 'default'), className: item.status === 'applied' ? 'bg-green-600' : '' };
+                case 'status': return { type: 'badge', content: statusInfo.label, variant: statusInfo.variant, className: item.status === 'applied' ? 'bg-green-600' : '' };
                 case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono text-xs" };
                 case 'traceability':
                     if (item.correctionConsecutive) {
@@ -482,12 +507,7 @@ export const useCorrectionTool = () => {
                 filters: { ...state.filters, [field]: value },
             });
         },
-        handleStatusFilterChange: (checked: boolean) => {
-            updateState({
-                filters: { ...state.filters, statusFilter: checked ? 'pending' : 'all' },
-                currentPage: 0,
-            });
-        },
+        handleStatusFilterChange,
         handleSearch,
         handleClearFilters,
         handleSelectNewProduct,

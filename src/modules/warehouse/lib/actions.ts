@@ -164,7 +164,7 @@ export const searchInventoryUnits = async (filters: {
     documentId?: string;
     receptionConsecutive?: string;
     showVoided?: boolean;
-    statusFilter?: 'pending' | 'all';
+    statusFilter?: string[];
 }): Promise<InventoryUnit[]> => searchInventoryUnitsServer(filters);
 
 
