@@ -725,5 +725,3 @@ export async function saveCostAnalysis(requestId: number, cost: number, salePric
     const updatedRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as any;
     return sanitizeRequest(updatedRequest);
 }
-
-    

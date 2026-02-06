@@ -97,7 +97,7 @@ export const updateInventory = async(itemId: string, locationId: number, quantit
 export const getItemLocations = async (itemId: string): Promise<ItemLocation[]> => getItemLocationsServer(itemId);
 export const getAllItemLocations = async (): Promise<ItemLocation[]> => getAllItemLocationsServer();
 
-export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }, mode?: 'move' | 'add_and_mix'): Promise<ItemLocation> {
+export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }, mode?: 'move' | 'add_and_mix' | 'add_and_new_mix' | 'move_and_new_mix'): Promise<ItemLocation> {
     return assignItemToLocationServer(payload, mode);
 }
 
