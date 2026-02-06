@@ -38,9 +38,10 @@ import {
     migrateLegacyInventoryUnits as migrateLegacyInventoryUnitsServer,
     initializePopulationStatus as initializePopulationStatusServer,
     cleanupAndInitializeLocationFlags as cleanupAndInitializeLocationFlagsServer,
+    checkAssignmentConflict as checkAssignmentConflictServer
 } from './db';
 import { getStockSettings as getStockSettingsDb, saveStockSettings as saveStockSettingsDb } from '@/modules/core/lib/db';
-import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User, DateRange } from '@/modules/core/types';
+import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User, DateRange, Product } from '@/modules/core/types';
 import { logInfo, logWarn } from '@/modules/core/lib/logger';
 
 export const getWarehouseSettings = async (): Promise<WarehouseSettings> => getWarehouseSettingsServer();
@@ -96,8 +97,16 @@ export const updateInventory = async(itemId: string, locationId: number, quantit
 export const getItemLocations = async (itemId: string): Promise<ItemLocation[]> => getItemLocationsServer(itemId);
 export const getAllItemLocations = async (): Promise<ItemLocation[]> => getAllItemLocationsServer();
 
-export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }): Promise<ItemLocation> {
-    return assignItemToLocationServer(payload);
+export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }, mode?: 'move' | 'add_and_mix'): Promise<ItemLocation> {
+    return assignItemToLocationServer(payload, mode);
+}
+
+export async function checkAssignmentConflict(payload: { itemId: string; locationId: number; }): Promise<{
+    productHasOtherLocations: boolean;
+    locationHasOtherProducts: boolean;
+    conflictingProduct?: Product;
+}> {
+    return checkAssignmentConflictServer(payload);
 }
 
 export async function unassignItemFromLocation(itemLocationId: number): Promise<void> {

@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React from 'react';
@@ -30,6 +28,7 @@ import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
 import { useAuth } from '@/modules/core/hooks/useAuth';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 /**
@@ -133,7 +132,7 @@ export default function PlannerPage() {
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Acciones de Orden</DropdownMenuLabel>
                                     <DropdownMenuSeparator/>
-                                    <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }} disabled={!permissions.canEdit}>
+                                    <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }} disabled={!permissions.canEdit.allowed}>
                                         <Pencil className="mr-2"/> Editar Orden
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => actions.openAddNoteDialog(order)}><MessageSquarePlus className="mr-2" /> Añadir Nota</DropdownMenuItem>
@@ -141,8 +140,8 @@ export default function PlannerPage() {
                                     <DropdownMenuSeparator/>
                                     <DropdownMenuLabel>Cambio de Estado</DropdownMenuLabel>
                                     <DropdownMenuSeparator/>
-                                    {changeStatusActions.filter(a => a.check).length > 0 ? (
-                                        changeStatusActions.filter(a => a.check).map((action, index) => (
+                                    {changeStatusActions.filter(a => a.check.allowed).length > 0 ? (
+                                        changeStatusActions.filter(a => a.check.allowed).map((action, index) => (
                                             <DropdownMenuItem key={index} onSelect={action.action} className={action.className}>
                                                 {action.icon} {action.label}
                                             </DropdownMenuItem>
@@ -309,16 +308,7 @@ export default function PlannerPage() {
                 onSelectedChange={actions.setClassificationFilter}
                 className="w-full md:w-auto"
             />
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant={"outline"} className={cn("w-full md:w-auto justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />{dateFilter?.from ? (dateFilter.to ? (`${format(dateFilter.from, "LLL dd, y")} - ${format(dateFilter.to, "LLL dd, y")}`) : (format(dateFilter.from, "LLL dd, y"))) : (<span>Filtrar por fecha</span>)}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="range" selected={dateFilter} onSelect={actions.setDateFilter} />
-                </PopoverContent>
-            </Popover>
+            <Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full md:w-auto justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{dateFilter?.from ? (dateFilter.to ? (`${format(dateFilter.from, "LLL dd, y")} - ${format(dateFilter.to, "LLL dd, y")}`) : (format(dateFilter.from, "LLL dd, y"))) : (<span>Filtrar por fecha</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={dateFilter} onSelect={actions.setDateFilter} /></PopoverContent></Popover>
             <DialogColumnSelector
                 allColumns={selectors.availableColumns}
                 visibleColumns={visibleColumns}
@@ -507,7 +497,6 @@ export default function PlannerPage() {
                 </div>
             )}
             
-            {/* Dialogs */}
             <Dialog open={isEditOrderDialogOpen} onOpenChange={actions.setEditOrderDialogOpen}>
                 <DialogContent className="sm:max-w-3xl">
                     <form onSubmit={actions.handleEditOrder}>
@@ -673,7 +662,7 @@ export default function PlannerPage() {
                     </DialogHeader>
                      <div className="py-4 space-y-2">
                         <Label htmlFor="add-note-textarea">Nota</Label>
-                        <Textarea id="add-note-textarea" value={notePayload?.notes || ''} onChange={e => actions.setNotePayload({ ...notePayload, notes: e.target.value } as PlannerNotePayload)} placeholder="Añade aquí una nota o actualización..." />
+                        <Textarea id="add-note-textarea" value={notePayload?.notes || ''} onChange={e => actions.setNotePayload({ ...state.notePayload, notes: e.target.value } as PlannerNotePayload)} placeholder="Añade aquí una nota o actualización..." />
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
@@ -691,6 +680,4 @@ export default function PlannerPage() {
         </main>
     );
 }
-
-
 

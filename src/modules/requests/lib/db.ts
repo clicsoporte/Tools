@@ -275,16 +275,25 @@ export async function getRequests(options: {
     };
 }): Promise<{ requests: PurchaseRequest[], totalActive: number, totalArchived: number }> {
     const db = await connectDb(REQUESTS_DB_FILE);
+    const mainDb = await connectDb();
     const { page, pageSize, isArchived, filters } = options;
 
     const settings = await getSettings();
     const finalStatus = settings.useErpEntry ? 'entered-erp' : (settings.useWarehouseReception ? 'received-in-warehouse' : 'ordered');
     const archivedStatuses = [`'${finalStatus}'`, `'canceled'`];
-
+    
     const buildQueryParts = async (isArchivedQuery: boolean) => {
         let whereClauses: string[] = [];
         let queryParams: any[] = [];
-        
+        let itemIdsFromBarcode: string[] = [];
+
+        if (filters.searchTerm) {
+            const productResults = mainDb.prepare(`
+                SELECT id FROM products WHERE barcode LIKE ?
+            `).all(`%${filters.searchTerm}%`);
+            itemIdsFromBarcode = productResults.map((p: any) => p.id);
+        }
+
         if (isArchivedQuery) {
             whereClauses.push(`status IN (${archivedStatuses.join(',')})`);
         } else {
@@ -292,9 +301,14 @@ export async function getRequests(options: {
         }
 
         if (filters.searchTerm) {
-            whereClauses.push(`(consecutive LIKE ? OR clientName LIKE ? OR itemDescription LIKE ? OR itemId LIKE ? OR erpOrderNumber LIKE ?)`);
+            let searchClause = `(consecutive LIKE ? OR clientName LIKE ? OR itemDescription LIKE ? OR itemId LIKE ? OR erpOrderNumber LIKE ?)`;
             const searchTermParam = `%${filters.searchTerm}%`;
             queryParams.push(searchTermParam, searchTermParam, searchTermParam, searchTermParam, searchTermParam);
+            if (itemIdsFromBarcode.length > 0) {
+                searchClause = `(${searchClause} OR itemId IN (${itemIdsFromBarcode.map(() => '?').join(',')}))`;
+                queryParams.push(...itemIdsFromBarcode);
+            }
+            whereClauses.push(searchClause);
         }
 
         if (filters.status && filters.status.length > 0) {
@@ -319,7 +333,6 @@ export async function getRequests(options: {
         }
 
         if (filters.classification && filters.classification !== 'all') {
-            const mainDb = await connectDb();
             const productIds = mainDb.prepare(`SELECT id FROM products WHERE classification = ?`).all(filters.classification).map((p: any) => p.id);
             if (productIds.length > 0) {
                 whereClauses.push(`itemId IN (${productIds.map(() => '?').join(',')})`);

@@ -101,7 +101,7 @@ export const permissionTree: Record<string, string[]> = {
     // Top-level Access
     "admin:access": ["users:read", "roles:read", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics", "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:maintenance:backup"],
     "analytics:read": ["analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read"],
-    "warehouse:access": ["warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", "warehouse:correction:execute", "warehouse:correction:apply", "warehouse:labels:generate"],
+    "warehouse:access": ["warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", "warehouse:correction:execute", "warehouse:labels:generate"],
     "requests:read": ["requests:read:all", "requests:create"],
     "planner:read": ["planner:read:all", "planner:create"],
     "operations:access": ["operations:create", "operations:read:all", "operations:approve", "operations:sign"],
@@ -119,7 +119,7 @@ export const permissionTree: Record<string, string[]> = {
     "it-tools:notes:update": ["it-tools:notes:delete"],
     "quotes:drafts:read": ["quotes:drafts:create"],
     "quotes:drafts:create": ["quotes:drafts:delete"],
-
+    "warehouse:correction:execute": ["warehouse:correction:apply"],
 
     "requests:create": ["requests:notes:add", "requests:edit:pending", "requests:create:duplicate"],
     "requests:edit:pending": ["requests:status:review"],
@@ -148,4 +148,5 @@ export const permissionTree: Record<string, string[]> = {
     "warehouse:units:create": ["warehouse:units:delete"],
 };
     
+
 

@@ -678,7 +678,7 @@ export const usePlanner = () => {
                     }
                 });
             });
-            
+
             const doc = generateDocument({
                 docTitle: `Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`,
                 docId: '',
@@ -828,12 +828,11 @@ export const usePlanner = () => {
         productOptions: useMemo(() => {
             if (debouncedProductSearch.length < 2) return [];
             const searchTerms = normalizeText(debouncedProductSearch).split(' ').filter(Boolean);
-            const productList = products.map(p => ({
-                ...p,
-                targetText: normalizeText(`${p.id} ${p.description} ${p.barcode || ''}`),
-            }));
-            return productList
-                .filter(p => searchTerms.every(term => p.targetText.includes(term)))
+            return products
+                .filter(p => {
+                    const targetText = normalizeText(`${p.id} ${p.description} ${p.barcode || ''}`);
+                    return searchTerms.every(term => targetText.includes(term));
+                })
                 .map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
         }, [products, debouncedProductSearch]),
         classifications: useMemo<string[]>(() => 
@@ -854,5 +853,3 @@ export const usePlanner = () => {
         isAuthorized,
     };
 };
-
-    
