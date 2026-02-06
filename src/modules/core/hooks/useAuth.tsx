@@ -122,14 +122,17 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
     const userPermissions = userRole.permissions || [];
     
+    const checkPermission = (p: string) => {
+        if (userPermissions.includes(p)) return true;
+        const permissionBase = p.split(':')[0];
+        return userPermissions.includes(`${permissionBase}:access`);
+    };
+
     if (Array.isArray(permission)) {
-        return permission.some(p => userPermissions.includes(p));
+        return permission.some(checkPermission);
     }
 
-    const permissionBase = permission.split(':')[0];
-    const hasBaseAccess = userPermissions.includes(`${permissionBase}:access`);
-    
-    return hasBaseAccess || userPermissions.includes(permission);
+    return checkPermission(permission);
   }, [userRole]);
 
   const loadAuthData = useCallback(async (userFromLogin?: User): Promise<User | null> => {
@@ -197,7 +200,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     sessionStorage.removeItem(REDIRECT_URL_KEY);
     const destination = stored ?? path ?? "/dashboard";
     
-    // Always use window.location.href for a full page reload to ensure session is picked up.
+    // Use window.location.href for a full page reload to ensure session is picked up.
     // This avoids issues with client-side router cache and iframe contexts.
     window.location.href = destination;
   };

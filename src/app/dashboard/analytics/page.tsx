@@ -47,7 +47,19 @@ export default function AnalyticsDashboardPage() {
     }
     
     if (!isAuthorized) {
+        // This case should be handled by authorizePage in a server component wrapper,
+        // but as a fallback, we render nothing.
         return null;
+    }
+    
+    if (visibleTools.length === 0) {
+        return (
+            <main className="flex-1 p-4 md:p-6 lg:p-8">
+                <div className="text-center text-muted-foreground">
+                    No tienes permiso para acceder a ninguna herramienta de analíticas.
+                </div>
+            </main>
+        );
     }
 
   return (

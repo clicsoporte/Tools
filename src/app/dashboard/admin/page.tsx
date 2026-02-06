@@ -15,7 +15,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 export default function AdminDashboardPage() {
     const { setTitle } = usePageTitle();
     // The hook now directly gives us the hasPermission function and loading state.
-    const { hasPermission, isLoading } = useAuthorization(['admin:access']);
+    const { hasPermission, isAuthorized, isLoading } = useAuthorization(['admin:access']);
     const { unreadSuggestionsCount } = useAuth();
 
     useEffect(() => {
@@ -24,8 +24,9 @@ export default function AdminDashboardPage() {
     
     // Filter the tools based on the user's granular permissions.
     const visibleTools = useMemo(() => {
+        if (!isAuthorized) return [];
         return adminTools.filter(tool => hasPermission(tool.id));
-    }, [hasPermission]);
+    }, [isAuthorized, hasPermission]);
 
     if (isLoading) {
         return (
@@ -45,7 +46,13 @@ export default function AdminDashboardPage() {
     }
     
     if (visibleTools.length === 0) {
-        return null; // Don't render anything if the user can't access any admin tools.
+        return (
+             <main className="flex-1 p-4 md:p-6 lg:p-8">
+                <div className="text-center text-muted-foreground">
+                    No tienes permiso para acceder a ninguna herramienta de administración.
+                </div>
+            </main>
+        );
     }
 
   return (

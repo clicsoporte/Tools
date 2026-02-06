@@ -357,7 +357,7 @@ export async function getInitialAuthData() {
           getUnreadSuggestions(), getWarehouseData()
       ]);
       
-      let rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
+      const rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
       const exchangeRateResponse = exchangeRate as ExchangeRateApiResponse;
       if (exchangeRateResponse?.venta?.valor) {
           rateData.rate = exchangeRateResponse.venta.valor;
