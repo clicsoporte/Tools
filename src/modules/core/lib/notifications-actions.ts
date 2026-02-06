@@ -4,13 +4,12 @@
 "use server";
 
 import { revalidatePath } from 'next/cache';
-import { getNotifications as dbGetNotifications, markNotificationsAsRead as dbMarkAsRead, createNotification as dbCreateNotification, getNotificationById, deleteNotificationById } from './db';
+import { getNotifications as dbGetNotifications, markNotificationsAsRead as dbMarkAsRead, createNotification as dbCreateNotification, getNotificationById, deleteNotificationById, getAllRoles as getAllRolesFromDb } from './db';
 import { getAllUsers as dbGetAllUsers } from './auth';
 import type { Notification, User, ProductionOrderStatus, PurchaseRequestStatus } from '../types';
 import { updateStatus as updatePlannerStatus, confirmModification } from '@/modules/planner/lib/db';
 import { updateStatus as updateRequestStatus, updatePendingAction } from '@/modules/requests/lib/db';
 import { logError } from './logger';
-import { getRolesWithPermission as getRolesWithPermissionFromDb } from '@/modules/planner/lib/db';
 
 
 /**
@@ -38,13 +37,16 @@ export async function createNotificationForPermission(
     entityType: string,
     taskType: string
 ): Promise<void> {
-    const allUsers = await dbGetAllUsers();
-    // Get roles that have this permission. Admin is a special case.
-    const relevantRoleIds = await getRolesWithPermissionFromDb(permission);
+    const [allUsers, allRoles] = await Promise.all([dbGetAllUsers(), getAllRolesFromDb()]);
     
-    // Find all users who either have the role or are admins.
+    // Get roles that have this permission.
+    const relevantRoleIds = allRoles
+        .filter(role => role.id === 'admin' || role.permissions.includes(permission))
+        .map(role => role.id);
+    
+    // Find all users who have one of the relevant roles.
     const targetUsers = allUsers.filter((user: User) => 
-        user.role === 'admin' || relevantRoleIds.includes(user.role)
+        relevantRoleIds.includes(user.role)
     );
 
     for (const user of targetUsers) {

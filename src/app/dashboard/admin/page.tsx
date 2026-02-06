@@ -5,7 +5,6 @@
 'use client';
 
 import { adminTools } from "@/modules/core/lib/data";
-import { allAdminPermissions } from "@/modules/core/lib/permissions";
 import { ToolCard } from "@/components/dashboard/tool-card";
 import { useEffect, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
@@ -15,23 +14,20 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 
 export default function AdminDashboardPage() {
     const { setTitle } = usePageTitle();
-    const { hasPermission, isAuthorized } = useAuthorization(allAdminPermissions);
+    // The hook now directly gives us the hasPermission function and loading state.
+    const { hasPermission, isLoading } = useAuthorization(['admin:access']);
     const { unreadSuggestionsCount } = useAuth();
 
     useEffect(() => {
         setTitle("Configuración");
     }, [setTitle]);
     
+    // Filter the tools based on the user's granular permissions.
     const visibleTools = useMemo(() => {
-        if (isAuthorized === false) return [];
         return adminTools.filter(tool => hasPermission(tool.id));
-    }, [hasPermission, isAuthorized]);
+    }, [hasPermission]);
 
-    if (isAuthorized === false) {
-        return null;
-    }
-
-    if (isAuthorized === null) {
+    if (isLoading) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <div className="grid gap-8">
@@ -46,6 +42,10 @@ export default function AdminDashboardPage() {
                 </div>
             </main>
         );
+    }
+    
+    if (visibleTools.length === 0) {
+        return null; // Don't render anything if the user can't access any admin tools.
     }
 
   return (

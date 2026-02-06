@@ -73,11 +73,12 @@ export async function logWarn(message: string, details?: Record<string, any>) {
  */
 export async function logError(context: string, details?: Record<string, any>) {
     const enrichedDetails = await enrichLogDetails(details);
-    // Ensure error messages are properly serialized
-    if (enrichedDetails.error instanceof Error) {
+    // Ensure error objects are properly serialized to capture message and stack
+    if (enrichedDetails.error && typeof enrichedDetails.error === 'object') {
         enrichedDetails.error = {
             message: enrichedDetails.error.message,
             stack: enrichedDetails.error.stack,
+            ...enrichedDetails.error
         };
     }
     await dbAddLog({ type: "ERROR", message: context, details: enrichedDetails });
@@ -93,6 +94,8 @@ export async function getLogs(filters: {
     search?: string;
     dateRange?: DateRange;
 } = {}): Promise<LogEntry[]> {
+  // This is a read action, but we still protect it to ensure only authorized users can view logs.
+  await authorizeAction('admin:logs:read');
   return await dbGetLogs(filters);
 }
 

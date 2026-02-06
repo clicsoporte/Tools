@@ -8,14 +8,13 @@ import { ToolCard } from "@/components/dashboard/tool-card";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { analyticsTools } from "@/modules/core/lib/data";
-import { analyticsPermissions } from "@/modules/core/lib/permissions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useMemo } from "react";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 
 export default function AnalyticsDashboardPage() {
     const { setTitle } = usePageTitle();
-    const { isAuthorized, hasPermission } = useAuthorization(analyticsPermissions);
+    const { isAuthorized, hasPermission } = useAuthorization(['analytics:read']);
     const { isAuthReady } = useAuth();
 
     useEffect(() => {
@@ -25,38 +24,7 @@ export default function AnalyticsDashboardPage() {
     const visibleTools = useMemo(() => {
         if (!isAuthorized) return [];
         // Filter tools based on specific sub-permissions for analytics
-        const permittedTools = analyticsTools.filter(tool => {
-            if (tool.id === 'purchase-suggestions') {
-                return hasPermission('analytics:purchase-suggestions:read');
-            }
-            if (tool.id === 'purchase-report') {
-                return hasPermission('analytics:purchase-report:read');
-            }
-             if (tool.id === 'transits-report') {
-                return hasPermission('analytics:transits-report:read');
-            }
-            if (tool.id === 'production-report') {
-                return hasPermission('analytics:production-report:read');
-            }
-            if (tool.id === 'user-permissions') {
-                return hasPermission('analytics:user-permissions:read');
-            }
-            if (tool.id === 'physical-inventory-report') {
-                return hasPermission('analytics:physical-inventory-report:read');
-            }
-             if (tool.id === 'receiving-report') {
-                return hasPermission('analytics:receiving-report:read');
-            }
-            if (tool.id === 'item-assignments-report') {
-                return hasPermission('analytics:item-assignments-report:read');
-            }
-            if (tool.id === 'occupancy-report') {
-                return hasPermission('analytics:occupancy-report:read');
-            }
-            return hasPermission(tool.id);
-        });
-
-        // Sort tools alphabetically by name
+        const permittedTools = analyticsTools.filter(tool => hasPermission(tool.id));
         return permittedTools.sort((a, b) => a.name.localeCompare(b.name));
         
     }, [isAuthorized, hasPermission]);
@@ -78,7 +46,7 @@ export default function AnalyticsDashboardPage() {
         );
     }
     
-    if (isAuthorized === false) {
+    if (!isAuthorized) {
         return null;
     }
 

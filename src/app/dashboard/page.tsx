@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { mainTools } from "@/modules/core/lib/data";
+import { mainTools, adminTools, analyticsTools } from "@/modules/core/lib/data";
 import { ToolCard } from "@/components/dashboard/tool-card";
 import { useEffect, useMemo } from "react";
 import type { Tool } from "@/modules/core/types";
@@ -30,30 +30,13 @@ export default function DashboardPage() {
   const visibleTools = useMemo(() => {
     if (!isAuthReady) return [];
     
-    // Filter the main tools based on user permissions first
     const permittedMainTools = mainTools.filter(tool => {
-        switch (tool.id) {
-            case 'quoter':
-                return hasPermission('quotes:create');
-            case 'purchase-request':
-                return hasPermission('requests:read');
-            case 'planner':
-                return hasPermission('planner:read');
-            case 'cost-assistant':
-                return hasPermission('cost-assistant:access');
-            case 'warehouse':
-                return hasPermission('warehouse:access');
-            case 'hacienda-query':
-                return hasPermission('hacienda:query');
-            case 'help':
-                return true; // Help is always visible
-            default:
-                return hasPermission(tool.id); // Default case for other tools
-        }
+        // The permission ID for a tool is its ID.
+        return hasPermission(tool.id);
     });
 
     let tools: Tool[] = [...permittedMainTools];
-
+    
     if (hasPermission('analytics:read')) {
       tools.push({
         id: "analytics",
@@ -113,3 +96,4 @@ export default function DashboardPage() {
       </main>
   );
 }
+

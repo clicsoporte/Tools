@@ -14,7 +14,8 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 
 export default function WarehouseDashboardPage() {
     const { setTitle } = usePageTitle();
-    const { isAuthorized, hasPermission } = useAuthorization();
+    // Get authorization status and permission checker for the main warehouse module
+    const { isAuthorized, hasPermission } = useAuthorization(['warehouse:access']);
     const { isAuthReady } = useAuth();
 
     useEffect(() => {
@@ -24,35 +25,7 @@ export default function WarehouseDashboardPage() {
     const visibleTools = useMemo(() => {
         if (!isAuthorized) return [];
         // Filter tools based on specific sub-permissions for warehouse
-        return warehouseTools.filter(tool => {
-            switch (tool.id) {
-                case 'warehouse-search':
-                    return hasPermission('warehouse:search:full');
-                case 'warehouse-search-simple':
-                    return hasPermission('warehouse:search:simple');
-                case 'receiving-wizard':
-                    return hasPermission('warehouse:receiving-wizard:use');
-                case 'population-wizard':
-                    return hasPermission('warehouse:population-wizard:use');
-                case 'assign-item':
-                    return hasPermission('warehouse:item-assignment:create');
-                 case 'inventory-count':
-                     return hasPermission('warehouse:inventory-count:create');
-                case 'warehouse-units':
-                    return hasPermission('warehouse:units:create') || hasPermission('warehouse:units:delete');
-                case 'warehouse-locations':
-                    return hasPermission('warehouse:locations:create') || hasPermission('warehouse:locations:update') || hasPermission('warehouse:locations:delete');
-                 case 'lock-management':
-                    return hasPermission('warehouse:locks:manage');
-                case 'label-center':
-                    return hasPermission('warehouse:labels:generate');
-                case 'correction-tool':
-                    return hasPermission('warehouse:correction:execute');
-                default:
-                    // Fallback for general access if specific permission is not defined for a new tool
-                    return hasPermission('warehouse:access');
-            }
-        });
+        return warehouseTools.filter(tool => hasPermission(tool.id));
     }, [isAuthorized, hasPermission]);
 
     if (!isAuthReady) {
@@ -72,7 +45,7 @@ export default function WarehouseDashboardPage() {
         );
     }
     
-    if (isAuthorized === false) {
+    if (!isAuthorized) {
         return null;
     }
 
@@ -93,3 +66,4 @@ export default function WarehouseDashboardPage() {
       </main>
   );
 }
+
