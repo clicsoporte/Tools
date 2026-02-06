@@ -23,7 +23,7 @@ type UseAuthorizationReturn = {
  * @param redirectTo - Optional path to redirect to if authorization fails.
  * @returns An object containing the authorization status, loading state, and the `hasPermission` function.
  */
-export function useAuthorization(requiredPermissions: string | string[] = [], redirectTo: string | null = null): UseAuthorizationReturn {
+export function useAuthorization(requiredPermissions: string | string[] = []): UseAuthorizationReturn {
     const router = useRouter();
     // Get the centralized permission checker and auth readiness state from useAuth
     const { hasPermission, isAuthReady } = useAuth(); 
@@ -36,7 +36,7 @@ export function useAuthorization(requiredPermissions: string | string[] = [], re
         
         const permissionsToCheck = Array.isArray(requiredPermissions) 
             ? requiredPermissions 
-            : [requiredPermissions];
+            : (requiredPermissions ? [requiredPermissions] : []);
             
         if (permissionsToCheck.length === 0) {
             return true; // No specific permissions required, just being logged in is enough.
@@ -44,14 +44,6 @@ export function useAuthorization(requiredPermissions: string | string[] = [], re
 
         return hasPermission(permissionsToCheck);
     }, [isAuthReady, requiredPermissions, hasPermission]);
-
-    useEffect(() => {
-        // Optional client-side redirect if authorization fails.
-        // This is a secondary check; server-side `authorizePage` is the primary guard.
-        if (isAuthReady && !isAuthorized && redirectTo) {
-            router.replace(redirectTo);
-        }
-    }, [isAuthReady, isAuthorized, redirectTo, router]);
 
     return {
         isAuthorized,

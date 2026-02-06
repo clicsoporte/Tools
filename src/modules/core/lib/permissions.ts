@@ -106,6 +106,7 @@ export const permissionTree: Record<string, string[]> = {
     "planner:read": ["planner:read:all", "planner:create"],
     "operations:access": ["operations:create", "operations:read:all", "operations:approve", "operations:sign"],
     "it-tools:access": ["it-tools:notes:read"],
+    "quotes:create": ["quotes:generate", "quotes:drafts:read"],
 
     // Second-level dependencies
     "users:read": ["users:create", "users:update", "users:delete"],
@@ -116,6 +117,8 @@ export const permissionTree: Record<string, string[]> = {
     "it-tools:notes:read": ["it-tools:notes:create"],
     "it-tools:notes:create": ["it-tools:notes:update"],
     "it-tools:notes:update": ["it-tools:notes:delete"],
+    "quotes:drafts:read": ["quotes:drafts:create"],
+    "quotes:drafts:create": ["quotes:drafts:delete"],
 
 
     "requests:create": ["requests:notes:add", "requests:edit:pending", "requests:create:duplicate"],
@@ -145,3 +148,4 @@ export const permissionTree: Record<string, string[]> = {
     "warehouse:units:create": ["warehouse:units:delete"],
 };
     
+

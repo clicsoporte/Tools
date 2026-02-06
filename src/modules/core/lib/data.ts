@@ -91,7 +91,7 @@ export const initialCompany: Company = {
  */
 export const mainTools: Tool[] = [
   {
-    id: "quoter",
+    id: "quotes:create",
     name: "Cotizador",
     description: "Crear y gestionar cotizaciones para clientes.",
     href: "/dashboard/quoter",
@@ -99,7 +99,7 @@ export const mainTools: Tool[] = [
     bgColor: "bg-green-500",
   },
   {
-    id: "purchase-request",
+    id: "requests:create",
     name: "Solicitud de Compra",
     description: "Crear y gestionar solicitudes de compra internas.",
     href: "/dashboard/requests",
@@ -107,7 +107,7 @@ export const mainTools: Tool[] = [
     bgColor: "bg-amber-700",
   },
    {
-    id: "planner",
+    id: "planner:create",
     name: "Planificador OP",
     description: "Gestionar y visualizar la carga de producción.",
     href: "/dashboard/planner",
@@ -115,7 +115,7 @@ export const mainTools: Tool[] = [
     bgColor: "bg-purple-700",
   },
   {
-    id: 'cost-assistant',
+    id: 'cost-assistant:access',
     name: 'Asistente de Costos',
     description: 'Calcular costos y precios a partir de facturas XML.',
     href: '/dashboard/cost-assistant',
@@ -123,7 +123,7 @@ export const mainTools: Tool[] = [
     bgColor: 'bg-orange-600',
   },
   {
-    id: 'operations',
+    id: 'operations:access',
     name: 'Operaciones',
     description: 'Boletas digitales de movimiento, entregas y más.',
     href: '/dashboard/operations',
@@ -131,7 +131,7 @@ export const mainTools: Tool[] = [
     bgColor: 'bg-teal-700',
   },
    {
-    id: "warehouse",
+    id: "warehouse:access",
     name: "Almacén",
     description: "Consultar ubicaciones, gestionar unidades y registrar conteos.",
     href: "/dashboard/warehouse",
@@ -139,7 +139,7 @@ export const mainTools: Tool[] = [
     bgColor: "bg-cyan-600",
   },
    {
-    id: "it-tools",
+    id: "it-tools:access",
     name: "Herramientas de TI",
     description: "Gestionar notas técnicas y documentación interna de TI.",
     href: "/dashboard/it-tools",
@@ -147,7 +147,7 @@ export const mainTools: Tool[] = [
     bgColor: "bg-gray-700",
   },
      {
-      id: "hacienda-query",
+      id: "hacienda:query",
       name: "Consultas Hacienda",
       description: "Verificar situación tributaria y exoneraciones.",
       href: "/dashboard/hacienda",
@@ -167,7 +167,7 @@ export const mainTools: Tool[] = [
 
 export const warehouseTools: Tool[] = [
     {
-        id: "warehouse-search-simple",
+        id: "warehouse:search:simple",
         name: "Búsqueda Rápida",
         description: "Escanear o buscar un artículo para una consulta rápida.",
         href: "/dashboard/warehouse/search/simple",
@@ -175,7 +175,7 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-sky-600',
     },
     {
-        id: "warehouse-search",
+        id: "warehouse:search:full",
         name: "Consulta de Almacén",
         description: "Localizar artículos, clientes y unidades de inventario.",
         href: "/dashboard/warehouse/search",
@@ -183,7 +183,7 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-blue-600',
     },
     {
-        id: 'receiving-wizard',
+        id: 'warehouse:receiving-wizard:use',
         name: 'Asistente de Recepción',
         description: 'Registrar producto terminado o compras y generar etiquetas.',
         href: '/dashboard/warehouse/receiving',
@@ -191,7 +191,7 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-emerald-600',
     },
     {
-        id: 'population-wizard',
+        id: 'warehouse:population-wizard:use',
         name: 'Asistente de Poblado',
         description: 'Poblar masivamente las ubicaciones de un rack de forma guiada.',
         href: '/dashboard/warehouse/population-wizard',
@@ -199,7 +199,7 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-indigo-500',
     },
      {
-        id: "assign-item",
+        id: "warehouse:item-assignment:create",
         name: "Catálogo Clientes y Artículos",
         description: "Asociar productos a clientes y marcar si son de venta general o exclusivos.",
         href: "/dashboard/warehouse/assign",
@@ -207,7 +207,7 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-teal-600',
     },
     {
-        id: "inventory-count",
+        id: "warehouse:inventory-count:create",
         name: "Toma de Inventario Físico",
         description: "Registrar conteos físicos de productos en ubicaciones específicas.",
         href: "/dashboard/warehouse/inventory-count",
@@ -215,7 +215,7 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-lime-600',
     },
     {
-        id: 'correction-tool',
+        id: 'warehouse:correction:execute',
         name: 'Administración de Ingresos',
         description: 'Corregir un producto mal ingresado, moviendo su unidad de inventario.',
         href: '/dashboard/warehouse/correction',
@@ -223,7 +223,7 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-red-500'
     },
     {
-        id: 'label-center',
+        id: 'warehouse:labels:generate',
         name: 'Centro de Etiquetas',
         description: 'Generar e imprimir etiquetas de ubicación o de productos por lotes.',
         href: '/dashboard/warehouse/labels',
@@ -231,7 +231,7 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-orange-500'
     },
     {
-        id: "warehouse-units",
+        id: "warehouse:units:create",
         name: "Gestión de Lotes/Tarimas",
         description: "Crear y etiquetar unidades de inventario (lotes/tarimas).",
         href: "/dashboard/warehouse/units",
@@ -239,7 +239,7 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-cyan-700',
     },
     {
-        id: "warehouse-locations",
+        id: "warehouse:locations:create",
         name: "Gestionar Ubicaciones",
         description: "Definir la jerarquía y crear las ubicaciones físicas del almacén.",
         href: "/dashboard/warehouse/locations",
@@ -247,7 +247,7 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-purple-600',
     },
     {
-        id: 'lock-management',
+        id: 'warehouse:locks:manage',
         name: 'Gestionar Bloqueos',
         description: 'Ver y liberar racks o niveles que están siendo editados.',
         href: '/dashboard/warehouse/locks',
@@ -408,7 +408,7 @@ export const adminTools: Tool[] = [
 
 export const analyticsTools: Tool[] = [
     {
-        id: "purchase-suggestions",
+        id: "analytics:purchase-suggestions:read",
         name: "Sugerencias de Compra",
         description: "Analizar pedidos y stock para sugerir compras proactivas.",
         href: "/dashboard/analytics/purchase-suggestions",
@@ -416,7 +416,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-blue-600",
     },
     {
-        id: "purchase-report",
+        id: "analytics:purchase-report:read",
         name: "Reporte de Compras",
         description: "Visualizar y exportar un reporte histórico de compras.",
         href: "/dashboard/analytics/purchase-report",
@@ -424,7 +424,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-green-600",
     },
      {
-        id: "transits-report",
+        id: "analytics:transits-report:read",
         name: "Reporte de Tránsitos",
         description: "Monitorear órdenes de compra del ERP activas y en tránsito.",
         href: "/dashboard/analytics/transits-report",
@@ -432,7 +432,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-orange-500",
     },
     {
-        id: "production-report",
+        id: "analytics:production-report:read",
         name: "Reporte de Producción",
         description: "Analizar rendimiento y desperdicio de órdenes completadas.",
         href: "/dashboard/analytics/production-report",
@@ -440,7 +440,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-purple-600",
     },
     {
-        id: "physical-inventory-report",
+        id: "analytics:physical-inventory-report:read",
         name: "Reporte de Inventario Físico",
         description: "Comparar conteos físicos con el stock del ERP para encontrar diferencias.",
         href: "/dashboard/analytics/physical-inventory-report",
@@ -448,7 +448,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-cyan-600",
     },
     {
-        id: "receiving-report",
+        id: "analytics:receiving-report:read",
         name: "Reporte de Recepciones",
         description: "Auditar las recepciones de mercadería registradas en el sistema.",
         href: "/dashboard/analytics/receiving-report",
@@ -456,7 +456,7 @@ export const analyticsTools: Tool[] = [
         bgColor: "bg-teal-600",
     },
     {
-        id: 'item-assignments-report',
+        id: 'analytics:item-assignments-report:read',
         name: 'Reporte de Catálogo',
         description: 'Auditar qué productos están asociados a qué clientes y si son exclusivos.',
         href: '/dashboard/analytics/item-assignments-report',
@@ -464,7 +464,7 @@ export const analyticsTools: Tool[] = [
         bgColor: 'bg-rose-600'
     },
     {
-        id: 'occupancy-report',
+        id: 'analytics:occupancy-report:read',
         name: 'Reporte de Ocupación',
         description: 'Visualizar el estado (Libre, Ocupado, Mixto) de las ubicaciones del almacén.',
         href: '/dashboard/analytics/occupancy-report',
@@ -472,7 +472,7 @@ export const analyticsTools: Tool[] = [
         bgColor: 'bg-sky-700'
     },
     {
-        id: "user-permissions",
+        id: "analytics:user-permissions:read",
         name: "Reporte de Permisos",
         description: "Auditar los permisos asignados a cada usuario según su rol.",
         href: "/dashboard/analytics/user-permissions",
@@ -487,3 +487,4 @@ export const analyticsTools: Tool[] = [
  */
 export const allTools: Tool[] = [...mainTools, ...adminTools, ...analyticsTools, ...warehouseTools, ...itTools];
     
+
