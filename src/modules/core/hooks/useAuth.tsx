@@ -123,9 +123,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const userPermissions = userRole.permissions || [];
     
     const checkPermission = (p: string) => {
-        if (userPermissions.includes(p)) return true;
-        const permissionBase = p.split(':')[0];
-        return userPermissions.includes(`${permissionBase}:access`);
+        return userPermissions.includes(p);
     };
 
     if (Array.isArray(permission)) {

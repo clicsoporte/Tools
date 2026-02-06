@@ -46,9 +46,10 @@ export async function hasPermission(userId: number, permission: string): Promise
         if (!role) return false;
 
         const permissions: string[] = JSON.parse(role.permissions);
-        const hasWildcardAccess = permissions.includes(`${permission.split(':')[0]}:access`);
+        
+        // Strict check: The role's permissions array must explicitly include the required permission.
+        return permissions.includes(permission);
 
-        return hasWildcardAccess || permissions.includes(permission);
     } catch (error: any) {
         await logError('Error in hasPermission check', { error: error.message, userId, permission });
         return false;
