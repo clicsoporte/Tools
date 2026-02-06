@@ -184,10 +184,9 @@ export async function updateLocationPopulationStatus(locationId: number, status:
     return updateLocationPopulationStatusServer(locationId, status);
 }
 
-export async function finalizePopulationSession(levelIds: number[]): Promise<void> {
-    const user = await authorizeAction('warehouse:population-wizard:use');
-    await finalizePopulationSessionServer(levelIds);
-    await logInfo(`Population session finalized by ${user.name}`, { levels: levelIds });
+export async function finalizePopulationSession(payload: { levelIds: number[]; userName: string; userId: number; assignments: { locationId: number; itemId: string; }[] }): Promise<void> {
+    await logInfo(`Population session finalized by ${payload.userName}`, { levels: payload.levelIds });
+    return finalizePopulationSessionServer(payload);
 }
 
 

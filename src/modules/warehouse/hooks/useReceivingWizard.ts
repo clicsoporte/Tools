@@ -212,6 +212,17 @@ export const useReceivingWizard = () => {
         }
         
         const location = state.allLocations.find(l => l.id === state.newLocationId);
+
+        // Check if the location is locked by another process
+        if (location?.isLocked) {
+            toast({
+                title: "Ubicación Bloqueada",
+                description: `La ubicación ${location.name} está siendo modificada por ${location.lockedBy || 'otro usuario'}. Intenta de nuevo más tarde.`,
+                variant: "destructive",
+            });
+            return;
+        }
+
         const unitsInLocation = state.itemLocations.filter(il => il.locationId === state.newLocationId);
         
         const uniqueProductIdsInLocation = new Set(unitsInLocation.map(il => il.itemId));

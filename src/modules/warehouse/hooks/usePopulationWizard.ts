@@ -4,11 +4,11 @@
  */
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getLocations, getChildLocations, lockEntity, releaseLock, assignItemToLocation } from '@/modules/warehouse/lib/actions';
+import { getLocations, getChildLocations, lockEntity, releaseLock, assignItemToLocation, updateLocationPopulationStatus, finalizePopulationSession } from '@/modules/warehouse/lib/actions';
 import { getActiveWizardSession, saveWizardSession, clearWizardSession } from '@/modules/core/lib/db';
 import type { Product, WarehouseLocation, WizardSession } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -55,6 +55,8 @@ export const usePopulationWizard = () => {
     const [debouncedProductSearch] = useDebounce(productSearch, companyData?.searchDebounceTime ?? 300);
     const [debouncedRackSearch] = useDebounce(rackSearchTerm, companyData?.searchDebounceTime ?? 500);
     const [existingSession, setExistingSession] = useState<WizardSession | null>(null);
+    
+    const [sessionAssignments, setSessionAssignments] = useState<{ locationId: number, itemId: string }[]>([]);
 
     const rackOptions = useMemo(() => {
         if (!debouncedRackSearch && !isRackSearchOpen) return allLocations.filter(l => l.type === 'rack').map(r => ({ value: String(r.id), label: `${r.name} (${r.code})` }));
@@ -175,22 +177,27 @@ export const usePopulationWizard = () => {
     
     const assignAndNext = async (productId?: string) => {
         const currentLocation = locationsToPopulate[currentIndex];
-        if (productId && user) {
+        if (user) {
             try {
-                await assignItemToLocation({
-                    itemId: productId,
-                    locationId: currentLocation.id,
-                    clientId: null,
-                    updatedBy: user.name,
-                });
-                const product = authProducts.find(p => p.id === productId);
-                const productName = product?.description || productId;
-                const productCode = product?.id || productId;
-                setLastAssignment({ 
-                    location: renderLocationPathAsString(currentLocation.id, allLocations), 
-                    product: productName,
-                    code: productCode
-                });
+                if (productId) { // If an item is assigned
+                    await assignItemToLocation({
+                        itemId: productId,
+                        locationId: currentLocation.id,
+                        clientId: null,
+                        updatedBy: user.name,
+                    });
+                     setSessionAssignments(prev => [...prev, { locationId: currentLocation.id, itemId: productId }]);
+                    const product = authProducts.find(p => p.id === productId);
+                    const productName = product?.description || productId;
+                    const productCode = product?.id || productId;
+                    setLastAssignment({ 
+                        location: renderLocationPathAsString(currentLocation.id, allLocations), 
+                        product: productName,
+                        code: productCode
+                    });
+                } else { // If the item is skipped
+                    await updateLocationPopulationStatus(currentLocation.id, 'S');
+                }
             } catch (err: any) {
                 toast({ title: "Error al Asignar", description: err.message, variant: "destructive" });
                 return; // Stop flow on error
@@ -230,7 +237,12 @@ export const usePopulationWizard = () => {
     const handleFinishWizard = async () => {
         if (user) {
             await clearWizardSession(user.id);
-            await releaseLock(Array.from(selectedLevelIds), user.id);
+            await finalizePopulationSession({ 
+                levelIds: Array.from(selectedLevelIds), 
+                userName: user.name, 
+                userId: user.id,
+                assignments: sessionAssignments,
+            });
         }
         setWizardStep('finished');
     };
@@ -244,6 +256,7 @@ export const usePopulationWizard = () => {
         setLastAssignment(null);
         setExistingSession(null);
         setRackSearchTerm('');
+        setSessionAssignments([]);
         setWizardStep('setup');
     };
 
