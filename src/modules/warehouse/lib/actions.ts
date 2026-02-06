@@ -38,11 +38,14 @@ import {
     migrateLegacyInventoryUnits as migrateLegacyInventoryUnitsServer,
     initializePopulationStatus as initializePopulationStatusServer,
     cleanupAndInitializeLocationFlags as cleanupAndInitializeLocationFlagsServer,
-    checkAssignmentConflict as checkAssignmentConflictServer
+    checkAssignmentConflict as checkAssignmentConflictServer,
+    updateLocationPopulationStatus as updateLocationPopulationStatusServer,
+    finalizePopulationSession as finalizePopulationSessionServer,
 } from './db';
 import { getStockSettings as getStockSettingsDb, saveStockSettings as saveStockSettingsDb } from '@/modules/core/lib/db';
 import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User, DateRange, Product } from '@/modules/core/types';
 import { logInfo, logWarn } from '@/modules/core/lib/logger';
+import { authorizeAction } from '@/modules/core/lib/auth-guard';
 
 export const getWarehouseSettings = async (): Promise<WarehouseSettings> => getWarehouseSettingsServer();
 export async function saveWarehouseSettings(settings: Partial<WarehouseSettings>): Promise<void> {
@@ -174,6 +177,19 @@ export const lockEntity = async (payload: { entityIds: number[]; userName: strin
 export const releaseLock = async (entityIds: number[], userId: number): Promise<void> => releaseLockServer(entityIds, userId);
 export const forceReleaseLock = async (locationId: number): Promise<void> => forceReleaseLockServer(locationId);
 export const getChildLocations = async (parentIds: number[]): Promise<WarehouseLocation[]> => getChildLocationsServer(parentIds);
+
+// --- Wizard Population Status Actions ---
+export async function updateLocationPopulationStatus(locationId: number, status: 'S'): Promise<void> {
+    const user = await authorizeAction('warehouse:population-wizard:use'); // Re-use an appropriate permission
+    return updateLocationPopulationStatusServer(locationId, status);
+}
+
+export async function finalizePopulationSession(levelIds: number[]): Promise<void> {
+    const user = await authorizeAction('warehouse:population-wizard:use');
+    await finalizePopulationSessionServer(levelIds);
+    await logInfo(`Population session finalized by ${user.name}`, { levels: levelIds });
+}
+
 
 // --- Migration Actions ---
 export const migrateLegacyInventoryUnits = async (): Promise<number> => {

@@ -225,7 +225,7 @@ export function useItemAssignmentsReport() {
             totals: [],
             orientation: 'landscape',
         });
-        doc.save(`reporte_catalogo_${new Date().getTime()}.pdf`);
+        doc.save(`reporte_catalogo.pdf`);
     };
 
     return {

@@ -264,7 +264,7 @@ export function useReceivingReport() {
         getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string, variant?: "default" | "secondary" | "destructive" | "outline" | undefined; } => {
             switch (colId) {
                 case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A' };
-                case 'createdAt': return { type: 'string', content: format(parseISO(item.createdAt), 'dd/MM/yy HH:mm'), className: "text-xs text-muted-foreground" };
+                case 'createdAt': return { type: 'string', content: item.createdAt ? format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') : '' };
                 case 'productId': return { type: 'string', content: item.productId };
                 case 'productDescription': return { type: 'string', content: getProductDescription(item.productId) };
                 case 'humanReadableId': return { type: 'string', content: item.humanReadableId || 'N/A', className: "font-mono" };

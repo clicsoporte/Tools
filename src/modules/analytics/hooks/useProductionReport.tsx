@@ -252,18 +252,30 @@ export function useProductionReport() {
         );
 
         const doc = generateDocument({
-            docTitle: "Reporte de Producción", docId: '', companyData: authCompanyData, logoDataUrl,
+            docTitle: "Reporte de Producción",
+            docId: '',
+            companyData: authCompanyData,
+            logoDataUrl,
             meta: [
                 { label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') },
                 { label: 'Rango de Fechas', value: `${format(state.dateRange.from!, 'dd/MM/yy')} - ${format(state.dateRange.to!, 'dd/MM/yy')}` },
             ],
             blocks: [],
-            table: { columns: tableHeaders, rows: tableRows },
+            table: {
+                columns: tableHeaders,
+                rows: tableRows,
+                columnStyles: selectedColumnIds.reduce((acc, id, index) => {
+                    const col = allPossibleColumns.find(c => c.id === id);
+                    if (col?.width) { (acc as any)[index] = { cellWidth: col.width }; }
+                    if (id === 'quantity') { (acc as any)[index] = { ...(acc as any)[index], halign: 'right' }; }
+                    return acc;
+                }, {} as { [key: number]: any })
+            },
             totals: [],
             orientation,
         });
 
-        doc.save(`reporte_produccion_${new Date().getTime()}.pdf`);
+        doc.save(`reporte_produccion.pdf`);
     };
 
     const setProductFilter = (productId: string | null) => {

@@ -122,6 +122,7 @@ export function useTransitsReport() {
             });
         }
         setIsInitialLoading(false);
+        // Do not auto-analyze on load
     }, [user, updateState]);
 
     useEffect(() => {
@@ -243,7 +244,7 @@ export function useTransitsReport() {
             totals: [],
             orientation: 'landscape',
         });
-        doc.save(`reporte_transitos_${new Date().getTime()}.pdf`);
+        doc.save(`reporte_transitos.pdf`);
     };
 
     const supplierOptions = useMemo(() => {
