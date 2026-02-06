@@ -541,11 +541,21 @@ export default function WarehouseSearchPage() {
                             );
                         })
                     ) : (
-                        <div className="text-center py-16 text-muted-foreground">
-                            {hasActiveFilters 
-                                ? <p>No se encontraron resultados para los filtros aplicados.</p> 
-                                : <p>Comienza a escribir en la barra de búsqueda o usa los filtros avanzados para ver los resultados.</p>
-                            }
+                        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+                             <div className="flex flex-col items-center gap-2 text-center">
+                                {hasActiveFilters ? (
+                                    <>
+                                        <h3 className="text-2xl font-bold tracking-tight">Sin Resultados</h3>
+                                        <p className="text-sm text-muted-foreground">No se encontraron productos o clientes para los filtros aplicados.</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Search className="h-12 w-12 text-muted-foreground" />
+                                        <h3 className="text-2xl font-bold tracking-tight">Realiza una Búsqueda</h3>
+                                        <p className="text-sm text-muted-foreground max-w-md">Usa la barra de búsqueda superior para encontrar productos por código, descripción o código de barras, o para localizar un cliente.</p>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -559,5 +569,3 @@ export default function WarehouseSearchPage() {
         </div>
     );
 }
-
-    
