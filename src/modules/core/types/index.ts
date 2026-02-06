@@ -480,6 +480,7 @@ export type WarehouseSettings = {
     correctionPrefix: string;
     nextCorrectionNumber: number;
     dispatchNotificationEmails?: string;
+    populationSupervisorEmails?: string;
     pdfTopLegend?: string;
     lastLegacyMigration?: string | null;
     lastPopulationInit?: string | null;
@@ -495,7 +496,7 @@ export type WarehouseLocation = {
     isLocked?: 0 | 1;
     lockedBy?: string | null;
     lockedBySessionId?: string;
-    population_status?: 'P' | 'O' | 'S';
+    population_status?: 'P' | 'O' | 'S' | 'F'; // Pending, Occupied, Skipped, Finished
     is_mixed?: 0 | 1;
 };
 
@@ -1006,3 +1007,5 @@ export class AuthError extends Error {
     this.name = "AuthError";
   }
 }
+
+    

@@ -7,6 +7,11 @@ import { connectDb, getAllStock as getAllStockFromMain, getStockSettings as getS
 import type { WarehouseLocation, WarehouseInventoryItem, MovementLog, WarehouseSettings, StockSettings, StockInfo, ItemLocation, InventoryUnit, DateRange, User, Product } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import path from 'path';
+import { sendEmail } from '@/modules/core/lib/email-service';
+import { getWarehouseSettings as getWarehouseSettingsServer } from '@/modules/warehouse/lib/actions';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 
 const WAREHOUSE_DB_FILE = 'warehouse.db';
 
@@ -28,7 +33,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
             isLocked INTEGER DEFAULT 0,
             lockedBy TEXT,
             lockedBySessionId TEXT,
-            population_status TEXT DEFAULT 'P', -- 'P' for Pending, 'O' for Occupied, 'S' for Skipped
+            population_status TEXT DEFAULT 'P', -- 'P' for Pending, 'O' for Occupied, 'S' for Skipped, 'F' for Finished
             is_mixed INTEGER DEFAULT 0, -- 0 for false, 1 for true
             FOREIGN KEY (parentId) REFERENCES locations(id) ON DELETE CASCADE
         );
@@ -116,6 +121,7 @@ export async function initializeWarehouseDb(db: import('better-sqlite3').Databas
         correctionPrefix: 'COR-',
         nextCorrectionNumber: 1,
         dispatchNotificationEmails: '',
+        populationSupervisorEmails: '',
         pdfTopLegend: 'Documento de Control Interno',
         lastLegacyMigration: null,
         lastPopulationInit: null,
@@ -178,6 +184,7 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
              if (settingsRow) {
                  const settings = JSON.parse(settingsRow.value);
                  if (settings.dispatchNotificationEmails === undefined) settings.dispatchNotificationEmails = '';
+                 if (settings.populationSupervisorEmails === undefined) settings.populationSupervisorEmails = '';
                  if (settings.receptionPrefix === undefined) settings.receptionPrefix = 'ING-';
                  if (settings.nextReceptionNumber === undefined) settings.nextReceptionNumber = 1;
                  if (settings.correctionPrefix === undefined) settings.correctionPrefix = 'COR-';
@@ -214,6 +221,7 @@ export async function getWarehouseSettings(): Promise<WarehouseSettings> {
         correctionPrefix: 'COR-',
         nextCorrectionNumber: 1,
         dispatchNotificationEmails: '',
+        populationSupervisorEmails: '',
         pdfTopLegend: 'Documento de Control Interno',
         lastLegacyMigration: null,
         lastPopulationInit: null,
@@ -269,6 +277,13 @@ function getAllFinalChildren(locationId: number, allLocations: WarehouseLocation
 export async function getLocations(): Promise<(WarehouseLocation & { isCompleted?: boolean })[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const allLocations = db.prepare('SELECT * FROM locations ORDER BY parentId, name').all() as WarehouseLocation[];
+    
+    // Check for the population_status column and add it if it doesn't exist.
+    const tableInfo = db.prepare(`PRAGMA table_info(locations)`).all() as { name: string }[];
+    if (!tableInfo.some(c => c.name === 'population_status')) {
+        db.exec(`ALTER TABLE locations ADD COLUMN population_status TEXT DEFAULT 'P'`);
+    }
+
     const allItemLocations = db.prepare('SELECT locationId FROM item_locations').all() as { locationId: number }[];
     const populatedLocationIds = new Set(allItemLocations.map(il => il.locationId));
 
@@ -276,12 +291,11 @@ export async function getLocations(): Promise<(WarehouseLocation & { isCompleted
         // Check if a location is a 'level' (has children)
         const children = allLocations.filter(l => l.parentId === loc.id);
         if (children.length > 0) {
-            // It's a parent, let's see if all its final children are populated
             const finalChildren = getAllFinalChildren(loc.id, allLocations);
             const isCompleted = finalChildren.length > 0 && finalChildren.every(childId => populatedLocationIds.has(childId));
             return { ...loc, isCompleted };
         }
-        return loc;
+        return { ...loc, isCompleted: populatedLocationIds.has(loc.id) };
     });
 
     return JSON.parse(JSON.stringify(enrichedLocations));
@@ -573,7 +587,7 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
     })();
 }
 
-export async function unassignAllByProduct(itemId: string): Promise<void> {
+export async function unassignAllByProduct(itemId: string, userName: string): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const locationsToUpdate = db.prepare('SELECT DISTINCT locationId FROM item_locations WHERE itemId = ?').all(itemId).map((row: any) => row.locationId);
     
@@ -589,14 +603,16 @@ export async function unassignAllByProduct(itemId: string): Promise<void> {
             }
         }
     })();
+    logWarn(`All assignments for product ${itemId} were deleted by ${userName}.`);
 }
 
-export async function unassignAllByLocation(locationId: number): Promise<void> {
+export async function unassignAllByLocation(locationId: number, userName: string): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     db.transaction(() => {
         db.prepare('DELETE FROM item_locations WHERE locationId = ?').run(locationId);
         db.prepare('UPDATE locations SET population_status = \'P\', is_mixed = 0 WHERE id = ?').run(locationId);
     })();
+    logWarn(`All assignments for location ID ${locationId} were deleted by ${userName}.`);
 }
 
 
@@ -1128,3 +1144,87 @@ export async function checkAssignmentConflict(payload: { itemId: string, locatio
         conflictingProduct: conflictingProduct
     };
 }
+
+
+export async function finalizePopulationSession(payload: { levelIds: number[], userName: string, userId: number }): Promise<void> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    const { levelIds, userName, userId } = payload;
+
+    const transaction = db.transaction(() => {
+        // Step 1: Mark levels as Finished
+        const placeholders = levelIds.map(() => '?').join(',');
+        db.prepare(`UPDATE locations SET population_status = 'F' WHERE id IN (${placeholders})`).run(...levelIds);
+        
+        // Step 2: Release locks
+        releaseLock(levelIds, userId);
+
+        // Step 3: Analyze for newly mixed locations and build report
+        const childLocationIds = getChildLocations(levelIds).map(l => l.id);
+        if (childLocationIds.length === 0) {
+            return; // No locations were populated
+        }
+        
+        const childPlaceholders = childLocationIds.map(() => '?').join(',');
+        const mixedLocationsQuery = db.prepare(`
+            SELECT locationId, GROUP_CONCAT(itemId) as items
+            FROM item_locations
+            WHERE locationId IN (${childPlaceholders})
+            GROUP BY locationId
+            HAVING COUNT(DISTINCT itemId) > 1
+        `);
+        
+        const mixedLocationsResult = mixedLocationsQuery.all(...childLocationIds) as { locationId: number; items: string }[];
+        
+        if (mixedLocationsResult.length > 0) {
+            const settings = getWarehouseSettingsTx(db);
+            const mainDb = connectDb();
+            const productMap = new Map(mainDb.prepare('SELECT id, description FROM products').all().map((p: any) => [p.id, p.description]));
+            const allLocations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
+
+            let emailBody = `
+                <p>El usuario <strong>${userName}</strong> ha finalizado una sesión de poblado y se detectaron las siguientes ubicaciones mixtas:</p>
+                <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+                    <thead>
+                        <tr style="background-color: #f2f2f2;">
+                            <th style="text-align: left;">Ubicación</th>
+                            <th style="text-align: left;">Artículos Asignados</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const loc of mixedLocationsResult) {
+                const locationPath = renderLocationPathAsString(loc.locationId, allLocations);
+                const itemDescriptions = loc.items.split(',').map(id => `<li>${productMap.get(id) || id}</li>`).join('');
+                emailBody += `
+                    <tr>
+                        <td>${locationPath}</td>
+                        <td><ul>${itemDescriptions}</ul></td>
+                    </tr>
+                `;
+            }
+            emailBody += '</tbody></table>';
+
+            // Send email (fire and forget)
+            const supervisorEmails = settings.populationSupervisorEmails;
+            if (supervisorEmails) {
+                sendEmail({
+                    to: supervisorEmails.split(',').map(e => e.trim()),
+                    subject: 'Alerta: Ubicaciones Mixtas Creadas en Poblado',
+                    html: emailBody
+                }).catch(err => {
+                    logError('Failed to send population audit email', { error: err.message });
+                });
+            }
+        }
+    });
+
+    try {
+        transaction();
+        logInfo(`Population session finalized for levels: ${levelIds.join(', ')} by ${userName}`);
+    } catch(err) {
+        logError('Error finalizing population session', { error: (err as Error).message });
+        throw err;
+    }
+}
+
