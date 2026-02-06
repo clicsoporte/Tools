@@ -16,9 +16,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import type { Product } from '@/modules/core/types';
-import JsBarcode from 'jsbarcode';
-import QRCode from 'qrcode';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function ReceivingWizardPage() {
     const {
@@ -44,9 +42,12 @@ export default function ReceivingWizardPage() {
         documentId,
         erpDocumentId,
         saveAsDefault,
+        notes,
         isMixedLocationConfirmOpen,
         conflictingItems,
-        isTargetLocationMixed,
+        moveProductConfirmOpen,
+        moveAndMixConfirmOpen,
+        isTargetLocationMixed
     } = state;
 
     if (isLoading) {
@@ -168,6 +169,10 @@ export default function ReceivingWizardPage() {
                                     <Input id="erpDocumentId" value={erpDocumentId} onChange={e => actions.setErpDocumentId(e.target.value)} placeholder="Ej: ENTR-12345" />
                                 </div>
                             </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="notes">Notas (Opcional)</Label>
+                                <Textarea id="notes" value={notes} onChange={e => actions.setNotes(e.target.value)} placeholder="Ej: Caja golpeada, producto para revisión." />
+                            </div>
                              {step === 'confirm_new' && (
                                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                                     <Label htmlFor="save-default" className="text-sm font-medium">
@@ -225,27 +230,47 @@ export default function ReceivingWizardPage() {
                  )}
             </Card>
 
+             <AlertDialog open={moveProductConfirmOpen} onOpenChange={actions.setMoveProductConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Producto ya Asignado</AlertDialogTitle>
+                        <AlertDialogDescription>Este producto ya tiene una ubicación por defecto. ¿Qué deseas hacer?</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <Button variant="outline" onClick={() => actions.handleConfirmRegistration('add')}>Agregar como Ubicación Adicional</Button>
+                        <AlertDialogAction onClick={() => actions.handleConfirmRegistration('move')}>Mover a Nueva Ubicación</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            
             <AlertDialog open={isMixedLocationConfirmOpen} onOpenChange={actions.setIsMixedLocationConfirmOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>¡Atención! Ubicación Ocupada</AlertDialogTitle>
                         <AlertDialogDescription>
-                            La ubicación seleccionada ya contiene los siguientes productos:
-                            <ul className="list-disc list-inside mt-2 max-h-40 overflow-y-auto rounded-md bg-muted p-2 text-foreground">
-                                {conflictingItems.map((item: Product) => (
-                                    <li key={item.id}><strong>{item.id}</strong> - {item.description}</li>
-                                ))}
-                            </ul>
-                            {isTargetLocationMixed ? (
-                                'Esta ubicación ya es mixta. ¿Deseas añadir este artículo adicional?'
-                            ) : (
-                                '¿Deseas convertir esta ubicación en mixta añadiendo este nuevo producto?'
-                            )}
+                            La ubicación seleccionada ya contiene otros productos. ¿Deseas convertir esta ubicación en mixta añadiendo este nuevo producto?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={actions.handleConfirmAddMixed}>Sí, Añadir</AlertDialogAction>
+                        <AlertDialogAction onClick={() => actions.handleConfirmRegistration('add_and_mix')}>Sí, Añadir y Hacer Mixta</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            
+            <AlertDialog open={moveAndMixConfirmOpen} onOpenChange={actions.setMoveAndMixConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Conflicto Múltiple</AlertDialogTitle>
+                        <AlertDialogDescription>
+                           El producto ya tiene otra ubicación y la ubicación de destino también está ocupada. ¿Qué deseas hacer?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <Button variant="outline" onClick={() => actions.handleConfirmRegistration('add_and_mix')}>Agregar y Hacer Mixta</Button>
+                        <AlertDialogAction onClick={() => actions.handleConfirmRegistration('move_and_mix')}>Mover y Hacer Mixta</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

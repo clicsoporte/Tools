@@ -540,17 +540,19 @@ export async function getAllItemLocations(): Promise<ItemLocation[]> {
  * Inserts or updates an item-location assignment.
  * If payload.id is provided, it updates. Otherwise, it inserts.
  */
-export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }, mode?: 'move' | 'add_and_mix' | 'add_and_new_mix' | 'move_and_new_mix'): Promise<ItemLocation> {
+export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }, mode?: 'move' | 'add' | 'add_and_mix' | 'move_and_mix'): Promise<ItemLocation> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { id, itemId, locationId, clientId, isExclusive, requiresCertificate, updatedBy } = payload;
     
     let savedItem: ItemLocation;
 
     db.transaction(() => {
-        if (mode === 'move' || mode === 'move_and_new_mix') {
+        if (mode === 'move' || mode === 'move_and_mix') {
             const existingAssignment = db.prepare('SELECT * FROM item_locations WHERE itemId = ?').get(itemId) as ItemLocation | undefined;
             if (existingAssignment) {
+                const oldLocationId = existingAssignment.locationId;
                 db.prepare('UPDATE item_locations SET locationId = ? WHERE id = ?').run(locationId, existingAssignment.id);
+                updateLocationMixedStatus(db, oldLocationId); // Update status of old location
             }
         }
         
@@ -652,6 +654,10 @@ export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'created
         settings.nextUnitNumber = nextUnitNumber + 1;
         settings.nextReceptionNumber = nextReceptionNumber + 1;
         db.prepare(`UPDATE warehouse_config SET value = ? WHERE key = 'settings'`).run(JSON.stringify(settings));
+
+        if (unit.locationId) {
+            db.prepare('UPDATE locations SET population_status = \'O\' WHERE id = ?').run(unit.locationId);
+        }
 
         return db.prepare('SELECT * FROM inventory_units WHERE id = ?').get(newId) as InventoryUnit;
     });
@@ -1123,9 +1129,27 @@ export async function cleanupAndInitializeLocationFlags(): Promise<{ deletedCoun
     return result;
 }
 
-export async function checkAssignmentConflict(payload: { itemId: string, locationId: number }): Promise<{ productHasOtherLocations: boolean; locationHasOtherProducts: boolean; conflictingProduct?: Product }> {
+export async function checkAssignmentConflict(payload: { itemId: string, locationId: number }): Promise<{
+    productHasOtherLocations: boolean;
+    locationHasOtherProducts: boolean;
+    conflictingProduct?: Product;
+    isLocked: boolean;
+    lockedBy?: string | null;
+}> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { itemId, locationId } = payload;
+    
+    // Check lock status first
+    const location = db.prepare('SELECT isLocked, lockedBy FROM locations WHERE id = ?').get(locationId) as { isLocked: 0 | 1, lockedBy: string | null } | undefined;
+    if (location?.isLocked) {
+        return {
+            productHasOtherLocations: false,
+            locationHasOtherProducts: false,
+            isLocked: true,
+            lockedBy: location.lockedBy,
+            conflictingProduct: undefined,
+        };
+    }
     
     const otherAssignmentsForProduct = db.prepare('SELECT COUNT(*) as count FROM item_locations WHERE itemId = ?').get(itemId) as { count: number };
     
@@ -1141,39 +1165,52 @@ export async function checkAssignmentConflict(payload: { itemId: string, locatio
     return {
         productHasOtherLocations: otherAssignmentsForProduct.count > 0,
         locationHasOtherProducts: otherProductsInLocation.length > 0,
-        conflictingProduct: conflictingProduct
+        conflictingProduct: conflictingProduct,
+        isLocked: false,
+        lockedBy: null
     };
 }
 
 
-export async function finalizePopulationSession(payload: { levelIds: number[], userName: string, userId: number }): Promise<void> {
+export async function finalizePopulationSession(payload: { levelIds: number[]; userName: string; userId: number; }): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { levelIds, userName, userId } = payload;
 
     const transaction = db.transaction(() => {
-        // Step 1: Mark levels as Finished
         const placeholders = levelIds.map(() => '?').join(',');
-        db.prepare(`UPDATE locations SET population_status = 'F' WHERE id IN (${placeholders})`).run(...levelIds);
         
-        // Step 2: Release locks
-        releaseLock(levelIds, userId);
+        for (const levelId of levelIds) {
+            const childLeafIds = getChildLocations(db, [levelId]).map(l => l.id);
+            if (childLeafIds.length === 0) {
+                 db.prepare(`UPDATE locations SET population_status = 'F' WHERE id = ?`).run(levelId);
+                 continue;
+            }
 
-        // Step 3: Analyze for newly mixed locations and build report
-        const childLocationIds = getChildLocations(levelIds).map(l => l.id);
-        if (childLocationIds.length === 0) {
-            return; // No locations were populated
+            const childPlaceholders = childLeafIds.map(() => '?').join(',');
+            const statuses = db.prepare(`SELECT population_status FROM locations WHERE id IN (${childPlaceholders})`).all(...childLeafIds) as { population_status: string }[];
+            const hasOmittedOrPending = statuses.some(s => s.population_status === 'S' || s.population_status === 'P');
+            const finalStatus = hasOmittedOrPending ? 'PC' : 'F';
+            
+            db.prepare(`UPDATE locations SET population_status = ? WHERE id = ?`).run(finalStatus, levelId);
         }
         
-        const childPlaceholders = childLocationIds.map(() => '?').join(',');
+        releaseLock(levelIds, userId);
+
         const mixedLocationsQuery = db.prepare(`
-            SELECT locationId, GROUP_CONCAT(itemId) as items
-            FROM item_locations
-            WHERE locationId IN (${childPlaceholders})
-            GROUP BY locationId
-            HAVING COUNT(DISTINCT itemId) > 1
+            SELECT DISTINCT il.locationId 
+            FROM item_locations il
+            JOIN (
+                SELECT locationId
+                FROM item_locations
+                GROUP BY locationId
+                HAVING COUNT(DISTINCT itemId) > 1
+            ) AS mixed ON il.locationId = mixed.locationId
+            WHERE il.locationId IN (
+                SELECT id FROM locations WHERE parentId IN (${placeholders})
+            )
         `);
         
-        const mixedLocationsResult = mixedLocationsQuery.all(...childLocationIds) as { locationId: number; items: string }[];
+        const mixedLocationsResult = mixedLocationsQuery.all(...levelIds) as { locationId: number }[];
         
         if (mixedLocationsResult.length > 0) {
             const settings = getWarehouseSettingsTx(db);
@@ -1181,40 +1218,25 @@ export async function finalizePopulationSession(payload: { levelIds: number[], u
             const productMap = new Map(mainDb.prepare('SELECT id, description FROM products').all().map((p: any) => [p.id, p.description]));
             const allLocations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
 
-            let emailBody = `
-                <p>El usuario <strong>${userName}</strong> ha finalizado una sesión de poblado y se detectaron las siguientes ubicaciones mixtas:</p>
+            let emailBody = `<p>El usuario <strong>${userName}</strong> ha finalizado una sesión de poblado y se detectaron las siguientes ubicaciones mixtas:</p>
                 <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">
-                    <thead>
-                        <tr style="background-color: #f2f2f2;">
-                            <th style="text-align: left;">Ubicación</th>
-                            <th style="text-align: left;">Artículos Asignados</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+                    <thead><tr style="background-color: #f2f2f2;"><th>Ubicación</th><th>Artículos Asignados</th></tr></thead><tbody>`;
 
             for (const loc of mixedLocationsResult) {
+                const itemsInLoc = db.prepare('SELECT DISTINCT itemId FROM item_locations WHERE locationId = ?').all(loc.locationId) as { itemId: string }[];
                 const locationPath = renderLocationPathAsString(loc.locationId, allLocations);
-                const itemDescriptions = loc.items.split(',').map(id => `<li>${productMap.get(id) || id}</li>`).join('');
-                emailBody += `
-                    <tr>
-                        <td>${locationPath}</td>
-                        <td><ul>${itemDescriptions}</ul></td>
-                    </tr>
-                `;
+                const itemDescriptions = itemsInLoc.map(i => `<li>${productMap.get(i.itemId) || i.itemId}</li>`).join('');
+                emailBody += `<tr><td>${locationPath}</td><td><ul>${itemDescriptions}</ul></td></tr>`;
             }
             emailBody += '</tbody></table>';
 
-            // Send email (fire and forget)
             const supervisorEmails = settings.populationSupervisorEmails;
             if (supervisorEmails) {
                 sendEmail({
                     to: supervisorEmails.split(',').map(e => e.trim()),
                     subject: 'Alerta: Ubicaciones Mixtas Creadas en Poblado',
                     html: emailBody
-                }).catch(err => {
-                    logError('Failed to send population audit email', { error: err.message });
-                });
+                }).catch(err => logError('Failed to send population audit email', { error: err.message }));
             }
         }
     });
@@ -1228,3 +1250,34 @@ export async function finalizePopulationSession(payload: { levelIds: number[], u
     }
 }
 
+const getChildLocations = (db: import('better-sqlite3').Database, parentIds: number[]): WarehouseLocation[] => {
+     if (parentIds.length === 0) return [];
+    
+    let allChildren: WarehouseLocation[] = [];
+    const queue = [...parentIds];
+    const visited = new Set<number>();
+
+    while (queue.length > 0) {
+        const currentId = queue.shift()!;
+        if (visited.has(currentId)) continue;
+        visited.add(currentId);
+
+        const children = db.prepare(`SELECT * FROM locations WHERE parentId = ?`).all(currentId) as WarehouseLocation[];
+        if (children.length === 0) {
+            const self = db.prepare('SELECT * FROM locations WHERE id = ?').get(currentId) as WarehouseLocation;
+            if(self) allChildren.push(self);
+        } else {
+            queue.push(...children.map(c => c.id));
+        }
+    }
+    
+    // De-duplicate in case of complex structures
+    const uniqueChildren = Array.from(new Map(allChildren.map(item => [item.id, item])).values());
+    return uniqueChildren;
+}
+
+
+export async function updateLocationPopulationStatus(locationId: number, status: 'S'): Promise<void> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    db.prepare('UPDATE locations SET population_status = ? WHERE id = ?').run(status, locationId);
+}

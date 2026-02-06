@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getLocations, getAllItemLocations, assignItemToLocation, unassignItemFromLocation, getSelectableLocations, unassignAllByProduct, unassignAllByLocation } from '@/modules/warehouse/lib/actions';
+import { getLocations, getAllItemLocations, assignItemToLocation, unassignItemFromLocation, getSelectableLocations, unassignAllByProduct, unassignAllByLocation, checkAssignmentConflict } from '@/modules/warehouse/lib/actions';
 import type { Product, Customer, WarehouseLocation, ItemLocation } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -61,6 +61,10 @@ interface State {
     isLocationSearchOpen: boolean;
     cleanupSearchTerm: string;
     isCleanupSearchOpen: boolean;
+    // Conflict dialogs
+    moveProductConfirmOpen: boolean;
+    mixedLocationConfirmOpen: boolean;
+    moveAndMixConfirmOpen: boolean;
 }
 
 export function useItemLocation() {
@@ -68,7 +72,6 @@ export function useItemLocation() {
     const { toast } = useToast();
     const { user, companyData, products: authProducts, customers: authCustomers } = useAuth();
     
-    const [isLoading, setIsLoading] = useState(true);
     const [allLocations, setAllLocations] = useState<WarehouseLocation[]>([]);
     const [allAssignments, setAllAssignments] = useState<ItemLocation[]>([]);
     const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null);
@@ -92,6 +95,9 @@ export function useItemLocation() {
         isLocationSearchOpen: false,
         cleanupSearchTerm: '',
         isCleanupSearchOpen: false,
+        moveProductConfirmOpen: false,
+        mixedLocationConfirmOpen: false,
+        moveAndMixConfirmOpen: false,
     });
     
     const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);
@@ -105,7 +111,7 @@ export function useItemLocation() {
     }, []);
 
     const loadInitialData = useCallback(async () => {
-        setIsLoading(true);
+        updateState({ isLoading: true });
         try {
             const [locs, allAssigns] = await Promise.all([getLocations(), getAllItemLocations()]);
             setAllLocations(locs);
@@ -114,7 +120,6 @@ export function useItemLocation() {
             logError("Failed to load data for assignment page", { error });
             toast({ title: "Error de Carga", description: "No se pudieron cargar los datos necesarios.", variant: "destructive" });
         } finally {
-            setIsLoading(false);
             updateState({ isLoading: false });
         }
     }, [toast, updateState]);
@@ -222,7 +227,7 @@ export function useItemLocation() {
         setEditingAssignmentId(assignment.id);
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (mode?: 'move' | 'add' | 'add_and_mix' | 'move_and_mix') => {
         if (!user) return;
         if (!state.formData.selectedProductId || !state.formData.selectedLocationId) {
             toast({ title: "Datos Incompletos", description: "Debe seleccionar un producto y una ubicación.", variant: "destructive" });
@@ -230,6 +235,37 @@ export function useItemLocation() {
         }
 
         updateState({ isSubmitting: true });
+
+        // If not in a specific mode (first call), check for conflicts
+        if (!mode) {
+            try {
+                const conflictResult = await checkAssignmentConflict({ itemId: state.formData.selectedProductId, locationId: Number(state.formData.selectedLocationId) });
+
+                if (conflictResult.isLocked) {
+                    toast({ title: "Ubicación Bloqueada", description: `Esta ubicación está siendo modificada por ${conflictResult.lockedBy || 'otro usuario'}. Intenta de nuevo más tarde.`, variant: "destructive" });
+                    updateState({ isSubmitting: false });
+                    return;
+                }
+
+                if (conflictResult.productHasOtherLocations && conflictResult.locationHasOtherProducts) {
+                    updateState({ moveAndMixConfirmOpen: true });
+                } else if (conflictResult.productHasOtherLocations) {
+                    updateState({ moveProductConfirmOpen: true });
+                } else if (conflictResult.locationHasOtherProducts) {
+                    updateState({ mixedLocationConfirmOpen: true });
+                } else {
+                    await handleSubmit('add'); // No conflicts, proceed with simple add
+                }
+                updateState({ isSubmitting: false }); // Stop spinner while user decides
+            } catch(e: any) {
+                logError('Conflict check failed', { error: e.message });
+                toast({ title: 'Error de Verificación', description: e.message, variant: 'destructive' });
+                updateState({ isSubmitting: false });
+            }
+            return; // Exit here, let user interaction from dialog trigger the final save
+        }
+        
+        // --- Final Save Logic (with mode) ---
         try {
             const payload = {
                 id: state.isEditing ? editingAssignmentId! : undefined,
@@ -241,15 +277,10 @@ export function useItemLocation() {
                 updatedBy: user.name,
             };
 
-            const savedAssignment = await assignItemToLocation(payload);
+            const savedAssignment = await assignItemToLocation(payload, mode);
             
-            if (state.isEditing) {
-                setAllAssignments(prev => prev.map(a => a.id === savedAssignment.id ? savedAssignment : a));
-                toast({ title: "Asignación Actualizada" });
-            } else {
-                setAllAssignments(prev => [savedAssignment, ...prev]);
-                toast({ title: "Asignación Creada" });
-            }
+            await loadInitialData();
+            toast({ title: state.isEditing ? "Asignación Actualizada" : "Asignación Creada" });
             
             updateState({ isFormOpen: false });
             resetForm();
@@ -257,7 +288,12 @@ export function useItemLocation() {
             logError('Failed to save item assignment', { error: e.message });
             toast({ title: "Error al Guardar", description: `No se pudo guardar la asignación. ${e.message}`, variant: "destructive" });
         } finally {
-            updateState({ isSubmitting: false });
+            updateState({ 
+                isSubmitting: false, 
+                moveProductConfirmOpen: false, 
+                mixedLocationConfirmOpen: false, 
+                moveAndMixConfirmOpen: false 
+            });
         }
     };
 
@@ -392,6 +428,9 @@ export function useItemLocation() {
             setIsCleanupSearchOpen: (open: boolean) => updateState({ isCleanupSearchOpen: open }),
             handleSort,
             handleCleanup,
+            setMoveProductConfirmOpen: (open: boolean) => updateState({ moveProductConfirmOpen: open }),
+            setMixedLocationConfirmOpen: (open: boolean) => updateState({ mixedLocationConfirmOpen: open }),
+            setMoveAndMixConfirmOpen: (open: boolean) => updateState({ moveAndMixConfirmOpen: open }),
         }
     };
 }
