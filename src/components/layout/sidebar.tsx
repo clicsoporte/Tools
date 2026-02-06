@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Sidebar component for the main application layout.
  * It handles navigation, displays user and company information, and adapts
@@ -39,6 +40,8 @@ import { UserNav } from "./user-nav";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
+import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
+import { useMemo } from "react";
 
 /**
  * Renders the main application sidebar.
@@ -47,7 +50,8 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
  */
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user: currentUser, companyData, userRole, isAuthReady } = useAuth();
+  const { user: currentUser, companyData, isAuthReady } = useAuth();
+  const { hasPermission } = useAuthorization();
   const { isMobile, setOpenMobile } = useSidebar();
 
   const handleLinkClick = () => {
@@ -69,9 +73,83 @@ export function AppSidebar() {
     }
     return pathname.startsWith(href);
   };
-  
-  const hasAdminAccess = userRole?.id === 'admin';
-  const hasAnalyticsAccess = hasAdminAccess || userRole?.permissions.includes('analytics:read');
+
+  const navLinks: Tool[] = [
+    {
+      id: "dashboard:access",
+      name: "Panel",
+      description: "Visión general de las herramientas y actividad.",
+      href: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      id: "quotes:create",
+      name: "Cotizador",
+      description: "Crear y gestionar cotizaciones para clientes.",
+      href: "/dashboard/quoter",
+      icon: Sheet,
+    },
+    {
+      id: "requests:create",
+      name: "Solicitud de Compra",
+      description: "Crear y gestionar solicitudes de compra internas.",
+      href: "/dashboard/requests",
+      icon: ShoppingCart,
+    },
+     {
+      id: "planner:create",
+      name: "Planificador OP",
+      description: "Gestionar y visualizar la carga de producción.",
+      href: "/dashboard/planner",
+      icon: CalendarCheck,
+    },
+    {
+      id: 'cost-assistant:access',
+      name: 'Asistente de Costos',
+      description: 'Calcular costos y precios a partir de facturas XML.',
+      href: '/dashboard/cost-assistant',
+      icon: Calculator,
+    },
+    {
+      id: 'operations:access',
+      name: 'Operaciones',
+      description: 'Boletas digitales de movimiento, entregas y más.',
+      href: '/dashboard/operations',
+      icon: FileSignature,
+    },
+   {
+      id: "it-tools:access",
+      name: "Herramientas de TI",
+      description: "Gestionar notas técnicas y documentación interna de TI.",
+      href: "/dashboard/it-tools",
+      icon: Cpu,
+    },
+    {
+      id: "warehouse:access",
+      name: "Almacén",
+      description: "Consultar ubicaciones, gestionar unidades y registrar conteos.",
+      href: "/dashboard/warehouse",
+      icon: Warehouse,
+    },
+     {
+      id: "hacienda:query",
+      name: "Consultas Hacienda",
+      description: "Verificar situación tributaria y exoneraciones.",
+      href: "/dashboard/hacienda",
+      icon: Search,
+    },
+    {
+      id: "help",
+      name: "Centro de Ayuda",
+      description: "Consultar la documentación y guías de uso del sistema.",
+      href: "/dashboard/help",
+      icon: LifeBuoy,
+    },
+  ];
+
+  const visibleNavLinks = useMemo(() => {
+    return navLinks.filter(link => hasPermission(link.id));
+  }, [hasPermission]);
 
 
   if (!isAuthReady) {
@@ -94,79 +172,6 @@ export function AppSidebar() {
     )
   }
 
-  const navLinks: Tool[] = [
-    {
-      id: "dashboard",
-      name: "Panel",
-      description: "Visión general de las herramientas y actividad.",
-      href: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      id: "quoter",
-      name: "Cotizador",
-      description: "Crear y gestionar cotizaciones para clientes.",
-      href: "/dashboard/quoter",
-      icon: Sheet,
-    },
-    {
-      id: "purchase-request",
-      name: "Solicitud de Compra",
-      description: "Crear y gestionar solicitudes de compra internas.",
-      href: "/dashboard/requests",
-      icon: ShoppingCart,
-    },
-     {
-      id: "planner",
-      name: "Planificador OP",
-      description: "Gestionar y visualizar la carga de producción.",
-      href: "/dashboard/planner",
-      icon: CalendarCheck,
-    },
-    {
-      id: 'cost-assistant',
-      name: 'Asistente de Costos',
-      description: 'Calcular costos y precios a partir de facturas XML.',
-      href: '/dashboard/cost-assistant',
-      icon: Calculator,
-    },
-    {
-      id: 'operations',
-      name: 'Operaciones',
-      description: 'Boletas digitales de movimiento, entregas y más.',
-      href: '/dashboard/operations',
-      icon: FileSignature,
-    },
-    {
-      id: "it-tools",
-      name: "Herramientas de TI",
-      description: "Gestionar notas técnicas y documentación interna de TI.",
-      href: "/dashboard/it-tools",
-      icon: Cpu,
-    },
-    {
-      id: "warehouse",
-      name: "Almacén",
-      description: "Consultar ubicaciones, gestionar unidades y registrar conteos.",
-      href: "/dashboard/warehouse",
-      icon: Warehouse,
-    },
-     {
-      id: "hacienda-query",
-      name: "Consultas Hacienda",
-      description: "Verificar situación tributaria y exoneraciones.",
-      href: "/dashboard/hacienda",
-      icon: Search,
-    },
-    {
-      id: "help",
-      name: "Centro de Ayuda",
-      description: "Consultar la documentación y guías de uso del sistema.",
-      href: "/dashboard/help",
-      icon: LifeBuoy,
-    },
-  ];
-
   return (
       <Sidebar collapsible="icon" className="border-r z-20">
         <SidebarHeader>
@@ -181,7 +186,7 @@ export function AppSidebar() {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {navLinks.map((item) => (
+            {visibleNavLinks.map((item) => (
                 <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                     asChild
@@ -213,7 +218,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
             </SidebarMenuItem>
 
-             {hasAnalyticsAccess && (
+             {hasPermission('analytics:read') && (
                 <SidebarMenuItem>
                     <SidebarMenuButton
                         asChild
@@ -228,7 +233,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
             )}
             
-            {hasAdminAccess && (
+            {hasPermission('admin:access') && (
                  <SidebarMenuItem>
                     <SidebarMenuButton
                         asChild
