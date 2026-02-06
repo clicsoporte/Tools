@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -28,6 +27,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,7 +41,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import { getAllUsers, getAllRoles, addUser, saveAllUsers } from '@/modules/core/lib/auth-client';
+import { getAllUsers, addUser, saveAllUsers } from '@/modules/core/lib/auth-client';
+import { getAllRoles } from '@/modules/core/lib/db';
 import type { User, Role } from '@/modules/core/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PlusCircle, Edit, Trash2, Save, Loader2 } from 'lucide-react';
@@ -130,7 +131,7 @@ export default function UsersClient() {
           phone: currentUser.phone || '',
           whatsapp: currentUser.whatsapp || '',
           erpAlias: currentUser.erpAlias || '',
-          forcePasswordChange: currentUser.forcePasswordChange ?? true,
+          forcePasswordChange: !!(currentUser.forcePasswordChange ?? true),
         });
         setUsers(prev => [...prev, newUser]);
         toast({ title: 'Usuario Creado' });
