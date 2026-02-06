@@ -14,6 +14,12 @@ import { getAllProducts, getAllStock, getAllCustomers } from '@/modules/core/lib
 
 const REQUESTS_DB_FILE = 'requests.db';
 
+const normalizeText = (text: string | null | undefined): string => {
+    if (!text) return "";
+    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
+
+
 // Helper function to ensure complex fields are in the correct format (array).
 const sanitizeRequest = (request: any): PurchaseRequest => {
   const sanitized = { ...request };
@@ -706,3 +712,5 @@ export async function saveCostAnalysis(requestId: number, cost: number, salePric
     const updatedRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as any;
     return sanitizeRequest(updatedRequest);
 }
+
+    

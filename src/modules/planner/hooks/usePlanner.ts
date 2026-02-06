@@ -225,7 +225,9 @@ export const usePlanner = () => {
         loadInitialData(false);
     }, [isAuthReady, loadInitialData]);
 
-    const getOrderPermissions = useCallback((order: ProductionOrder): { [key: string]: boolean } => {
+    const getOrderPermissions = useCallback((order: ProductionOrder): { [key: string]: { allowed: boolean; visible: boolean; reason: string | null } } => {
+        const createResult = (allowed: boolean, reason: string | null = null, visible = true) => ({ allowed, reason: allowed ? null : reason, visible });
+    
         const isPending = order.status === 'pending';
         const isPendingReview = order.status === 'pending-review';
         const isPendingApproval = order.status === 'pending-approval';
@@ -242,24 +244,24 @@ export const usePlanner = () => {
         const isFinalArchived = order.status === finalArchivedStatus || order.status === 'canceled';
         
         return {
-            canEdit: (isPending || isPendingReview || isPendingApproval) && hasPermission('planner:edit:pending'),
-            canConfirmModification: !!order.hasBeenModified && hasPermission('planner:status:approve'),
-            canSendToReview: isPending && hasPermission('planner:status:review'),
-            canGoBackToPending: isPendingReview && hasPermission('planner:status:review'),
-            canSendToApproval: isPendingReview && hasPermission('planner:status:pending-approval'),
-            canGoBackToReview: isPendingApproval && hasPermission('planner:status:pending-approval'),
-            canApprove: isPendingApproval && hasPermission('planner:status:approve'),
-            canQueue: isApproved && hasPermission('planner:status:in-progress'),
-            canStart: (isApproved || isInQueue) && hasPermission('planner:status:in-progress') && (!state.plannerSettings?.requireMachineForStart || !!order.machineId),
-            canResumeFromHold: isOnHold && hasPermission('planner:status:in-progress'),
-            canHold: isInProgress && hasPermission('planner:status:on-hold'),
-            canMaintain: isInProgress && hasPermission('planner:status:on-hold'),
-            canComplete: (isInProgress || isOnHold) && hasPermission('planner:status:completed') && (!state.plannerSettings?.requireShiftForCompletion || !!order.shiftId),
-            canRequestUnapproval: (isApproved || isInQueue || isOnHold || isInProgress) && hasPermission('planner:status:unapprove-request'),
-            canCancelPending: (isPending || isPendingReview || isPendingApproval) && hasPermission('planner:status:cancel'),
-            canRequestCancel: (isApproved || isInQueue) && hasPermission('planner:status:cancel-approved'),
-            canReceive: isCompleted && !!state.plannerSettings?.useWarehouseReception && hasPermission('planner:receive'),
-            canReopen: isFinalArchived && hasPermission('planner:reopen'),
+            canEdit: createResult((isPending || isPendingReview || isPendingApproval) && hasPermission('planner:edit:pending'), 'Solo se puede editar en estados iniciales.'),
+            canConfirmModification: createResult(!!order.hasBeenModified && hasPermission('planner:status:approve'), 'Se requiere permiso de aprobación para confirmar.'),
+            canSendToReview: createResult(isPending && hasPermission('planner:status:review'), 'Solo desde estado Pendiente.'),
+            canGoBackToPending: createResult(isPendingReview && hasPermission('planner:status:review'), 'Solo desde Revisión.'),
+            canSendToApproval: createResult(isPendingReview && hasPermission('planner:status:pending-approval'), 'Solo desde Revisión.'),
+            canGoBackToReview: createResult(isPendingApproval && hasPermission('planner:status:pending-approval'), 'Solo desde Pendiente Aprobación.'),
+            canApprove: createResult(isPendingApproval && hasPermission('planner:status:approve'), 'Solo desde Pendiente Aprobación.'),
+            canQueue: createResult(isApproved && hasPermission('planner:status:in-progress'), 'Solo para órdenes Aprobadas.'),
+            canStart: createResult((isApproved || isInQueue) && hasPermission('planner:status:in-progress') && (!state.plannerSettings?.requireMachineForStart || !!order.machineId), 'Debe estar aprobada/en cola y tener asignación si es requerido.'),
+            canResumeFromHold: createResult(isOnHold && hasPermission('planner:status:in-progress'), 'Solo desde estados de espera.'),
+            canHold: createResult(isInProgress && hasPermission('planner:status:on-hold'), 'Solo para órdenes En Progreso.'),
+            canMaintain: createResult(isInProgress && hasPermission('planner:status:on-hold'), 'Solo para órdenes En Progreso.'),
+            canComplete: createResult((isInProgress || isOnHold) && hasPermission('planner:status:completed') && (!state.plannerSettings?.requireShiftForCompletion || !!order.shiftId), 'Debe estar en progreso/espera y tener turno asignado si es requerido.'),
+            canRequestUnapproval: createResult((isApproved || isInQueue || isOnHold || isInProgress) && hasPermission('planner:status:unapprove-request'), 'Solo para órdenes activas post-aprobación.'),
+            canCancelPending: createResult((isPending || isPendingReview || isPendingApproval) && hasPermission('planner:status:cancel'), 'Solo en estados iniciales.'),
+            canRequestCancel: createResult((isApproved || isInQueue) && hasPermission('planner:status:cancel-approved'), 'Solo para órdenes aprobadas/en cola.'),
+            canReceive: createResult(isCompleted && !!state.plannerSettings?.useWarehouseReception && hasPermission('planner:receive'), 'Paso no habilitado o estado incorrecto.'),
+            canReopen: createResult(isFinalArchived && hasPermission('planner:reopen'), 'Solo para órdenes archivadas.'),
         };
     }, [hasPermission, state.plannerSettings]);
     
@@ -561,7 +563,9 @@ export const usePlanner = () => {
             if (customer) {
                 const dataToUpdate = { customerId: customer.id, customerName: customer.name, customerTaxId: customer.taxId };
                 if (state.orderToEdit) {
-                     actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate });
+                     updateState({
+                        orderToEdit: state.orderToEdit ? { ...state.orderToEdit, ...dataToUpdate } : null
+                    });
                 } else {
                     updateState({ newOrder: { ...state.newOrder, ...dataToUpdate }});
                 }
@@ -640,9 +644,7 @@ export const usePlanner = () => {
                         reader.onloadend = () => resolve(reader.result as string);
                         reader.readAsDataURL(blob);
                     });
-                } catch (e) {
-                    console.error("Error processing logo for PDF:", e);
-                }
+                } catch (e) { console.error("Error processing logo for PDF:", e); }
             }
         
             const allPossibleColumns: { id: string; header: string; width?: number }[] = [
@@ -826,10 +828,13 @@ export const usePlanner = () => {
         productOptions: useMemo(() => {
             if (debouncedProductSearch.length < 2) return [];
             const searchTerms = normalizeText(debouncedProductSearch).split(' ').filter(Boolean);
-            return products.filter(p => {
-                const targetText = normalizeText(`${p.id} ${p.description} ${p.barcode || ''}`);
-                return searchTerms.every(term => targetText.includes(term));
-            }).map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
+            const productList = products.map(p => ({
+                ...p,
+                targetText: normalizeText(`${p.id} ${p.description} ${p.barcode || ''}`),
+            }));
+            return productList
+                .filter(p => searchTerms.every(term => p.targetText.includes(term)))
+                .map(p => ({ value: p.id, label: `[${p.id}] - ${p.description}` }));
         }, [products, debouncedProductSearch]),
         classifications: useMemo<string[]>(() => 
             Array.from(new Set(products.map(p => p.classification).filter(Boolean)))
@@ -849,3 +854,5 @@ export const usePlanner = () => {
         isAuthorized,
     };
 };
+
+    
