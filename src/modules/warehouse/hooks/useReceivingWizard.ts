@@ -33,7 +33,7 @@ const renderLocationPathAsString = (locationId: number | null, locations: Wareho
 };
 
 export const useReceivingWizard = () => {
-    useAuthorization(['warehouse:receiving-wizard:use']);
+    const { isAuthorized } = useAuthorization(['warehouse:receiving-wizard:use']);
     const { toast } = useToast();
     const { user, companyData, products: authProducts } = useAuth();
     
@@ -167,7 +167,7 @@ export const useReceivingWizard = () => {
         }
     }, [updateState]);
 
-    const performRegistration = async (mode: 'move' | 'add' | 'add_and_mix' | 'move_and_mix' = 'add') => {
+    const performRegistration = async (mode?: 'move' | 'add' | 'add_and_mix' | 'move_and_mix') => {
         if (!user || !state.selectedProduct || !state.newLocationId || !state.quantity) return;
         updateState({ isSubmitting: true });
         
