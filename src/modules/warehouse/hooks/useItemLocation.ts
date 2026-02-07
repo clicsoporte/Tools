@@ -236,7 +236,6 @@ export function useItemLocation() {
 
         updateState({ isSubmitting: true });
 
-        // If not in a specific mode (first call), check for conflicts
         if (!mode) {
             try {
                 const conflictResult = await checkAssignmentConflict({ itemId: state.formData.selectedProductId, locationId: Number(state.formData.selectedLocationId) });
@@ -254,18 +253,19 @@ export function useItemLocation() {
                 } else if (conflictResult.locationHasOtherProducts) {
                     updateState({ mixedLocationConfirmOpen: true });
                 } else {
-                    await handleSubmit('add'); // No conflicts, proceed with simple add
+                    await handleSubmit('add'); 
                 }
-                updateState({ isSubmitting: false }); // Stop spinner while user decides
+                if(conflictResult.productHasOtherLocations || conflictResult.locationHasOtherProducts) {
+                    updateState({ isSubmitting: false });
+                }
             } catch(e: any) {
                 logError('Conflict check failed', { error: e.message });
                 toast({ title: 'Error de Verificación', description: e.message, variant: 'destructive' });
                 updateState({ isSubmitting: false });
             }
-            return; // Exit here, let user interaction from dialog trigger the final save
+            return;
         }
         
-        // --- Final Save Logic (with mode) ---
         try {
             const payload = {
                 id: state.isEditing ? editingAssignmentId! : undefined,
@@ -277,7 +277,7 @@ export function useItemLocation() {
                 updatedBy: user.name,
             };
 
-            const savedAssignment = await assignItemToLocation(payload, mode);
+            await assignItemToLocation(payload, mode);
             
             await loadInitialData();
             toast({ title: state.isEditing ? "Asignación Actualizada" : "Asignación Creada" });

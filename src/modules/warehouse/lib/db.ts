@@ -12,8 +12,18 @@ import { getWarehouseSettings as getWarehouseSettingsServer } from '@/modules/wa
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-
 const WAREHOUSE_DB_FILE = 'warehouse.db';
+
+const renderLocationPathAsString = (locationId: number, locations: any[]): string => {
+    if (!locationId) return "N/A";
+    const path: any[] = [];
+    let current = locations.find(l => l.id === locationId);
+    while (current) {
+        path.unshift(current);
+        current = current.parentId ? locations.find(l => l.id === current.parentId) : undefined;
+    }
+    return path.map(l => l.name).join(' > ');
+};
 
 const updateLocationMixedStatus = (db: import('better-sqlite3').Database, locationId: number) => {
     const result = db.prepare('SELECT COUNT(DISTINCT itemId) as count FROM item_locations WHERE locationId = ?').get(locationId) as { count: number };
@@ -176,6 +186,7 @@ export async function runWarehouseMigrations(db: import('better-sqlite3').Databa
             if (!columns.has('status')) db.exec('ALTER TABLE inventory_units ADD COLUMN status TEXT');
             if (!columns.has('appliedAt')) db.exec('ALTER TABLE inventory_units ADD COLUMN appliedAt TEXT');
             if (!columns.has('appliedBy')) db.exec('ALTER TABLE inventory_units ADD COLUMN appliedBy TEXT');
+            if (!columns.has('notes')) db.exec('ALTER TABLE inventory_units ADD COLUMN notes TEXT');
         }
 
         const configTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='warehouse_config'`).get();
@@ -248,11 +259,14 @@ export async function saveWarehouseSettings(settings: Partial<WarehouseSettings>
     `).run(JSON.stringify(newSettings));
 }
 
-// Helper function to recursively find all final child nodes (bins) of a location.
-function getAllFinalChildren(locationId: number, allLocations: WarehouseLocation[]): number[] {
-    let finalChildren: number[] = [];
-    const queue: number[] = [locationId];
+// This is a local helper function for transactions
+const getChildLeafLocations_transactional = (db: import('better-sqlite3').Database, parentIds: number[]): WarehouseLocation[] => {
+    if (parentIds.length === 0) return [];
+    
+    let allChildren: WarehouseLocation[] = [];
+    const queue = [...parentIds];
     const visited = new Set<number>();
+    const allLocations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
 
     while (queue.length > 0) {
         const currentId = queue.shift()!;
@@ -261,13 +275,14 @@ function getAllFinalChildren(locationId: number, allLocations: WarehouseLocation
 
         const children = allLocations.filter(l => l.parentId === currentId);
         if (children.length === 0) {
-            finalChildren.push(currentId);
+            const self = allLocations.find(l => l.id === currentId);
+            if(self) allChildren.push(self);
         } else {
             queue.push(...children.map(c => c.id));
         }
     }
-    return finalChildren;
-}
+    return Array.from(new Map(allChildren.map(item => [item.id, item])).values());
+};
 
 
 /**
@@ -291,8 +306,8 @@ export async function getLocations(): Promise<(WarehouseLocation & { isCompleted
         // Check if a location is a 'level' (has children)
         const children = allLocations.filter(l => l.parentId === loc.id);
         if (children.length > 0) {
-            const finalChildren = getAllFinalChildren(loc.id, allLocations);
-            const isCompleted = finalChildren.length > 0 && finalChildren.every(childId => populatedLocationIds.has(childId));
+            const finalChildren = getChildLeafLocations_transactional(db, [loc.id]);
+            const isCompleted = finalChildren.length > 0 && finalChildren.every(childId => populatedLocationIds.has(childId.id));
             return { ...loc, isCompleted };
         }
         return { ...loc, isCompleted: populatedLocationIds.has(loc.id) };
@@ -985,15 +1000,16 @@ export async function getChildLocations(parentIds: number[]): Promise<WarehouseL
     let allChildren: WarehouseLocation[] = [];
     const queue = [...parentIds];
     const visited = new Set<number>();
+    const allLocations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
 
     while (queue.length > 0) {
         const currentId = queue.shift()!;
         if (visited.has(currentId)) continue;
         visited.add(currentId);
 
-        const children = db.prepare(`SELECT * FROM locations WHERE parentId = ?`).all(currentId) as WarehouseLocation[];
+        const children = allLocations.filter(l => l.parentId === currentId);
         if (children.length === 0) {
-            const self = db.prepare('SELECT * FROM locations WHERE id = ?').get(currentId) as WarehouseLocation;
+            const self = allLocations.find(l => l.id === currentId);
             if(self) allChildren.push(self);
         } else {
             queue.push(...children.map(c => c.id));
@@ -1005,6 +1021,86 @@ export async function getChildLocations(parentIds: number[]): Promise<WarehouseL
     return JSON.parse(JSON.stringify(uniqueChildren));
 }
 
+// --- Wizard Population Status Actions ---
+export async function updateLocationPopulationStatus(locationId: number, status: 'S'): Promise<void> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    db.prepare('UPDATE locations SET population_status = ? WHERE id = ?').run(status, locationId);
+}
+
+export async function finalizePopulationSession(payload: { levelIds: number[]; userName: string; userId: number; assignments: { locationId: number; itemId: string; }[] }): Promise<void> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    const { levelIds, userName, userId, assignments } = payload;
+    
+    const transaction = db.transaction(async () => {
+        const placeholders = levelIds.map(() => '?').join(',');
+        
+        for (const levelId of levelIds) {
+            const childLeafIds = getChildLeafLocations_transactional(db, [levelId]).map(l => l.id);
+            if (childLeafIds.length === 0) {
+                 db.prepare(`UPDATE locations SET population_status = 'F' WHERE id = ?`).run(levelId);
+                 continue;
+            }
+
+            const childPlaceholders = childLeafIds.map(() => '?').join(',');
+            const statuses = db.prepare(`SELECT population_status FROM locations WHERE id IN (${childPlaceholders})`).all(...childLeafIds) as { population_status: string }[];
+            const hasOmittedOrPending = statuses.some(s => s.population_status === 'S' || s.population_status === 'P');
+            const finalStatus = hasOmittedOrPending ? 'PC' : 'F';
+            
+            db.prepare(`UPDATE locations SET population_status = ? WHERE id = ?`).run(finalStatus, levelId);
+        }
+        
+        releaseLock(levelIds, userId);
+
+        const sessionLocationIds = new Set(assignments.map(a => a.locationId));
+        if (sessionLocationIds.size === 0) return; // No assignments made, no need to check for mixed
+
+        const newMixedLocationsQuery = db.prepare(`
+            SELECT DISTINCT locationId
+            FROM item_locations
+            WHERE locationId IN (${Array.from(sessionLocationIds).map(() => '?').join(',')})
+            GROUP BY locationId
+            HAVING COUNT(DISTINCT itemId) > 1
+        `);
+        
+        const mixedLocationsResult = newMixedLocationsQuery.all(...Array.from(sessionLocationIds)) as { locationId: number }[];
+        
+        if (mixedLocationsResult.length > 0) {
+            const settings = getWarehouseSettingsTx(db);
+            const mainDb = await connectDb();
+            const productMap = new Map(mainDb.prepare('SELECT id, description FROM products').all().map((p: any) => [p.id, p.description]));
+            const allLocations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
+
+            let emailBody = `<p>El usuario <strong>${userName}</strong> ha finalizado una sesión de poblado y se detectaron las siguientes ubicaciones mixtas:</p>
+                <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+                    <thead><tr style="background-color: #f2f2f2;"><th>Ubicación</th><th>Artículos Asignados</th></tr></thead><tbody>`;
+
+            for (const loc of mixedLocationsResult) {
+                const itemsInLoc = db.prepare('SELECT DISTINCT itemId FROM item_locations WHERE locationId = ?').all(loc.locationId) as { itemId: string }[];
+                const locationPath = renderLocationPathAsString(loc.locationId, allLocations);
+                const itemDescriptions = itemsInLoc.map(i => `<li>${productMap.get(i.itemId) || i.itemId}</li>`).join('');
+                emailBody += `<tr><td>${locationPath}</td><td><ul>${itemDescriptions}</ul></td></tr>`;
+            }
+            emailBody += '</tbody></table>';
+
+            const supervisorEmails = settings.populationSupervisorEmails;
+            if (supervisorEmails) {
+                sendEmail({
+                    to: supervisorEmails.split(',').map(e => e.trim()),
+                    subject: 'Alerta: Ubicaciones Mixtas Creadas en Poblado',
+                    html: emailBody
+                }).catch(err => logError('Failed to send population audit email', { error: err.message }));
+            }
+        }
+    });
+
+    try {
+        await transaction();
+        logInfo(`Population session finalized for levels: ${levelIds.join(', ')} by ${userName}`);
+    } catch(err) {
+        logError('Error finalizing population session', { error: (err as Error).message });
+        throw err;
+    }
+}
 export async function migrateLegacyInventoryUnits(): Promise<number> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     let updatedCount = 0;
@@ -1169,115 +1265,4 @@ export async function checkAssignmentConflict(payload: { itemId: string, locatio
         isLocked: false,
         lockedBy: null
     };
-}
-
-
-export async function finalizePopulationSession(payload: { levelIds: number[]; userName: string; userId: number; }): Promise<void> {
-    const db = await connectDb(WAREHOUSE_DB_FILE);
-    const { levelIds, userName, userId } = payload;
-
-    const transaction = db.transaction(() => {
-        const placeholders = levelIds.map(() => '?').join(',');
-        
-        for (const levelId of levelIds) {
-            const childLeafIds = getChildLocations(db, [levelId]).map(l => l.id);
-            if (childLeafIds.length === 0) {
-                 db.prepare(`UPDATE locations SET population_status = 'F' WHERE id = ?`).run(levelId);
-                 continue;
-            }
-
-            const childPlaceholders = childLeafIds.map(() => '?').join(',');
-            const statuses = db.prepare(`SELECT population_status FROM locations WHERE id IN (${childPlaceholders})`).all(...childLeafIds) as { population_status: string }[];
-            const hasOmittedOrPending = statuses.some(s => s.population_status === 'S' || s.population_status === 'P');
-            const finalStatus = hasOmittedOrPending ? 'PC' : 'F';
-            
-            db.prepare(`UPDATE locations SET population_status = ? WHERE id = ?`).run(finalStatus, levelId);
-        }
-        
-        releaseLock(levelIds, userId);
-
-        const mixedLocationsQuery = db.prepare(`
-            SELECT DISTINCT il.locationId 
-            FROM item_locations il
-            JOIN (
-                SELECT locationId
-                FROM item_locations
-                GROUP BY locationId
-                HAVING COUNT(DISTINCT itemId) > 1
-            ) AS mixed ON il.locationId = mixed.locationId
-            WHERE il.locationId IN (
-                SELECT id FROM locations WHERE parentId IN (${placeholders})
-            )
-        `);
-        
-        const mixedLocationsResult = mixedLocationsQuery.all(...levelIds) as { locationId: number }[];
-        
-        if (mixedLocationsResult.length > 0) {
-            const settings = getWarehouseSettingsTx(db);
-            const mainDb = connectDb();
-            const productMap = new Map(mainDb.prepare('SELECT id, description FROM products').all().map((p: any) => [p.id, p.description]));
-            const allLocations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
-
-            let emailBody = `<p>El usuario <strong>${userName}</strong> ha finalizado una sesión de poblado y se detectaron las siguientes ubicaciones mixtas:</p>
-                <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">
-                    <thead><tr style="background-color: #f2f2f2;"><th>Ubicación</th><th>Artículos Asignados</th></tr></thead><tbody>`;
-
-            for (const loc of mixedLocationsResult) {
-                const itemsInLoc = db.prepare('SELECT DISTINCT itemId FROM item_locations WHERE locationId = ?').all(loc.locationId) as { itemId: string }[];
-                const locationPath = renderLocationPathAsString(loc.locationId, allLocations);
-                const itemDescriptions = itemsInLoc.map(i => `<li>${productMap.get(i.itemId) || i.itemId}</li>`).join('');
-                emailBody += `<tr><td>${locationPath}</td><td><ul>${itemDescriptions}</ul></td></tr>`;
-            }
-            emailBody += '</tbody></table>';
-
-            const supervisorEmails = settings.populationSupervisorEmails;
-            if (supervisorEmails) {
-                sendEmail({
-                    to: supervisorEmails.split(',').map(e => e.trim()),
-                    subject: 'Alerta: Ubicaciones Mixtas Creadas en Poblado',
-                    html: emailBody
-                }).catch(err => logError('Failed to send population audit email', { error: err.message }));
-            }
-        }
-    });
-
-    try {
-        transaction();
-        logInfo(`Population session finalized for levels: ${levelIds.join(', ')} by ${userName}`);
-    } catch(err) {
-        logError('Error finalizing population session', { error: (err as Error).message });
-        throw err;
-    }
-}
-
-const getChildLocations = (db: import('better-sqlite3').Database, parentIds: number[]): WarehouseLocation[] => {
-     if (parentIds.length === 0) return [];
-    
-    let allChildren: WarehouseLocation[] = [];
-    const queue = [...parentIds];
-    const visited = new Set<number>();
-
-    while (queue.length > 0) {
-        const currentId = queue.shift()!;
-        if (visited.has(currentId)) continue;
-        visited.add(currentId);
-
-        const children = db.prepare(`SELECT * FROM locations WHERE parentId = ?`).all(currentId) as WarehouseLocation[];
-        if (children.length === 0) {
-            const self = db.prepare('SELECT * FROM locations WHERE id = ?').get(currentId) as WarehouseLocation;
-            if(self) allChildren.push(self);
-        } else {
-            queue.push(...children.map(c => c.id));
-        }
-    }
-    
-    // De-duplicate in case of complex structures
-    const uniqueChildren = Array.from(new Map(allChildren.map(item => [item.id, item])).values());
-    return uniqueChildren;
-}
-
-
-export async function updateLocationPopulationStatus(locationId: number, status: 'S'): Promise<void> {
-    const db = await connectDb(WAREHOUSE_DB_FILE);
-    db.prepare('UPDATE locations SET population_status = ? WHERE id = ?').run(status, locationId);
 }

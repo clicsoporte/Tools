@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getLocations, assignItemToLocation, getSelectableLocations, addInventoryUnit, getAllItemLocations } from '@/modules/warehouse/lib/actions';
+import { getLocations, assignItemToLocation, getSelectableLocations, addInventoryUnit, getAllItemLocations, checkAssignmentConflict } from '@/modules/warehouse/lib/actions';
 import type { Product, WarehouseLocation, InventoryUnit, ItemLocation } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -51,6 +51,7 @@ export const useReceivingWizard = () => {
         quantity: '1',
         humanReadableId: '',
         documentId: '',
+        notes: '',
         erpDocumentId: '',
         saveAsDefault: true,
         lastCreatedUnit: null as InventoryUnit | null,
@@ -62,6 +63,9 @@ export const useReceivingWizard = () => {
         isProductSearchOpen: false,
         locationSearchTerm: '',
         isLocationSearchOpen: false,
+        // Conflict dialogs
+        moveProductConfirmOpen: false,
+        moveAndMixConfirmOpen: false,
     });
     
     const updateState = useCallback((newState: Partial<typeof state>) => {
@@ -163,7 +167,7 @@ export const useReceivingWizard = () => {
         }
     }, [updateState]);
 
-    const performRegistration = async () => {
+    const performRegistration = async (mode: 'move' | 'add' = 'add') => {
         if (!user || !state.selectedProduct || !state.newLocationId || !state.quantity) return;
         updateState({ isSubmitting: true });
         
@@ -176,7 +180,7 @@ export const useReceivingWizard = () => {
                     updatedBy: user.name,
                     isExclusive: 0,
                     requiresCertificate: 0,
-                });
+                }, mode);
                 // Re-fetch item locations to update suggestions for the next run
                 await refreshItemLocations();
             }
@@ -189,7 +193,7 @@ export const useReceivingWizard = () => {
                 documentId: state.documentId,
                 erpDocumentId: state.erpDocumentId,
                 createdBy: user.name,
-                notes: ''
+                notes: state.notes,
             });
 
             updateState({ lastCreatedUnit: newUnit, step: 'finished' });
@@ -211,42 +215,40 @@ export const useReceivingWizard = () => {
             return;
         }
         
-        const location = state.allLocations.find(l => l.id === state.newLocationId);
+        updateState({ isSubmitting: true });
 
-        // Check if the location is locked by another process
-        if (location?.isLocked) {
-            toast({
-                title: "Ubicación Bloqueada",
-                description: `La ubicación ${location.name} está siendo modificada por ${location.lockedBy || 'otro usuario'}. Intenta de nuevo más tarde.`,
-                variant: "destructive",
-            });
-            return;
+        try {
+            const conflictResult = await checkAssignmentConflict({ itemId: state.selectedProduct.id, locationId: state.newLocationId });
+    
+            if (conflictResult.isLocked) {
+                toast({ title: "Ubicación Bloqueada", description: `Esta ubicación está siendo modificada por ${conflictResult.lockedBy || 'otro usuario'}. Intenta de nuevo más tarde.`, variant: "destructive" });
+                updateState({ isSubmitting: false });
+                return;
+            }
+
+            if (conflictResult.productHasOtherLocations && conflictResult.locationHasOtherProducts) {
+                updateState({ moveAndMixConfirmOpen: true });
+            } else if (conflictResult.productHasOtherLocations) {
+                updateState({ moveProductConfirmOpen: true });
+            } else if (conflictResult.locationHasOtherProducts) {
+                updateState({ 
+                    conflictingItems: [conflictResult.conflictingProduct!].filter(Boolean), 
+                    isMixedLocationConfirmOpen: true,
+                    isTargetLocationMixed: state.allLocations.find(l => l.id === state.newLocationId)?.is_mixed === 1,
+                });
+            } else {
+                await performRegistration('add'); 
+            }
+             if(conflictResult.productHasOtherLocations || conflictResult.locationHasOtherProducts) {
+                updateState({ isSubmitting: false });
+            }
+        } catch (e: any) {
+            logError('Conflict check failed in receiving wizard', { error: e.message });
+            toast({ title: 'Error de Verificación', description: e.message, variant: 'destructive' });
+            updateState({ isSubmitting: false });
         }
-
-        const unitsInLocation = state.itemLocations.filter(il => il.locationId === state.newLocationId);
-        
-        const uniqueProductIdsInLocation = new Set(unitsInLocation.map(il => il.itemId));
-        const uniqueConflictingProducts = Array.from(uniqueProductIdsInLocation)
-            .map(id => authProducts.find(p => p.id === id))
-            .filter(Boolean) as Product[];
-
-        if (uniqueConflictingProducts.length > 0 && !uniqueConflictingProducts.some(p => p.id === state.selectedProduct!.id)) {
-            updateState({ 
-                conflictingItems: uniqueConflictingProducts, 
-                isMixedLocationConfirmOpen: true,
-                isTargetLocationMixed: location?.is_mixed === 1
-            });
-            return;
-        }
-        
-        await performRegistration();
     };
-
-    const handleConfirmAddMixed = async () => {
-        await performRegistration();
-        updateState({ isMixedLocationConfirmOpen: false });
-    };
-
+    
     const handleReset = () => {
         updateState({
             step: 'select_product',
@@ -258,6 +260,7 @@ export const useReceivingWizard = () => {
             humanReadableId: '',
             documentId: '',
             erpDocumentId: '',
+            notes: '',
             saveAsDefault: true,
             lastCreatedUnit: null,
         });
@@ -337,7 +340,6 @@ export const useReceivingWizard = () => {
         handleGoBack,
         handleConfirmAndRegister,
         handleReset,
-        handleConfirmAddMixed,
         handlePrintLabel,
         handleProductSearchKeyDown,
         setProductSearchTerm: (term: string) => updateState({ productSearchTerm: term }),
@@ -350,6 +352,10 @@ export const useReceivingWizard = () => {
         setErpDocumentId: (id: string) => updateState({ erpDocumentId: id }),
         setSaveAsDefault: (save: boolean) => updateState({ saveAsDefault: save }),
         setIsMixedLocationConfirmOpen: (open: boolean) => updateState({ isMixedLocationConfirmOpen: open }),
+        setMoveProductConfirmOpen: (open: boolean) => updateState({ moveProductConfirmOpen: open }),
+        setMoveAndMixConfirmOpen: (open: boolean) => updateState({ moveAndMixConfirmOpen: open }),
+        setNotes: (notes: string) => updateState({ notes: notes }),
+        performRegistration,
     };
 
     return { state, actions, selectors };

@@ -30,26 +30,28 @@ export interface ProductionReportData {
 }
 
 const availableColumns = [
-    { id: 'consecutive', label: 'OP' },
-    { id: 'customerName', label: 'Cliente' },
-    { id: 'purchaseOrder', label: 'OC Cliente' },
-    { id: 'productDescription', label: 'Producto' },
-    { id: 'priority', label: 'Prioridad' },
-    { id: 'machineId', label: 'Asignación' },
-    { id: 'quantity', label: 'Solicitado', align: 'right' },
-    { id: 'deliveredQuantity', label: 'Producido', align: 'right' },
-    { id: 'defectiveQuantity', label: 'Defectuoso', align: 'right' },
-    { id: 'netDifference', label: 'Dif. Neta', align: 'right' },
-    { id: 'inventory', label: 'Inv. Manual (Crea)', align: 'right' },
-    { id: 'inventoryErp', label: 'Inv. ERP (Crea)', align: 'right' },
-    { id: 'requestDate', label: 'Fecha Solicitud' },
-    { id: 'deliveryDate', label: 'Fecha Requerida' },
-    { id: 'scheduledDate', label: 'Fecha Programada' },
-    { id: 'completionDate', label: 'Fecha Completada' },
-    { id: 'productionDurationDays', label: 'Días Producción', align: 'right' },
-    { id: 'totalCycleDays', label: 'Días Ciclo Total', align: 'right' },
-    { id: 'requestedBy', label: 'Solicitante' },
+    { id: 'consecutive', label: 'OP', defaultVisible: true, width: 45 },
+    { id: 'customerName', label: 'Cliente', defaultVisible: true },
+    { id: 'purchaseOrder', label: 'OC Cliente', defaultVisible: false },
+    { id: 'productDescription', label: 'Producto', defaultVisible: true },
+    { id: 'priority', label: 'Prioridad', defaultVisible: true, width: 55 },
+    { id: 'machineId', label: 'Asignación', defaultVisible: true, width: 75 },
+    { id: 'shiftId', label: 'Turno', defaultVisible: false, width: 65 },
+    { id: 'quantity', label: 'Solicitado', defaultVisible: true, align: 'right', width: 35 },
+    { id: 'deliveredQuantity', label: 'Producido', defaultVisible: true, align: 'right' },
+    { id: 'defectiveQuantity', label: 'Defectuoso', defaultVisible: true, align: 'right' },
+    { id: 'netDifference', label: 'Dif. Neta', defaultVisible: true, align: 'right' },
+    { id: 'inventory', label: 'Inv. Manual (Crea)', defaultVisible: false, align: 'right' },
+    { id: 'inventoryErp', label: 'Inv. ERP (Crea)', defaultVisible: false, align: 'right' },
+    { id: 'requestDate', label: 'Fecha Solicitud', defaultVisible: false },
+    { id: 'deliveryDate', label: 'Fecha Requerida', defaultVisible: true, width: 55 },
+    { id: 'scheduledDate', label: 'Fecha Programada', defaultVisible: true, width: 85 },
+    { id: 'completionDate', label: 'Fecha Completada', defaultVisible: false },
+    { id: 'productionDurationDays', label: 'Días Producción', defaultVisible: false, align: 'right' },
+    { id: 'totalCycleDays', label: 'Días Ciclo Total', defaultVisible: false, align: 'right' },
+    { id: 'requestedBy', label: 'Solicitante', defaultVisible: false },
 ];
+
 
 interface State {
     isLoading: boolean;
@@ -237,22 +239,24 @@ export function useProductionReport() {
             } catch (e) { console.error("Error processing logo for PDF:", e); }
         }
 
-        const tableHeaders = visibleColumnsData.map(col => col.label);
-        const tableRows = state.reportData.details.map(item =>
-            state.visibleColumns.map(colId => {
-                const colContent = getColumnContent(item, colId).content;
+        const selectedColumnIds = state.plannerSettings.pdfExportColumns || [];
+        const tableHeaders = selectedColumnIds.map(id => availableColumns.find(c => c.id === id)?.label || id);
+        
+        const tableRows: RowInput[] = state.reportData.details.map(item => {
+            return selectedColumnIds.map(id => {
+                const colContent = getColumnContent(item, id).content;
                 if (React.isValidElement(colContent)) {
-                     if (colId === 'productDescription') {
+                     if (id === 'productDescription') {
                         return `${item.productDescription}\n${item.productId}`;
                     }
                     return React.Children.toArray(colContent).join(' ');
                 }
                 return colContent?.toString() || '';
-            })
-        );
+            });
+        });
 
         const doc = generateDocument({
-            docTitle: "Reporte de Producción",
+            docTitle: `Reporte de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`,
             docId: '',
             companyData: authCompanyData,
             logoDataUrl,
@@ -265,14 +269,16 @@ export function useProductionReport() {
                 columns: tableHeaders,
                 rows: tableRows,
                 columnStyles: selectedColumnIds.reduce((acc, id, index) => {
-                    const col = allPossibleColumns.find(c => c.id === id);
+                    const col = availableColumns.find(c => c.id === id);
                     if (col?.width) { (acc as any)[index] = { cellWidth: col.width }; }
-                    if (id === 'quantity') { (acc as any)[index] = { ...(acc as any)[index], halign: 'right' }; }
+                    if (col?.align === 'right') { (acc as any)[index] = { ...(acc as any)[index], halign: 'right' }; }
                     return acc;
                 }, {} as { [key: number]: any })
             },
             totals: [],
-            orientation,
+            topLegend: state.plannerSettings.pdfTopLegend,
+            paperSize: state.plannerSettings.pdfPaperSize,
+            orientation: orientation,
         });
 
         doc.save(`reporte_produccion.pdf`);

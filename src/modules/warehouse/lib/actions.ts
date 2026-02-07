@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client-side functions for interacting with the warehouse module's server-side DB functions.
  * This abstraction layer ensures components only call client-safe functions.
@@ -100,7 +101,7 @@ export const updateInventory = async(itemId: string, locationId: number, quantit
 export const getItemLocations = async (itemId: string): Promise<ItemLocation[]> => getItemLocationsServer(itemId);
 export const getAllItemLocations = async (): Promise<ItemLocation[]> => getAllItemLocationsServer();
 
-export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }, mode?: 'move' | 'add_and_mix' | 'add_and_new_mix' | 'move_and_new_mix'): Promise<ItemLocation> {
+export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }, mode?: 'move' | 'add' | 'add_and_mix' | 'move_and_mix'): Promise<ItemLocation> {
     return assignItemToLocationServer(payload, mode);
 }
 
@@ -108,6 +109,8 @@ export async function checkAssignmentConflict(payload: { itemId: string; locatio
     productHasOtherLocations: boolean;
     locationHasOtherProducts: boolean;
     conflictingProduct?: Product;
+    isLocked: boolean;
+    lockedBy?: string | null;
 }> {
     return checkAssignmentConflictServer(payload);
 }
@@ -118,13 +121,11 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
 }
 
 export async function unassignAllByProduct(itemId: string, userName: string): Promise<void> {
-    await unassignAllByProductServer(itemId);
-    await logWarn(`All assignments for product ${itemId} were deleted by ${userName}.`);
+    await unassignAllByProductServer(itemId, userName);
 }
 
 export async function unassignAllByLocation(locationId: number, userName: string): Promise<void> {
-    await unassignAllByLocationServer(locationId);
-    await logWarn(`All assignments for location ID ${locationId} were deleted by ${userName}.`);
+    await unassignAllByLocationServer(locationId, userName);
 }
 
 
