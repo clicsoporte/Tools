@@ -293,7 +293,7 @@ export default function AssignItemPage() {
                         </div>
                         <DialogFooter>
                             <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                            <Button onClick={actions.handleSubmit} disabled={isSubmitting || !formData.selectedProductId || !formData.selectedLocationId}>
+                            <Button onClick={() => actions.handleSubmit()} disabled={isSubmitting || !formData.selectedProductId || !formData.selectedLocationId}>
                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isEditing ? 'Guardar Cambios' : 'Crear Asignación'}
                             </Button>

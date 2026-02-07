@@ -238,8 +238,8 @@ export default function ReceivingWizardPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <Button variant="outline" onClick={() => actions.handleConfirmRegistration('add')}>Agregar como Ubicación Adicional</Button>
-                        <AlertDialogAction onClick={() => actions.handleConfirmRegistration('move')}>Mover a Nueva Ubicación</AlertDialogAction>
+                        <Button variant="outline" onClick={() => actions.performRegistration('add')}>Agregar como Ubicación Adicional</Button>
+                        <AlertDialogAction onClick={() => actions.performRegistration('move')}>Mover a Nueva Ubicación</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -254,7 +254,7 @@ export default function ReceivingWizardPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => actions.handleConfirmRegistration('add_and_mix')}>Sí, Añadir y Hacer Mixta</AlertDialogAction>
+                        <AlertDialogAction onClick={() => actions.performRegistration('add_and_mix')}>Sí, Añadir y Hacer Mixta</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -269,8 +269,8 @@ export default function ReceivingWizardPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <Button variant="outline" onClick={() => actions.handleConfirmRegistration('add_and_mix')}>Agregar y Hacer Mixta</Button>
-                        <AlertDialogAction onClick={() => actions.handleConfirmRegistration('move_and_mix')}>Mover y Hacer Mixta</AlertDialogAction>
+                        <Button variant="outline" onClick={() => actions.performRegistration('add_and_mix')}>Agregar y Hacer Mixta</Button>
+                        <AlertDialogAction onClick={() => actions.performRegistration('move_and_mix')}>Mover y Hacer Mixta</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

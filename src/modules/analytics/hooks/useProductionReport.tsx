@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import React from 'react';
 import { useDebounce } from 'use-debounce';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
+import type { RowInput } from 'jspdf-autotable';
 
 export interface ProductionReportDetail extends ProductionOrder {
     completionDate: string | null;
@@ -177,6 +178,7 @@ export function useProductionReport() {
             case 'productDescription': return { content: <><p className="font-medium">{item.productDescription}</p><p className="text-xs text-muted-foreground">{item.productId}</p></> };
             case 'priority': return { content: priorityConfig[item.priority]?.label, className: cn("font-medium", priorityConfig[item.priority]?.className) };
             case 'machineId': return { content: state.plannerSettings?.machines.find(m => m.id === item.machineId)?.name || 'N/A' };
+            case 'shiftId': return { content: state.plannerSettings?.shifts.find(s => s.id === item.shiftId)?.name || 'N/A' };
             case 'quantity': return { content: item.quantity.toLocaleString('es-CR'), className: 'text-right' };
             case 'deliveredQuantity': return { content: (item.deliveredQuantity ?? 0).toLocaleString('es-CR'), className: 'text-right' };
             case 'defectiveQuantity': return { content: (item.defectiveQuantity ?? 0).toLocaleString('es-CR'), className: 'text-right text-red-600' };
@@ -245,7 +247,7 @@ export function useProductionReport() {
         const tableRows: RowInput[] = state.reportData.details.map(item => {
             return selectedColumnIds.map(id => {
                 const colContent = getColumnContent(item, id).content;
-                if (React.isValidElement(colContent)) {
+                 if (React.isValidElement(colContent)) {
                      if (id === 'productDescription') {
                         return `${item.productDescription}\n${item.productId}`;
                     }
@@ -256,13 +258,13 @@ export function useProductionReport() {
         });
 
         const doc = generateDocument({
-            docTitle: `Reporte de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`,
+            docTitle: "Reporte de Producción",
             docId: '',
             companyData: authCompanyData,
             logoDataUrl,
             meta: [
                 { label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') },
-                { label: 'Rango de Fechas', value: `${format(state.dateRange.from!, 'dd/MM/yy')} - ${format(state.dateRange.to!, 'dd/MM/yy')}` },
+                { label: 'Rango de Fechas', value: `${state.dateRange.from ? format(state.dateRange.from, 'dd/MM/yy') : ''} - ${state.dateRange.to ? format(state.dateRange.to, 'dd/MM/yy') : ''}` },
             ],
             blocks: [],
             table: {
