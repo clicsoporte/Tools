@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Sidebar component for the main application layout.
  * It handles navigation, displays user and company information, and adapts
@@ -43,6 +42,79 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useMemo } from "react";
 
+const navLinks: Tool[] = [
+  {
+    id: "dashboard:access",
+    name: "Panel",
+    description: "Visión general de las herramientas y actividad.",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    id: "quotes:create",
+    name: "Cotizador",
+    description: "Crear y gestionar cotizaciones para clientes.",
+    href: "/dashboard/quoter",
+    icon: Sheet,
+  },
+  {
+    id: "requests:create",
+    name: "Solicitud de Compra",
+    description: "Crear y gestionar solicitudes de compra internas.",
+    href: "/dashboard/requests",
+    icon: ShoppingCart,
+  },
+   {
+    id: "planner:create",
+    name: "Planificador OP",
+    description: "Gestionar y visualizar la carga de producción.",
+    href: "/dashboard/planner",
+    icon: CalendarCheck,
+  },
+  {
+    id: 'cost-assistant:access',
+    name: 'Asistente de Costos',
+    description: 'Calcular costos y precios a partir de facturas XML.',
+    href: '/dashboard/cost-assistant',
+    icon: Calculator,
+  },
+  {
+    id: 'operations:access',
+    name: 'Operaciones',
+    description: 'Boletas digitales de movimiento, entregas y más.',
+    href: '/dashboard/operations',
+    icon: FileSignature,
+  },
+ {
+    id: "it-tools:access",
+    name: "Herramientas de TI",
+    description: "Gestionar notas técnicas y documentación interna de TI.",
+    href: "/dashboard/it-tools",
+    icon: Cpu,
+  },
+  {
+    id: "warehouse:access",
+    name: "Almacén",
+    description: "Consultar ubicaciones, gestionar unidades y registrar conteos.",
+    href: "/dashboard/warehouse",
+    icon: Warehouse,
+  },
+   {
+    id: "hacienda:query",
+    name: "Consultas Hacienda",
+    description: "Verificar situación tributaria y exoneraciones.",
+    href: "/dashboard/hacienda",
+    icon: Search,
+  },
+  {
+    id: "help",
+    name: "Centro de Ayuda",
+    description: "Consultar la documentación y guías de uso del sistema.",
+    href: "/dashboard/help",
+    icon: LifeBuoy,
+  },
+];
+
 /**
  * Renders the main application sidebar.
  * It fetches current user and company data to display personalized information.
@@ -73,79 +145,6 @@ export function AppSidebar() {
     }
     return pathname.startsWith(href);
   };
-
-  const navLinks: Tool[] = [
-    {
-      id: "dashboard:access",
-      name: "Panel",
-      description: "Visión general de las herramientas y actividad.",
-      href: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      id: "quotes:create",
-      name: "Cotizador",
-      description: "Crear y gestionar cotizaciones para clientes.",
-      href: "/dashboard/quoter",
-      icon: Sheet,
-    },
-    {
-      id: "requests:create",
-      name: "Solicitud de Compra",
-      description: "Crear y gestionar solicitudes de compra internas.",
-      href: "/dashboard/requests",
-      icon: ShoppingCart,
-    },
-     {
-      id: "planner:create",
-      name: "Planificador OP",
-      description: "Gestionar y visualizar la carga de producción.",
-      href: "/dashboard/planner",
-      icon: CalendarCheck,
-    },
-    {
-      id: 'cost-assistant:access',
-      name: 'Asistente de Costos',
-      description: 'Calcular costos y precios a partir de facturas XML.',
-      href: '/dashboard/cost-assistant',
-      icon: Calculator,
-    },
-    {
-      id: 'operations:access',
-      name: 'Operaciones',
-      description: 'Boletas digitales de movimiento, entregas y más.',
-      href: '/dashboard/operations',
-      icon: FileSignature,
-    },
-   {
-      id: "it-tools:access",
-      name: "Herramientas de TI",
-      description: "Gestionar notas técnicas y documentación interna de TI.",
-      href: "/dashboard/it-tools",
-      icon: Cpu,
-    },
-    {
-      id: "warehouse:access",
-      name: "Almacén",
-      description: "Consultar ubicaciones, gestionar unidades y registrar conteos.",
-      href: "/dashboard/warehouse",
-      icon: Warehouse,
-    },
-     {
-      id: "hacienda:query",
-      name: "Consultas Hacienda",
-      description: "Verificar situación tributaria y exoneraciones.",
-      href: "/dashboard/hacienda",
-      icon: Search,
-    },
-    {
-      id: "help",
-      name: "Centro de Ayuda",
-      description: "Consultar la documentación y guías de uso del sistema.",
-      href: "/dashboard/help",
-      icon: LifeBuoy,
-    },
-  ];
 
   const visibleNavLinks = useMemo(() => {
     return navLinks.filter(link => hasPermission(link.id));
