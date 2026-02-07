@@ -167,7 +167,7 @@ export const useReceivingWizard = () => {
         }
     }, [updateState]);
 
-    const performRegistration = async (mode: 'move' | 'add' = 'add') => {
+    const performRegistration = async (mode: 'move' | 'add' | 'add_and_mix' | 'move_and_mix' = 'add') => {
         if (!user || !state.selectedProduct || !state.newLocationId || !state.quantity) return;
         updateState({ isSubmitting: true });
         
@@ -358,5 +358,5 @@ export const useReceivingWizard = () => {
         performRegistration,
     };
 
-    return { state, actions, selectors };
+    return { state, actions, selectors, isAuthorized };
 };
