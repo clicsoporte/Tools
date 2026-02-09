@@ -97,6 +97,7 @@ import {
   BookCopy,
   Cpu,
   FileSignature,
+  Settings,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
