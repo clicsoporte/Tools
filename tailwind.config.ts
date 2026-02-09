@@ -37,6 +37,7 @@ const config: Config = {
     'bg-sky-700',
     'bg-indigo-700',
     'bg-teal-700',
+    'bg-gray-700',
   ],
   theme: {
     extend: {

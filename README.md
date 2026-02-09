@@ -1,6 +1,6 @@
 # Clic-Tools: Documentación Técnica y Manual de Usuario
 
-**Clic-Tools v2.1.0** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
+**Clic-Tools v2.8.0** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
 
 Esta versión marca un hito importante, introduciendo mejoras significativas en la arquitectura, la experiencia de usuario y la inteligencia de negocio.
 
@@ -106,11 +106,17 @@ Este módulo agrupa herramientas de inteligencia de negocio para ayudar en la to
 ### 3.8. Consultas Hacienda (`/dashboard/hacienda`)
 - **Búsqueda Unificada:** Centraliza la consulta de situación tributaria y exoneraciones de un cliente.
 
-### 3.9. Buzón de Sugerencias (`/dashboard/admin/suggestions`)
+### 3.9. Herramientas de TI
+- **Notas Técnicas:** Una base de conocimiento interna para documentar procedimientos, guías y soluciones a problemas comunes, con la capacidad de vincular cada nota a un módulo específico de la aplicación.
+
+### 3.10. Centro de Trazabilidad y Operaciones (CTO)
+- **(En Construcción)** Módulo futuro para la creación y gestión de formularios digitales (boletas de entrega, movimientos de bodega, etc.) para mejorar la trazabilidad y cumplir con normativas como ISO 9001.
+
+### 3.11. Buzón de Sugerencias (`/dashboard/admin/suggestions`)
 - **Feedback Directo:** Permite a los usuarios enviar sugerencias o reportar problemas directamente desde la interfaz.
 - **Panel de Administración:** Los administradores pueden ver, gestionar y marcar como leídas las sugerencias para un seguimiento efectivo.
 
-### 3.10. Centro de Ayuda (`/dashboard/help`)
+### 3.12. Centro de Ayuda (`/dashboard/help`)
 - **Documentación Integrada**: Una guía de usuario completa y siempre actualizada, directamente accesible desde la aplicación.
 - **Búsqueda Inteligente**: Incluye una barra de búsqueda que filtra y resalta las secciones relevantes en tiempo real.
 

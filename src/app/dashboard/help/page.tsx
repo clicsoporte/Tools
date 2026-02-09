@@ -416,7 +416,7 @@ export default function HelpPage() {
                         <strong>Paso 3: Ajustar y Calcular Precios.</strong>
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>En la tabla de &quot;Artículos Extraídos&quot;, puedes editar la mayoría de los campos.</li>
-                            <li><strong>Costo Unit. (s/IVA):</strong> Este es el costo real del artículo (costo de factura + costo prorrateado +/- efecto del descuento). Puedes <strong>sobrescribirlo manually</strong> si necesitas ajustar el costo base para un artículo específico.</li>
+                            <li><strong>Costo Unit. (s/IVA):</strong> Este es el costo real del artículo (costo de factura + costo prorrateado +/- efecto del descuento). Puedes <strong>sobrescribirlo manualmente</strong> si necesitas ajustar el costo base para un artículo específico.</li>
                             <li><strong>Imp. %:</strong> El sistema extrae el impuesto del XML, pero puedes editarlo aquí si es necesario (ej. de &quot;13&quot; a &quot;1&quot;).</li>
                             <li><strong>Margen:</strong> Introduce el margen de ganancia deseado (ej. &quot;20&quot; para un 20%).</li>
                             <li>El sistema calculará automáticamente el <strong>P.V.P. Unitario Sugerido</strong> y la <strong>Ganancia por Línea</strong> en tiempo real.</li>
@@ -843,6 +843,10 @@ export default function HelpPage() {
                     <div className="flex items-start gap-4">
                         <Calculator className="mt-1 h-6 w-6 text-orange-600 shrink-0" />
                         <div><h4 className="font-semibold">Config. Asist. Costos</h4><p>Gestionar los consecutivos y prefijos para los borradores del Asistente de Costos.</p></div>
+                    </div>
+                     <div className="flex items-start gap-4">
+                        <Settings className="mt-1 h-6 w-6 text-indigo-700 shrink-0" />
+                        <div><h4 className="font-semibold">Config. Analíticas</h4><p>Personaliza alias y colores para los estados del Reporte de Tránsitos.</p></div>
                     </div>
                     <div className="flex items-start gap-4">
                         <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />

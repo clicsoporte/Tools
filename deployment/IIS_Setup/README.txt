@@ -1,7 +1,7 @@
 ========================================
 Guía de Despliegue para Clic-Tools en IIS
 ========================================
-v2.1.0
+v2.8.0
 
 Este documento explica cómo desplegar la aplicación Clic-Tools (Next.js) en un servidor Windows utilizando Internet Information Services (IIS).
 
