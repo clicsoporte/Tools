@@ -11,7 +11,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 const adminNavLinks = [
-    { href: '/dashboard/admin', label: 'General' },
+    { href: '/dashboard/admin/general', label: 'General' },
     { href: '/dashboard/admin/users', label: 'Usuarios' },
     { href: '/dashboard/admin/roles', label: 'Roles' },
     { href: '/dashboard/admin/import', label: 'Importación' },
@@ -21,6 +21,7 @@ const adminNavLinks = [
     { href: '/dashboard/admin/quoter', label: 'Cotizador' },
     { href: '/dashboard/admin/planner', label: 'Planificador' },
     { href: '/dashboard/admin/requests', label: 'Compras' },
+    { href: '/dashboard/admin/consignments', label: 'Consignación' },
     { href: '/dashboard/admin/warehouse', label: 'Almacén' },
     { href: '/dashboard/admin/cost-assistant', label: 'Asist. Costos' },
     { href: '/dashboard/admin/api', label: 'API' },
@@ -61,4 +62,3 @@ export default function AdminLayout({
         </div>
     );
 }
-    

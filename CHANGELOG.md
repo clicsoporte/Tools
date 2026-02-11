@@ -292,5 +292,3 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 -   Lanzamiento de la versión 2.0.0 de Clic-Tools.
 -   Incluye los módulos de Cotizador, Planificador OP, Solicitudes de Compra, Asistente de Costos, Almacenes, Consultas Hacienda y el panel de Administración completo.
 -   Arquitectura basada en Next.js App Router, componentes de servidor y bases de datos modulares SQLite.
-
-    

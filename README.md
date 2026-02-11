@@ -1,4 +1,4 @@
-t push# Clic-Tools: Documentación Técnica y Manual de Usuario
+# Clic-Tools: Documentación Técnica y Manual de Usuario
 
 **Clic-Tools v2.9.0** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
 
@@ -220,5 +220,3 @@ Actualizar la aplicación a una nueva versión sin perder datos es un proceso cr
 ## 7. Créditos y Licencia
 
 Este proyecto es desarrollado y mantenido por CLIC SOPORTE Y CLIC TIENDA S.R.L. y se distribuye bajo la **Licencia MIT**.
-
-    

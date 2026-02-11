@@ -4,7 +4,7 @@
  * Spanish is used for UI-facing strings like names and descriptions.
  */
 
-import type { Tool, User, Role, Company, DatabaseModule } from "@/modules/core/types";
+import type { Tool, User, Role, DatabaseModule } from "@/modules/core/types";
 import {
   Users,
   Sheet,
@@ -30,16 +30,20 @@ import {
   Lightbulb,
   FileText,
   Calculator,
+  PanelLeft,
   Mail,
+  KeyRound,
+  BellRing,
+  Palette,
   UserCheck,
-  Truck,
+  ShoppingBag,
   QrCode,
+  HelpCircle,
   ClipboardCheck,
+  ClipboardList,
   Wand2,
   Lock,
   PackageCheck,
-  ClipboardList,
-  Tags,
   RotateCcw,
   BookUser,
   LayoutGrid,
@@ -47,7 +51,7 @@ import {
   FileSignature,
   Cpu,
   BookCopy,
-  Container
+  Container,
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -56,36 +60,6 @@ import { allAdminPermissions } from "./permissions";
  * This is no longer used. The first user is created via the setup wizard.
  */
 export const initialUsers: User[] = [];
-
-/**
- * Initial company data for the general settings.
- */
-export const initialCompany: Company = {
-    name: "CLIC SOPORTE Y CLIC TIENDA S.R.L",
-    taxId: "3102894538",
-    address: "San José, Costa Rica",
-    phone: "+50640000630",
-    email: "facturacion@clicsoporte.com",
-    systemName: "Clic-Tools",
-    publicUrl: "",
-    quotePrefix: "COT-",
-    nextQuoteNumber: 1,
-    decimalPlaces: 2,
-    quoterShowTaxId: true,
-    searchDebounceTime: 500,
-    syncWarningHours: 12,
-    importMode: 'file',
-    lastSyncTimestamp: null,
-    customerFilePath: "",
-    productFilePath: "",
-    exemptionFilePath: "",
-    stockFilePath: "",
-    locationFilePath: "",
-    cabysFilePath: "",
-    supplierFilePath: "",
-    erpPurchaseOrderHeaderFilePath: "",
-    erpPurchaseOrderLineFilePath: ""
-};
 
 /**
  * List of tools available on the main dashboard.
@@ -397,6 +371,14 @@ export const adminTools: Tool[] = [
         icon: Wrench,
         bgColor: 'bg-purple-600',
       },
+       {
+        id: "admin:settings:consignments",
+        name: "Config. Consignación",
+        description: "Gestionar los consecutivos para las boletas de consignación.",
+        href: "/dashboard/admin/consignments",
+        icon: Container,
+        bgColor: 'bg-lime-500',
+      },
       {
         id: "admin:logs:read",
         name: "Visor de Eventos",
@@ -472,6 +454,14 @@ export const analyticsTools: Tool[] = [
         icon: LayoutGrid,
         bgColor: 'bg-sky-700'
     },
+     {
+        id: 'analytics:consignments-report:read',
+        name: 'Reporte de Cierre de Consignaciones',
+        description: 'Generar el reporte mensual de consumo para la facturación de consignaciones.',
+        href: '/dashboard/analytics/consignments-report',
+        icon: Container,
+        bgColor: 'bg-lime-500'
+    },
     {
         id: "analytics:user-permissions:read",
         name: "Reporte de Permisos",
@@ -487,5 +477,3 @@ export const analyticsTools: Tool[] = [
  * A combined list of all tools for easy access.
  */
 export const allTools: Tool[] = [...mainTools, ...adminTools, ...analyticsTools, ...warehouseTools, ...itTools];
-
-    
