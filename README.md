@@ -1,6 +1,6 @@
-# Clic-Tools: Documentación Técnica y Manual de Usuario
+t push# Clic-Tools: Documentación Técnica y Manual de Usuario
 
-**Clic-Tools v2.8.0** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
+**Clic-Tools v2.9.0** es una aplicación web interna diseñada para centralizar herramientas y procesos empresariales clave en un único panel de control. El objetivo es proporcionar una plataforma sencilla, rápida, segura y altamente configurable, optimizada para su uso en una red local (LAN).
 
 Esta versión marca un hito importante, introduciendo mejoras significativas en la arquitectura, la experiencia de usuario y la inteligencia de negocio.
 
@@ -89,7 +89,14 @@ Esta versión marca un hito importante, introduciendo mejoras significativas en 
 - **Interfaz Optimizada**: La vista de solicitudes ahora cuenta con un **encabezado fijo** que permanece visible al hacer scroll.
 - **Exportación Flexible:** Permite exportar la vista actual (con filtros) a un archivo **PDF** o **Excel (.xlsx)**.
 
-### 3.6. Analíticas y Reportes (`/dashboard/analytics`)
+### 3.6. Gestión de Consignaciones (`/dashboard/consignments`) - ¡NUEVO!
+- **Ciclo de Vida Completo:** Un nuevo módulo dedicado para gestionar productos en consignación en las instalaciones de los clientes, desde la configuración inicial hasta la facturación mensual.
+- **Gestión de Acuerdos:** Permite crear "contratos" de consignación por cliente, asociando una bodega virtual del ERP y definiendo una lista de productos autorizados con sus respectivos stocks máximos y precios de venta.
+- **Toma de Inventario Robusta:** Una interfaz optimizada para que un colaborador en campo registre las cantidades físicas. El sistema guarda cada conteo individualmente, previniendo la pérdida de datos por desconexiones, y permite reanudar sesiones no finalizadas.
+- **Boletas de Reposición con Aprobación:** Genera "Boletas de Reposición" automáticamente, las cuales entran en un flujo de aprobación. Solo las boletas aprobadas pueden imprimirse para despacho.
+- **Trazabilidad de Facturación:** Permite marcar una boleta como "Facturada" e ingresar el número de factura del ERP, creando un vínculo de trazabilidad total.
+
+### 3.7. Analíticas y Reportes (`/dashboard/analytics`)
 Este módulo agrupa herramientas de inteligencia de negocio para ayudar en la toma de decisiones.
 - **Sugerencias de Compra Proactivas (`/purchase-suggestions`):**
     - Analiza los pedidos de venta del ERP en un rango de fechas y los cruza con el inventario actual.
@@ -97,26 +104,28 @@ Este módulo agrupa herramientas de inteligencia de negocio para ayudar en la to
     - Permite filtrar, ordenar los resultados y **crear las solicitudes de compra directamente**, alertando si se va a crear un duplicado.
 - **Reporte de Tránsitos (`/transits-report`):**
     - Muestra un listado de todas las órdenes de compra activas en el ERP, permitiendo monitorear el inventario que está en camino.
+- **Reporte de Cierre de Consignaciones (`/consignments-report`) - ¡NUEVO!:**
+    - Genera un reporte detallado del consumo mensual de un cliente en consignación, calculando el total a facturar. Incluye exportación a Excel y PDF y personalización de columnas.
 
-### 3.7. Almacenes (`/dashboard/warehouse`)
+### 3.8. Almacenes (`/dashboard/warehouse`)
 - **Consulta de Inventario:** Permite buscar artículos o clientes y ver sus ubicaciones y existencias en tiempo real, combinando datos del ERP y las ubicaciones físicas asignadas.
 - **Asignación de Ubicaciones:** Herramienta para mover inventario o asignar artículos a ubicaciones físicas en el almacén.
 - **Configuración Flexible:** Soporta un modo "informativo" (solo asignación) y un modo "avanzado" (conteo de existencias físicas por ubicación).
 
-### 3.8. Consultas Hacienda (`/dashboard/hacienda`)
+### 3.9. Consultas Hacienda (`/dashboard/hacienda`)
 - **Búsqueda Unificada:** Centraliza la consulta de situación tributaria y exoneraciones de un cliente.
 
-### 3.9. Herramientas de TI
+### 3.10. Herramientas de TI
 - **Notas Técnicas:** Una base de conocimiento interna para documentar procedimientos, guías y soluciones a problemas comunes, con la capacidad de vincular cada nota a un módulo específico de la aplicación.
 
-### 3.10. Centro de Trazabilidad y Operaciones (CTO)
+### 3.11. Centro de Trazabilidad y Operaciones (CTO)
 - **(En Construcción)** Módulo futuro para la creación y gestión de formularios digitales (boletas de entrega, movimientos de bodega, etc.) para mejorar la trazabilidad y cumplir con normativas como ISO 9001.
 
-### 3.11. Buzón de Sugerencias (`/dashboard/admin/suggestions`)
+### 3.12. Buzón de Sugerencias (`/dashboard/admin/suggestions`)
 - **Feedback Directo:** Permite a los usuarios enviar sugerencias o reportar problemas directamente desde la interfaz.
 - **Panel de Administración:** Los administradores pueden ver, gestionar y marcar como leídas las sugerencias para un seguimiento efectivo.
 
-### 3.12. Centro de Ayuda (`/dashboard/help`)
+### 3.13. Centro de Ayuda (`/dashboard/help`)
 - **Documentación Integrada**: Una guía de usuario completa y siempre actualizada, directamente accesible desde la aplicación.
 - **Búsqueda Inteligente**: Incluye una barra de búsqueda que filtra y resalta las secciones relevantes en tiempo real.
 
@@ -211,3 +220,5 @@ Actualizar la aplicación a una nueva versión sin perder datos es un proceso cr
 ## 7. Créditos y Licencia
 
 Este proyecto es desarrollado y mantenido por CLIC SOPORTE Y CLIC TIENDA S.R.L. y se distribuye bajo la **Licencia MIT**.
+
+    

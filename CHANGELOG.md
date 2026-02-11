@@ -23,6 +23,27 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [2.9.0] - Publicado
+
+### Funcionalidades y Mejoras Principales
+
+-   **[NUEVO MÓDULO] Gestión de Consignaciones:**
+    -   Se ha creado un módulo completo para gestionar el ciclo de vida de los productos en consignación en las instalaciones de los clientes.
+    -   **Submódulo 1: Gestión de Acuerdos:** Permite crear un "contrato" de consignación por cliente, asignándole una bodega virtual del ERP y definiendo qué productos están autorizados, con sus respectivos stocks máximos y precios de venta acordados.
+    -   **Submódulo 2: Toma de Inventario Robusta:** Una interfaz optimizada para que un colaborador en campo registre las cantidades físicas. El sistema guarda cada conteo individualmente al pasar de un campo a otro, previniendo la pérdida de datos por desconexiones de VPN. Además, permite reanudar sesiones de conteo no finalizadas.
+    -   **Submódulo 3: Gestión y Aprobación de Boletas:** Las tomas de inventario generan "Boletas de Reposición" que entran en un flujo de aprobación. Solo las boletas aprobadas pueden ser impresas para el despacho. El sistema también permite marcar una boleta como "Facturada" e ingresar el número de factura del ERP para una trazabilidad total.
+    -   **Submódulo 4: Reporte de Cierre Mensual:** Una nueva herramienta en Analíticas que genera un reporte detallado del consumo de un cliente en un mes específico, mostrando inventario inicial, entregas, inventario final y el consumo total facturable. Incluye exportación a Excel y PDF.
+    -   **Notificaciones por Correo:** El sistema notifica automáticamente a los supervisores cuando se crea una nueva boleta y al creador cuando esta es aprobada.
+    -   **Consecutivos Automáticos:** El sistema genera automáticamente un prefijo de boleta basado en el código del cliente, asegurando secuencias lógicas y ordenadas.
+
+### Mejoras Internas y de Calidad de Código
+
+-   **[Refactorización]** Se ha refactorizado la lógica del módulo de Almacén para unificar el comportamiento de asignación de ubicaciones, aplicando las mismas validaciones de conflicto tanto en el "Asistente de Recepción" como en el "Catálogo", previniendo condiciones de carrera y duplicidad de datos.
+-   **[Funcionalidad Restaurada]** Se ha reincorporado el campo de "Notas" en el "Asistente de Recepción" y se ha restaurado la lógica de auditoría por correo para el "Asistente de Poblado" cuando se crean ubicaciones mixtas.
+-   **[Calidad de Código]** Se corrigieron más de 30 errores de tipeo y referencias incorrectas detectados por el compilador de TypeScript, mejorando la estabilidad y mantenibilidad del código en todos los módulos.
+
+---
+
 ## [2.8.0] - Publicado
 
 ### Funcionalidades y Mejoras Principales
@@ -271,3 +292,5 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 -   Lanzamiento de la versión 2.0.0 de Clic-Tools.
 -   Incluye los módulos de Cotizador, Planificador OP, Solicitudes de Compra, Asistente de Costos, Almacenes, Consultas Hacienda y el panel de Administración completo.
 -   Arquitectura basada en Next.js App Router, componentes de servidor y bases de datos modulares SQLite.
+
+    

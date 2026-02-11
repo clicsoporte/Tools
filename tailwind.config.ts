@@ -38,6 +38,7 @@ const config: Config = {
     'bg-indigo-700',
     'bg-teal-700',
     'bg-gray-700',
+    'bg-lime-500',
   ],
   theme: {
     extend: {
@@ -135,3 +136,5 @@ const config: Config = {
 };
 
 export default config;
+
+    

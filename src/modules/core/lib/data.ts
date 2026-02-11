@@ -47,6 +47,7 @@ import {
   FileSignature,
   Cpu,
   BookCopy,
+  Container
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -115,6 +116,14 @@ export const mainTools: Tool[] = [
     bgColor: "bg-purple-700",
   },
   {
+    id: "consignments:access",
+    name: "Consignaciones",
+    description: "Gestionar inventario en consignación, conteos y reposiciones.",
+    href: "/dashboard/consignments",
+    icon: Container,
+    bgColor: "bg-lime-500",
+  },
+  {
     id: 'cost-assistant:access',
     name: 'Asistente de Costos',
     description: 'Calcular costos y precios a partir de facturas XML.',
@@ -129,14 +138,6 @@ export const mainTools: Tool[] = [
     href: '/dashboard/operations',
     icon: FileSignature,
     bgColor: 'bg-teal-700',
-  },
-   {
-    id: "warehouse:access",
-    name: "Almacén",
-    description: "Consultar ubicaciones, gestionar unidades y registrar conteos.",
-    href: "/dashboard/warehouse",
-    icon: Warehouse,
-    bgColor: "bg-cyan-600",
   },
    {
     id: "it-tools:access",
@@ -486,5 +487,5 @@ export const analyticsTools: Tool[] = [
  * A combined list of all tools for easy access.
  */
 export const allTools: Tool[] = [...mainTools, ...adminTools, ...analyticsTools, ...warehouseTools, ...itTools];
-    
 
+    

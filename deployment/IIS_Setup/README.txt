@@ -1,7 +1,7 @@
 ========================================
 Guía de Despliegue para Clic-Tools en IIS
 ========================================
-v2.8.0
+v2.9.0
 
 Este documento explica cómo desplegar la aplicación Clic-Tools (Next.js) en un servidor Windows utilizando Internet Information Services (IIS).
 
@@ -81,3 +81,5 @@ Solución de Problemas
 -   **Síntoma: Iconos en blanco o colores incorrectos.** Si después de añadir una nueva herramienta o tarjeta, su icono aparece en blanco, es probable que la clase de color de fondo (ej: `bg-slate-500`) no esté en la lista segura de Tailwind. **Solución:** Edita el archivo `tailwind.config.ts` en la raíz del proyecto y añade la clase de color faltante al array `safelist`. Luego, reconstruye la aplicación (`npm run build`) y reinicia el sitio en IIS.
 
 Una vez completados estos pasos, la aplicación Clic-Tools debería estar funcionando en la dirección y puerto que configuraste en IIS.
+
+    

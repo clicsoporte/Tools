@@ -24,6 +24,7 @@ import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/l
 import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
 import { initializeOperationsDb, runOperationsMigrations } from '../../operations/lib/db';
 import { initializeItToolsDb, runItToolsMigrations } from '../../it-tools/lib/db';
+import { initializeConsignmentsDb, runConsignmentsMigrations } from '../../consignments/lib/db';
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
@@ -76,6 +77,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         );
         CREATE TABLE IF NOT EXISTS api_settings (id INTEGER PRIMARY KEY, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
         CREATE TABLE IF NOT EXISTS analytics_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS consignment_settings (client_id TEXT PRIMARY KEY, next_boleta_number INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT, creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT);
         CREATE TABLE IF NOT EXISTS products (id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT, notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT, barcode TEXT);
         CREATE TABLE IF NOT EXISTS exemptions (code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT, endDate TEXT, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT);
@@ -141,6 +143,7 @@ async function runMigrations(dbModule: Omit<DatabaseModule, 'schema'>, db: Datab
         case 'cost-assistant': migrationFn = runCostAssistantMigrations; break;
         case 'operations': migrationFn = runOperationsMigrations; break;
         case 'it-tools': migrationFn = runItToolsMigrations; break;
+        case 'consignments': migrationFn = runConsignmentsMigrations; break;
         default: break;
     }
 
@@ -221,6 +224,8 @@ export async function connectDb(dbFile: string = DB_FILE, forceRecreate = false)
                 await initializeOperationsDb(db);
             } else if (dbModule.id === 'it-tools') {
                 await initializeItToolsDb(db);
+            } else if (dbModule.id === 'consignments') {
+                await initializeConsignmentsDb(db);
             }
         }
         // Always run migrations on an existing DB to check for updates.
@@ -274,6 +279,10 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
                 { id: 'N', name: 'Anulada', color: '#64748b' },
             ];
             db.prepare(`INSERT OR IGNORE INTO analytics_settings (key, value) VALUES ('transitStatusAliases', ?)`).run(JSON.stringify(defaultTransitAliases));
+        }
+
+        if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignment_settings'`).get()) {
+            db.exec(`CREATE TABLE IF NOT EXISTS consignment_settings (client_id TEXT PRIMARY KEY, next_boleta_number INTEGER NOT NULL);`);
         }
 
         const productsTableInfo = db.prepare(`PRAGMA table_info(products)`).all() as { name: string }[];
@@ -705,6 +714,29 @@ export async function saveAnalyticsSettings(settings: AnalyticsSettings): Promis
     transaction();
 }
 
+export async function getConsignmentSettings(clientId: string): Promise<{ next_boleta_number: number } | null> {
+    const db = await connectDb();
+    try {
+        return db.prepare('SELECT next_boleta_number FROM consignment_settings WHERE client_id = ?').get(clientId) as { next_boleta_number: number } | null;
+    } catch (e) {
+        return null;
+    }
+}
+
+export async function saveConsignmentSettings(clientId: string, next_boleta_number: number): Promise<void> {
+    const db = await connectDb();
+    db.prepare('INSERT OR REPLACE INTO consignment_settings (client_id, next_boleta_number) VALUES (?, ?)').run(clientId, next_boleta_number);
+}
+
+export async function getAllConsignmentSettings(): Promise<{ client_id: string, next_boleta_number: number }[]> {
+    const db = await connectDb();
+    try {
+        return db.prepare('SELECT * FROM consignment_settings').all() as { client_id: string, next_boleta_number: number }[];
+    } catch (e) {
+        return [];
+    }
+}
+
 export async function getExemptionLaws(): Promise<ExemptionLaw[]> {
     const db = await connectDb();
     try {
@@ -1013,7 +1045,7 @@ async function updateCabysCatalog(data: any[]): Promise<{ count: number }> {
     return { count: data.length };
 }
 
-export async function importDataFromFile(type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_purchase_order_headers' | 'erp_purchase_order_lines'): Promise<{ count: number, source: string }> {
+export async function importDataFromFile(type: Exclude<ImportQuery['type'], 'erp_order_headers' | 'erp_order_lines' | 'employees' | 'departments' | 'positions' | 'payrolls' | 'salespersons'>): Promise<{ count: number, source: string }> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
     
@@ -1111,7 +1143,7 @@ export async function importData(type: ImportQuery['type']): Promise<{ count: nu
     if (companySettings.importMode === 'sql') {
         return importDataFromSql(type);
     } else {
-        return importDataFromFile(type as 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_purchase_order_headers' | 'erp_purchase_order_lines');
+        return importDataFromFile(type as Exclude<ImportQuery['type'], 'erp_order_headers' | 'erp_order_lines' | 'employees' | 'departments' | 'positions' | 'payrolls' | 'salespersons'>);
     }
 }
 
@@ -1709,6 +1741,7 @@ export async function runSingleModuleMigration(moduleId: string): Promise<void> 
             case 'cost-assistant': migrationFn = runCostAssistantMigrations; break;
             case 'operations': migrationFn = runOperationsMigrations; break;
             case 'it-tools': migrationFn = runItToolsMigrations; break;
+            case 'consignments': migrationFn = runConsignmentsMigrations; break;
             default: break;
         }
 
@@ -1748,3 +1781,5 @@ export async function forceWalCheckpoint(): Promise<void> {
     await logInfo("Manual WAL checkpoint initiated by admin.");
     await runWalCheckpoint();
 }
+
+    

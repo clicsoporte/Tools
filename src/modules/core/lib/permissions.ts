@@ -13,6 +13,7 @@ export const allAdminPermissions = [
     "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request", "planner:status:unapprove-request:approve",
     "planner:priority:update", "planner:machine:assign", "planner:schedule",
     "cost-assistant:access", "cost-assistant:drafts:read-write",
+    "consignments:access", "consignments:setup", "consignments:count", "consignments:approve", "consignments:reports:read",
     "warehouse:access", "warehouse:search:full", "warehouse:search:simple", 
     "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create",
     "warehouse:item-assignment:create", "warehouse:item-assignment:delete",
@@ -24,7 +25,7 @@ export const allAdminPermissions = [
     "it-tools:access", "it-tools:notes:read", "it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete",
     "analytics:read", "analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read",
     "users:create", "users:read", "users:update", "users:delete",
-    "roles:create", "roles:read", "roles:update", "roles:delete", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics",
+    "roles:create", "roles:read", "roles:update", "roles:delete", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics", "admin:settings:consignments",
     "admin:suggestions:read",
     "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
     "admin:logs:read", "admin:logs:clear",
@@ -42,6 +43,7 @@ export const permissionGroups = {
     "Planificador de Producción (Edición y Acciones)": ["planner:edit:pending", "planner:edit:approved", "planner:reopen", "planner:receive", "planner:status:review", "planner:status:approve", "planner:status:in-progress", "planner:status:on-hold", 
     "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request", "planner:status:unapprove-request:approve", "planner:priority:update", "planner:machine:assign", "planner:schedule"],
     "Asistente de Costos": ["cost-assistant:access", "cost-assistant:drafts:read-write"],
+    "Gestión de Consignaciones (Nuevo)": ["consignments:access", "consignments:setup", "consignments:count", "consignments:approve", "consignments:reports:read"],
     "Centro de Operaciones y Trazabilidad (Nuevo)": ["operations:access", "operations:create", "operations:read:all", "operations:approve", "operations:sign"],
     "Herramientas de TI (Nuevo)": ["it-tools:access", "it-tools:notes:read", "it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
     "Gestión de Almacenes": [
@@ -58,7 +60,7 @@ export const permissionGroups = {
     "Gestión de Roles": ["roles:create", "roles:read", "roles:update", "roles:delete"],
     "Administración del Sistema": [
         "admin:access",
-        "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics",
+        "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics", "admin:settings:consignments",
         "admin:suggestions:read",
         "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
         "admin:logs:read", "admin:logs:clear",
@@ -78,6 +80,7 @@ export const permissionTranslations: { [key: string]: string } = {
     "planner:edit:pending": "Plan.: Editar (Pendientes)", "planner:edit:approved": "Plan.: Editar (Aprobadas)", "planner:reopen": "Plan.: Reabrir Órdenes", "planner:receive": "Plan.: Recibir en Bodega", "planner:status:review": "Plan.: Enviar a Revisión", "planner:status:approve": "Plan.: Cambiar a Aprobada", "planner:status:in-progress": "Plan.: Cambiar a En Progreso", "planner:status:on-hold": "Plan.: Cambiar a En Espera", 
     "planner:status:completed": "Plan.: Cambiar a Completada", "planner:status:cancel": "Plan.: Cancelar (Pendientes)", "planner:status:cancel-approved": "Plan.: Cancelar (Aprobadas)", "planner:priority:update": "Plan.: Cambiar Prioridad", "planner:machine:assign": "Plan.: Asignar Máquina", "planner:status:unapprove-request": "Plan.: Solicitar Desaprobación", "planner:status:unapprove-request:approve": "Plan.: Aprobar Desaprobación", "planner:schedule": "Plan.: Programar Fechas",
     "cost-assistant:access": "Asist. Costos: Acceso", "cost-assistant:drafts:read-write": "Asist. Costos: Guardar Borradores",
+    "consignments:access": "Consignación: Acceso General", "consignments:setup": "Consignación: Configurar Acuerdos", "consignments:count": "Consignación: Realizar Conteos", "consignments:approve": "Consignación: Aprobar Boletas", "consignments:reports:read": "Consignación: Ver Reportes",
     "operations:access": "Operaciones: Acceso General", "operations:create": "Operaciones: Crear Documentos", "operations:read:all": "Operaciones: Ver Todos", "operations:approve": "Operaciones: Aprobar Documentos", "operations:sign": "Operaciones: Firmar Entregas/Recibos",
     "it-tools:access": "TI: Acceso General", "it-tools:notes:read": "TI: Ver Notas", "it-tools:notes:create": "TI: Crear Notas", "it-tools:notes:update": "TI: Editar Notas", "it-tools:notes:delete": "TI: Eliminar Notas",
     "warehouse:access": "Almacén: Acceso General", "warehouse:search:full": "Almacén: Consulta Completa", "warehouse:search:simple": "Almacén: Búsqueda Rápida", 
@@ -90,7 +93,7 @@ export const permissionTranslations: { [key: string]: string } = {
     "analytics:read": "Analíticas: Acceso", "analytics:purchase-suggestions:read": "Analíticas: Sugerencias Compra", "analytics:purchase-report:read": "Analíticas: Reporte Compras", "analytics:production-report:read": "Analíticas: Reporte Producción", "analytics:transits-report:read": "Analíticas: Reporte Tránsitos", "analytics:user-permissions:read": "Analíticas: Reporte Permisos", "analytics:physical-inventory-report:read": "Analíticas: Reporte Inv. Físico", "analytics:receiving-report:read": "Analíticas: Reporte Recepciones", "analytics:item-assignments-report:read": "Analíticas: Reporte Catálogo", "analytics:occupancy-report:read": "Analíticas: Reporte Ocupación",
     "users:create": "Usuarios: Crear", "users:read": "Usuarios: Leer", "users:update": "Usuarios: Actualizar", "users:delete": "Usuarios: Eliminar",
     "roles:create": "Roles: Crear", "roles:read": "Roles: Leer", "roles:update": "Roles: Actualizar", "roles:delete": "Roles: Eliminar",
-    "admin:settings:general": "Admin: Config. General", "admin:settings:api": "Admin: Config. de API", "admin:settings:planner": "Admin: Config. Planificador", "admin:settings:requests": "Admin: Config. Compras", "admin:settings:warehouse": "Admin: Config. Almacenes", "admin:settings:stock": "Admin: Config. Inventario", "admin:settings:cost-assistant": "Admin: Config. Asist. Costos", "admin:settings:analytics": "Admin: Config. Analíticas",
+    "admin:settings:general": "Admin: Config. General", "admin:settings:api": "Admin: Config. de API", "admin:settings:planner": "Admin: Config. Planificador", "admin:settings:requests": "Admin: Config. Compras", "admin:settings:warehouse": "Admin: Config. Almacenes", "admin:settings:stock": "Admin: Config. Inventario", "admin:settings:cost-assistant": "Admin: Config. Asist. Costos", "admin:settings:analytics": "Admin: Config. Analíticas", "admin:settings:consignments": "Admin: Config. Consignación",
     "admin:suggestions:read": "Admin: Leer Sugerencias",
     "admin:import:run": "Admin: Ejecutar Sincronización ERP", "admin:import:files": "Admin: Importar (Archivos)", "admin:import:sql": "Admin: Importar (SQL)", "admin:import:sql-config": "Admin: Configurar SQL",
     "admin:logs:read": "Admin: Ver Registros (Logs)", "admin:logs:clear": "Admin: Limpiar Registros (Logs)",
@@ -99,11 +102,12 @@ export const permissionTranslations: { [key: string]: string } = {
 
 export const permissionTree: Record<string, string[]> = {
     // Top-level Access
-    "admin:access": ["users:read", "roles:read", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics", "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:maintenance:backup"],
+    "admin:access": ["users:read", "roles:read", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics", "admin:settings:consignments", "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:maintenance:backup"],
     "analytics:read": ["analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read"],
     "warehouse:access": ["warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", "warehouse:correction:execute", "warehouse:labels:generate"],
     "requests:read": ["requests:read:all", "requests:create"],
     "planner:read": ["planner:read:all", "planner:create"],
+    "consignments:access": ["consignments:setup", "consignments:count", "consignments:approve", "consignments:reports:read"],
     "operations:access": ["operations:create", "operations:read:all", "operations:approve", "operations:sign"],
     "it-tools:access": ["it-tools:notes:read"],
     "quotes:create": ["quotes:generate", "quotes:drafts:read"],
@@ -147,6 +151,5 @@ export const permissionTree: Record<string, string[]> = {
     "warehouse:item-assignment:create": ["warehouse:item-assignment:delete"],
     "warehouse:units:create": ["warehouse:units:delete"],
 };
+
     
-
-
