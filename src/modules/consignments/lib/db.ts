@@ -1,11 +1,11 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
 "use server";
 
-import { connectDb, getAllUsers as getAllUsersFromMain, getCompanySettings } from '@/modules/core/lib/db';
-import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User } from '@/modules/core/types';
+import { connectDb, getCompanySettings } from '@/modules/core/lib/db';
+import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
+import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { sendEmail } from '@/modules/core/lib/email-service';
 import { getPlannerSettings } from '@/modules/planner/lib/db';
@@ -64,6 +64,7 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             approved_by TEXT,
             approved_at TEXT,
             erp_invoice_number TEXT,
+            notes TEXT,
             FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id) ON DELETE CASCADE
         );
 
@@ -94,7 +95,11 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
 }
 
 export async function runConsignmentsMigrations(db: import('better-sqlite3').Database) {
-    // Placeholder for future migrations.
+    const tableInfo = db.prepare(`PRAGMA table_info(restock_boletas)`).all() as { name: string }[];
+    const columns = new Set(tableInfo.map(c => c.name));
+    if (!columns.has('notes')) {
+        db.exec('ALTER TABLE restock_boletas ADD COLUMN notes TEXT');
+    }
 }
 
 export async function getAgreements(): Promise<ConsignmentAgreement[]> {
@@ -109,10 +114,10 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
         let agreementId = agreement.id;
         if (agreementId) { // Update
             db.prepare('UPDATE consignment_agreements SET client_id = ?, client_name = ?, erp_warehouse_id = ?, notes = ?, is_active = ? WHERE id = ?')
-              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreementId);
+              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active ? 1 : 0, agreementId);
         } else { // Create
             const info = db.prepare('INSERT INTO consignment_agreements (client_id, client_name, erp_warehouse_id, notes, is_active) VALUES (?, ?, ?, ?, ?)')
-              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active);
+              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active ? 1 : 0);
             agreementId = info.lastInsertRowid as number;
         }
 
@@ -328,4 +333,3 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
 
     return { boletas: JSON.parse(JSON.stringify(boletasWithLines)) };
 }
-

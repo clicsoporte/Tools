@@ -1044,6 +1044,7 @@ export type RestockBoleta = {
     approved_by?: string;
     approved_at?: string;
     erp_invoice_number?: string;
+    notes?: string;
 };
 
 export type BoletaLine = {
