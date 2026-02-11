@@ -21,7 +21,7 @@ export default function AnalyticsLayout({
     const { hasPermission } = useAuthorization();
 
     const visibleLinks = useMemo(() => 
-        analyticsTools.filter(tool => hasPermission(tool.id)), 
+        analyticsTools.filter(tool => hasPermission(tool.id)).sort((a, b) => a.name.localeCompare(b.name)),
         [hasPermission]
     );
 

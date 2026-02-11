@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file contains the initial or default data for the application.
  * This data is used to populate the database on its first run.
@@ -13,7 +12,7 @@ import {
   Lightbulb, FileText, Calculator, PanelLeft, Mail, KeyRound, BellRing,
   Palette, UserCheck, ShoppingBag, QrCode, HelpCircle, ClipboardCheck,
   ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, LayoutGrid,
-  Settings, FileSignature, Cpu, BookCopy, Container, Tags, Truck
+  FileSignature, Cpu, BookCopy, Container, Tags, Truck
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 

@@ -12,8 +12,10 @@ import type { ProductionReportDetail, ProductionReportData } from '../hooks/useP
 import { logError } from '@/modules/core/lib/logger';
 import { getAllProducts, getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
 import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits, getWarehouseSettings as getWHSettings } from '@/modules/warehouse/lib/db';
+import { getBoletasByDateRange } from '@/modules/consignments/lib/db';
 import type { TransitReportItem } from '../hooks/useTransitsReport';
 import type { OccupancyReportRow } from '../hooks/useOccupancyReport';
+import type { ConsignmentReportRow } from '../hooks/useConsignmentsReport';
 
 
 interface ReportFilters {
@@ -300,6 +302,18 @@ export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyR
     } catch (error) {
         logError('Failed to generate occupancy report data', { error });
         throw new Error('No se pudo generar el reporte de ocupación.');
+    }
+}
+
+export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<ConsignmentReportRow[]> {
+    try {
+        const { boletas } = await getBoletasByDateRange(agreementId, dateRange);
+        // This is a placeholder. The actual logic will be much more complex,
+        // involving calculating initial stock, final stock, and consumption.
+        return [];
+    } catch (error) {
+        logError('Failed to generate consignments report data', { error });
+        throw new Error('No se pudo generar el reporte de consignaciones.');
     }
 }
     
