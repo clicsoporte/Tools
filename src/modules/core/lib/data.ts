@@ -4,56 +4,36 @@
  * Spanish is used for UI-facing strings like names and descriptions.
  */
 
-import type { Tool, User, Role, DatabaseModule } from "@/modules/core/types";
+import type { Tool, User, Role, DatabaseModule, Company } from "@/modules/core/types";
 import {
-  Users,
-  Sheet,
-  Network,
-  ShieldCheck,
-  FileTerminal,
-  FileUp,
-  LifeBuoy,
-  ServerCog,
-  CalendarCheck,
-  Factory,
-  ShoppingCart,
-  Warehouse,
-  Briefcase,
-  Store,
-  Search,
-  Wrench,
-  LayoutDashboard,
-  Map,
-  PackagePlus,
-  MessageSquare,
-  BarChartBig,
-  Lightbulb,
-  FileText,
-  Calculator,
-  PanelLeft,
-  Mail,
-  KeyRound,
-  BellRing,
-  Palette,
-  UserCheck,
-  ShoppingBag,
-  QrCode,
-  HelpCircle,
-  ClipboardCheck,
-  ClipboardList,
-  Wand2,
-  Lock,
-  PackageCheck,
-  RotateCcw,
-  BookUser,
-  LayoutGrid,
-  Settings,
-  FileSignature,
-  Cpu,
-  BookCopy,
-  Container,
+  Users, Sheet, Network, ShieldCheck, FileTerminal, FileUp, LifeBuoy, ServerCog,
+  CalendarCheck, Factory, ShoppingCart, Warehouse, Briefcase, Store, Search,
+  Wrench, LayoutDashboard, Map, PackagePlus, MessageSquare, BarChartBig,
+  Lightbulb, FileText, Calculator, PanelLeft, Mail, KeyRound, BellRing,
+  Palette, UserCheck, ShoppingBag, QrCode, HelpCircle, ClipboardCheck,
+  ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, LayoutGrid,
+  Settings, FileSignature, Cpu, BookCopy, Container, Tags, Truck
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
+
+/**
+ * Default company data for initial setup.
+ */
+export const initialCompany: Omit<Company, 'id'> = {
+  name: "Nombre de su Empresa",
+  taxId: "000-000-000000",
+  address: "Su Dirección",
+  phone: "0000-0000",
+  email: "contacto@suempresa.com",
+  systemName: "Clic-Tools",
+  quotePrefix: 'COT-',
+  nextQuoteNumber: 1,
+  decimalPlaces: 2,
+  quoterShowTaxId: true,
+  searchDebounceTime: 500,
+  syncWarningHours: 12,
+  importMode: 'file',
+};
 
 /**
  * The default user to be created in the database.

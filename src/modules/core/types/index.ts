@@ -997,6 +997,75 @@ export type ITNote = {
     updatedAt: string;
 };
 
+// --- Consignments Module Types ---
+
+export type ConsignmentAgreement = {
+    id: number;
+    client_id: string;
+    client_name: string;
+    erp_warehouse_id?: string;
+    next_boleta_number: number;
+    notes?: string;
+    is_active: 0 | 1;
+};
+
+export type ConsignmentProduct = {
+    id: number;
+    agreement_id: number;
+    product_id: string;
+    max_stock: number;
+    price: number;
+};
+
+export type CountingSession = {
+    id: number;
+    agreement_id: number;
+    user_id: number;
+    status: 'in-progress' | 'completed';
+    created_at: string;
+};
+
+export type CountingSessionLine = {
+    id: number;
+    session_id: number;
+    product_id: string;
+    counted_quantity: number;
+};
+
+export type RestockBoletaStatus = 'pending' | 'approved' | 'sent' | 'invoiced' | 'canceled';
+
+export type RestockBoleta = {
+    id: number;
+    consecutive: string;
+    agreement_id: number;
+    status: RestockBoletaStatus;
+    created_by: string;
+    created_at: string;
+    approved_by?: string;
+    approved_at?: string;
+    erp_invoice_number?: string;
+};
+
+export type BoletaLine = {
+    id: number;
+    boleta_id: number;
+    product_id: string;
+    product_description: string;
+    counted_quantity: number;
+    replenish_quantity: number;
+    max_stock: number;
+    price: number;
+};
+
+export type BoletaHistory = {
+    id: number;
+    boleta_id: number;
+    timestamp: string;
+    status: RestockBoletaStatus;
+    notes?: string;
+    updatedBy: string;
+};
+
 /**
  * Custom error class for authorization failures.
  * This allows for specific error handling in try/catch blocks.
@@ -1007,5 +1076,3 @@ export class AuthError extends Error {
     this.name = "AuthError";
   }
 }
-
-    
