@@ -1,4 +1,3 @@
-// This is a new file
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -6,6 +5,9 @@
 
 import { connectDb } from '@/modules/core/lib/db';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
+import { logError, logInfo } from '@/modules/core/lib/logger';
+import { sendEmail } from '@/modules/core/lib/email-service';
+import { getPlannerSettings } from '@/modules/planner/lib/db';
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
 
@@ -92,6 +94,31 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
     // Placeholder for future migrations.
 }
 
-// ... Additional CRUD functions for the new tables will be added here as needed.
+export async function getAgreements(): Promise<ConsignmentAgreement[]> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const agreements = db.prepare('SELECT * FROM consignment_agreements ORDER BY client_name').all() as ConsignmentAgreement[];
+    return JSON.parse(JSON.stringify(agreements));
+}
 
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const boletas = db.prepare(`
+            SELECT * FROM restock_boletas 
+            WHERE agreement_id = ? AND created_at BETWEEN ? AND ?
+        `).all(agreementId, dateRange.from.toISOString(), dateRange.to.toISOString()) as RestockBoleta[];
+    
+    if (boletas.length === 0) return { boletas: [] };
+
+    const boletaIds = boletas.map(b => b.id);
+    const placeholders = boletaIds.map(() => '?').join(',');
+
+    const allLines = db.prepare(`SELECT * FROM boleta_lines WHERE boleta_id IN (${placeholders})`).all(...boletaIds) as BoletaLine[];
+
+    const boletasWithLines = boletas.map(b => ({
+        ...b,
+        lines: allLines.filter(l => l.boleta_id === b.id)
+    }));
+
+    return { boletas: JSON.parse(JSON.stringify(boletasWithLines)) };
+}
     

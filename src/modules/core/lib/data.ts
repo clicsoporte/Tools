@@ -12,7 +12,7 @@ import {
   Lightbulb, FileText, Calculator, PanelLeft, Mail, KeyRound, BellRing,
   Palette, UserCheck, ShoppingBag, QrCode, HelpCircle, ClipboardCheck,
   ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, LayoutGrid,
-  FileSignature, Cpu, BookCopy, Container, Tags, Truck
+  FileSignature, Cpu, BookCopy, Container, Tags, Truck, Settings
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
