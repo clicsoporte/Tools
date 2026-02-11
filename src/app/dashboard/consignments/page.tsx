@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Main page for the new Consignments module.
  */
@@ -7,37 +6,57 @@
 import React from 'react';
 import { useConsignments } from '@/modules/consignments/hooks/useConsignments';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Construction } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AgreementsTab } from './agreements-tab';
+import { InventoryCountTab } from './inventory-count-tab';
+import { BoletasTab } from './boletas-tab';
 
 export default function ConsignmentsPage() {
     const { isAuthorized } = useAuthorization(['consignments:access']);
-    const { setTitle } = usePageTitle();
+    const { state, actions, selectors } = useConsignments();
+    const { isLoading, currentTab } = state;
 
-    React.useEffect(() => {
-        setTitle('Gestión de Consignaciones');
-    }, [setTitle]);
-
+    if (isLoading) {
+        return (
+            <main className="flex-1 p-4 md:p-6 lg:p-8 flex justify-center items-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </main>
+        );
+    }
+    
     if (!isAuthorized) {
-        return null;
+        return (
+            <main className="flex-1 p-4 md:p-6 lg:p-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Acceso Denegado</CardTitle>
+                        <CardDescription>No tienes permiso para acceder a este módulo.</CardDescription>
+                    </CardHeader>
+                </Card>
+            </main>
+        );
     }
 
-    // This is a placeholder. The main UI with sub-modules will be built here.
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Módulo de Gestión de Consignaciones</CardTitle>
-                    <CardDescription>
-                        Esta sección está en desarrollo y pronto contendrá las herramientas para gestionar acuerdos, tomar inventarios y aprobar boletas de reposición.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex items-center gap-4 text-muted-foreground">
-                    <Construction className="h-8 w-8" />
-                    <p>Funcionalidad en construcción...</p>
-                </CardContent>
-            </Card>
+            <Tabs value={currentTab} onValueChange={(value) => actions.setCurrentTab(value as any)} className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="agreements">1. Acuerdos de Consignación</TabsTrigger>
+                    <TabsTrigger value="inventory_count">2. Toma de Inventario</TabsTrigger>
+                    <TabsTrigger value="boletas">3. Gestión de Boletas</TabsTrigger>
+                </TabsList>
+                <TabsContent value="agreements">
+                    <AgreementsTab hook={useConsignments()} />
+                </TabsContent>
+                <TabsContent value="inventory_count">
+                    <InventoryCountTab hook={useConsignments()} />
+                </TabsContent>
+                <TabsContent value="boletas">
+                    <BoletasTab hook={useConsignments()} />
+                </TabsContent>
+            </Tabs>
         </main>
     );
 }
