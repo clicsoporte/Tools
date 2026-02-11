@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Page for the new Consignments Report.
  */
@@ -42,8 +43,11 @@ export default function ConsignmentsReportPage() {
                     <Select value={selectedAgreementId || ''} onValueChange={actions.setSelectedAgreementId}>
                         <SelectTrigger className="w-full sm:w-[300px]"><SelectValue placeholder="Selecciona un cliente..." /></SelectTrigger>
                         <SelectContent>
-                            {/* Placeholder for agreements */}
-                            <SelectItem value="1">Cliente de Consignación 1</SelectItem>
+                            {agreements.map((agreement) => (
+                                <SelectItem key={agreement.id} value={String(agreement.id)}>
+                                    {agreement.client_name}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                      <Popover>
@@ -86,7 +90,7 @@ export default function ConsignmentsReportPage() {
                                 {isLoading ? (
                                      <TableRow><TableCell colSpan={7} className="h-32 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
                                 ) : !hasRun ? (
-                                    <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">Selecciona un cliente y un rango de fechas y haz clic en "Generar Reporte".</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">Selecciona un cliente y un rango de fechas y haz clic en &quot;Generar Reporte&quot;.</TableCell></TableRow>
                                 ) : reportData.length > 0 ? (
                                     reportData.map(row => (
                                         <TableRow key={row.productId}>
