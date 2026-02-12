@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the state and logic of the Consignments module main page.
  */
@@ -49,7 +50,7 @@ const initialCountingState: {
     productsToCount: ConsignmentProduct[];
 } = {
     step: 'setup',
-    isLoading: false,
+    isLoading: boolean,
     selectedAgreementId: null,
     session: null,
     existingSession: null,
@@ -553,7 +554,7 @@ export const useConsignments = () => {
                 updateState(prevState => ({...prevState, isSubmitting: false}));
             }
         },
-    }), [loadBoletas, user, toast, companyData, state.agreements, state.boletasState, updateState]);
+    }), [loadBoletas, user, toast, companyData, state.agreements, state.boletasState]);
     
     const selectors = useMemo(() => ({
         hasPermission,

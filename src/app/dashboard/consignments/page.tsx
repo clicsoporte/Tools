@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview Main page for the new Consignments module.
  */
@@ -101,7 +100,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Producto</TableHead>
-                                            <TableHead className="text-right">Contado</TableHead>
+                                            <TableHead className="text-right">Inv. Físico</TableHead>
                                             <TableHead className="text-right">Máximo</TableHead>
                                             <TableHead className="text-right w-28">Reponer</TableHead>
                                         </TableRow>
@@ -218,3 +217,4 @@ export default function ConsignmentsPage() {
         </main>
     );
 }
+
