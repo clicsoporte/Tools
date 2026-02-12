@@ -20,8 +20,10 @@ import {
     getBoletasByDateRange as getBoletasByDateRangeServer,
     getActiveConsignmentSessions as getActiveConsignmentSessionsServer,
     forceReleaseConsignmentSession as forceReleaseConsignmentSessionServer,
+    getSettings as getConsignmentSettingsServer,
+    saveSettings as saveConsignmentSettingsServer,
 } from './db';
-import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentSettings } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 
 export async function getConsignmentAgreements(): Promise<(ConsignmentAgreement & { product_count?: number })[]> {
@@ -91,4 +93,12 @@ export async function getActiveConsignmentSessions(): Promise<(CountingSession &
 export async function forceReleaseConsignmentSession(sessionId: number, updatedBy: string): Promise<void> {
     await authorizeAction('consignments:locks:manage');
     return forceReleaseConsignmentSessionServer(sessionId, updatedBy);
+}
+
+export async function getConsignmentSettings(): Promise<ConsignmentSettings> {
+    return getConsignmentSettingsServer();
+}
+
+export async function saveConsignmentSettings(settings: ConsignmentSettings): Promise<void> {
+    return saveConsignmentSettingsServer(settings);
 }

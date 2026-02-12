@@ -87,7 +87,7 @@ export async function sendEmail({ to, subject, html }: { to: string | string[], 
     const settings = await getEmailSettings();
     if (!settings.smtpHost) {
         console.warn("Attempted to send email, but SMTP settings are not configured. Skipping.");
-        logWarn("Email not sent: SMTP settings are missing.");
+        await logWarn("Email not sent: SMTP settings are missing.");
         return; // Silently fail if not configured
     }
     const transporter = createTransporter(settings as EmailSettings);

@@ -4,9 +4,8 @@
  */
 "use server";
 
-import { connectDb, getCompanySettings } from '@/modules/core/lib/db';
-import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus } from '@/modules/core/types';
+import { connectDb, getAllUsersForReport as getAllUsersFromMain, getCompanySettings } from '@/modules/core/lib/db';
+import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { sendEmail } from '@/modules/core/lib/email-service';
 import { getPlannerSettings } from '@/modules/planner/lib/db';
@@ -90,8 +89,17 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             updatedBy TEXT NOT NULL,
             FOREIGN KEY (boleta_id) REFERENCES restock_boletas(id) ON DELETE CASCADE
         );
+         CREATE TABLE IF NOT EXISTS consignments_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
     `;
     db.exec(schema);
+
+    const defaultPdfColumns = ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'];
+    db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfTopLegend', 'Documento de Reposición')`).run();
+    db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
+
     console.log(`Database ${CONSIGNMENTS_DB_FILE} initialized for Consignments module.`);
 }
 
@@ -101,6 +109,48 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
     if (!columns.has('notes')) {
         db.exec('ALTER TABLE restock_boletas ADD COLUMN notes TEXT');
     }
+
+    const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignments_settings'`).get();
+    if (!settingsTable) {
+        db.exec(`CREATE TABLE consignments_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+        const defaultPdfColumns = ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'];
+        db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfTopLegend', 'Documento de Reposición')`).run();
+        db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
+    }
+}
+
+export async function getSettings(): Promise<ConsignmentSettings> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const defaults: ConsignmentSettings = {
+        pdfTopLegend: 'Documento de Reposición',
+        pdfExportColumns: ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'],
+    };
+    try {
+        const rows = db.prepare(`SELECT key, value FROM consignments_settings`).all() as { key: string; value: string }[];
+        if (rows.length === 0) return defaults;
+        
+        const settings: Partial<ConsignmentSettings> = {};
+        for (const row of rows) {
+            settings[row.key as keyof ConsignmentSettings] = JSON.parse(row.value);
+        }
+        return { ...defaults, ...settings };
+    } catch (error) {
+        console.error("Error fetching consignment settings", error);
+        return defaults;
+    }
+}
+
+export async function saveSettings(settings: ConsignmentSettings): Promise<void> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const transaction = db.transaction(() => {
+        if (settings.pdfTopLegend) {
+            db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('pdfTopLegend', ?)`).run(JSON.stringify(settings.pdfTopLegend));
+        }
+        if (settings.pdfExportColumns) {
+            db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(settings.pdfExportColumns));
+        }
+    });
+    transaction();
 }
 
 export async function getAgreements(): Promise<(ConsignmentAgreement & { product_count?: number})[]> {
@@ -281,8 +331,6 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
         const subject = `Nueva Boleta de Consignación Pendiente: ${newBoleta.consecutive}`;
         const body = `<p>Se ha generado una nueva boleta de reposición (${newBoleta.consecutive}) para el cliente <strong>${agreement.client_name}</strong>.</p><p>La boleta fue creada por ${userName} y está pendiente de aprobación.</p>`;
         
-        // This is a placeholder for getting supervisor emails. In a real app, this would be more robust.
-        // For now, it sends to the user who created it as a confirmation.
         const user = await getAllUsersFromMain().then((users: User[]) => users.find((u: User) => u.id === userId));
         if (user?.email) {
             sendEmail({ to: user.email, subject, html: body });
@@ -471,7 +519,7 @@ export async function getActiveConsignmentSessions(): Promise<(CountingSession &
     
     const userIds = sessions.map(s => s.user_id);
     const users = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as { id: number; name: string }[];
-    const userMap = new Map(users.map((u: User) => [u.id, u.name]));
+    const userMap = new Map(users.map((u: {id: number, name: string}) => [u.id, u.name]));
 
     const results = sessions.map(s => ({
         ...s,

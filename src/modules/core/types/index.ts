@@ -1067,6 +1067,11 @@ export type BoletaHistory = {
     updatedBy: string;
 };
 
+export type ConsignmentSettings = {
+    pdfTopLegend?: string;
+    pdfExportColumns?: string[];
+};
+
 /**
  * Custom error class for authorization failures.
  * This allows for specific error handling in try/catch blocks.
