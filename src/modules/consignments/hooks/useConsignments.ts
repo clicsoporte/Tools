@@ -26,7 +26,7 @@ import {
     getActiveCountingSessionForUser,
     getConsignmentSettings,
 } from '../lib/actions';
-import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, ConsignmentSettings } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, ConsignmentSettings, RestockBoletaStatus } from '@/modules/core/types';
 import { generateDocument } from '@/lib/pdf-generator';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -385,7 +385,7 @@ export const useConsignments = () => {
     }), [user, state.countingState, toast, updateState]);
     
     const loadBoletasCallback = useCallback(async () => {
-        updateState(prevState => ({...prevState, boletasState: { ...prevState.boletasState, isLoading: true } }));
+        updateState(prevState => ({ ...prevState, boletasState: { ...prevState.boletasState, isLoading: true } }));
         try {
             const boletasData = await getBoletas(state.boletasState.filters);
             updateState(prevState => ({...prevState, boletasState: { ...prevState.boletasState, boletas: boletasData, isLoading: false }}));
@@ -546,7 +546,7 @@ export const useConsignments = () => {
                 updateState(prevState => ({...prevState, isSubmitting: false}));
             }
         },
-    }), [loadBoletasCallback, user, toast, companyData, state.agreements, state.boletasState, products, updateState]);
+    }), [loadBoletasCallback, user, toast, companyData, state.agreements, state.boletasState, updateState]);
     
     const selectors = useMemo(() => ({
         hasPermission,
@@ -565,7 +565,7 @@ export const useConsignments = () => {
             invoiced: { label: "Facturada", color: "bg-indigo-500" },
             canceled: { label: "Cancelada", color: "bg-red-700" },
         }
-    }), [state.agreements, state.showOnlyActiveAgreements, debouncedClientSearch, debouncedProductSearch, customers, stockSettings, products, state.countingState.session, hasPermission]);
+    }), [hasPermission, state.agreements, state.showOnlyActiveAgreements, debouncedClientSearch, customers, stockSettings, debouncedProductSearch, products, state.countingState.session]);
     
     return {
         state,
