@@ -6,7 +6,7 @@
 import React from 'react';
 import { useConsignments } from '@/modules/consignments/hooks/useConsignments';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Loader2, FileText, Check, Ban, Truck, FileCheck2, Trash2 } from 'lucide-react';
+import { Loader2, FileText, Check, Ban, Truck, FileCheck2 } from 'lucide-react';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgreementsTab } from './agreements-tab';
@@ -22,6 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { BoletaLine, BoletaHistory } from '@/modules/core/types';
 
 function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignments> }) {
     const { state, actions } = hook;
@@ -100,7 +101,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {detailedBoleta.lines.map(line => (
+                                        {detailedBoleta.lines.map((line: BoletaLine) => (
                                             <TableRow key={line.id}>
                                                 <TableCell>
                                                     <p className="font-medium">{line.product_description}</p>
@@ -127,7 +128,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                             <h4 className="font-semibold">Historial de Estados</h4>
                             <ScrollArea className="h-72 border rounded-md p-2">
                                 <div className="space-y-3">
-                                {detailedBoleta.history.map(h => (
+                                {detailedBoleta.history.map((h: BoletaHistory) => (
                                     <div key={h.id} className="text-xs">
                                         <div className="flex justify-between items-center">
                                             <Badge>{h.status}</Badge>

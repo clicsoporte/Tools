@@ -90,9 +90,9 @@ export function InventoryCountTab({ hook }: InventoryCountTabProps) {
                                     </Card>
                                 ))
                             ) : (
-                                <div className="text-center text-muted-foreground py-8">
-                                    <p>Este acuerdo no tiene productos autorizados.</p>
-                                    <p>Ve a la pestaña &quot;Acuerdos de Consignación&quot; para añadirlos.</p>
+                                <div className="text-center text-muted-foreground py-10">
+                                    <p className="font-semibold">Este acuerdo no tiene productos autorizados.</p>
+                                    <p className="text-sm">Ve a la pestaña &quot;Acuerdos de Consignación&quot; para añadirlos.</p>
                                 </div>
                             )}
                         </div>

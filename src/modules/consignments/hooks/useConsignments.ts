@@ -36,13 +36,42 @@ const emptyAgreement: Partial<ConsignmentAgreement> = {
 
 type CountingStep = 'setup' | 'resume' | 'counting' | 'finished';
 
-const initialCountingState = {
-    step: 'setup' as CountingStep,
+const initialCountingState: {
+    step: CountingStep;
+    isLoading: boolean;
+    selectedAgreementId: string | null;
+    session: (CountingSession & { lines: CountingSessionLine[] }) | null;
+    existingSession: (CountingSession & { lines: CountingSessionLine[] }) | null;
+    productsToCount: ConsignmentProduct[];
+} = {
+    step: 'setup',
     isLoading: false,
-    selectedAgreementId: null as string | null,
-    session: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
-    existingSession: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
-    productsToCount: [] as ConsignmentProduct[],
+    selectedAgreementId: null,
+    session: null,
+    existingSession: null,
+    productsToCount: [],
+};
+
+const initialBoletasState: {
+    isLoading: boolean;
+    boletas: RestockBoleta[];
+    filters: { status: string[] };
+    boletaToUpdate: RestockBoleta | null;
+    statusUpdatePayload: { status: string; notes: string; erpInvoiceNumber?: string };
+    isStatusModalOpen: boolean;
+    isDetailsModalOpen: boolean;
+    detailedBoleta: { boleta: RestockBoleta; lines: BoletaLine[]; history: BoletaHistory[] } | null;
+    isDetailsLoading: boolean;
+} = {
+    isLoading: false,
+    boletas: [],
+    filters: { status: ['pending', 'approved'] },
+    boletaToUpdate: null,
+    statusUpdatePayload: { status: '', notes: '', erpInvoiceNumber: '' },
+    isStatusModalOpen: false,
+    isDetailsModalOpen: false,
+    detailedBoleta: null,
+    isDetailsLoading: false,
 };
 
 const initialState = {
@@ -66,11 +95,7 @@ const initialState = {
     // Inventory Count
     countingState: initialCountingState,
     // Boletas
-    boletasState: {
-        isLoading: false,
-        boletas: [] as RestockBoleta[],
-        filters: { status: ['pending', 'approved'] },
-    }
+    boletasState: initialBoletasState,
 };
 
 
@@ -91,7 +116,6 @@ export const useConsignments = () => {
 
     // --- DATA FETCHING ---
     const loadAgreements = useCallback(async () => {
-        // This function is now just for agreements, session loading is separate.
         try {
             const agreementsData = await getConsignmentAgreements();
             setState(prevState => ({ ...prevState, agreements: agreementsData }));
@@ -130,7 +154,7 @@ export const useConsignments = () => {
                 }
             };
             loadData();
-        } else if (isAuthorized) { // Handle case where auth is ready but user is null
+        } else if (isAuthorized) {
             updateState(prevState => ({...prevState, isLoading: false }));
         }
     }, [isAuthorized, user, toast, setTitle, updateState]);
@@ -236,13 +260,10 @@ export const useConsignments = () => {
             };
         
             try {
-                // When only toggling status, we don't need to send the products array.
-                // The backend should be designed to handle this case.
                 await saveConsignmentAgreement(updatedAgreement, []);
                 toast({ title: `Acuerdo ${isActive ? 'habilitado' : 'deshabilitado'}` });
             } catch (error: any) {
                 toast({ title: 'Error al actualizar', description: error.message, variant: 'destructive' });
-                // Revert UI on error
                 updateState(prevState => ({ ...prevState, agreements: originalAgreements }));
             }
         },
@@ -311,7 +332,6 @@ export const useConsignments = () => {
                 const newBoleta = await generateBoletaFromSession(state.countingState.session.id, user.id, user.name);
                 toast({ title: 'Boleta Generada', description: `Se creó la boleta ${newBoleta.consecutive}` });
                 updateState(prevState => ({...prevState, currentTab: 'boletas', countingState: initialCountingState }));
-                boletaActions.loadBoletas();
              } catch (error: any) {
                  toast({ title: 'Error al generar boleta', description: error.message, variant: 'destructive'});
              } finally {
@@ -355,20 +375,90 @@ export const useConsignments = () => {
                 const boletasData = await getBoletas(state.boletasState.filters);
                 updateState(prevState => ({
                     ...prevState,
-                    boletasState: { ...prevState.boletasState, boletas: boletasData }
+                    boletasState: { ...prevState.boletasState, boletas: boletasData, isLoading: false }
                 }));
             } catch (error: any) {
                  toast({ title: 'Error', description: 'No se pudieron cargar las boletas.', variant: 'destructive'});
-            } finally {
                  updateState(prevState => ({
                     ...prevState,
                     boletasState: { ...prevState.boletasState, isLoading: false }
                  }));
             }
         },
-        openBoletaDetails: (boletaId: number) => { /* Logic to open detail modal */ },
-        openStatusModal: (boleta: RestockBoleta, status: string) => { /* Logic to open status change modal */ },
-    }), [state.boletasState.filters, toast, updateState]);
+        openBoletaDetails: async (boletaId: number) => {
+            updateState(prev => ({...prev, boletasState: { ...prev.boletasState, isDetailsModalOpen: true, isDetailsLoading: true }}));
+            try {
+                const details = await getBoletaDetails(boletaId);
+                updateState(prev => ({...prev, boletasState: { ...prev.boletasState, detailedBoleta: details }}));
+            } catch (error: any) {
+                toast({ title: 'Error', description: 'No se pudieron cargar los detalles.', variant: 'destructive' });
+            } finally {
+                updateState(prev => ({...prev, boletasState: { ...prev.boletasState, isDetailsLoading: false }}));
+            }
+        },
+        openStatusModal: (boleta: RestockBoleta, status: string) => {
+            updateState(prev => ({ ...prev, boletasState: {
+                ...prev.boletasState,
+                boletaToUpdate: boleta,
+                statusUpdatePayload: { status, notes: '', erpInvoiceNumber: '' },
+                isStatusModalOpen: true,
+            }}));
+        },
+        setStatusModalOpen: (isOpen: boolean) => {
+            updateState(prev => ({...prev, boletasState: { ...prev.boletasState, isStatusModalOpen: isOpen }}));
+        },
+        setDetailsModalOpen: (isOpen: boolean) => {
+            updateState(prev => ({...prev, boletasState: { ...prev.boletasState, isDetailsModalOpen: isOpen }}));
+        },
+        handleStatusUpdatePayloadChange: (field: string, value: string) => {
+            updateState(prev => ({ ...prev, boletasState: {
+                ...prev.boletasState,
+                statusUpdatePayload: { ...prev.boletasState.statusUpdatePayload, [field]: value }
+            }}));
+        },
+        submitStatusUpdate: async () => {
+            if (!state.boletasState.boletaToUpdate || !user) return;
+            updateState(prev => ({ ...prev, isSubmitting: true }));
+            try {
+                const payload = {
+                    boletaId: state.boletasState.boletaToUpdate.id,
+                    ...state.boletasState.statusUpdatePayload,
+                    updatedBy: user.name,
+                };
+                await updateBoletaStatus(payload);
+                toast({ title: 'Estado de Boleta Actualizado' });
+                await boletaActions.loadBoletas();
+                updateState(prev => ({...prev, boletasState: { ...prev.boletasState, isStatusModalOpen: false }}));
+            } catch (error: any) {
+                toast({ title: 'Error', description: error.message, variant: 'destructive' });
+            } finally {
+                updateState(prev => ({ ...prev, isSubmitting: false }));
+            }
+        },
+        handleDetailedLineChange: (lineId: number, newQuantity: number) => {
+            updateState(prev => {
+                if (!prev.boletasState.detailedBoleta) return prev;
+                const newLines = prev.boletasState.detailedBoleta.lines.map(line => 
+                    line.id === lineId ? { ...line, replenish_quantity: newQuantity } : line
+                );
+                return { ...prev, boletasState: { ...prev.boletasState, detailedBoleta: { ...prev.boletasState.detailedBoleta, lines: newLines } } };
+            });
+        },
+        saveBoletaChanges: async () => {
+            if (!state.boletasState.detailedBoleta || !user) return;
+            updateState(prev => ({ ...prev, isSubmitting: true }));
+            try {
+                await updateBoleta(state.boletasState.detailedBoleta.boleta, state.boletasState.detailedBoleta.lines, user.name);
+                toast({ title: 'Boleta Actualizada' });
+                updateState(prev => ({...prev, boletasState: { ...prev.boletasState, isDetailsModalOpen: false }}));
+                await boletaActions.loadBoletas();
+            } catch (error: any) {
+                toast({ title: 'Error al Guardar', description: error.message, variant: 'destructive' });
+            } finally {
+                updateState(prev => ({ ...prev, isSubmitting: false }));
+            }
+        },
+    }), [user, toast, updateState, state.boletasState]);
 
     useEffect(() => {
         if (state.currentTab === 'boletas') {
