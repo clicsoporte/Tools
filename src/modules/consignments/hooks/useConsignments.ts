@@ -14,7 +14,7 @@ import {
     getActiveCountingSession, startOrContinueCountingSession, saveCountLine,
     abandonCountingSession, generateBoletaFromSession, getBoletas
 } from '../lib/actions';
-import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
 
 const emptyAgreement: Partial<ConsignmentAgreement> = {
     client_id: '',
@@ -24,6 +24,38 @@ const emptyAgreement: Partial<ConsignmentAgreement> = {
     is_active: 1,
 };
 
+const initialState = {
+    isLoading: true,
+    isSubmitting: false,
+    currentTab: 'agreements',
+    agreements: [] as (ConsignmentAgreement & { product_count?: number })[],
+    // Agreement Form
+    isAgreementFormOpen: false,
+    editingAgreement: null as ConsignmentAgreement | null,
+    agreementFormData: emptyAgreement,
+    agreementProducts: [] as ConsignmentProduct[],
+    clientSearchTerm: '',
+    isClientSearchOpen: false,
+    warehouseSearchTerm: '',
+    isWarehouseSearchOpen: false,
+    productSearchTerm: '',
+    isProductSearchOpen: false,
+    // Inventory Count
+    countingState: {
+        isLoading: false,
+        selectedAgreementId: null as string | null,
+        session: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
+        productsToCount: [] as ConsignmentProduct[],
+    },
+    // Boletas
+    boletasState: {
+        isLoading: false,
+        boletas: [] as RestockBoleta[],
+        filters: { status: ['pending', 'approved'] },
+    }
+};
+
+
 export const useConsignments = () => {
     const { setTitle } = usePageTitle();
     const { hasPermission, isAuthorized } = useAuthorization(['consignments:access']);
@@ -31,40 +63,13 @@ export const useConsignments = () => {
     const { user, customers, products, stockSettings, companyData } = useAuth();
 
     // --- MAIN STATE ---
-    const [state, setState] = useState({
-        isLoading: true,
-        isSubmitting: false,
-        currentTab: 'agreements',
-        agreements: [] as (ConsignmentAgreement & { product_count?: number })[],
-        // Agreement Form
-        isAgreementFormOpen: false,
-        editingAgreement: null as ConsignmentAgreement | null,
-        agreementFormData: emptyAgreement,
-        agreementProducts: [] as ConsignmentProduct[],
-        clientSearchTerm: '',
-        isClientSearchOpen: false,
-        warehouseSearchTerm: '',
-        isWarehouseSearchOpen: false,
-        productSearchTerm: '',
-        isProductSearchOpen: false,
-        // Inventory Count
-        countingState: {
-            isLoading: false,
-            selectedAgreementId: null as string | null,
-            session: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
-            productsToCount: [] as ConsignmentProduct[],
-        },
-        // Boletas
-        boletasState: {
-            isLoading: false,
-            boletas: [] as RestockBoleta[],
-            filters: { status: ['pending', 'approved'] },
-        }
-    });
+    const [state, setState] = useState(initialState);
 
     const updateState = useCallback((newState: Partial<typeof state>) => {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
+
+    const [debouncedClientSearch] = useDebounce(state.clientSearchTerm, companyData?.searchDebounceTime ?? 500);
 
     // --- DATA FETCHING ---
     const loadAgreements = useCallback(async () => {
@@ -142,13 +147,13 @@ export const useConsignments = () => {
             updateState({ agreementProducts: updatedProducts });
         },
         handleSaveAgreement: async () => {
-            if (!state.agreementFormData.client_id) {
+            if (!state.agreementFormData.client_id || !state.agreementFormData.client_name) {
                 toast({ title: 'Cliente requerido', variant: 'destructive' });
                 return;
             }
             updateState({ isSubmitting: true });
             try {
-                await saveConsignmentAgreement(state.agreementFormData, state.agreementProducts);
+                await saveConsignmentAgreement(state.agreementFormData as Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number }, state.agreementProducts);
                 toast({ title: 'Acuerdo Guardado' });
                 updateState({ isAgreementFormOpen: false });
                 await loadAgreements();
@@ -161,7 +166,10 @@ export const useConsignments = () => {
         toggleAgreementStatus: async (id: number, isActive: boolean) => {
             const agreement = state.agreements.find(a => a.id === id);
             if (!agreement) return;
-            const updatedAgreement = { ...agreement, is_active: isActive ? 1 : 0 };
+            
+            const { product_count, ...agreementToSend } = agreement;
+            const updatedAgreement = { ...agreementToSend, is_active: (isActive ? 1 : 0) as 0 | 1 };
+
             try {
                 await saveConsignmentAgreement(updatedAgreement, []); // Pass empty products when just toggling status
                 toast({ title: `Acuerdo ${isActive ? 'habilitado' : 'deshabilitado'}` });
@@ -188,10 +196,16 @@ export const useConsignments = () => {
             try {
                 const session = await startOrContinueCountingSession(Number(state.countingState.selectedAgreementId), user.id);
                 const details = await getAgreementDetails(Number(state.countingState.selectedAgreementId));
-                updateState({ countingState: { ...state.countingState, session, productsToCount: details?.products || [] } });
+                updateState({ 
+                    countingState: { 
+                        ...state.countingState, 
+                        isLoading: false,
+                        session, 
+                        productsToCount: details?.products || [] 
+                    } 
+                });
             } catch (error) {
                 toast({ title: 'Error al iniciar sesión', variant: 'destructive' });
-            } finally {
                 updateState({ countingState: { ...state.countingState, isLoading: false } });
             }
         },
@@ -249,7 +263,11 @@ export const useConsignments = () => {
 
     const selectors = {
         hasPermission,
-        customerOptions: useMemo(() => customers.map(c => ({ value: c.id, label: `[${c.id}] ${c.name}` })), [customers]),
+        customerOptions: useMemo(() => {
+            if (debouncedClientSearch.length < 2) return [];
+            return customers.filter(c => c.name.toLowerCase().includes(debouncedClientSearch.toLowerCase()) || c.id.includes(debouncedClientSearch))
+            .map(c => ({ value: c.id, label: `[${c.id}] ${c.name}` }));
+        }, [customers, debouncedClientSearch]),
         warehouseOptions: useMemo(() => stockSettings?.warehouses.map(w => ({ value: w.id, label: `${w.name} (${w.id})` })) || [], [stockSettings]),
         productOptions: useMemo(() => {
             if (debouncedProductSearch.length < 2) return [];

@@ -141,10 +141,10 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
                                             <TableRow key={p.product_id}>
                                                 <TableCell>{selectors.getProductName(p.product_id)}</TableCell>
                                                 <TableCell>
-                                                    <Input type="number" value={p.max_stock} onChange={(e) => actions.agreementActions.updateProductField(index, 'max_stock', Number(e.target.value))} className="w-24"/>
+                                                    <Input type="number" value={p.max_stock} onChange={(e) => actions.agreementActions.updateProductField(index, 'max_stock', Number(e.target.value))} className="w-24 hide-number-arrows"/>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Input type="number" value={p.price} onChange={(e) => actions.agreementActions.updateProductField(index, 'price', Number(e.target.value))} className="w-28"/>
+                                                    <Input type="number" value={p.price} onChange={(e) => actions.agreementActions.updateProductField(index, 'price', Number(e.target.value))} className="w-28 hide-number-arrows"/>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Button variant="ghost" size="icon" onClick={() => actions.agreementActions.removeProductFromAgreement(index)}>
