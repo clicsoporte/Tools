@@ -104,17 +104,15 @@ export const useConsignments = () => {
         setTitle('Gestión de Consignaciones');
         if (isAuthorized && user) {
             const loadData = async () => {
-                setState(prevState => ({ ...prevState, isLoading: true }));
+                updateState(prevState => ({ ...prevState, isLoading: true }));
                 try {
-                    const [agreementsData, boletasData, activeSession] = await Promise.all([
+                    const [agreementsData, activeSession] = await Promise.all([
                         getConsignmentAgreements(),
-                        getBoletas(state.boletasState.filters),
                         getActiveCountingSessionForUser(user.id)
                     ]);
                     
                     const newState: Partial<typeof state> = { 
                         agreements: agreementsData, 
-                        boletasState: { ...state.boletasState, boletas: boletasData },
                         isLoading: false 
                     };
                     if (activeSession) {
@@ -124,18 +122,18 @@ export const useConsignments = () => {
                             step: 'resume',
                         };
                     }
-                    setState(prevState => ({...prevState, ...newState}));
+                    updateState(prevState => ({...prevState, ...newState}));
 
                 } catch (error) {
                     toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
-                    setState(prevState => ({...prevState, isLoading: false }));
+                    updateState(prevState => ({...prevState, isLoading: false }));
                 }
             };
             loadData();
         } else if (isAuthorized) { // Handle case where auth is ready but user is null
-            setState(prevState => ({...prevState, isLoading: false }));
+            updateState(prevState => ({...prevState, isLoading: false }));
         }
-    }, [isAuthorized, user, toast, setTitle, state.boletasState.filters]);
+    }, [isAuthorized, user, toast, setTitle, updateState]);
 
     // --- AGREEMENTS LOGIC ---
     const agreementActions = {
@@ -350,27 +348,27 @@ export const useConsignments = () => {
     };
     
     // --- BOLETAS LOGIC ---
-     const boletaActions = {
-        loadBoletas: useCallback(async () => {
-            setState(prevState => ({ ...prevState, boletasState: { ...prevState.boletasState, isLoading: true } }));
+     const boletaActions = useMemo(() => ({
+        loadBoletas: async () => {
+            updateState(prevState => ({ ...prevState, boletasState: { ...prevState.boletasState, isLoading: true } }));
             try {
                 const boletasData = await getBoletas(state.boletasState.filters);
-                setState(prevState => ({
+                updateState(prevState => ({
                     ...prevState,
                     boletasState: { ...prevState.boletasState, boletas: boletasData }
                 }));
             } catch (error: any) {
                  toast({ title: 'Error', description: 'No se pudieron cargar las boletas.', variant: 'destructive'});
             } finally {
-                 setState(prevState => ({
+                 updateState(prevState => ({
                     ...prevState,
                     boletasState: { ...prevState.boletasState, isLoading: false }
                  }));
             }
-        }, [state.boletasState.filters, toast]),
+        },
         openBoletaDetails: (boletaId: number) => { /* Logic to open detail modal */ },
         openStatusModal: (boleta: RestockBoleta, status: string) => { /* Logic to open status change modal */ },
-    };
+    }), [state.boletasState.filters, toast, updateState]);
 
     useEffect(() => {
         if (state.currentTab === 'boletas') {
