@@ -12,7 +12,7 @@ import type { ProductionReportDetail, ProductionReportData } from '../hooks/useP
 import { logError } from '@/modules/core/lib/logger';
 import { getAllProducts, getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
 import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits, getWarehouseSettings as getWHSettings } from '@/modules/warehouse/lib/db';
-import { getBoletasByDateRange } from '@/modules/consignments/lib/db';
+import { getBoletasByDateRange } from '@/modules/consignments/lib/actions';
 import type { TransitReportItem } from '../hooks/useTransitsReport';
 import type { OccupancyReportRow } from '../hooks/useOccupancyReport';
 import type { ConsignmentReportRow } from '../hooks/useConsignmentsReport';
@@ -316,4 +316,3 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
         throw new Error('No se pudo generar el reporte de consignaciones.');
     }
 }
-    

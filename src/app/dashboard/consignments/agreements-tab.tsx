@@ -84,13 +84,14 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
                         </TableBody>
                     </Table>
                 </CardContent>
+            </Card>
 
                 <Dialog open={state.isAgreementFormOpen} onOpenChange={actions.agreementActions.setIsAgreementFormOpen}>
                     <DialogContent className="sm:max-w-4xl">
                         <DialogHeader>
                             <DialogTitle>{state.editingAgreement ? 'Editar' : 'Nuevo'} Acuerdo de Consignación</DialogTitle>
                         </DialogHeader>
-                        <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                             <div className="space-y-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="client-search">Cliente</Label>
@@ -180,8 +181,7 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
-            </Card>
-
+            
             <AlertDialog open={!!state.agreementToDelete} onOpenChange={() => actions.agreementActions.setAgreementToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>

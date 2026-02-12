@@ -66,7 +66,7 @@ export function InventoryCountTab({ hook }: InventoryCountTabProps) {
                                                     placeholder="Cantidad..."
                                                     defaultValue={selectors.getInitialCount(p.product_id)}
                                                     onBlur={(e) => actions.countActions.handleSaveLine(p.product_id, Number(e.target.value))}
-                                                    className="text-right text-lg h-12"
+                                                    className="text-right text-lg h-12 hide-number-arrows"
                                                 />
                                             </TableCell>
                                             <TableCell className="text-right text-muted-foreground text-sm">

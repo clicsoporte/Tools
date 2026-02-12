@@ -167,13 +167,13 @@ export const useConsignments = () => {
             }
             updateState({ isSubmitting: true });
             try {
-                // Ensure required fields are not undefined
                 const payload = {
                     ...state.agreementFormData,
-                    client_id: state.agreementFormData.client_id!,
-                    client_name: state.agreementFormData.client_name!,
+                    client_id: state.agreementFormData.client_id,
+                    client_name: state.agreementFormData.client_name,
                     is_active: state.agreementFormData.is_active ?? 1,
-                };
+                } as Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number };
+
                 await saveConsignmentAgreement(payload, state.agreementProducts);
                 toast({ title: 'Acuerdo Guardado' });
                 updateState({ isAgreementFormOpen: false });

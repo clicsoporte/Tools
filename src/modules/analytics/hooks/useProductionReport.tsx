@@ -241,19 +241,35 @@ export function useProductionReport() {
             } catch (e) { console.error("Error processing logo for PDF:", e); }
         }
 
+        const allPossibleColumns: { id: string; header: string; width?: number }[] = [
+            { id: 'consecutive', header: 'OP', width: 45 },
+            { id: 'customerName', header: 'Cliente' },
+            { id: 'productDescription', header: 'Producto' },
+            { id: 'quantity', header: 'Cant.', width: 35 },
+            { id: 'deliveryDate', header: 'Entrega', width: 55 },
+            { id: 'scheduledDate', header: 'Fecha Prog.', width: 85 },
+            { id: 'status', header: 'Estado', width: 65 },
+            { id: 'machineId', header: state.plannerSettings.assignmentLabel || 'Asignación', width: 75 },
+            { id: 'priority', header: 'Prioridad', width: 55 },
+        ];
+        
         const selectedColumnIds = state.plannerSettings.pdfExportColumns || [];
-        const tableHeaders = selectedColumnIds.map(id => availableColumns.find(c => c.id === id)?.label || id);
+        const tableHeaders = selectedColumnIds.map(id => allPossibleColumns.find(c => c.id === id)?.header || id);
         
         const tableRows: RowInput[] = state.reportData.details.map(item => {
             return selectedColumnIds.map(id => {
-                const colContent = getColumnContent(item, id).content;
-                 if (React.isValidElement(colContent)) {
-                     if (id === 'productDescription') {
-                        return `${item.productDescription}\n${item.productId}`;
-                    }
-                    return React.Children.toArray(colContent).join(' ');
+                switch (id) {
+                    case 'consecutive': return item.consecutive;
+                    case 'customerName': return item.customerName;
+                    case 'productDescription': return `[${item.productId}] ${item.productDescription}`;
+                    case 'quantity': return item.quantity.toLocaleString('es-CR');
+                    case 'deliveryDate': return format(parseISO(item.deliveryDate), 'dd/MM/yy');
+                    case 'scheduledDate': return (item.scheduledStartDate && item.scheduledEndDate) ? `${format(parseISO(item.scheduledStartDate), 'dd/MM/yy')} - ${format(parseISO(item.scheduledEndDate), 'dd/MM/yy')}` : 'N/A';
+                    case 'status': return item.status;
+                    case 'machineId': return state.plannerSettings?.machines.find(m => m.id === item.machineId)?.name || 'N/A';
+                    case 'priority': return priorityConfig[item.priority]?.label || item.priority;
+                    default: return '';
                 }
-                return colContent?.toString() || '';
             });
         });
 
@@ -271,9 +287,9 @@ export function useProductionReport() {
                 columns: tableHeaders,
                 rows: tableRows,
                 columnStyles: selectedColumnIds.reduce((acc, id, index) => {
-                    const col = availableColumns.find(c => c.id === id);
+                    const col = allPossibleColumns.find(c => c.id === id);
                     if (col?.width) { (acc as any)[index] = { cellWidth: col.width }; }
-                    if (col?.align === 'right') { (acc as any)[index] = { ...(acc as any)[index], halign: 'right' }; }
+                    if (id === 'quantity') { (acc as any)[index] = { ...(acc as any)[index], halign: 'right' }; }
                     return acc;
                 }, {} as { [key: number]: any })
             },
