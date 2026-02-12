@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Centralized logging functions that interact with the database logger.
  * These server-side functions abstract away the direct database calls, providing a clean API

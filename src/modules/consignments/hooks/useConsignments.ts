@@ -50,7 +50,7 @@ const initialCountingState: {
     productsToCount: ConsignmentProduct[];
 } = {
     step: 'setup',
-    isLoading: boolean,
+    isLoading: false,
     selectedAgreementId: null,
     session: null,
     existingSession: null,
@@ -70,7 +70,7 @@ const initialBoletasState: {
 } = {
     isLoading: false,
     boletas: [],
-    filters: { status: ['pending', 'approved', 'sent', 'invoiced'] },
+    filters: { status: ['pending', 'approved', 'sent'] },
     boletaToUpdate: null,
     statusUpdatePayload: { status: '', notes: '', erpInvoiceNumber: '' },
     isStatusModalOpen: false,
@@ -126,27 +126,7 @@ export const useConsignments = () => {
             toast({ title: "Error", description: "No se pudieron cargar los acuerdos.", variant: "destructive" });
         }
     }, [toast, updateState]);
-
-    const loadBoletas = useCallback(async () => {
-        updateState(prevState => ({
-            ...prevState,
-            boletasState: { ...prevState.boletasState, isLoading: true }
-        }));
-        try {
-            const boletasData = await getBoletas(state.boletasState.filters);
-            updateState(prevState => ({
-                ...prevState,
-                boletasState: { ...prevState.boletasState, boletas: boletasData, isLoading: false }
-            }));
-        } catch (error: any) {
-             toast({ title: 'Error', description: 'No se pudieron cargar las boletas.', variant: 'destructive'});
-             updateState(prevState => ({
-                 ...prevState,
-                 boletasState: { ...prevState.boletasState, isLoading: false }
-             }));
-        }
-    }, [state.boletasState.filters, toast, updateState]);
-
+    
     useEffect(() => {
         setTitle('Gestión de Consignaciones');
         if (isAuthorized && user) {
@@ -181,12 +161,6 @@ export const useConsignments = () => {
             updateState(prevState => ({ ...prevState, isLoading: false }));
         }
     }, [isAuthorized, user, toast, setTitle, updateState]);
-
-    useEffect(() => {
-        if (state.currentTab === 'boletas') {
-            loadBoletas();
-        }
-    }, [state.currentTab, loadBoletas]);
 
     const agreementActions = useMemo(() => ({
         openAgreementForm: async (agreement: ConsignmentAgreement | null = null) => {
@@ -410,8 +384,26 @@ export const useConsignments = () => {
         },
     }), [user, state.countingState, toast, updateState]);
     
+    const loadBoletasCallback = useCallback(async () => {
+        updateState(prevState => ({...prevState, boletasState: { ...prevState.boletasState, isLoading: true } }));
+        try {
+            const boletasData = await getBoletas(state.boletasState.filters);
+            updateState(prevState => ({...prevState, boletasState: { ...prevState.boletasState, boletas: boletasData, isLoading: false }}));
+        } catch (error: any) {
+            toast({ title: 'Error', description: 'No se pudieron cargar las boletas.', variant: 'destructive' });
+            updateState(prevState => ({...prevState, boletasState: { ...prevState.boletasState, isLoading: false }}));
+        }
+    }, [state.boletasState.filters, toast, updateState]);
+    
+    useEffect(() => {
+        if (state.currentTab === 'boletas') {
+            loadBoletasCallback();
+        }
+    }, [state.currentTab, loadBoletasCallback]);
+
+
     const boletaActions = useMemo(() => ({
-        loadBoletas,
+        loadBoletas: loadBoletasCallback,
         openBoletaDetails: async (boletaId: number) => {
             updateState(prev => ({...prev, boletasState: { ...prev.boletasState, isDetailsModalOpen: true, isDetailsLoading: true }}));
             try {
@@ -554,7 +546,7 @@ export const useConsignments = () => {
                 updateState(prevState => ({...prevState, isSubmitting: false}));
             }
         },
-    }), [loadBoletas, user, toast, companyData, state.agreements, state.boletasState]);
+    }), [loadBoletasCallback, user, toast, companyData, state.agreements, state.boletasState, products, updateState]);
     
     const selectors = useMemo(() => ({
         hasPermission,

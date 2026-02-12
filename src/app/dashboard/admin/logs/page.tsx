@@ -1,12 +1,11 @@
 
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getLogs, clearLogs } from "@/modules/core/lib/logger";
+import { clearLogs, getLogs } from "@/modules/core/lib/logger";
 import type { LogEntry, DateRange } from "@/modules/core/types";
 import { RefreshCw, Trash2, Calendar as CalendarIcon, FilterX, Download, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +87,7 @@ export default function LogViewerPage() {
 
   const handleClearLogs = async () => {
     if (!user) return;
-    await clearLogs(logTypeToDelete, deleteAllTime);
+    await clearLogs(user.name, logTypeToDelete, deleteAllTime);
     setClearLogDialogOpen(false); // Close dialog after action
     await fetchLogs(true); // Refresh logs to show the result
   };

@@ -4,11 +4,10 @@
  */
 "use server";
 
-import { connectDb, getAllUsersForReport as getAllUsersFromMain, getCompanySettings } from '@/modules/core/lib/db';
+import { connectDb, getAllUsers as getAllUsersFromMain, getCompanySettings } from '@/modules/core/lib/db';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { sendEmail } from '@/modules/core/lib/email-service';
-import { getPlannerSettings } from '@/modules/planner/lib/db';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -245,8 +244,8 @@ export async function startOrContinueCountingSession(agreementId: number, userId
     `).get(agreementId, userId) as CountingSession | undefined;
     
     if (otherUserSession) {
-        const allUsers = await getAllUsersFromMain();
-        const otherUserName = allUsers.find((u: User) => u.id === otherUserSession.user_id)?.name || 'otro usuario';
+        const allUsers: User[] = await getAllUsersFromMain();
+        const otherUserName = allUsers.find(u => u.id === otherUserSession.user_id)?.name || 'otro usuario';
         throw new Error(`El acuerdo ya está siendo inventariado por ${otherUserName}.`);
     }
 
@@ -331,7 +330,8 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
         const subject = `Nueva Boleta de Consignación Pendiente: ${newBoleta.consecutive}`;
         const body = `<p>Se ha generado una nueva boleta de reposición (${newBoleta.consecutive}) para el cliente <strong>${agreement.client_name}</strong>.</p><p>La boleta fue creada por ${userName} y está pendiente de aprobación.</p>`;
         
-        const user = await getAllUsersFromMain().then((users: User[]) => users.find((u: User) => u.id === userId));
+        const users: User[] = await getAllUsersFromMain();
+        const user = users.find(u => u.id === userId);
         if (user?.email) {
             sendEmail({ to: user.email, subject, html: body });
         }
@@ -408,7 +408,8 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
     const updatedBoleta = transaction();
     // Send email notification outside transaction
     try {
-        const creator = await getAllUsersFromMain().then((users: User[]) => users.find((u: User) => u.name === updatedBoleta.created_by));
+        const users: User[] = await getAllUsersFromMain();
+        const creator = users.find((u: User) => u.name === updatedBoleta.created_by);
         if (creator?.email && status === 'approved') {
             const subject = `Boleta de Consignación Aprobada: ${updatedBoleta.consecutive}`;
             const body = `<p>La boleta de reposición <strong>${updatedBoleta.consecutive}</strong> que creaste ha sido aprobada por <strong>${updatedBy}</strong>.</p><p>Ya puedes proceder con la impresión y el despacho.</p>`;
@@ -518,8 +519,8 @@ export async function getActiveConsignmentSessions(): Promise<(CountingSession &
     if (sessions.length === 0) return [];
     
     const userIds = sessions.map(s => s.user_id);
-    const users = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as { id: number; name: string }[];
-    const userMap = new Map(users.map((u: {id: number, name: string}) => [u.id, u.name]));
+    const users: User[] = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as User[];
+    const userMap = new Map(users.map((u: User) => [u.id, u.name]));
 
     const results = sessions.map(s => ({
         ...s,
