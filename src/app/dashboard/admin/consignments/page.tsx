@@ -15,7 +15,7 @@ import { Save } from 'lucide-react';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
 
 export default function ConsignmentsSettingsPage() {
-    const { state, actions, selectors } = useConsignmentsSettings();
+    const { state, actions, selectors, isAuthorized } = useConsignmentsSettings();
 
     if (selectors.isLoading) {
         return (
@@ -25,7 +25,7 @@ export default function ConsignmentsSettingsPage() {
         );
     }
     
-    if (!selectors.isAuthorized) {
+    if (!isAuthorized) {
         return null; // Or a permission denied component
     }
 

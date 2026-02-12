@@ -4,7 +4,8 @@
  */
 "use server";
 
-import { connectDb, getAllUsers as getAllUsersFromMain, getCompanySettings } from '@/modules/core/lib/db';
+import { connectDb, getCompanySettings } from '@/modules/core/lib/db';
+import { getAllUsersForReport as getAllUsersFromMain } from '@/modules/core/lib/auth';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { sendEmail } from '@/modules/core/lib/email-service';
@@ -130,7 +131,12 @@ export async function getSettings(): Promise<ConsignmentSettings> {
         
         const settings: Partial<ConsignmentSettings> = {};
         for (const row of rows) {
-            settings[row.key as keyof ConsignmentSettings] = JSON.parse(row.value);
+            const key = row.key as keyof ConsignmentSettings;
+            try {
+                (settings as any)[key] = JSON.parse(row.value);
+            } catch {
+                (settings as any)[key] = row.value;
+            }
         }
         return { ...defaults, ...settings };
     } catch (error) {
@@ -143,7 +149,7 @@ export async function saveSettings(settings: ConsignmentSettings): Promise<void>
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const transaction = db.transaction(() => {
         if (settings.pdfTopLegend) {
-            db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('pdfTopLegend', ?)`).run(JSON.stringify(settings.pdfTopLegend));
+            db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('pdfTopLegend', ?)`).run(settings.pdfTopLegend);
         }
         if (settings.pdfExportColumns) {
             db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(settings.pdfExportColumns));
@@ -245,7 +251,7 @@ export async function startOrContinueCountingSession(agreementId: number, userId
     
     if (otherUserSession) {
         const allUsers: User[] = await getAllUsersFromMain();
-        const otherUserName = allUsers.find(u => u.id === otherUserSession.user_id)?.name || 'otro usuario';
+        const otherUserName = allUsers.find((u: User) => u.id === otherUserSession.user_id)?.name || 'otro usuario';
         throw new Error(`El acuerdo ya está siendo inventariado por ${otherUserName}.`);
     }
 
@@ -331,7 +337,7 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
         const body = `<p>Se ha generado una nueva boleta de reposición (${newBoleta.consecutive}) para el cliente <strong>${agreement.client_name}</strong>.</p><p>La boleta fue creada por ${userName} y está pendiente de aprobación.</p>`;
         
         const users: User[] = await getAllUsersFromMain();
-        const user = users.find(u => u.id === userId);
+        const user = users.find((u: User) => u.id === userId);
         if (user?.email) {
             sendEmail({ to: user.email, subject, html: body });
         }
@@ -507,7 +513,6 @@ export async function getLatestBoletaBeforeDate(agreementId: number, date: Date)
 
 export async function getActiveConsignmentSessions(): Promise<(CountingSession & { agreement_name: string; user_name: string; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const mainDb = await connectDb();
 
     const sessions = db.prepare(`
         SELECT cs.id, cs.agreement_id, cs.user_id, cs.created_at, ca.client_name
@@ -519,7 +524,7 @@ export async function getActiveConsignmentSessions(): Promise<(CountingSession &
     if (sessions.length === 0) return [];
     
     const userIds = sessions.map(s => s.user_id);
-    const users: User[] = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as User[];
+    const users: User[] = await getAllUsersFromMain();
     const userMap = new Map(users.map((u: User) => [u.id, u.name]));
 
     const results = sessions.map(s => ({
