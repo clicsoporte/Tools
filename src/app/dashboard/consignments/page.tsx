@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { BoletaLine, BoletaHistory } from '@/modules/core/types';
+import { cn } from '@/lib/utils';
 
 function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignments> }) {
     const { state, actions } = hook;
@@ -79,6 +80,14 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
 
     const canEditLines = detailedBoleta?.boleta.status === 'pending' && selectors.hasPermission('consignments:approve');
     
+    const statusConfig: Record<string, { label: string, color: string }> = {
+        pending: { label: "Pendiente", color: "bg-yellow-500" },
+        approved: { label: "Aprobada", color: "bg-green-500" },
+        sent: { label: "Enviada", color: "bg-blue-500" },
+        invoiced: { label: "Facturada", color: "bg-indigo-500" },
+        canceled: { label: "Cancelada", color: "bg-red-700" },
+    };
+
     return (
         <Dialog open={isDetailsModalOpen} onOpenChange={actions.boletaActions.setDetailsModalOpen}>
             <DialogContent className="sm:max-w-4xl">
@@ -102,7 +111,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {detailedBoleta.lines.map((line: BoletaLine) => (
+                                        {detailedBoleta.lines.map((line) => (
                                             <TableRow key={line.id}>
                                                 <TableCell>
                                                     <p className="font-medium">{line.product_description}</p>
@@ -129,16 +138,19 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                             <h4 className="font-semibold">Historial de Estados</h4>
                             <ScrollArea className="h-72 border rounded-md p-2">
                                 <div className="space-y-3">
-                                {detailedBoleta.history.map((h: BoletaHistory) => (
-                                    <div key={h.id} className="text-xs">
-                                        <div className="flex justify-between items-center">
-                                            <Badge>{h.status}</Badge>
-                                            <p className="text-muted-foreground">{format(parseISO(h.timestamp), 'dd/MM/yy HH:mm', {locale: es})}</p>
+                                {detailedBoleta.history.map((h: BoletaHistory) => {
+                                    const statusInfo = statusConfig[h.status as keyof typeof statusConfig] || { label: h.status, color: 'bg-gray-400' };
+                                    return (
+                                        <div key={h.id} className="text-xs">
+                                            <div className="flex justify-between items-center">
+                                                <Badge className={cn(statusInfo.color, "text-white")}>{statusInfo.label}</Badge>
+                                                <p className="text-muted-foreground">{format(parseISO(h.timestamp), 'dd/MM/yy HH:mm', {locale: es})}</p>
+                                            </div>
+                                            <p className="text-muted-foreground mt-1">Por: {h.updatedBy}</p>
+                                            {h.notes && <p className="italic text-muted-foreground mt-1">&quot;{h.notes}&quot;</p>}
                                         </div>
-                                        <p className="text-muted-foreground mt-1">Por: {h.updatedBy}</p>
-                                        {h.notes && <p className="italic text-muted-foreground mt-1">&quot;{h.notes}&quot;</p>}
-                                    </div>
-                                ))}
+                                    );
+                                })}
                                 </div>
                             </ScrollArea>
                         </div>
