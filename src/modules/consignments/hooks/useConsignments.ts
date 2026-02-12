@@ -14,7 +14,6 @@ import {
     saveConsignmentAgreement, 
     getAgreementDetails,
     deleteConsignmentAgreement,
-    getActiveCountingSession, 
     startOrContinueCountingSession, 
     saveCountLine,
     abandonCountingSession, 
@@ -22,7 +21,7 @@ import {
     getBoletas,
     updateBoletaStatus,
     getBoletaDetails,
-    updateBoleta
+    updateBoleta,
 } from '../lib/actions';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
 
@@ -132,7 +131,7 @@ export const useConsignments = () => {
             }
         },
         handleFieldChange: (field: keyof ConsignmentAgreement, value: any) => {
-            const newFormData = { ...state.agreementFormData, [field]: value };
+            const newFormData = { ...state.agreementFormData, [field]: value } as Partial<ConsignmentAgreement>;
             if (field === 'client_id') {
                 const client = customers.find(c => c.id === value);
                 if (client) {
@@ -157,7 +156,7 @@ export const useConsignments = () => {
         },
         updateProductField: (index: number, field: keyof ConsignmentProduct, value: any) => {
             const updatedProducts = [...state.agreementProducts];
-            updatedProducts[index] = { ...updatedProducts[index], [field]: value };
+            (updatedProducts[index] as any)[field] = value;
             updateState({ agreementProducts: updatedProducts });
         },
         handleSaveAgreement: async () => {
@@ -185,21 +184,32 @@ export const useConsignments = () => {
             }
         },
         toggleAgreementStatus: async (id: number, isActive: boolean) => {
-            const agreement = state.agreements.find(a => a.id === id);
-            if (!agreement) return;
-            
-            const { product_count, ...agreementToSend } = agreement;
-            const updatedAgreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id: number } = { 
-                ...agreementToSend, 
-                is_active: isActive ? 1 : 0
+            const originalAgreement = state.agreements.find(a => a.id === id);
+            if (!originalAgreement) return;
+        
+            // Optimistic UI update
+            const updatedAgreements = state.agreements.map(a =>
+              a.id === id ? { ...a, is_active: isActive ? 1 : 0 } : a
+            );
+            updateState({ agreements: updatedAgreements });
+        
+            const { product_count, ...agreementToSend } = originalAgreement;
+            const payloadToSave: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id: number; is_active: 0 | 1; } = {
+                ...agreementToSend,
+                is_active: isActive ? 1 : 0,
             };
-
+        
             try {
-                await saveConsignmentAgreement(updatedAgreement, []); // Pass empty products when just toggling status
+                await saveConsignmentAgreement(payloadToSave, []); // Pass empty products when just toggling status
                 toast({ title: `Acuerdo ${isActive ? 'habilitado' : 'deshabilitado'}` });
-                await loadAgreements();
+                // No full reload needed, the UI is already updated.
             } catch (error) {
-                 toast({ title: 'Error al actualizar', variant: 'destructive' });
+                toast({ title: 'Error al actualizar', variant: 'destructive' });
+                // Revert UI on error
+                const revertedAgreements = state.agreements.map(a =>
+                    a.id === id ? { ...a, is_active: originalAgreement.is_active } : a
+                );
+                updateState({ agreements: revertedAgreements });
             }
         },
         handleDeleteAgreement: async () => {
@@ -244,8 +254,8 @@ export const useConsignments = () => {
                         productsToCount: details?.products || [] 
                     } 
                 });
-            } catch (error) {
-                toast({ title: 'Error al iniciar sesión', variant: 'destructive' });
+            } catch (error: any) {
+                toast({ title: 'Error al iniciar sesión', description: error.message, variant: 'destructive' });
                 updateState({ countingState: { ...state.countingState, isLoading: false } });
             }
         },
@@ -310,6 +320,10 @@ export const useConsignments = () => {
             }
             return state.agreements.filter(a => a.is_active === 1);
         }, [state.agreements, state.showOnlyActiveAgreements]),
+        agreementOptions: useMemo(() => {
+            const activeAgreements = state.agreements.filter(a => a.is_active === 1);
+            return activeAgreements.map(a => ({ value: String(a.id), label: a.client_name }));
+        }, [state.agreements]),
         customerOptions: useMemo(() => {
             if (debouncedClientSearch.length < 2) return [];
             return customers.filter(c => c.name.toLowerCase().includes(debouncedClientSearch.toLowerCase()) || c.id.includes(debouncedClientSearch))
