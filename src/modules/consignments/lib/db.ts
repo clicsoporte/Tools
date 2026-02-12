@@ -3,8 +3,7 @@
  */
 "use server";
 
-import { connectDb, getCompanySettings } from '@/modules/core/lib/db';
-import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
+import { connectDb, getCompanySettings, getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/db';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { sendEmail } from '@/modules/core/lib/email-service';
@@ -172,9 +171,9 @@ export async function getAgreementDetails(agreementId: number): Promise<{ agreem
     return JSON.parse(JSON.stringify({ agreement, products }));
 }
 
-export async function getActiveCountingSession(agreementId: number): Promise<(CountingSession & { lines: CountingSessionLine[] }) | null> {
+export async function getActiveCountingSession(agreementId: number, userId: number): Promise<(CountingSession & { lines: CountingSessionLine[] }) | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const session = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND status = 'in-progress'`).get(agreementId) as CountingSession | undefined;
+    const session = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND user_id = ? AND status = 'in-progress'`).get(agreementId, userId) as CountingSession | undefined;
     if (!session) return null;
     const lines = db.prepare('SELECT * FROM counting_session_lines WHERE session_id = ?').all(session.id) as CountingSessionLine[];
     return { ...session, lines };
@@ -182,13 +181,30 @@ export async function getActiveCountingSession(agreementId: number): Promise<(Co
 
 export async function startOrContinueCountingSession(agreementId: number, userId: number): Promise<CountingSession & { lines: CountingSessionLine[] }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const existingSession = await getActiveCountingSession(agreementId);
-    if (existingSession) return existingSession;
+    
+    // First, try to get a session for the *current* user
+    let session = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND user_id = ? AND status = 'in-progress'`).get(agreementId, userId) as CountingSession | undefined;
+    
+    if (session) {
+        // Found an existing session for this user, return it
+        const lines = db.prepare('SELECT * FROM counting_session_lines WHERE session_id = ?').all(session.id) as CountingSessionLine[];
+        return { ...session, lines };
+    }
 
+    // No session for the current user. Is another user in a session for this agreement?
+    const otherUserSession = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND status = 'in-progress'`).get(agreementId) as CountingSession | undefined;
+    if (otherUserSession) {
+        const allUsers = await getAllUsersFromMain();
+        const otherUserName = allUsers.find(u => u.id === otherUserSession.user_id)?.name || 'otro usuario';
+        throw new Error(`El acuerdo ya está siendo inventariado por ${otherUserName}.`);
+    }
+
+    // No active session exists, create a new one
     const info = db.prepare(`INSERT INTO counting_sessions (agreement_id, user_id, status, created_at) VALUES (?, ?, 'in-progress', datetime('now'))`).run(agreementId, userId);
     const newSession = db.prepare('SELECT * FROM counting_sessions WHERE id = ?').get(info.lastInsertRowid) as CountingSession;
     return { ...newSession, lines: [] };
 }
+
 
 export async function saveCountLine(sessionId: number, productId: string, quantity: number): Promise<void> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
