@@ -8,15 +8,15 @@ import {
     saveAgreement as saveAgreementServer,
     getAgreementDetails as getAgreementDetailsServer,
     deleteAgreement as deleteAgreementServer,
-    getActiveCountingSession as getActiveCountingSessionServer,
     startOrContinueCountingSession as startOrContinueCountingSessionServer,
     saveCountLine as saveCountLineServer,
-    abandonCountingSession as abandonCountingSessionServer,
-    generateBoletaFromSession as generateBoletaFromSessionServer,
+    abandonCountingSession as abandonCountingSessionServer, 
+    generateBoletaFromSession as generateBoletaFromSessionServer, 
     getBoletas as getBoletasServer,
     updateBoletaStatus as updateBoletaStatusServer,
     getBoletaDetails as getBoletaDetailsServer,
     updateBoleta as updateBoletaServer,
+    getActiveCountingSessionForUser as getActiveCountingSessionForUserServer,
 } from './db';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
@@ -38,8 +38,9 @@ export async function deleteConsignmentAgreement(agreementId: number): Promise<v
     return deleteAgreementServer(agreementId);
 }
 
-export async function getActiveCountingSession(agreementId: number): Promise<(CountingSession & { lines: CountingSessionLine[] }) | null> {
-    return getActiveCountingSessionServer(agreementId);
+export async function getActiveCountingSessionForUser(userId: number): Promise<(CountingSession & { lines: CountingSessionLine[] }) | null> {
+    await authorizeAction('consignments:count');
+    return getActiveCountingSessionForUserServer(userId);
 }
 
 export async function startOrContinueCountingSession(agreementId: number, userId: number): Promise<CountingSession & { lines: CountingSessionLine[] }> {
@@ -51,6 +52,7 @@ export async function saveCountLine(sessionId: number, productId: string, quanti
 }
 
 export async function abandonCountingSession(sessionId: number, userId: number): Promise<void> {
+    await authorizeAction('consignments:count');
     return abandonCountingSessionServer(sessionId, userId);
 }
 

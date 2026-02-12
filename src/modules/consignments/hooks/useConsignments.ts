@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the state and logic of the Consignments module main page.
  */
@@ -16,12 +17,13 @@ import {
     deleteConsignmentAgreement,
     startOrContinueCountingSession, 
     saveCountLine,
-    abandonCountingSession, 
+    abandonCountingSession as abandonCountingSessionServer, 
     generateBoletaFromSession, 
     getBoletas,
     updateBoletaStatus,
     getBoletaDetails,
     updateBoleta,
+    getActiveCountingSessionForUser,
 } from '../lib/actions';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
 
@@ -33,10 +35,14 @@ const emptyAgreement: Partial<ConsignmentAgreement> = {
     is_active: 1,
 };
 
+type CountingStep = 'setup' | 'resume' | 'counting' | 'finished';
+
 const initialCountingState = {
+    step: 'setup' as CountingStep,
     isLoading: false,
     selectedAgreementId: null as string | null,
     session: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
+    existingSession: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
     productsToCount: [] as ConsignmentProduct[],
 };
 
@@ -86,23 +92,46 @@ export const useConsignments = () => {
 
     // --- DATA FETCHING ---
     const loadAgreements = useCallback(async () => {
-        updateState({ isLoading: true });
+        // This function is now just for agreements, session loading is separate.
         try {
             const agreementsData = await getConsignmentAgreements();
             updateState({ agreements: agreementsData });
         } catch (error) {
             toast({ title: "Error", description: "No se pudieron cargar los acuerdos.", variant: "destructive" });
-        } finally {
-            updateState({ isLoading: false });
         }
     }, [toast, updateState]);
     
     useEffect(() => {
         setTitle('Gestión de Consignaciones');
-        if (isAuthorized) {
-            loadAgreements();
+        if (isAuthorized && user) {
+            const loadData = async () => {
+                updateState({ isLoading: true });
+                try {
+                    const [agreementsData, activeSession] = await Promise.all([
+                        getConsignmentAgreements(),
+                        getActiveCountingSessionForUser(user.id)
+                    ]);
+                    
+                    const newState: Partial<typeof state> = { agreements: agreementsData, isLoading: false };
+                    if (activeSession) {
+                        newState.countingState = {
+                            ...initialCountingState,
+                            existingSession: activeSession,
+                            step: 'resume',
+                        };
+                    }
+                    updateState(newState);
+
+                } catch (error) {
+                    toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
+                    updateState({ isLoading: false });
+                }
+            };
+            loadData();
+        } else if (isAuthorized) { // Handle case where auth is ready but user is null
+            updateState({ isLoading: false });
         }
-    }, [setTitle, isAuthorized, loadAgreements]);
+    }, [isAuthorized, user, toast, updateState, setTitle]);
 
     // --- AGREEMENTS LOGIC ---
     const agreementActions = {
@@ -166,12 +195,14 @@ export const useConsignments = () => {
             }
             updateState({ isSubmitting: true });
             try {
-                const payload = {
-                    ...state.agreementFormData,
+                const payload: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number } = {
                     client_id: state.agreementFormData.client_id,
                     client_name: state.agreementFormData.client_name,
+                    erp_warehouse_id: state.agreementFormData.erp_warehouse_id,
+                    notes: state.agreementFormData.notes,
                     is_active: state.agreementFormData.is_active ?? 1,
-                } as Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number };
+                    ...(state.editingAgreement && { id: state.editingAgreement.id }),
+                };
 
                 await saveConsignmentAgreement(payload, state.agreementProducts);
                 toast({ title: 'Acuerdo Guardado' });
@@ -187,29 +218,23 @@ export const useConsignments = () => {
             const originalAgreement = state.agreements.find(a => a.id === id);
             if (!originalAgreement) return;
         
-            // Optimistic UI update
             const updatedAgreements = state.agreements.map(a =>
               a.id === id ? { ...a, is_active: isActive ? 1 : 0 } : a
             );
             updateState({ agreements: updatedAgreements });
         
             const { product_count, ...agreementToSend } = originalAgreement;
-            const payloadToSave: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id: number; is_active: 0 | 1; } = {
+            const updatedAgreement = {
                 ...agreementToSend,
-                is_active: isActive ? 1 : 0,
+                is_active: (isActive ? 1 : 0) as 0 | 1,
             };
         
             try {
-                await saveConsignmentAgreement(payloadToSave, []); // Pass empty products when just toggling status
+                await saveConsignmentAgreement(updatedAgreement, []); // Pass empty products when just toggling status
                 toast({ title: `Acuerdo ${isActive ? 'habilitado' : 'deshabilitado'}` });
-                // No full reload needed, the UI is already updated.
             } catch (error) {
                 toast({ title: 'Error al actualizar', variant: 'destructive' });
-                // Revert UI on error
-                const revertedAgreements = state.agreements.map(a =>
-                    a.id === id ? { ...a, is_active: originalAgreement.is_active } : a
-                );
-                updateState({ agreements: revertedAgreements });
+                updateState({ agreements: state.agreements });
             }
         },
         handleDeleteAgreement: async () => {
@@ -251,7 +276,8 @@ export const useConsignments = () => {
                         ...state.countingState, 
                         isLoading: false,
                         session, 
-                        productsToCount: details?.products || [] 
+                        productsToCount: details?.products || [],
+                        step: 'counting',
                     } 
                 });
             } catch (error: any) {
@@ -262,12 +288,11 @@ export const useConsignments = () => {
         handleSaveLine: (productId: string, quantity: number) => {
             if (!state.countingState.session) return;
             saveCountLine(state.countingState.session.id, productId, quantity);
-            // No toast here to avoid being annoying
         },
-        handleAbandonSession: async () => {
+        abandonCurrentSession: async () => {
             if (!user || !state.countingState.session) return;
-            await abandonCountingSession(state.countingState.session.id, user.id);
-            updateState({ countingState: { ...initialCountingState, selectedAgreementId: state.countingState.selectedAgreementId } });
+            await abandonCountingSessionServer(state.countingState.session.id, user.id);
+            updateState({ countingState: { ...initialCountingState, step: 'setup' } });
         },
         handleGenerateBoleta: async () => {
              if (!user || !state.countingState.session) return;
@@ -282,7 +307,38 @@ export const useConsignments = () => {
              } finally {
                 updateState({ countingState: { ...state.countingState, isLoading: false } });
              }
-        }
+        },
+        resumeSession: async () => {
+            if (!state.countingState.existingSession) return;
+            updateState({ countingState: { ...state.countingState, isLoading: true } });
+            try {
+                const details = await getAgreementDetails(state.countingState.existingSession.agreement_id);
+                updateState({
+                    countingState: {
+                        ...state.countingState,
+                        isLoading: false,
+                        session: state.countingState.existingSession,
+                        productsToCount: details?.products || [],
+                        step: 'counting',
+                        existingSession: null,
+                    }
+                });
+            } catch (error) {
+                toast({ title: 'Error al reanudar', variant: 'destructive' });
+                updateState({ countingState: { ...state.countingState, isLoading: false } });
+            }
+        },
+        abandonSession: async () => {
+            if (!user || !state.countingState.existingSession) return;
+            await abandonCountingSessionServer(state.countingState.existingSession.id, user.id);
+            updateState({
+                countingState: {
+                    ...initialCountingState,
+                    step: 'setup',
+                }
+            });
+            toast({ title: 'Sesión Abandonada' });
+        },
     };
     
     // --- BOLETAS LOGIC ---

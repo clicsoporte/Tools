@@ -24,12 +24,12 @@ export function InventoryCountTab({ hook }: InventoryCountTabProps) {
         <Card>
             <CardHeader>
                 <CardTitle>Toma de Inventario en Sitio</CardTitle>
-                <CardDescription>
-                    {countingState.session ? 'Continúa con el inventario actual.' : 'Selecciona un acuerdo de consignación para iniciar la toma de inventario.'}
+                 <CardDescription>
+                    {countingState.step === 'counting' ? 'Continúa con el inventario actual.' : 'Selecciona un acuerdo de consignación para iniciar la toma de inventario.'}
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                {!countingState.session ? (
+                {countingState.step === 'setup' && (
                     <div className="flex flex-col gap-4 items-center w-full max-w-sm mx-auto">
                         <Select onValueChange={(val) => actions.countActions.handleSelectAgreement(val)} disabled={countingState.isLoading}>
                             <SelectTrigger className="w-full h-12 text-base">
@@ -48,7 +48,21 @@ export function InventoryCountTab({ hook }: InventoryCountTabProps) {
                             <Play className="mr-2 h-4 w-4"/> Iniciar Conteo
                         </Button>
                     </div>
-                ) : (
+                )}
+                 {countingState.step === 'resume' && countingState.existingSession && (
+                    <div className="text-center space-y-4">
+                        <h3 className="font-semibold text-lg">Sesión en Progreso</h3>
+                        <p className="text-muted-foreground">
+                            Tienes una sesión de conteo sin terminar para el cliente <strong>{selectors.getAgreementName(countingState.existingSession.agreement_id)}</strong>.
+                        </p>
+                        <p>¿Deseas continuar donde la dejaste o abandonarla para empezar de nuevo?</p>
+                        <div className="flex justify-center gap-4 pt-4">
+                            <Button variant="destructive" onClick={actions.countActions.abandonSession}>Abandonar Sesión</Button>
+                            <Button onClick={actions.countActions.resumeSession}>Continuar Sesión</Button>
+                        </div>
+                    </div>
+                )}
+                {countingState.step === 'counting' && countingState.session && (
                     <div className="space-y-4">
                         <h3 className="font-semibold text-lg">{selectors.getAgreementName(countingState.session.agreement_id)}</h3>
                          <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
@@ -78,7 +92,7 @@ export function InventoryCountTab({ hook }: InventoryCountTabProps) {
                     </div>
                 )}
             </CardContent>
-            {countingState.session && (
+            {countingState.step === 'counting' && countingState.session && (
                 <CardFooter className="justify-between">
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -93,7 +107,7 @@ export function InventoryCountTab({ hook }: InventoryCountTabProps) {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={actions.countActions.handleAbandonSession}>Sí, abandonar</AlertDialogAction>
+                                <AlertDialogAction onClick={actions.countActions.abandonCurrentSession}>Sí, abandonar</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>

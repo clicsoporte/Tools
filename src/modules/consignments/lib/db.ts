@@ -172,9 +172,10 @@ export async function getAgreementDetails(agreementId: number): Promise<{ agreem
     return JSON.parse(JSON.stringify({ agreement, products }));
 }
 
-export async function getActiveCountingSession(agreementId: number, userId: number): Promise<(CountingSession & { lines: CountingSessionLine[] }) | null> {
+export async function getActiveCountingSessionForUser(userId: number): Promise<(CountingSession & { lines: CountingSessionLine[] }) | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const session = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND user_id = ? AND status = 'in-progress'`).get(agreementId, userId) as CountingSession | undefined;
+    // Find any in-progress session for this user
+    const session = db.prepare(`SELECT * FROM counting_sessions WHERE user_id = ? AND status = 'in-progress'`).get(userId) as CountingSession | undefined;
     if (!session) return null;
     const lines = db.prepare('SELECT * FROM counting_session_lines WHERE session_id = ?').all(session.id) as CountingSessionLine[];
     return { ...session, lines };
@@ -183,16 +184,13 @@ export async function getActiveCountingSession(agreementId: number, userId: numb
 export async function startOrContinueCountingSession(agreementId: number, userId: number): Promise<CountingSession & { lines: CountingSessionLine[] }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
-    // First, try to get a session for the *current* user
     let session = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND user_id = ? AND status = 'in-progress'`).get(agreementId, userId) as CountingSession | undefined;
     
     if (session) {
-        // Found an existing session for this user, return it
         const lines = db.prepare('SELECT * FROM counting_session_lines WHERE session_id = ?').all(session.id) as CountingSessionLine[];
         return { ...session, lines };
     }
 
-    // No session for the current user. Is another user in a session for this agreement?
     const otherUserSession = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND status = 'in-progress'`).get(agreementId) as CountingSession | undefined;
     if (otherUserSession) {
         const allUsers = await getAllUsersFromMain();
@@ -200,7 +198,6 @@ export async function startOrContinueCountingSession(agreementId: number, userId
         throw new Error(`El acuerdo ya está siendo inventariado por ${otherUserName}.`);
     }
 
-    // No active session exists, create a new one
     const info = db.prepare(`INSERT INTO counting_sessions (agreement_id, user_id, status, created_at) VALUES (?, ?, 'in-progress', datetime('now'))`).run(agreementId, userId);
     const newSession = db.prepare('SELECT * FROM counting_sessions WHERE id = ?').get(info.lastInsertRowid) as CountingSession;
     return { ...newSession, lines: [] };
