@@ -6,7 +6,7 @@
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useToast } from '@/modules/core/hooks/useToast';
+import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { 
@@ -19,7 +19,10 @@ import {
     saveCountLine,
     abandonCountingSession, 
     generateBoletaFromSession, 
-    getBoletas
+    getBoletas,
+    updateBoletaStatus,
+    getBoletaDetails,
+    updateBoleta
 } from '../lib/actions';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
 
@@ -29,6 +32,13 @@ const emptyAgreement: Partial<ConsignmentAgreement> = {
     erp_warehouse_id: '',
     notes: '',
     is_active: 1,
+};
+
+const initialCountingState = {
+    isLoading: false,
+    selectedAgreementId: null as string | null,
+    session: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
+    productsToCount: [] as ConsignmentProduct[],
 };
 
 const initialState = {
@@ -50,12 +60,7 @@ const initialState = {
     productSearchTerm: '',
     isProductSearchOpen: false,
     // Inventory Count
-    countingState: {
-        isLoading: false,
-        selectedAgreementId: null as string | null,
-        session: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
-        productsToCount: [] as ConsignmentProduct[],
-    },
+    countingState: initialCountingState,
     // Boletas
     boletasState: {
         isLoading: false,
@@ -252,7 +257,7 @@ export const useConsignments = () => {
         handleAbandonSession: async () => {
             if (!user || !state.countingState.session) return;
             await abandonCountingSession(state.countingState.session.id, user.id);
-            updateState({ countingState: { ...initialState.countingState, selectedAgreementId: state.countingState.selectedAgreementId } });
+            updateState({ countingState: { ...initialCountingState, selectedAgreementId: state.countingState.selectedAgreementId } });
         },
         handleGenerateBoleta: async () => {
              if (!user || !state.countingState.session) return;
@@ -260,7 +265,7 @@ export const useConsignments = () => {
              try {
                 const newBoleta = await generateBoletaFromSession(state.countingState.session.id, user.id, user.name);
                 toast({ title: 'Boleta Generada', description: `Se creó la boleta ${newBoleta.consecutive}` });
-                updateState({ currentTab: 'boletas', countingState: initialState.countingState });
+                updateState({ currentTab: 'boletas', countingState: initialCountingState });
                 boletaActions.loadBoletas();
              } catch (error) {
                  toast({ title: 'Error al generar boleta', variant: 'destructive'});
@@ -291,7 +296,8 @@ export const useConsignments = () => {
         if (state.currentTab === 'boletas') {
             boletaActions.loadBoletas();
         }
-    }, [state.currentTab]); // Intentionally omitting boletaActions
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.currentTab]);
     
     // --- SELECTORS ---
     const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);
