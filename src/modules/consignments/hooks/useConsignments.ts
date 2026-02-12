@@ -40,6 +40,7 @@ const emptyAgreement: Partial<ConsignmentAgreement> = {
 };
 
 type CountingStep = 'setup' | 'resume' | 'counting' | 'finished';
+export type BoletaSortKey = 'consecutive' | 'client_name' | 'created_at' | 'status';
 
 const initialCountingState: {
     step: CountingStep;
@@ -67,6 +68,8 @@ const initialBoletasState: {
     isDetailsModalOpen: boolean;
     detailedBoleta: { boleta: RestockBoleta; lines: BoletaLine[]; history: BoletaHistory[] } | null;
     isDetailsLoading: boolean;
+    sortKey: BoletaSortKey;
+    sortDirection: 'asc' | 'desc';
 } = {
     isLoading: false,
     boletas: [],
@@ -77,6 +80,8 @@ const initialBoletasState: {
     isDetailsModalOpen: false,
     detailedBoleta: null,
     isDetailsLoading: false,
+    sortKey: 'created_at',
+    sortDirection: 'desc',
 };
 
 const initialState = {
@@ -126,6 +131,23 @@ export const useConsignments = () => {
             toast({ title: "Error", description: "No se pudieron cargar los acuerdos.", variant: "destructive" });
         }
     }, [toast, updateState]);
+    
+    const loadBoletasCallback = useCallback(async () => {
+        updateState(prevState => ({ ...prevState, boletasState: { ...prevState.boletasState, isLoading: true } }));
+        try {
+            const boletasData = await getBoletas(state.boletasState.filters);
+            updateState(prevState => ({...prevState, boletasState: { ...prevState.boletasState, boletas: boletasData, isLoading: false }}));
+        } catch (error: any) {
+            toast({ title: 'Error', description: 'No se pudieron cargar las boletas.', variant: 'destructive' });
+            updateState(prevState => ({...prevState, boletasState: { ...prevState.boletasState, isLoading: false }}));
+        }
+    }, [state.boletasState.filters, toast, updateState]);
+    
+    useEffect(() => {
+        if (state.currentTab === 'boletas') {
+            loadBoletasCallback();
+        }
+    }, [state.currentTab, loadBoletasCallback]);
     
     useEffect(() => {
         setTitle('Gestión de Consignaciones');
@@ -384,24 +406,45 @@ export const useConsignments = () => {
         },
     }), [user, state.countingState, toast, updateState]);
     
-    const loadBoletasCallback = useCallback(async () => {
-        updateState(prevState => ({ ...prevState, boletasState: { ...prevState.boletasState, isLoading: true } }));
-        try {
-            const boletasData = await getBoletas(state.boletasState.filters);
-            updateState(prevState => ({...prevState, boletasState: { ...prevState.boletasState, boletas: boletasData, isLoading: false }}));
-        } catch (error: any) {
-            toast({ title: 'Error', description: 'No se pudieron cargar las boletas.', variant: 'destructive' });
-            updateState(prevState => ({...prevState, boletasState: { ...prevState.boletasState, isLoading: false }}));
-        }
-    }, [state.boletasState.filters, toast, updateState]);
+    const sortedBoletas = useMemo(() => {
+        const { boletas, sortKey, sortDirection } = state.boletasState;
+        const sorted = [...boletas]; // Create a mutable copy
+        
+        const getClientName = (agreementId: number) => state.agreements.find(a => a.id === agreementId)?.client_name || '';
+
+        sorted.sort((a, b) => {
+            const dir = sortDirection === 'asc' ? 1 : -1;
+            let valA, valB;
+
+            switch(sortKey) {
+                case 'consecutive':
+                    valA = a.consecutive;
+                    valB = b.consecutive;
+                    break;
+                case 'client_name':
+                    valA = getClientName(a.agreement_id);
+                    valB = getClientName(b.agreement_id);
+                    break;
+                case 'created_at':
+                    valA = a.created_at;
+                    valB = b.created_at;
+                    break;
+                case 'status':
+                    valA = a.status;
+                    valB = b.status;
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (valA < valB) return -1 * dir;
+            if (valA > valB) return 1 * dir;
+            return 0;
+        });
+
+        return sorted;
+    }, [state.boletasState, state.agreements]);
     
-    useEffect(() => {
-        if (state.currentTab === 'boletas') {
-            loadBoletasCallback();
-        }
-    }, [state.currentTab, loadBoletasCallback]);
-
-
     const boletaActions = useMemo(() => ({
         loadBoletas: loadBoletasCallback,
         openBoletaDetails: async (boletaId: number) => {
@@ -486,6 +529,20 @@ export const useConsignments = () => {
                 updateState(prev => ({ ...prev, isSubmitting: false }));
             }
         },
+        handleBoletaSort: (key: BoletaSortKey) => {
+            updateState(prev => {
+                const { boletasState } = prev;
+                const newDirection = boletasState.sortKey === key && boletasState.sortDirection === 'asc' ? 'desc' : 'asc';
+                return {
+                    ...prev,
+                    boletasState: {
+                        ...boletasState,
+                        sortKey: key,
+                        sortDirection: newDirection
+                    }
+                };
+            });
+        },
         handlePrintBoleta: async (boleta: RestockBoleta) => {
             if (!companyData || !user) return;
             updateState(prevState => ({...prevState, isSubmitting: true}));
@@ -494,12 +551,37 @@ export const useConsignments = () => {
                 if (!details) throw new Error('No se encontraron los detalles de la boleta.');
 
                 const settings = await getConsignmentSettings();
+                const agreement = state.agreements.find(a => a.id === boleta.agreement_id);
+                if (!agreement) throw new Error('Acuerdo no encontrado para la boleta.');
+                
+                const history = details.history.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                const meta: { label: string; value: string }[] = [
+                    { label: 'Fecha Creación', value: format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm') }
+                ];
+                const approvedEntry = history.find(h => h.status === 'approved');
+                const sentEntry = history.find(h => h.status === 'sent');
+                const invoicedEntry = history.find(h => h.status === 'invoiced');
+                
+                if (approvedEntry) meta.push({ label: 'Aprobado por', value: `${approvedEntry.updatedBy} - ${format(parseISO(approvedEntry.timestamp), 'dd/MM/yy HH:mm')}` });
+                if (sentEntry) meta.push({ label: 'Enviado por', value: `${sentEntry.updatedBy} - ${format(parseISO(sentEntry.timestamp), 'dd/MM/yy HH:mm')}` });
+                if (invoicedEntry) meta.push({ label: 'Facturado por', value: `${invoicedEntry.updatedBy} - ${format(parseISO(invoicedEntry.timestamp), 'dd/MM/yy HH:mm')} (Factura: ${boleta.erp_invoice_number})` });
+
+
+                const warehouse = stockSettings?.warehouses.find(w => w.id === agreement.erp_warehouse_id);
+                const erpWarehouseContent = warehouse ? `${agreement.erp_warehouse_id} - ${warehouse.name}` : agreement.erp_warehouse_id || 'N/A';
 
                 const allHeaders = ['Código', 'Descripción', 'Inv. Físico', 'Máximo', 'Reponer'];
                 const allDataKeys = ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'];
                 
                 const visibleColumns = settings.pdfExportColumns || allDataKeys;
-                const tableHeaders = visibleColumns.map(key => allHeaders[allDataKeys.indexOf(key)]);
+                const tableHeaders = visibleColumns.map(key => {
+                    const headerLabel = allHeaders[allDataKeys.indexOf(key)];
+                    if (['Inv. Físico', 'Máximo', 'Reponer'].includes(headerLabel)) {
+                        return { content: headerLabel, styles: { halign: 'right' } };
+                    }
+                    return headerLabel;
+                });
+                
                 const columnStyles: { [key: number]: any } = {};
                 
                 const tableRows = details.lines.map(line => {
@@ -519,16 +601,12 @@ export const useConsignments = () => {
 
                 const doc = generateDocument({
                     docTitle: 'BOLETA DE REPOSICIÓN DE CONSIGNACIÓN', docId: boleta.consecutive,
-                    meta: [
-                        { label: 'Fecha Creación', value: format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm') },
-                        ...(boleta.approved_at ? [{ label: 'Fecha Aprobación', value: format(parseISO(boleta.approved_at), 'dd/MM/yyyy HH:mm') }] : []),
-                    ],
+                    meta: meta,
                     companyData, logoDataUrl: companyData.logoUrl,
                     blocks: [
-                        { title: 'CLIENTE:', content: state.agreements.find(a => a.id === boleta.agreement_id)?.client_name || 'N/A' },
-                        { title: 'BODEGA ERP:', content: state.agreements.find(a => a.id === boleta.agreement_id)?.erp_warehouse_id || 'N/A' },
+                        { title: 'CLIENTE:', content: agreement.client_name || 'N/A' },
+                        { title: 'BODEGA ERP:', content: erpWarehouseContent },
                         { title: 'CREADO POR:', content: boleta.created_by },
-                        ...(boleta.approved_by ? [{ title: 'APROBADO POR:', content: boleta.approved_by }] : []),
                     ],
                     table: {
                         columns: tableHeaders,
@@ -546,11 +624,11 @@ export const useConsignments = () => {
                 updateState(prevState => ({...prevState, isSubmitting: false}));
             }
         },
-    }), [loadBoletasCallback, user, toast, companyData, state.agreements, state.boletasState, updateState]);
+    }), [loadBoletasCallback, user, toast, companyData, stockSettings, state.agreements, state.boletasState]);
     
     const selectors = useMemo(() => ({
         hasPermission,
-        filteredAgreements: state.agreements.filter(a => !state.showOnlyActiveAgreements || a.is_active === 1),
+        filteredAgreements: state.agreements.filter(a => !state.showOnlyActiveAgreements || a.is_active),
         agreementOptions: state.agreements.filter(a => a.is_active).map(a => ({ value: String(a.id), label: a.client_name })),
         customerOptions: debouncedClientSearch.length < 2 ? [] : customers.filter(c => c.name.toLowerCase().includes(debouncedClientSearch.toLowerCase()) || c.id.includes(debouncedClientSearch)).map(c => ({ value: c.id, label: `[${c.id}] ${c.name}` })),
         warehouseOptions: stockSettings?.warehouses.map(w => ({ value: w.id, label: `${w.name} (${w.id})` })) || [],
@@ -564,8 +642,9 @@ export const useConsignments = () => {
             sent: { label: "Enviada", color: "bg-blue-500" },
             invoiced: { label: "Facturada", color: "bg-indigo-500" },
             canceled: { label: "Cancelada", color: "bg-red-700" },
-        }
-    }), [hasPermission, state.agreements, state.showOnlyActiveAgreements, debouncedClientSearch, customers, stockSettings, debouncedProductSearch, products, state.countingState.session]);
+        },
+        sortedBoletas,
+    }), [hasPermission, state.agreements, state.showOnlyActiveAgreements, debouncedClientSearch, customers, stockSettings, debouncedProductSearch, products, state.countingState.session, sortedBoletas]);
     
     return {
         state,

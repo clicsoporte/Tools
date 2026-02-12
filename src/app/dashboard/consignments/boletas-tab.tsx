@@ -1,4 +1,3 @@
-
 // This is a new file
 'use client';
 
@@ -9,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2, Printer } from 'lucide-react';
+import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2, Printer, ArrowUp, ArrowDown } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { RestockBoleta } from '@/modules/core/types';
 import { cn } from '@/lib/utils';
+import type { BoletaSortKey } from '@/modules/consignments/hooks/useConsignments';
 
 type BoletasTabProps = {
   hook: ReturnType<typeof useConsignments>;
@@ -22,7 +22,13 @@ type BoletasTabProps = {
 export function BoletasTab({ hook }: BoletasTabProps) {
     const { state, actions, selectors } = hook;
     const { boletasState } = state;
-    const { boletas, isLoading } = boletasState;
+    const { isLoading, sortKey, sortDirection } = boletasState;
+    const { sortedBoletas } = selectors;
+
+    const renderSortIcon = (key: BoletaSortKey) => {
+        if (sortKey !== key) return null;
+        return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
+    };
 
     return (
         <Card>
@@ -36,22 +42,30 @@ export function BoletasTab({ hook }: BoletasTabProps) {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Consecutivo</TableHead>
-                            <TableHead>Cliente</TableHead>
-                            <TableHead>Fecha Creación</TableHead>
-                            <TableHead>Estado</TableHead>
+                            <TableHead className="cursor-pointer" onClick={() => actions.boletaActions.handleBoletaSort('consecutive')}>
+                                <div className="flex items-center">Consecutivo {renderSortIcon('consecutive')}</div>
+                            </TableHead>
+                            <TableHead className="cursor-pointer" onClick={() => actions.boletaActions.handleBoletaSort('client_name')}>
+                                 <div className="flex items-center">Cliente {renderSortIcon('client_name')}</div>
+                            </TableHead>
+                            <TableHead className="cursor-pointer" onClick={() => actions.boletaActions.handleBoletaSort('created_at')}>
+                                <div className="flex items-center">Fecha Creación {renderSortIcon('created_at')}</div>
+                            </TableHead>
+                            <TableHead className="cursor-pointer" onClick={() => actions.boletaActions.handleBoletaSort('status')}>
+                                <div className="flex items-center">Estado {renderSortIcon('status')}</div>
+                            </TableHead>
                             <TableHead>Factura ERP</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {boletas.map((boleta: RestockBoleta) => (
+                        {sortedBoletas.map((boleta: RestockBoleta) => (
                             <TableRow key={boleta.id}>
                                 <TableCell className="font-mono text-red-600 font-bold">{boleta.consecutive}</TableCell>
                                 <TableCell>{selectors.getAgreementName(boleta.agreement_id)}</TableCell>
                                 <TableCell>{format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</TableCell>
                                 <TableCell>
-                                    <Badge className={cn(selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.color, "text-white")}>
+                                    <Badge style={{ backgroundColor: selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.color }} className="text-white">
                                         {selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.label || 'Desconocido'}
                                     </Badge>
                                 </TableCell>
@@ -65,7 +79,7 @@ export function BoletasTab({ hook }: BoletasTabProps) {
                                             <DropdownMenuItem onSelect={() => actions.boletaActions.openBoletaDetails(boleta.id)}>
                                                 <FileText className="mr-2 h-4 w-4" /> Ver/Editar Detalles
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => actions.boletaActions.handlePrintBoleta(boleta)} disabled={!['approved', 'sent'].includes(boleta.status)}>
+                                            <DropdownMenuItem onSelect={() => actions.boletaActions.handlePrintBoleta(boleta)} disabled={!['approved', 'sent', 'invoiced'].includes(boleta.status)}>
                                                 <Printer className="mr-2 h-4 w-4" /> Imprimir Boleta
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
@@ -81,8 +95,8 @@ export function BoletasTab({ hook }: BoletasTabProps) {
                                                 <FileCheck2 className="mr-2 h-4 w-4" /> Marcar como Facturada
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'invoiced'}>
-                                                <Undo2 className="mr-2 h-4 w-4 text-orange-600" /> Revertir a Enviada
+                                            <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'invoiced'} className="text-orange-600">
+                                                <Undo2 className="mr-2 h-4 w-4" /> Revertir a Enviada
                                             </DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'canceled')} className="text-red-500" disabled={boleta.status === 'canceled' || boleta.status === 'invoiced'}>
                                                 <Ban className="mr-2 h-4 w-4" /> Cancelar Boleta
@@ -98,4 +112,3 @@ export function BoletasTab({ hook }: BoletasTabProps) {
         </Card>
     );
 }
-
