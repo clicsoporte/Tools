@@ -1,3 +1,4 @@
+
 // This is a new file
 'use client';
 
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2 } from 'lucide-react';
+import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2, Printer } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { RestockBoleta } from '@/modules/core/types';
@@ -22,14 +23,6 @@ export function BoletasTab({ hook }: BoletasTabProps) {
     const { state, actions, selectors } = hook;
     const { boletasState } = state;
     const { boletas, isLoading } = boletasState;
-
-    const statusConfig = {
-        pending: { label: "Pendiente", color: "bg-yellow-500" },
-        approved: { label: "Aprobada", color: "bg-green-500" },
-        sent: { label: "Enviada", color: "bg-blue-500" },
-        invoiced: { label: "Facturada", color: "bg-indigo-500" },
-        canceled: { label: "Cancelada", color: "bg-red-700" },
-    };
 
     return (
         <Card>
@@ -58,8 +51,8 @@ export function BoletasTab({ hook }: BoletasTabProps) {
                                 <TableCell>{selectors.getAgreementName(boleta.agreement_id)}</TableCell>
                                 <TableCell>{format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</TableCell>
                                 <TableCell>
-                                    <Badge className={cn(statusConfig[boleta.status as keyof typeof statusConfig]?.color, "text-white")}>
-                                        {statusConfig[boleta.status as keyof typeof statusConfig]?.label || 'Desconocido'}
+                                    <Badge className={cn(selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.color, "text-white")}>
+                                        {selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.label || 'Desconocido'}
                                     </Badge>
                                 </TableCell>
                                 <TableCell>{boleta.erp_invoice_number}</TableCell>
@@ -72,6 +65,10 @@ export function BoletasTab({ hook }: BoletasTabProps) {
                                             <DropdownMenuItem onSelect={() => actions.boletaActions.openBoletaDetails(boleta.id)}>
                                                 <FileText className="mr-2 h-4 w-4" /> Ver/Editar Detalles
                                             </DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => actions.boletaActions.handlePrintBoleta(boleta)} disabled={!['approved', 'sent'].includes(boleta.status)}>
+                                                <Printer className="mr-2 h-4 w-4" /> Imprimir Boleta
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
                                             {selectors.hasPermission('consignments:approve') &&
                                                 <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'approved')} disabled={boleta.status !== 'pending'}>
                                                     <Check className="mr-2 h-4 w-4" /> Aprobar
@@ -101,3 +98,4 @@ export function BoletasTab({ hook }: BoletasTabProps) {
         </Card>
     );
 }
+

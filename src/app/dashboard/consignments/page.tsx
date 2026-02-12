@@ -7,7 +7,7 @@
 import React from 'react';
 import { useConsignments } from '@/modules/consignments/hooks/useConsignments';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Loader2, FileText, Check, Ban, Truck, FileCheck2 } from 'lucide-react';
+import { Loader2, FileText, Check, Ban, Truck, FileCheck2, Printer, Undo2 } from 'lucide-react';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgreementsTab } from './agreements-tab';
@@ -38,6 +38,7 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignments>
         sent: 'Marcar como Enviada',
         invoiced: 'Marcar como Facturada',
         canceled: 'Cancelar',
+        revert_to_sent: 'Revertir a Enviada',
     };
 
     return (
@@ -80,13 +81,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
 
     const canEditLines = detailedBoleta?.boleta.status === 'pending' && selectors.hasPermission('consignments:approve');
     
-    const statusConfig: Record<string, { label: string, color: string }> = {
-        pending: { label: "Pendiente", color: "bg-yellow-500" },
-        approved: { label: "Aprobada", color: "bg-green-500" },
-        sent: { label: "Enviada", color: "bg-blue-500" },
-        invoiced: { label: "Facturada", color: "bg-indigo-500" },
-        canceled: { label: "Cancelada", color: "bg-red-700" },
-    };
+    const statusConfig = selectors.statusConfig;
 
     return (
         <Dialog open={isDetailsModalOpen} onOpenChange={actions.boletaActions.setDetailsModalOpen}>
@@ -111,7 +106,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {detailedBoleta.lines.map((line) => (
+                                        {detailedBoleta.lines.map((line: BoletaLine) => (
                                             <TableRow key={line.id}>
                                                 <TableCell>
                                                     <p className="font-medium">{line.product_description}</p>
