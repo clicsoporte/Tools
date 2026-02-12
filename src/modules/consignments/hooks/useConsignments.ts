@@ -6,13 +6,20 @@
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useToast } from '@/modules/core/hooks/use-toast';
+import { useToast } from '@/modules/core/hooks/useToast';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
-import {
-    getConsignmentAgreements, saveConsignmentAgreement, getAgreementDetails,
-    getActiveCountingSession, startOrContinueCountingSession, saveCountLine,
-    abandonCountingSession, generateBoletaFromSession, getBoletas
+import { 
+    getConsignmentAgreements, 
+    saveConsignmentAgreement, 
+    getAgreementDetails,
+    deleteConsignmentAgreement,
+    getActiveCountingSession, 
+    startOrContinueCountingSession, 
+    saveCountLine,
+    abandonCountingSession, 
+    generateBoletaFromSession, 
+    getBoletas
 } from '../lib/actions';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
 
@@ -29,9 +36,11 @@ const initialState = {
     isSubmitting: false,
     currentTab: 'agreements',
     agreements: [] as (ConsignmentAgreement & { product_count?: number })[],
+    showOnlyActiveAgreements: true,
     // Agreement Form
     isAgreementFormOpen: false,
     editingAgreement: null as ConsignmentAgreement | null,
+    agreementToDelete: null as ConsignmentAgreement | null,
     agreementFormData: emptyAgreement,
     agreementProducts: [] as ConsignmentProduct[],
     clientSearchTerm: '',
@@ -153,7 +162,14 @@ export const useConsignments = () => {
             }
             updateState({ isSubmitting: true });
             try {
-                await saveConsignmentAgreement(state.agreementFormData as Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number }, state.agreementProducts);
+                // Ensure required fields are not undefined
+                const payload = {
+                    ...state.agreementFormData,
+                    client_id: state.agreementFormData.client_id!,
+                    client_name: state.agreementFormData.client_name!,
+                    is_active: state.agreementFormData.is_active ?? 1,
+                };
+                await saveConsignmentAgreement(payload, state.agreementProducts);
                 toast({ title: 'Acuerdo Guardado' });
                 updateState({ isAgreementFormOpen: false });
                 await loadAgreements();
@@ -168,7 +184,10 @@ export const useConsignments = () => {
             if (!agreement) return;
             
             const { product_count, ...agreementToSend } = agreement;
-            const updatedAgreement = { ...agreementToSend, is_active: (isActive ? 1 : 0) as 0 | 1 };
+            const updatedAgreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id: number } = { 
+                ...agreementToSend, 
+                is_active: isActive ? 1 : 0
+            };
 
             try {
                 await saveConsignmentAgreement(updatedAgreement, []); // Pass empty products when just toggling status
@@ -178,6 +197,22 @@ export const useConsignments = () => {
                  toast({ title: 'Error al actualizar', variant: 'destructive' });
             }
         },
+        handleDeleteAgreement: async () => {
+            if (!state.agreementToDelete) return;
+            updateState({ isSubmitting: true });
+            try {
+                await deleteConsignmentAgreement(state.agreementToDelete.id);
+                toast({ title: 'Acuerdo Eliminado' });
+                updateState({ agreementToDelete: null });
+                await loadAgreements();
+            } catch (error: any) {
+                toast({ title: 'Error al Eliminar', description: error.message, variant: 'destructive' });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+        setShowOnlyActiveAgreements: (show: boolean) => updateState({ showOnlyActiveAgreements: show }),
+        setAgreementToDelete: (agreement: ConsignmentAgreement | null) => updateState({ agreementToDelete: agreement }),
         setIsAgreementFormOpen: (isOpen: boolean) => updateState({ isAgreementFormOpen: isOpen }),
         setClientSearchTerm: (term: string) => updateState({ clientSearchTerm: term }),
         setIsClientSearchOpen: (isOpen: boolean) => updateState({ isClientSearchOpen: isOpen }),
@@ -263,6 +298,12 @@ export const useConsignments = () => {
 
     const selectors = {
         hasPermission,
+        filteredAgreements: useMemo(() => {
+            if (!state.showOnlyActiveAgreements) {
+                return state.agreements;
+            }
+            return state.agreements.filter(a => a.is_active === 1);
+        }, [state.agreements, state.showOnlyActiveAgreements]),
         customerOptions: useMemo(() => {
             if (debouncedClientSearch.length < 2) return [];
             return customers.filter(c => c.name.toLowerCase().includes(debouncedClientSearch.toLowerCase()) || c.id.includes(debouncedClientSearch))

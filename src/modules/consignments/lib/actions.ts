@@ -7,6 +7,7 @@ import {
     getAgreements as getAgreementsServer,
     saveAgreement as saveAgreementServer,
     getAgreementDetails as getAgreementDetailsServer,
+    deleteAgreement as deleteAgreementServer,
     getActiveCountingSession as getActiveCountingSessionServer,
     startOrContinueCountingSession as startOrContinueCountingSessionServer,
     saveCountLine as saveCountLineServer,
@@ -30,6 +31,11 @@ export async function saveConsignmentAgreement(agreement: Omit<ConsignmentAgreem
 
 export async function getAgreementDetails(agreementId: number): Promise<{ agreement: ConsignmentAgreement, products: ConsignmentProduct[] } | null> {
     return getAgreementDetailsServer(agreementId);
+}
+
+export async function deleteConsignmentAgreement(agreementId: number): Promise<void> {
+    await authorizeAction('consignments:setup');
+    return deleteAgreementServer(agreementId);
 }
 
 export async function getActiveCountingSession(agreementId: number): Promise<(CountingSession & { lines: CountingSessionLine[] }) | null> {

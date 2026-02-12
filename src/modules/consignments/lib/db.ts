@@ -102,9 +102,15 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
     }
 }
 
-export async function getAgreements(): Promise<ConsignmentAgreement[]> {
+export async function getAgreements(): Promise<(ConsignmentAgreement & { product_count?: number})[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const agreements = db.prepare('SELECT * FROM consignment_agreements ORDER BY client_name').all() as ConsignmentAgreement[];
+    const agreements = db.prepare(`
+        SELECT ca.*, COUNT(cp.id) as product_count
+        FROM consignment_agreements ca
+        LEFT JOIN consignment_products cp ON ca.id = cp.agreement_id
+        GROUP BY ca.id
+        ORDER BY ca.client_name
+    `).all() as (ConsignmentAgreement & { product_count?: number })[];
     return JSON.parse(JSON.stringify(agreements));
 }
 
@@ -114,10 +120,10 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
         let agreementId = agreement.id;
         if (agreementId) { // Update
             db.prepare('UPDATE consignment_agreements SET client_id = ?, client_name = ?, erp_warehouse_id = ?, notes = ?, is_active = ? WHERE id = ?')
-              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active ? 1 : 0, agreementId);
+              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreementId);
         } else { // Create
             const info = db.prepare('INSERT INTO consignment_agreements (client_id, client_name, erp_warehouse_id, notes, is_active) VALUES (?, ?, ?, ?, ?)')
-              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active ? 1 : 0);
+              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active);
             agreementId = info.lastInsertRowid as number;
         }
 
@@ -129,6 +135,33 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
         return db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as ConsignmentAgreement;
     });
     return transaction();
+}
+
+export async function deleteAgreement(agreementId: number): Promise<void> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+
+    const transaction = db.transaction(() => {
+        // Check for dependencies first.
+        const boletaCount = db.prepare('SELECT COUNT(*) as count FROM restock_boletas WHERE agreement_id = ?').get(agreementId) as { count: number };
+        if (boletaCount.count > 0) {
+            throw new Error(`No se puede eliminar el acuerdo porque tiene ${boletaCount.count} boleta(s) asociadas. Por favor, elimina las boletas primero.`);
+        }
+
+        // The ON DELETE CASCADE constraint on consignment_products will handle product deletion.
+        const result = db.prepare('DELETE FROM consignment_agreements WHERE id = ?').run(agreementId);
+
+        if (result.changes === 0) {
+            throw new Error('No se encontró el acuerdo a eliminar.');
+        }
+    });
+
+    try {
+        transaction();
+        logInfo(`Consignment agreement with ID ${agreementId} was deleted.`);
+    } catch (error: any) {
+        logError('Failed to delete consignment agreement', { error: error.message, agreementId });
+        throw error;
+    }
 }
 
 export async function getAgreementDetails(agreementId: number): Promise<{ agreement: ConsignmentAgreement, products: ConsignmentProduct[] } | null> {
@@ -186,8 +219,8 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
         const productIds = sessionLines.map(sl => sl.product_id);
         const placeholders = productIds.map(() => '?').join(',');
 
-        const agreementProducts = db.prepare(`SELECT * FROM consignment_products WHERE agreement_id = ? AND product_id IN (${placeholders})`).all(agreement.id, ...productIds) as ConsignmentProduct[];
-        const mainDbProducts = mainDb.prepare(`SELECT * FROM products WHERE id IN (${placeholders})`).all(...productIds) as Product[];
+        const agreementProducts = productIds.length > 0 ? db.prepare(`SELECT * FROM consignment_products WHERE agreement_id = ? AND product_id IN (${placeholders})`).all(agreement.id, ...productIds) as ConsignmentProduct[] : [];
+        const mainDbProducts = productIds.length > 0 ? mainDb.prepare(`SELECT * FROM products WHERE id IN (${placeholders})`).all(...productIds) as Product[] : [];
 
         const consecutive = `${agreement.client_id}-${String(agreement.next_boleta_number).padStart(4, '0')}`;
         const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, created_at) VALUES (?, ?, 'pending', ?, datetime('now'))`)
