@@ -1,9 +1,10 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
 "use server";
 
-import { connectDb, getCompanySettings, getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/db';
+import { connectDb, getAllUsers as getAllUsersFromMain, getCompanySettings } from '@/modules/core/lib/db';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { sendEmail } from '@/modules/core/lib/email-service';
@@ -266,7 +267,21 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
     const newBoleta = transaction();
 
     // Send email notification outside the transaction
-    // ... email sending logic ...
+    try {
+        const agreement = db.prepare('SELECT client_name FROM consignment_agreements WHERE id = ?').get(newBoleta.agreement_id) as { client_name: string };
+        const subject = `Nueva Boleta de Consignación Pendiente: ${newBoleta.consecutive}`;
+        const body = `<p>Se ha generado una nueva boleta de reposición (${newBoleta.consecutive}) para el cliente <strong>${agreement.client_name}</strong>.</p><p>La boleta fue creada por ${userName} y está pendiente de aprobación.</p>`;
+        
+        // This is a placeholder for getting supervisor emails. In a real app, this would be more robust.
+        // For now, it sends to the user who created it as a confirmation.
+        const user = await getAllUsersFromMain().then(users => users.find(u => u.id === userId));
+        if (user?.email) {
+            sendEmail({ to: user.email, subject, html: body });
+        }
+    } catch (e: any) {
+        logError('Failed to send new boleta notification email', { boletaId: newBoleta.id, error: e.message });
+    }
+
 
     return newBoleta;
 }
@@ -324,7 +339,17 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
 
     const updatedBoleta = transaction();
     // Send email notification outside transaction
-    // ...
+    try {
+        const creator = await getAllUsersFromMain().then(users => users.find(u => u.name === updatedBoleta.createdBy));
+        if (creator?.email && status === 'approved') {
+            const subject = `Boleta de Consignación Aprobada: ${updatedBoleta.consecutive}`;
+            const body = `<p>La boleta de reposición <strong>${updatedBoleta.consecutive}</strong> que creaste ha sido aprobada por <strong>${updatedBy}</strong>.</p><p>Ya puedes proceder con la impresión y el despacho.</p>`;
+            sendEmail({ to: creator.email, subject, html: body });
+        }
+    } catch (e: any) {
+        logError('Failed to send boleta status update email', { boletaId, error: e.message });
+    }
+
 
     return updatedBoleta;
 }

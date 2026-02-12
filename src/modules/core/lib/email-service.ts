@@ -71,7 +71,7 @@ function createTransporter(settings: EmailSettings) {
             pass: settings.smtpPass,
         },
         tls: {
-            // Do not fail on invalid certs for local servers
+            // Do not fail on invalid certs for local servers or development environments
             rejectUnauthorized: false
         }
     });
@@ -86,6 +86,11 @@ function createTransporter(settings: EmailSettings) {
  */
 export async function sendEmail({ to, subject, html }: { to: string | string[], subject: string, html: string }) {
     const settings = await getEmailSettings();
+    if (!settings.smtpHost) {
+        console.warn("Attempted to send email, but SMTP settings are not configured. Skipping.");
+        logWarn("Email not sent: SMTP settings are missing.");
+        return; // Silently fail if not configured
+    }
     const transporter = createTransporter(settings as EmailSettings);
 
     await transporter.sendMail({
