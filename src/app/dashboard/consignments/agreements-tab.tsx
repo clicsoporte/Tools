@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { PlusCircle, Edit, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit2, Loader2, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SearchInput } from '@/components/ui/search-input';
 import { ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
@@ -27,9 +27,11 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle>Acuerdos de Consignación</CardTitle>
-                    <Button onClick={() => actions.agreementActions.openAgreementForm()}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Nuevo Acuerdo
-                    </Button>
+                    {selectors.hasPermission('consignments:setup') && (
+                        <Button onClick={() => actions.agreementActions.openAgreementForm()}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Nuevo Acuerdo
+                        </Button>
+                    )}
                 </div>
                 <CardDescription>
                     Define los clientes, bodegas, productos y stocks máximos para cada consignación.
@@ -56,11 +58,12 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
                                     <Switch
                                         checked={agreement.is_active === 1}
                                         onCheckedChange={(checked) => actions.agreementActions.toggleAgreementStatus(agreement.id, checked)}
+                                        disabled={!selectors.hasPermission('consignments:setup')}
                                     />
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => actions.agreementActions.openAgreementForm(agreement)}>
-                                        <Edit className="h-4 w-4" />
+                                    <Button variant="ghost" size="icon" onClick={() => actions.agreementActions.openAgreementForm(agreement)} disabled={!selectors.hasPermission('consignments:setup')}>
+                                        <Edit2 className="h-4 w-4" />
                                     </Button>
                                 </TableCell>
                             </TableRow>
@@ -145,7 +148,7 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Button variant="ghost" size="icon" onClick={() => actions.agreementActions.removeProductFromAgreement(index)}>
-                                                        <Edit className="h-4 w-4 text-destructive" />
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>

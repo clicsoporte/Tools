@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { RestockBoleta } from '@/modules/core/types';
 
 type BoletasTabProps = {
   hook: ReturnType<typeof useConsignments>;
@@ -19,7 +20,7 @@ type BoletasTabProps = {
 export function BoletasTab({ hook }: BoletasTabProps) {
     const { state, actions, selectors } = hook;
     const { boletasState } = state;
-    const { boletas, filters, isLoading } = boletasState;
+    const { boletas, isLoading } = boletasState;
 
     const statusConfig = {
         pending: { label: "Pendiente", color: "bg-yellow-500" },
@@ -50,11 +51,11 @@ export function BoletasTab({ hook }: BoletasTabProps) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {boletas.map(boleta => (
+                        {boletas.map((boleta: RestockBoleta) => (
                             <TableRow key={boleta.id}>
                                 <TableCell className="font-mono text-red-600 font-bold">{boleta.consecutive}</TableCell>
                                 <TableCell>{selectors.getAgreementName(boleta.agreement_id)}</TableCell>
-                                <TableCell>{format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
+                                <TableCell>{format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</TableCell>
                                 <TableCell>
                                     <Badge style={{ backgroundColor: statusConfig[boleta.status as keyof typeof statusConfig]?.color }} className="text-white">
                                         {statusConfig[boleta.status as keyof typeof statusConfig]?.label || 'Desconocido'}
@@ -70,9 +71,11 @@ export function BoletasTab({ hook }: BoletasTabProps) {
                                             <DropdownMenuItem onSelect={() => actions.boletaActions.openBoletaDetails(boleta.id)}>
                                                 <FileText className="mr-2 h-4 w-4" /> Ver/Editar Detalles
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'approved')} disabled={boleta.status !== 'pending'}>
-                                                <Check className="mr-2 h-4 w-4" /> Aprobar
-                                            </DropdownMenuItem>
+                                            {selectors.hasPermission('consignments:approve') &&
+                                                <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'approved')} disabled={boleta.status !== 'pending'}>
+                                                    <Check className="mr-2 h-4 w-4" /> Aprobar
+                                                </DropdownMenuItem>
+                                            }
                                             <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'approved'}>
                                                 <Truck className="mr-2 h-4 w-4" /> Marcar como Enviada
                                             </DropdownMenuItem>

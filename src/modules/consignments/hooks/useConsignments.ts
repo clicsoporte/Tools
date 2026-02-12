@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook for managing the state and logic of the Consignments module main page.
  */
@@ -6,24 +5,272 @@
 
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import React from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuth } from '@/modules/core/hooks/useAuth';
+import { useDebounce } from 'use-debounce';
+import {
+    getConsignmentAgreements, saveConsignmentAgreement, getAgreementDetails,
+    getActiveCountingSession, startOrContinueCountingSession, saveCountLine,
+    abandonCountingSession, generateBoletaFromSession, getBoletas
+} from '../lib/actions';
+import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta } from '@/modules/core/types';
+
+const emptyAgreement: Partial<ConsignmentAgreement> = {
+    client_id: '',
+    client_name: '',
+    erp_warehouse_id: '',
+    notes: '',
+    is_active: 1,
+};
 
 export const useConsignments = () => {
     const { setTitle } = usePageTitle();
-    const { isAuthorized } = useAuthorization(['consignments:access']);
+    const { hasPermission, isAuthorized } = useAuthorization(['consignments:access']);
     const { toast } = useToast();
-    const { user } = useAuth();
-    
-    React.useEffect(() => {
-        setTitle('Gestión de Consignaciones');
-    }, [setTitle]);
+    const { user, customers, products, stockSettings, companyData } = useAuth();
 
-    // Future state and logic will be added here.
+    // --- MAIN STATE ---
+    const [state, setState] = useState({
+        isLoading: true,
+        isSubmitting: false,
+        currentTab: 'agreements',
+        agreements: [] as (ConsignmentAgreement & { product_count?: number })[],
+        // Agreement Form
+        isAgreementFormOpen: false,
+        editingAgreement: null as ConsignmentAgreement | null,
+        agreementFormData: emptyAgreement,
+        agreementProducts: [] as ConsignmentProduct[],
+        clientSearchTerm: '',
+        isClientSearchOpen: false,
+        warehouseSearchTerm: '',
+        isWarehouseSearchOpen: false,
+        productSearchTerm: '',
+        isProductSearchOpen: false,
+        // Inventory Count
+        countingState: {
+            isLoading: false,
+            selectedAgreementId: null as string | null,
+            session: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
+            productsToCount: [] as ConsignmentProduct[],
+        },
+        // Boletas
+        boletasState: {
+            isLoading: false,
+            boletas: [] as RestockBoleta[],
+            filters: { status: ['pending', 'approved'] },
+        }
+    });
+
+    const updateState = useCallback((newState: Partial<typeof state>) => {
+        setState(prevState => ({ ...prevState, ...newState }));
+    }, []);
+
+    // --- DATA FETCHING ---
+    const loadAgreements = useCallback(async () => {
+        updateState({ isLoading: true });
+        try {
+            const agreementsData = await getConsignmentAgreements();
+            updateState({ agreements: agreementsData });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudieron cargar los acuerdos.", variant: "destructive" });
+        } finally {
+            updateState({ isLoading: false });
+        }
+    }, [toast, updateState]);
+    
+    useEffect(() => {
+        setTitle('Gestión de Consignaciones');
+        if (isAuthorized) {
+            loadAgreements();
+        }
+    }, [setTitle, isAuthorized, loadAgreements]);
+
+    // --- AGREEMENTS LOGIC ---
+    const agreementActions = {
+        openAgreementForm: async (agreement: ConsignmentAgreement | null = null) => {
+            if (agreement) {
+                const details = await getAgreementDetails(agreement.id);
+                if (details) {
+                    updateState({
+                        editingAgreement: agreement,
+                        agreementFormData: details.agreement,
+                        agreementProducts: details.products,
+                        clientSearchTerm: details.agreement.client_name,
+                        warehouseSearchTerm: details.agreement.erp_warehouse_id || '',
+                        isAgreementFormOpen: true,
+                    });
+                }
+            } else {
+                updateState({
+                    editingAgreement: null,
+                    agreementFormData: emptyAgreement,
+                    agreementProducts: [],
+                    clientSearchTerm: '',
+                    warehouseSearchTerm: '',
+                    isAgreementFormOpen: true,
+                });
+            }
+        },
+        handleFieldChange: (field: keyof ConsignmentAgreement, value: any) => {
+            const newFormData = { ...state.agreementFormData, [field]: value };
+            if (field === 'client_id') {
+                const client = customers.find(c => c.id === value);
+                if (client) {
+                    newFormData.client_name = client.name;
+                    agreementActions.setClientSearchTerm(client.name);
+                }
+            }
+            if (field === 'erp_warehouse_id') {
+                 agreementActions.setWarehouseSearchTerm(value);
+            }
+            updateState({ agreementFormData: newFormData });
+        },
+        addProductToAgreement: (productId: string) => {
+            const product = products.find(p => p.id === productId);
+            if (product && !state.agreementProducts.some(p => p.product_id === productId)) {
+                const newProduct: ConsignmentProduct = { id: 0, agreement_id: 0, product_id: productId, max_stock: 0, price: 0 };
+                updateState({ agreementProducts: [...state.agreementProducts, newProduct], productSearchTerm: '', isProductSearchOpen: false });
+            }
+        },
+        removeProductFromAgreement: (index: number) => {
+            updateState({ agreementProducts: state.agreementProducts.filter((_, i) => i !== index) });
+        },
+        updateProductField: (index: number, field: keyof ConsignmentProduct, value: any) => {
+            const updatedProducts = [...state.agreementProducts];
+            updatedProducts[index] = { ...updatedProducts[index], [field]: value };
+            updateState({ agreementProducts: updatedProducts });
+        },
+        handleSaveAgreement: async () => {
+            if (!state.agreementFormData.client_id) {
+                toast({ title: 'Cliente requerido', variant: 'destructive' });
+                return;
+            }
+            updateState({ isSubmitting: true });
+            try {
+                await saveConsignmentAgreement(state.agreementFormData, state.agreementProducts);
+                toast({ title: 'Acuerdo Guardado' });
+                updateState({ isAgreementFormOpen: false });
+                await loadAgreements();
+            } catch (error) {
+                toast({ title: 'Error al Guardar', variant: 'destructive' });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+        toggleAgreementStatus: async (id: number, isActive: boolean) => {
+            const agreement = state.agreements.find(a => a.id === id);
+            if (!agreement) return;
+            const updatedAgreement = { ...agreement, is_active: isActive ? 1 : 0 };
+            try {
+                await saveConsignmentAgreement(updatedAgreement, []); // Pass empty products when just toggling status
+                toast({ title: `Acuerdo ${isActive ? 'habilitado' : 'deshabilitado'}` });
+                await loadAgreements();
+            } catch (error) {
+                 toast({ title: 'Error al actualizar', variant: 'destructive' });
+            }
+        },
+        setIsAgreementFormOpen: (isOpen: boolean) => updateState({ isAgreementFormOpen: isOpen }),
+        setClientSearchTerm: (term: string) => updateState({ clientSearchTerm: term }),
+        setIsClientSearchOpen: (isOpen: boolean) => updateState({ isClientSearchOpen: isOpen }),
+        setWarehouseSearchTerm: (term: string) => updateState({ warehouseSearchTerm: term }),
+        setIsWarehouseSearchOpen: (isOpen: boolean) => updateState({ isWarehouseSearchOpen: isOpen }),
+        setProductSearchTerm: (term: string) => updateState({ productSearchTerm: term }),
+        setIsProductSearchOpen: (isOpen: boolean) => updateState({ isProductSearchOpen: isOpen }),
+    };
+
+    // --- COUNTING LOGIC ---
+    const countActions = {
+        handleSelectAgreement: (id: string) => updateState({ countingState: { ...state.countingState, selectedAgreementId: id } }),
+        handleStartSession: async () => {
+            if (!user || !state.countingState.selectedAgreementId) return;
+            updateState({ countingState: { ...state.countingState, isLoading: true } });
+            try {
+                const session = await startOrContinueCountingSession(Number(state.countingState.selectedAgreementId), user.id);
+                const details = await getAgreementDetails(Number(state.countingState.selectedAgreementId));
+                updateState({ countingState: { ...state.countingState, session, productsToCount: details?.products || [] } });
+            } catch (error) {
+                toast({ title: 'Error al iniciar sesión', variant: 'destructive' });
+            } finally {
+                updateState({ countingState: { ...state.countingState, isLoading: false } });
+            }
+        },
+        handleSaveLine: (productId: string, quantity: number) => {
+            if (!state.countingState.session) return;
+            saveCountLine(state.countingState.session.id, productId, quantity);
+            // No toast here to avoid being annoying
+        },
+        handleAbandonSession: async () => {
+            if (!user || !state.countingState.session) return;
+            await abandonCountingSession(state.countingState.session.id, user.id);
+            updateState({ countingState: { ...initialState.countingState, selectedAgreementId: state.countingState.selectedAgreementId } });
+        },
+        handleGenerateBoleta: async () => {
+             if (!user || !state.countingState.session) return;
+             updateState({ countingState: { ...state.countingState, isLoading: true } });
+             try {
+                const newBoleta = await generateBoletaFromSession(state.countingState.session.id, user.id, user.name);
+                toast({ title: 'Boleta Generada', description: `Se creó la boleta ${newBoleta.consecutive}` });
+                updateState({ currentTab: 'boletas', countingState: initialState.countingState });
+                boletaActions.loadBoletas();
+             } catch (error) {
+                 toast({ title: 'Error al generar boleta', variant: 'destructive'});
+             } finally {
+                updateState({ countingState: { ...state.countingState, isLoading: false } });
+             }
+        }
+    };
+    
+    // --- BOLETAS LOGIC ---
+     const boletaActions = {
+        loadBoletas: async () => {
+            updateState({ boletasState: { ...state.boletasState, isLoading: true } });
+            try {
+                const boletasData = await getBoletas(state.boletasState.filters);
+                updateState({ boletasState: { ...state.boletasState, boletas: boletasData } });
+            } catch (error) {
+                 toast({ title: 'Error', description: 'No se pudieron cargar las boletas.', variant: 'destructive'});
+            } finally {
+                 updateState({ boletasState: { ...state.boletasState, isLoading: false } });
+            }
+        },
+        openBoletaDetails: (boletaId: number) => { /* Logic to open detail modal */ },
+        openStatusModal: (boleta: RestockBoleta, status: string) => { /* Logic to open status change modal */ },
+    };
+
+    useEffect(() => {
+        if (state.currentTab === 'boletas') {
+            boletaActions.loadBoletas();
+        }
+    }, [state.currentTab]); // Intentionally omitting boletaActions
+    
+    // --- SELECTORS ---
+    const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);
+
+    const selectors = {
+        hasPermission,
+        customerOptions: useMemo(() => customers.map(c => ({ value: c.id, label: `[${c.id}] ${c.name}` })), [customers]),
+        warehouseOptions: useMemo(() => stockSettings?.warehouses.map(w => ({ value: w.id, label: `${w.name} (${w.id})` })) || [], [stockSettings]),
+        productOptions: useMemo(() => {
+            if (debouncedProductSearch.length < 2) return [];
+            return products
+                .filter(p => p.id.toLowerCase().includes(debouncedProductSearch.toLowerCase()) || p.description.toLowerCase().includes(debouncedProductSearch.toLowerCase()))
+                .map(p => ({ value: p.id, label: `[${p.id}] ${p.description}` }));
+        }, [products, debouncedProductSearch]),
+        getProductName: (id: string) => products.find(p => p.id === id)?.description || 'Desconocido',
+        getAgreementName: (id: number) => state.agreements.find(a => a.id === id)?.client_name || 'Desconocido',
+        getInitialCount: (productId: string) => state.countingState.session?.lines.find(l => l.product_id === productId)?.counted_quantity,
+    };
     
     return {
+        state,
+        actions: {
+            setCurrentTab: (tab: 'agreements' | 'inventory_count' | 'boletas') => updateState({ currentTab: tab }),
+            agreementActions,
+            countActions,
+            boletaActions,
+        },
+        selectors,
         isAuthorized,
-        // ...other state and actions
     };
 };

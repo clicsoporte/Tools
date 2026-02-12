@@ -15,7 +15,8 @@ import { BoletasTab } from './boletas-tab';
 
 export default function ConsignmentsPage() {
     const { isAuthorized } = useAuthorization(['consignments:access']);
-    const { state, actions, selectors } = useConsignments();
+    const hook = useConsignments();
+    const { state } = hook;
     const { isLoading, currentTab } = state;
 
     if (isLoading) {
@@ -41,20 +42,20 @@ export default function ConsignmentsPage() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Tabs value={currentTab} onValueChange={(value) => actions.setCurrentTab(value as any)} className="w-full">
+            <Tabs value={currentTab} onValueChange={(value) => hook.actions.setCurrentTab(value as any)} className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="agreements">1. Acuerdos de Consignación</TabsTrigger>
                     <TabsTrigger value="inventory_count">2. Toma de Inventario</TabsTrigger>
                     <TabsTrigger value="boletas">3. Gestión de Boletas</TabsTrigger>
                 </TabsList>
                 <TabsContent value="agreements">
-                    <AgreementsTab hook={useConsignments()} />
+                    <AgreementsTab hook={hook} />
                 </TabsContent>
                 <TabsContent value="inventory_count">
-                    <InventoryCountTab hook={useConsignments()} />
+                    <InventoryCountTab hook={hook} />
                 </TabsContent>
                 <TabsContent value="boletas">
-                    <BoletasTab hook={useConsignments()} />
+                    <BoletasTab hook={hook} />
                 </TabsContent>
             </Tabs>
         </main>

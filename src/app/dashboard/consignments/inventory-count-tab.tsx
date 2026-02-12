@@ -8,9 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Loader2, Play, CheckCircle } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
-import { ConsignmentAgreement } from '@/modules/core/types';
+import { ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
 
 type InventoryCountTabProps = {
   hook: ReturnType<typeof useConsignments>;
@@ -54,7 +54,7 @@ export function InventoryCountTab({ hook }: InventoryCountTabProps) {
                         <div className="max-h-[60vh] overflow-y-auto border rounded-md">
                             <Table>
                                 <TableBody>
-                                    {countingState.productsToCount.map((p, index) => (
+                                    {countingState.productsToCount.map((p: ConsignmentProduct) => (
                                         <TableRow key={p.product_id}>
                                             <TableCell className="font-medium">
                                                 <p>{selectors.getProductName(p.product_id)}</p>
