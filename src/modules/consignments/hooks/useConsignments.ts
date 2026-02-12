@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the state and logic of the Consignments module main page.
  */
@@ -139,8 +140,7 @@ export const useConsignments = () => {
                 boletasState: { ...prevState.boletasState, isLoading: false }
              }));
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.boletasState.filters, toast]);
+    }, [state.boletasState.filters, toast, updateState]);
     
     useEffect(() => {
         setTitle('Gestión de Consignaciones');
@@ -272,7 +272,7 @@ export const useConsignments = () => {
             if (!originalAgreement) return;
         
             const updatedAgreements = originalAgreements.map(a =>
-              a.id === id ? { ...a, is_active: (isActive ? 1 : 0) as 0 | 1 } : a
+              a.id === id ? { ...a, is_active: (isActive ? 1 : 0) } : a
             );
             updateState(prevState => ({ ...prevState, agreements: updatedAgreements }));
         
@@ -280,7 +280,7 @@ export const useConsignments = () => {
             
             const updatedAgreement = {
                 ...agreementToSend,
-                is_active: (isActive ? 1 : 0) as 0 | 1,
+                is_active: (isActive ? 1 : 0),
             };
         
             try {
@@ -392,8 +392,8 @@ export const useConsignments = () => {
     };
     
     // --- BOLETAS LOGIC ---
-    const boletaActions = {
-        loadBoletas: loadBoletas,
+    const boletaActions = useMemo(() => ({
+        loadBoletas,
         openBoletaDetails: async (boletaId: number) => {
             updateState(prev => ({...prev, boletasState: { ...prev.boletasState, isDetailsModalOpen: true, isDetailsLoading: true }}));
             try {
@@ -427,6 +427,14 @@ export const useConsignments = () => {
         },
         submitStatusUpdate: async () => {
             if (!state.boletasState.boletaToUpdate || !user) return;
+            if (state.boletasState.statusUpdatePayload.status === 'invoiced' && !state.boletasState.statusUpdatePayload.erpInvoiceNumber?.trim()) {
+                toast({
+                    title: "Número de Factura Requerido",
+                    description: "Debe ingresar el número de factura del ERP para marcar la boleta como facturada.",
+                    variant: "destructive",
+                });
+                return;
+            }
             updateState(prev => ({ ...prev, isSubmitting: true }));
             try {
                 const payload = {
@@ -437,7 +445,6 @@ export const useConsignments = () => {
                 const updatedBoleta = await updateBoletaStatus(payload);
                 toast({ title: 'Estado de Boleta Actualizado' });
                 
-                // Optimistic UI update
                 const updatedBoletas = state.boletasState.boletas.map(b => 
                     b.id === updatedBoleta.id ? updatedBoleta : b
                 );
@@ -479,7 +486,15 @@ export const useConsignments = () => {
                 updateState(prev => ({ ...prev, isSubmitting: false }));
             }
         },
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [loadBoletas, state.boletasState, user, toast, updateState]);
+    
+    useEffect(() => {
+        if (state.currentTab === 'boletas' && !state.boletasState.isLoading) {
+            boletaActions.loadBoletas();
+        }
+    }, [state.currentTab, state.boletasState.isLoading, boletaActions]);
+
 
     // --- SELECTORS ---
     const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);

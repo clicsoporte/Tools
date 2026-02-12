@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -5,7 +6,7 @@
 
 import { connectDb, getCompanySettings } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
-import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { sendEmail } from '@/modules/core/lib/email-service';
 import { getPlannerSettings } from '@/modules/planner/lib/db';
@@ -322,22 +323,33 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
     const { boletaId, status, notes, updatedBy, erpInvoiceNumber } = payload;
     
     const transaction = db.transaction(() => {
-        let updateQuery = 'UPDATE restock_boletas SET status = ?';
-        const queryParams: any[] = [status];
-
-        if (status === 'approved') {
-            updateQuery += ', approved_by = ?, approved_at = datetime(\'now\')';
-            queryParams.push(updatedBy);
-        }
-        if (status === 'invoiced' && erpInvoiceNumber) {
-            updateQuery += ', erp_invoice_number = ?';
-            queryParams.push(erpInvoiceNumber);
+        const currentBoleta = db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta | undefined;
+        if (!currentBoleta) {
+            throw new Error("Boleta no encontrada.");
         }
         
-        updateQuery += ' WHERE id = ?';
-        queryParams.push(boletaId);
+        if (status === 'invoiced' && !erpInvoiceNumber?.trim()) {
+            throw new Error("El número de factura del ERP es requerido para marcar como facturada.");
+        }
 
-        db.prepare(updateQuery).run(...queryParams);
+        let setClauses = ['status = @status'];
+        const params: any = { status, boletaId };
+
+        if (status === 'approved') {
+            setClauses.push('approved_by = @approvedBy', 'approved_at = datetime(\'now\')');
+            params.approvedBy = updatedBy;
+        }
+        
+        if (status === 'invoiced') {
+            setClauses.push('erp_invoice_number = @erpInvoiceNumber');
+            params.erpInvoiceNumber = erpInvoiceNumber;
+        } else if (currentBoleta.status === 'invoiced' && status === 'sent') {
+            // This is a revert action. Clear the invoice number.
+            setClauses.push('erp_invoice_number = NULL');
+        }
+        
+        const updateQuery = `UPDATE restock_boletas SET ${setClauses.join(', ')} WHERE id = @boletaId`;
+        db.prepare(updateQuery).run(params);
         
         db.prepare('INSERT INTO boleta_history (boleta_id, timestamp, status, updatedBy, notes) VALUES (?, datetime(\'now\'), ?, ?, ?)')
           .run(boletaId, status, updatedBy, notes);
@@ -431,7 +443,7 @@ export async function getActiveConsignmentSessions(): Promise<(CountingSession &
     
     const userIds = sessions.map(s => s.user_id);
     const users = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as { id: number; name: string }[];
-    const userMap = new Map(users.map((u) => [u.id, u.name]));
+    const userMap = new Map(users.map((u: {id: number, name: string}) => [u.id, u.name]));
 
     const results = sessions.map(s => ({
         ...s,

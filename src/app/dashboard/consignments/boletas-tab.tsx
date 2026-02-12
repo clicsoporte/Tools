@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2 } from 'lucide-react';
+import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { RestockBoleta } from '@/modules/core/types';
+import { cn } from '@/lib/utils';
 
 type BoletasTabProps = {
   hook: ReturnType<typeof useConsignments>;
@@ -57,7 +58,7 @@ export function BoletasTab({ hook }: BoletasTabProps) {
                                 <TableCell>{selectors.getAgreementName(boleta.agreement_id)}</TableCell>
                                 <TableCell>{format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</TableCell>
                                 <TableCell>
-                                    <Badge style={{ backgroundColor: statusConfig[boleta.status as keyof typeof statusConfig]?.color }} className="text-white">
+                                    <Badge className={cn(statusConfig[boleta.status as keyof typeof statusConfig]?.color, "text-white")}>
                                         {statusConfig[boleta.status as keyof typeof statusConfig]?.label || 'Desconocido'}
                                     </Badge>
                                 </TableCell>
@@ -83,6 +84,9 @@ export function BoletasTab({ hook }: BoletasTabProps) {
                                                 <FileCheck2 className="mr-2 h-4 w-4" /> Marcar como Facturada
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
+                                            <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'invoiced'}>
+                                                <Undo2 className="mr-2 h-4 w-4 text-orange-600" /> Revertir a Enviada
+                                            </DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'canceled')} className="text-red-500" disabled={boleta.status === 'canceled' || boleta.status === 'invoiced'}>
                                                 <Ban className="mr-2 h-4 w-4" /> Cancelar Boleta
                                             </DropdownMenuItem>

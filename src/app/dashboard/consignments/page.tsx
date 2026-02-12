@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Main page for the new Consignments module.
  */
@@ -61,7 +62,7 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignments>
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                    <Button onClick={actions.boletaActions.submitStatusUpdate} disabled={isSubmitting}>
+                    <Button onClick={actions.boletaActions.submitStatusUpdate} disabled={isSubmitting || (statusUpdatePayload.status === 'invoiced' && !statusUpdatePayload.erpInvoiceNumber?.trim())}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Confirmar
                     </Button>
