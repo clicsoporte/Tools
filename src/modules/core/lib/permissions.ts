@@ -13,7 +13,7 @@ export const allAdminPermissions = [
     "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request", "planner:status:unapprove-request:approve",
     "planner:priority:update", "planner:machine:assign", "planner:schedule",
     "cost-assistant:access", "cost-assistant:drafts:read-write",
-    "consignments:access", "consignments:setup", "consignments:count", "consignments:approve", "consignments:reports:read",
+    "consignments:access", "consignments:setup", "consignments:count", "consignments:approve", "consignments:reports:read", "consignments:locks:manage",
     "warehouse:access", "warehouse:search:full", "warehouse:search:simple", 
     "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create",
     "warehouse:item-assignment:create", "warehouse:item-assignment:delete",
@@ -43,7 +43,7 @@ export const permissionGroups = {
     "Planificador de Producción (Edición y Acciones)": ["planner:edit:pending", "planner:edit:approved", "planner:reopen", "planner:receive", "planner:status:review", "planner:status:approve", "planner:status:in-progress", "planner:status:on-hold", 
     "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request", "planner:status:unapprove-request:approve", "planner:priority:update", "planner:machine:assign", "planner:schedule"],
     "Asistente de Costos": ["cost-assistant:access", "cost-assistant:drafts:read-write"],
-    "Gestión de Consignaciones (Nuevo)": ["consignments:access", "consignments:setup", "consignments:count", "consignments:approve", "consignments:reports:read"],
+    "Gestión de Consignaciones (Nuevo)": ["consignments:access", "consignments:setup", "consignments:count", "consignments:approve", "consignments:reports:read", "consignments:locks:manage"],
     "Centro de Operaciones y Trazabilidad (Nuevo)": ["operations:access", "operations:create", "operations:read:all", "operations:approve", "operations:sign"],
     "Herramientas de TI (Nuevo)": ["it-tools:access", "it-tools:notes:read", "it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
     "Gestión de Almacenes": [
@@ -80,7 +80,7 @@ export const permissionTranslations: { [key: string]: string } = {
     "planner:edit:pending": "Plan.: Editar (Pendientes)", "planner:edit:approved": "Plan.: Editar (Aprobadas)", "planner:reopen": "Plan.: Reabrir Órdenes", "planner:receive": "Plan.: Recibir en Bodega", "planner:status:review": "Plan.: Enviar a Revisión", "planner:status:approve": "Plan.: Cambiar a Aprobada", "planner:status:in-progress": "Plan.: Cambiar a En Progreso", "planner:status:on-hold": "Plan.: Cambiar a En Espera", 
     "planner:status:completed": "Plan.: Cambiar a Completada", "planner:status:cancel": "Plan.: Cancelar (Pendientes)", "planner:status:cancel-approved": "Plan.: Cancelar (Aprobadas)", "planner:priority:update": "Plan.: Cambiar Prioridad", "planner:machine:assign": "Plan.: Asignar Máquina", "planner:status:unapprove-request": "Plan.: Solicitar Desaprobación", "planner:status:unapprove-request:approve": "Plan.: Aprobar Desaprobación", "planner:schedule": "Plan.: Programar Fechas",
     "cost-assistant:access": "Asist. Costos: Acceso", "cost-assistant:drafts:read-write": "Asist. Costos: Guardar Borradores",
-    "consignments:access": "Consignación: Acceso General", "consignments:setup": "Consignación: Configurar Acuerdos", "consignments:count": "Consignación: Realizar Conteos", "consignments:approve": "Consignación: Aprobar Boletas", "consignments:reports:read": "Consignación: Ver Reportes",
+    "consignments:access": "Consignación: Acceso General", "consignments:setup": "Consignación: Configurar Acuerdos", "consignments:count": "Consignación: Realizar Conteos", "consignments:approve": "Consignación: Aprobar Boletas", "consignments:reports:read": "Consignación: Ver Reportes", "consignments:locks:manage": "Consignación: Gestionar Bloqueos",
     "operations:access": "Operaciones: Acceso General", "operations:create": "Operaciones: Crear Documentos", "operations:read:all": "Operaciones: Ver Todos", "operations:approve": "Operaciones: Aprobar Documentos", "operations:sign": "Operaciones: Firmar Entregas/Recibos",
     "it-tools:access": "TI: Acceso General", "it-tools:notes:read": "TI: Ver Notas", "it-tools:notes:create": "TI: Crear Notas", "it-tools:notes:update": "TI: Editar Notas", "it-tools:notes:delete": "TI: Eliminar Notas",
     "warehouse:access": "Almacén: Acceso General", "warehouse:search:full": "Almacén: Consulta Completa", "warehouse:search:simple": "Almacén: Búsqueda Rápida", 
@@ -107,7 +107,7 @@ export const permissionTree: Record<string, string[]> = {
     "warehouse:access": ["warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", "warehouse:correction:execute", "warehouse:labels:generate"],
     "requests:read": ["requests:read:all", "requests:create"],
     "planner:read": ["planner:read:all", "planner:create"],
-    "consignments:access": ["consignments:setup", "consignments:count", "consignments:approve", "consignments:reports:read"],
+    "consignments:access": ["consignments:setup", "consignments:count", "consignments:approve", "consignments:reports:read", "consignments:locks:manage"],
     "operations:access": ["operations:create", "operations:read:all", "operations:approve", "operations:sign"],
     "it-tools:access": ["it-tools:notes:read"],
     "quotes:create": ["quotes:generate", "quotes:drafts:read"],
@@ -151,5 +151,3 @@ export const permissionTree: Record<string, string[]> = {
     "warehouse:item-assignment:create": ["warehouse:item-assignment:delete"],
     "warehouse:units:create": ["warehouse:units:delete"],
 };
-
-    

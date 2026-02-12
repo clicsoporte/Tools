@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook for managing the state and logic of the Consignments module main page.
  */
@@ -219,7 +218,7 @@ export const useConsignments = () => {
             if (!originalAgreement) return;
         
             const updatedAgreements = state.agreements.map(a =>
-              a.id === id ? { ...a, is_active: isActive ? 1 : 0 } : a
+              a.id === id ? { ...a, is_active: (isActive ? 1 : 0) as 0 | 1 } : a
             );
             updateState({ agreements: updatedAgreements });
         
@@ -234,7 +233,7 @@ export const useConsignments = () => {
                 toast({ title: `Acuerdo ${isActive ? 'habilitado' : 'deshabilitado'}` });
             } catch (error) {
                 toast({ title: 'Error al actualizar', variant: 'destructive' });
-                updateState({ agreements: state.agreements });
+                updateState({ agreements: state.agreements }); // Revert on error
             }
         },
         handleDeleteAgreement: async () => {

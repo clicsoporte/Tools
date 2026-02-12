@@ -78,6 +78,14 @@ export const mainTools: Tool[] = [
     bgColor: "bg-lime-500",
   },
   {
+    id: "consignments:locks:manage",
+    name: "Bloqueos de Consignación",
+    description: "Ver y liberar sesiones de conteo de consignación activas.",
+    href: "/dashboard/consignments/locks",
+    icon: Lock,
+    bgColor: "bg-red-500",
+  },
+  {
     id: 'cost-assistant:access',
     name: 'Asistente de Costos',
     description: 'Calcular costos y precios a partir de facturas XML.',

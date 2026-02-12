@@ -4,7 +4,7 @@
 import nodemailer from 'nodemailer';
 import { connectDb } from './db';
 import type { EmailSettings } from '../types';
-import { logError } from './logger';
+import { logError, logWarn } from './logger';
 
 /**
  * Retrieves email settings from the database.

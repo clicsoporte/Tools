@@ -17,6 +17,9 @@ import {
     getBoletaDetails as getBoletaDetailsServer,
     updateBoleta as updateBoletaServer,
     getActiveCountingSessionForUser as getActiveCountingSessionForUserServer,
+    getBoletasByDateRange as getBoletasByDateRangeServer,
+    getActiveConsignmentSessions as getActiveConsignmentSessionsServer,
+    forceReleaseConsignmentSession as forceReleaseConsignmentSessionServer,
 } from './db';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
@@ -74,4 +77,18 @@ export async function getBoletaDetails(boletaId: number): Promise<{ boleta: Rest
 
 export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], updatedBy: string): Promise<RestockBoleta> {
     return updateBoletaServer(boleta, lines, updatedBy);
+}
+
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
+    return getBoletasByDateRangeServer(agreementId, dateRange);
+}
+
+export async function getActiveConsignmentSessions(): Promise<(CountingSession & { agreement_name: string; user_name: string; })[]> {
+    await authorizeAction('consignments:locks:manage');
+    return getActiveConsignmentSessionsServer();
+}
+
+export async function forceReleaseConsignmentSession(sessionId: number, updatedBy: string): Promise<void> {
+    await authorizeAction('consignments:locks:manage');
+    return forceReleaseConsignmentSessionServer(sessionId, updatedBy);
 }
