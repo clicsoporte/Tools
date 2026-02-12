@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook for managing the state and logic of the Consignments module main page.
  */
@@ -84,8 +83,8 @@ export const useConsignments = () => {
     // --- MAIN STATE ---
     const [state, setState] = useState(initialState);
 
-    const updateState = useCallback((newState: Partial<typeof state>) => {
-        setState(prevState => ({ ...prevState, ...newState }));
+    const updateState = useCallback((updater: React.SetStateAction<typeof initialState>) => {
+        setState(updater);
     }, []);
 
     const [debouncedClientSearch] = useDebounce(state.clientSearchTerm, companyData?.searchDebounceTime ?? 500);
@@ -95,17 +94,17 @@ export const useConsignments = () => {
         // This function is now just for agreements, session loading is separate.
         try {
             const agreementsData = await getConsignmentAgreements();
-            updateState({ agreements: agreementsData });
+            setState(prevState => ({ ...prevState, agreements: agreementsData }));
         } catch (error) {
             toast({ title: "Error", description: "No se pudieron cargar los acuerdos.", variant: "destructive" });
         }
-    }, [toast, updateState]);
+    }, [toast]);
     
     useEffect(() => {
         setTitle('Gestión de Consignaciones');
         if (isAuthorized && user) {
             const loadData = async () => {
-                updateState({ isLoading: true });
+                setState(prevState => ({ ...prevState, isLoading: true }));
                 try {
                     const [agreementsData, boletasData, activeSession] = await Promise.all([
                         getConsignmentAgreements(),
@@ -125,18 +124,18 @@ export const useConsignments = () => {
                             step: 'resume',
                         };
                     }
-                    updateState(newState);
+                    setState(prevState => ({...prevState, ...newState}));
 
                 } catch (error) {
                     toast({ title: "Error", description: "No se pudieron cargar los datos iniciales.", variant: "destructive" });
-                    updateState({ isLoading: false });
+                    setState(prevState => ({...prevState, isLoading: false }));
                 }
             };
             loadData();
         } else if (isAuthorized) { // Handle case where auth is ready but user is null
-            updateState({ isLoading: false });
+            setState(prevState => ({...prevState, isLoading: false }));
         }
-    }, [isAuthorized, user, toast, updateState, setTitle]);
+    }, [isAuthorized, user, toast, setTitle, state.boletasState.filters]);
 
     // --- AGREEMENTS LOGIC ---
     const agreementActions = {
@@ -144,63 +143,65 @@ export const useConsignments = () => {
             if (agreement) {
                 const details = await getAgreementDetails(agreement.id);
                 if (details) {
-                    updateState({
+                    updateState(prevState => ({
+                        ...prevState,
                         editingAgreement: agreement,
                         agreementFormData: details.agreement,
                         agreementProducts: details.products,
                         clientSearchTerm: details.agreement.client_name,
                         warehouseSearchTerm: details.agreement.erp_warehouse_id || '',
                         isAgreementFormOpen: true,
-                    });
+                    }));
                 }
             } else {
-                updateState({
+                updateState(prevState => ({
+                    ...prevState,
                     editingAgreement: null,
                     agreementFormData: emptyAgreement,
                     agreementProducts: [],
                     clientSearchTerm: '',
                     warehouseSearchTerm: '',
                     isAgreementFormOpen: true,
-                });
+                }));
             }
         },
         handleFieldChange: (field: keyof ConsignmentAgreement, value: any) => {
-            const newFormData = { ...state.agreementFormData, [field]: value } as Partial<ConsignmentAgreement>;
+            let newFormData = { ...state.agreementFormData, [field]: value } as Partial<ConsignmentAgreement>;
             if (field === 'client_id') {
                 const client = customers.find(c => c.id === value);
                 if (client) {
-                    newFormData.client_name = client.name;
+                    newFormData = { ...newFormData, client_name: client.name };
                     agreementActions.setClientSearchTerm(client.name);
                 }
             }
             if (field === 'erp_warehouse_id') {
                  agreementActions.setWarehouseSearchTerm(value);
             }
-            updateState({ agreementFormData: newFormData });
+            updateState(prevState => ({...prevState, agreementFormData: newFormData}));
         },
         addProductToAgreement: (productId: string) => {
             const product = products.find(p => p.id === productId);
             if (product && !state.agreementProducts.some(p => p.product_id === productId)) {
                 const newProduct: ConsignmentProduct = { id: 0, agreement_id: 0, product_id: productId, max_stock: 0, price: 0 };
-                updateState({ agreementProducts: [...state.agreementProducts, newProduct], productSearchTerm: '', isProductSearchOpen: false });
+                updateState(prevState => ({...prevState, agreementProducts: [...prevState.agreementProducts, newProduct], productSearchTerm: '', isProductSearchOpen: false }));
             }
         },
         removeProductFromAgreement: (index: number) => {
-            updateState({ agreementProducts: state.agreementProducts.filter((_, i) => i !== index) });
+            updateState(prevState => ({...prevState, agreementProducts: prevState.agreementProducts.filter((_, i) => i !== index) }));
         },
         updateProductField: (index: number, field: keyof ConsignmentProduct, value: any) => {
             const updatedProducts = [...state.agreementProducts];
             (updatedProducts[index] as any)[field] = value;
-            updateState({ agreementProducts: updatedProducts });
+            updateState(prevState => ({...prevState, agreementProducts: updatedProducts }));
         },
         handleSaveAgreement: async () => {
             if (!state.agreementFormData.client_id || !state.agreementFormData.client_name) {
                 toast({ title: 'Cliente requerido', variant: 'destructive' });
                 return;
             }
-            updateState({ isSubmitting: true });
+            updateState(prevState => ({...prevState, isSubmitting: true }));
             try {
-                 const payload: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number } = {
+                 const payload = {
                     client_id: state.agreementFormData.client_id,
                     client_name: state.agreementFormData.client_name,
                     erp_warehouse_id: state.agreementFormData.erp_warehouse_id,
@@ -211,28 +212,29 @@ export const useConsignments = () => {
 
                 await saveConsignmentAgreement(payload, state.agreementProducts);
                 toast({ title: 'Acuerdo Guardado' });
-                updateState({ isAgreementFormOpen: false });
+                updateState(prevState => ({...prevState, isAgreementFormOpen: false }));
                 await loadAgreements();
             } catch (error: any) {
                 toast({ title: 'Error al Guardar', description: error.message, variant: 'destructive' });
             } finally {
-                updateState({ isSubmitting: false });
+                updateState(prevState => ({...prevState, isSubmitting: false }));
             }
         },
         toggleAgreementStatus: async (id: number, isActive: boolean) => {
-            const originalAgreement = state.agreements.find(a => a.id === id);
+            const originalAgreements = state.agreements;
+            const originalAgreement = originalAgreements.find(a => a.id === id);
             if (!originalAgreement) return;
         
-            const updatedAgreements = state.agreements.map(a =>
-              a.id === id ? { ...a, is_active: (isActive ? 1 : 0) } : a
+            const updatedAgreements = originalAgreements.map(a =>
+              a.id === id ? { ...a, is_active: (isActive ? 1 : 0) as 0 | 1 } : a
             );
-            updateState({ agreements: updatedAgreements });
+            updateState(prevState => ({ ...prevState, agreements: updatedAgreements }));
         
             const { product_count, ...agreementToSend } = originalAgreement;
             
-            const updatedAgreement: Omit<ConsignmentAgreement, 'next_boleta_number'> & { id: number } = {
+            const updatedAgreement = {
                 ...agreementToSend,
-                is_active: (isActive ? 1 : 0),
+                is_active: (isActive ? 1 : 0) as 0 | 1,
             };
         
             try {
@@ -243,55 +245,56 @@ export const useConsignments = () => {
             } catch (error: any) {
                 toast({ title: 'Error al actualizar', description: error.message, variant: 'destructive' });
                 // Revert UI on error
-                updateState({ agreements: state.agreements });
+                updateState(prevState => ({ ...prevState, agreements: originalAgreements }));
             }
         },
         handleDeleteAgreement: async () => {
             if (!state.agreementToDelete) return;
-            updateState({ isSubmitting: true });
+            updateState(prevState => ({...prevState, isSubmitting: true }));
             try {
                 await deleteConsignmentAgreement(state.agreementToDelete.id);
                 toast({ title: 'Acuerdo Eliminado' });
-                updateState({ agreementToDelete: null });
+                updateState(prevState => ({...prevState, agreementToDelete: null }));
                 await loadAgreements();
             } catch (error: any) {
                 toast({ title: 'Error al Eliminar', description: error.message, variant: 'destructive' });
             } finally {
-                updateState({ isSubmitting: false });
+                updateState(prevState => ({...prevState, isSubmitting: false }));
             }
         },
-        setShowOnlyActiveAgreements: (show: boolean) => updateState({ showOnlyActiveAgreements: show }),
-        setAgreementToDelete: (agreement: ConsignmentAgreement | null) => updateState({ agreementToDelete: agreement }),
-        setIsAgreementFormOpen: (isOpen: boolean) => updateState({ isAgreementFormOpen: isOpen }),
-        setClientSearchTerm: (term: string) => updateState({ clientSearchTerm: term }),
-        setIsClientSearchOpen: (isOpen: boolean) => updateState({ isClientSearchOpen: isOpen }),
-        setWarehouseSearchTerm: (term: string) => updateState({ warehouseSearchTerm: term }),
-        setIsWarehouseSearchOpen: (isOpen: boolean) => updateState({ isWarehouseSearchOpen: isOpen }),
-        setProductSearchTerm: (term: string) => updateState({ productSearchTerm: term }),
-        setIsProductSearchOpen: (isOpen: boolean) => updateState({ isProductSearchOpen: isOpen }),
+        setShowOnlyActiveAgreements: (show: boolean) => updateState(prevState => ({...prevState, showOnlyActiveAgreements: show })),
+        setAgreementToDelete: (agreement: ConsignmentAgreement | null) => updateState(prevState => ({...prevState, agreementToDelete: agreement })),
+        setIsAgreementFormOpen: (isOpen: boolean) => updateState(prevState => ({...prevState, isAgreementFormOpen: isOpen })),
+        setClientSearchTerm: (term: string) => updateState(prevState => ({...prevState, clientSearchTerm: term })),
+        setIsClientSearchOpen: (isOpen: boolean) => updateState(prevState => ({...prevState, isClientSearchOpen: isOpen })),
+        setWarehouseSearchTerm: (term: string) => updateState(prevState => ({...prevState, warehouseSearchTerm: term })),
+        setIsWarehouseSearchOpen: (isOpen: boolean) => updateState(prevState => ({...prevState, isWarehouseSearchOpen: isOpen })),
+        setProductSearchTerm: (term: string) => updateState(prevState => ({...prevState, productSearchTerm: term })),
+        setIsProductSearchOpen: (isOpen: boolean) => updateState(prevState => ({...prevState, isProductSearchOpen: isOpen })),
     };
 
     // --- COUNTING LOGIC ---
     const countActions = {
-        handleSelectAgreement: (id: string) => updateState({ countingState: { ...state.countingState, selectedAgreementId: id } }),
+        handleSelectAgreement: (id: string) => updateState(prevState => ({...prevState, countingState: { ...prevState.countingState, selectedAgreementId: id } })),
         handleStartSession: async () => {
             if (!user || !state.countingState.selectedAgreementId) return;
-            updateState({ countingState: { ...state.countingState, isLoading: true } });
+            updateState(prevState => ({...prevState, countingState: { ...prevState.countingState, isLoading: true } }));
             try {
                 const session = await startOrContinueCountingSession(Number(state.countingState.selectedAgreementId), user.id);
                 const details = await getAgreementDetails(Number(state.countingState.selectedAgreementId));
-                updateState({ 
+                updateState(prevState => ({ 
+                    ...prevState,
                     countingState: { 
-                        ...state.countingState, 
+                        ...prevState.countingState, 
                         isLoading: false,
                         session, 
                         productsToCount: details?.products || [],
                         step: 'counting',
                     } 
-                });
+                }));
             } catch (error: any) {
                 toast({ title: 'Error al iniciar sesión', description: error.message, variant: 'destructive' });
-                updateState({ countingState: { ...state.countingState, isLoading: false } });
+                updateState(prevState => ({...prevState, countingState: { ...prevState.countingState, isLoading: false } }));
             }
         },
         handleSaveLine: (productId: string, quantity: number) => {
@@ -301,48 +304,47 @@ export const useConsignments = () => {
         abandonCurrentSession: async () => {
             if (!user || !state.countingState.session) return;
             await abandonCountingSessionServer(state.countingState.session.id, user.id);
-            updateState({ countingState: initialCountingState });
+            updateState(prevState => ({...prevState, countingState: initialCountingState }));
         },
         handleGenerateBoleta: async () => {
              if (!user || !state.countingState.session) return;
-             updateState({ countingState: { ...state.countingState, isLoading: true } });
+             updateState(prevState => ({...prevState, countingState: { ...prevState.countingState, isLoading: true } }));
              try {
                 const newBoleta = await generateBoletaFromSession(state.countingState.session.id, user.id, user.name);
                 toast({ title: 'Boleta Generada', description: `Se creó la boleta ${newBoleta.consecutive}` });
-                updateState({ currentTab: 'boletas', countingState: initialCountingState });
+                updateState(prevState => ({...prevState, currentTab: 'boletas', countingState: initialCountingState }));
                 boletaActions.loadBoletas();
              } catch (error: any) {
                  toast({ title: 'Error al generar boleta', description: error.message, variant: 'destructive'});
              } finally {
-                updateState({ countingState: { ...state.countingState, isLoading: false } });
+                updateState(prevState => ({...prevState, countingState: { ...prevState.countingState, isLoading: false } }));
              }
         },
         resumeSession: async () => {
             if (!state.countingState.existingSession) return;
-            updateState({ countingState: { ...state.countingState, isLoading: true } });
+            updateState(prevState => ({...prevState, countingState: { ...prevState.countingState, isLoading: true } }));
             try {
                 const details = await getAgreementDetails(state.countingState.existingSession.agreement_id);
-                updateState({
+                updateState(prevState => ({
+                    ...prevState,
                     countingState: {
-                        ...state.countingState,
+                        ...prevState.countingState,
                         isLoading: false,
-                        session: state.countingState.existingSession,
+                        session: prevState.countingState.existingSession,
                         productsToCount: details?.products || [],
                         step: 'counting',
                         existingSession: null,
                     }
-                });
+                }));
             } catch (error: any) {
                 toast({ title: 'Error al reanudar', description: error.message, variant: 'destructive' });
-                updateState({ countingState: { ...state.countingState, isLoading: false } });
+                updateState(prevState => ({...prevState, countingState: { ...prevState.countingState, isLoading: false } }));
             }
         },
         abandonSession: async () => {
             if (!user || !state.countingState.existingSession) return;
             await abandonCountingSessionServer(state.countingState.existingSession.id, user.id);
-            updateState({
-                countingState: initialCountingState,
-            });
+            updateState(prevState => ({...prevState, countingState: initialCountingState }));
             toast({ title: 'Sesión Abandonada' });
         },
     };
@@ -350,20 +352,22 @@ export const useConsignments = () => {
     // --- BOLETAS LOGIC ---
      const boletaActions = {
         loadBoletas: useCallback(async () => {
-            updateState(prevState => ({ boletasState: { ...prevState.boletasState, isLoading: true } }));
+            setState(prevState => ({ ...prevState, boletasState: { ...prevState.boletasState, isLoading: true } }));
             try {
                 const boletasData = await getBoletas(state.boletasState.filters);
-                updateState(prevState => ({
+                setState(prevState => ({
+                    ...prevState,
                     boletasState: { ...prevState.boletasState, boletas: boletasData }
                 }));
             } catch (error: any) {
                  toast({ title: 'Error', description: 'No se pudieron cargar las boletas.', variant: 'destructive'});
             } finally {
-                 updateState(prevState => ({
+                 setState(prevState => ({
+                    ...prevState,
                     boletasState: { ...prevState.boletasState, isLoading: false }
                  }));
             }
-        }, [state.boletasState.filters, toast, updateState]),
+        }, [state.boletasState.filters, toast]),
         openBoletaDetails: (boletaId: number) => { /* Logic to open detail modal */ },
         openStatusModal: (boleta: RestockBoleta, status: string) => { /* Logic to open status change modal */ },
     };
@@ -409,7 +413,7 @@ export const useConsignments = () => {
     return {
         state,
         actions: {
-            setCurrentTab: (tab: 'agreements' | 'inventory_count' | 'boletas') => updateState({ currentTab: tab }),
+            setCurrentTab: (tab: 'agreements' | 'inventory_count' | 'boletas') => updateState(prevState => ({...prevState, currentTab: tab })),
             agreementActions,
             countActions,
             boletaActions,

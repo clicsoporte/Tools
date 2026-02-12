@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -423,7 +422,7 @@ export async function getActiveConsignmentSessions(): Promise<(CountingSession &
     if (sessions.length === 0) return [];
     
     const userIds = sessions.map(s => s.user_id);
-    const users = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as { id: number, name: string }[];
+    const users = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as User[];
     const userMap = new Map(users.map((u: User) => [u.id, u.name]));
 
     const results = sessions.map(s => ({

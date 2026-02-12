@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side authentication and user management functions.
  * These functions interact directly with the database to handle user data.
