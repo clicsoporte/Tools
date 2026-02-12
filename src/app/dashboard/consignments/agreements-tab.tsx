@@ -73,7 +73,7 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
             </CardContent>
 
             <Dialog open={state.isAgreementFormOpen} onOpenChange={actions.agreementActions.setIsAgreementFormOpen}>
-                <DialogContent className="sm:max-w-4xl">
+                <DialogContent className="sm:max-w-6xl">
                     <DialogHeader>
                         <DialogTitle>{state.editingAgreement ? 'Editar' : 'Nuevo'} Acuerdo de Consignación</DialogTitle>
                     </DialogHeader>
