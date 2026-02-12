@@ -66,7 +66,7 @@ const initialBoletasState: {
 } = {
     isLoading: false,
     boletas: [],
-    filters: { status: ['pending', 'approved'] },
+    filters: { status: ['pending', 'approved', 'sent'] },
     boletaToUpdate: null,
     statusUpdatePayload: { status: '', notes: '', erpInvoiceNumber: '' },
     isStatusModalOpen: false,
@@ -178,10 +178,10 @@ export const useConsignments = () => {
     }, [isAuthorized, user, toast, setTitle, updateState]);
 
     useEffect(() => {
-        if (state.currentTab === 'boletas') {
+        if (state.currentTab === 'boletas' && !state.boletasState.isLoading) {
             loadBoletas();
         }
-    }, [state.currentTab, loadBoletas]);
+    }, [state.currentTab, state.boletasState.isLoading, loadBoletas]);
 
     // --- AGREEMENTS LOGIC ---
     const agreementActions = {
@@ -272,7 +272,7 @@ export const useConsignments = () => {
             if (!originalAgreement) return;
         
             const updatedAgreements = originalAgreements.map(a =>
-              a.id === id ? { ...a, is_active: (isActive ? 1 : 0) } : a
+              a.id === id ? { ...a, is_active: (isActive ? 1 : 0) as 0 | 1 } : a
             );
             updateState(prevState => ({ ...prevState, agreements: updatedAgreements }));
         
@@ -280,7 +280,7 @@ export const useConsignments = () => {
             
             const updatedAgreement = {
                 ...agreementToSend,
-                is_active: (isActive ? 1 : 0),
+                is_active: (isActive ? 1 : 0) as 0 | 1,
             };
         
             try {
@@ -486,14 +486,13 @@ export const useConsignments = () => {
                 updateState(prev => ({ ...prev, isSubmitting: false }));
             }
         },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [loadBoletas, state.boletasState, user, toast, updateState]);
     
     useEffect(() => {
-        if (state.currentTab === 'boletas' && !state.boletasState.isLoading) {
-            boletaActions.loadBoletas();
+        if (state.currentTab === 'boletas') {
+            loadBoletas();
         }
-    }, [state.currentTab, state.boletasState.isLoading, boletaActions]);
+    }, [state.currentTab, loadBoletas]);
 
 
     // --- SELECTORS ---
