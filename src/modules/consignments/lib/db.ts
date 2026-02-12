@@ -5,7 +5,7 @@
 "use server";
 
 import { connectDb, getCompanySettings } from '@/modules/core/lib/db';
-import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
+import { getAllUsersForReport } from '@/modules/core/lib/auth';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { sendEmail } from '@/modules/core/lib/email-service';
@@ -406,12 +406,23 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return transaction();
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses: RestockBoletaStatus[] = []): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const boletas = db.prepare(`
-            SELECT * FROM restock_boletas 
-            WHERE agreement_id = ? AND created_at BETWEEN ? AND ?
-        `).all(agreementId, dateRange.from.toISOString(), dateRange.to.toISOString()) as RestockBoleta[];
+    
+    let query = `
+        SELECT * FROM restock_boletas 
+        WHERE agreement_id = ? AND created_at BETWEEN ? AND ?
+    `;
+    const params: any[] = [agreementId, dateRange.from.toISOString(), dateRange.to.toISOString()];
+
+    if (statuses.length > 0) {
+        query += ` AND status IN (${statuses.map(() => '?').join(',')})`;
+        params.push(...statuses);
+    }
+    
+    query += ' ORDER BY created_at ASC'; // Order by oldest to newest to process chronologically
+
+    const boletas = db.prepare(query).all(...params) as RestockBoleta[];
     
     if (boletas.length === 0) return { boletas: [] };
 
@@ -428,6 +439,23 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
     return { boletas: JSON.parse(JSON.stringify(boletasWithLines)) };
 }
 
+export async function getLatestBoletaBeforeDate(agreementId: number, date: Date): Promise<(RestockBoleta & { lines: BoletaLine[] }) | null> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const boleta = db.prepare(`
+        SELECT * FROM restock_boletas
+        WHERE agreement_id = ? AND created_at < ? AND status != 'canceled'
+        ORDER BY created_at DESC
+        LIMIT 1
+    `).get(agreementId, date.toISOString()) as RestockBoleta | undefined;
+
+    if (!boleta) return null;
+
+    const lines = db.prepare('SELECT * FROM boleta_lines WHERE boleta_id = ?').all(boleta.id) as BoletaLine[];
+
+    return JSON.parse(JSON.stringify({ ...boleta, lines }));
+}
+
+
 export async function getActiveConsignmentSessions(): Promise<(CountingSession & { agreement_name: string; user_name: string; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const mainDb = await connectDb();
@@ -443,7 +471,7 @@ export async function getActiveConsignmentSessions(): Promise<(CountingSession &
     
     const userIds = sessions.map(s => s.user_id);
     const users = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as { id: number; name: string }[];
-    const userMap = new Map(users.map((u: {id: number, name: string}) => [u.id, u.name]));
+    const userMap = new Map(users.map((u: User) => [u.id, u.name]));
 
     const results = sessions.map(s => ({
         ...s,

@@ -5,15 +5,15 @@
 'use server';
 
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
-import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb } from '@/modules/core/lib/db';
+import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb, getAllProducts } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, RestockBoletaStatus } from '@/modules/core/types';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
-import { getAllProducts, getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
+import { getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
 import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits, getWarehouseSettings as getWHSettings } from '@/modules/warehouse/lib/db';
-import { getBoletasByDateRange } from '@/modules/consignments/lib/db';
+import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails } from '@/modules/consignments/lib/db';
 import type { TransitReportItem } from '../hooks/useTransitsReport';
 import type { OccupancyReportRow } from '../hooks/useOccupancyReport';
 import type { ConsignmentReportRow } from '../hooks/useConsignmentsReport';
@@ -308,12 +308,78 @@ export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyR
 
 export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<ConsignmentReportRow[]> {
     try {
-        const { boletas } = await getBoletasByDateRange(agreementId, dateRange);
-        // This is a placeholder. The actual logic will be much more complex,
-        // involving calculating initial stock, final stock, and consumption.
-        return [];
-    } catch (error) {
+        const agreementDetails = await getAgreementDetails(parseInt(agreementId, 10));
+        if (!agreementDetails) {
+            throw new Error("Acuerdo de consignación no encontrado.");
+        }
+
+        const { products: agreementProducts } = agreementDetails;
+
+        // 1. Get Initial Stock (from the last boleta BEFORE the date range)
+        const initialBoleta = await getLatestBoletaBeforeDate(parseInt(agreementId, 10), dateRange.from);
+        const initialStockMap = new Map<string, number>();
+        if (initialBoleta) {
+            for (const line of initialBoleta.lines) {
+                // The "counted_quantity" represents the stock at that point in time.
+                initialStockMap.set(line.product_id, line.counted_quantity);
+            }
+        }
+
+        // 2. Get all relevant boletas within the date range for replenishments and final count
+        const { boletas: boletasInPeriod } = await getBoletasByDateRange(agreementId, dateRange, ['approved', 'sent', 'invoiced']);
+        
+        // 3. Calculate total replenishments
+        const replenishedMap = new Map<string, number>();
+        for (const boleta of boletasInPeriod) {
+            for (const line of boleta.lines) {
+                const current = replenishedMap.get(line.product_id) || 0;
+                replenishedMap.set(line.product_id, current + line.replenish_quantity);
+            }
+        }
+        
+        // 4. Get Final Stock (from the LATEST boleta within the date range)
+        const finalStockMap = new Map<string, number>();
+        if (boletasInPeriod.length > 0) {
+            // The boletas are already sorted by date ASC, so the last one is the latest.
+            const latestBoletaInPeriod = boletasInPeriod[boletasInPeriod.length - 1];
+            for (const line of latestBoletaInPeriod.lines) {
+                finalStockMap.set(line.product_id, line.counted_quantity);
+            }
+        }
+
+        // 5. Build the report for all products in the agreement
+        const allProducts = await getAllProducts();
+        const productMap = new Map(allProducts.map(p => [p.id, p.description]));
+
+        const reportRows: ConsignmentReportRow[] = agreementProducts.map(product => {
+            const initialStock = initialStockMap.get(product.product_id) || 0;
+            const totalReplenished = replenishedMap.get(product.product_id) || 0;
+            
+            const hasFinalCount = finalStockMap.has(product.product_id);
+            const finalStock = hasFinalCount 
+                ? finalStockMap.get(product.product_id)!
+                : (initialStock + totalReplenished);
+            
+            const consumption = hasFinalCount ? (initialStock + totalReplenished) - finalStock : 0;
+            const totalValue = consumption * product.price;
+
+            return {
+                productId: product.product_id,
+                productDescription: productMap.get(product.product_id) || 'Producto Desconocido',
+                initialStock,
+                totalReplenished,
+                finalStock,
+                consumption: consumption > 0 ? consumption : 0,
+                price: product.price,
+                totalValue: totalValue > 0 ? totalValue : 0,
+            };
+        });
+
+        // Filter out rows that have no activity at all
+        return reportRows.filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0);
+
+    } catch (error: any) {
         logError('Failed to generate consignments report data', { error });
-        throw new Error('No se pudo generar el reporte de consignaciones.');
+        throw new Error(`No se pudo generar el reporte de consignaciones: ${error.message}`);
     }
 }

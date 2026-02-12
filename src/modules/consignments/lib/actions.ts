@@ -21,7 +21,7 @@ import {
     getActiveConsignmentSessions as getActiveConsignmentSessionsServer,
     forceReleaseConsignmentSession as forceReleaseConsignmentSessionServer,
 } from './db';
-import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 
 export async function getConsignmentAgreements(): Promise<(ConsignmentAgreement & { product_count?: number })[]> {
@@ -79,8 +79,8 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return updateBoletaServer(boleta, lines, updatedBy);
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
-    return getBoletasByDateRangeServer(agreementId, dateRange);
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
+    return getBoletasByDateRangeServer(agreementId, dateRange, statuses);
 }
 
 export async function getActiveConsignmentSessions(): Promise<(CountingSession & { agreement_name: string; user_name: string; })[]> {
