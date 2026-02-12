@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the state and logic of the Consignments module main page.
  */
@@ -106,12 +107,17 @@ export const useConsignments = () => {
             const loadData = async () => {
                 updateState({ isLoading: true });
                 try {
-                    const [agreementsData, activeSession] = await Promise.all([
+                    const [agreementsData, boletasData, activeSession] = await Promise.all([
                         getConsignmentAgreements(),
+                        getBoletas(state.boletasState.filters),
                         getActiveCountingSessionForUser(user.id)
                     ]);
                     
-                    const newState: Partial<typeof state> = { agreements: agreementsData, isLoading: false };
+                    const newState: Partial<typeof state> = { 
+                        agreements: agreementsData, 
+                        boletasState: { ...state.boletasState, boletas: boletasData },
+                        isLoading: false 
+                    };
                     if (activeSession) {
                         newState.countingState = {
                             ...initialCountingState,
@@ -194,7 +200,7 @@ export const useConsignments = () => {
             }
             updateState({ isSubmitting: true });
             try {
-                const payload: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number } = {
+                 const payload: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number } = {
                     client_id: state.agreementFormData.client_id,
                     client_name: state.agreementFormData.client_name,
                     erp_warehouse_id: state.agreementFormData.erp_warehouse_id,
@@ -207,8 +213,8 @@ export const useConsignments = () => {
                 toast({ title: 'Acuerdo Guardado' });
                 updateState({ isAgreementFormOpen: false });
                 await loadAgreements();
-            } catch (error) {
-                toast({ title: 'Error al Guardar', variant: 'destructive' });
+            } catch (error: any) {
+                toast({ title: 'Error al Guardar', description: error.message, variant: 'destructive' });
             } finally {
                 updateState({ isSubmitting: false });
             }
@@ -218,22 +224,26 @@ export const useConsignments = () => {
             if (!originalAgreement) return;
         
             const updatedAgreements = state.agreements.map(a =>
-              a.id === id ? { ...a, is_active: (isActive ? 1 : 0) as 0 | 1 } : a
+              a.id === id ? { ...a, is_active: (isActive ? 1 : 0) } : a
             );
             updateState({ agreements: updatedAgreements });
         
             const { product_count, ...agreementToSend } = originalAgreement;
-            const updatedAgreement = {
+            
+            const updatedAgreement: Omit<ConsignmentAgreement, 'next_boleta_number'> & { id: number } = {
                 ...agreementToSend,
-                is_active: (isActive ? 1 : 0) as 0 | 1,
+                is_active: (isActive ? 1 : 0),
             };
         
             try {
-                await saveConsignmentAgreement(updatedAgreement, []); // Pass empty products when just toggling status
+                // When only toggling status, we don't need to send the products array.
+                // The backend should be designed to handle this case.
+                await saveConsignmentAgreement(updatedAgreement, []);
                 toast({ title: `Acuerdo ${isActive ? 'habilitado' : 'deshabilitado'}` });
-            } catch (error) {
-                toast({ title: 'Error al actualizar', variant: 'destructive' });
-                updateState({ agreements: state.agreements }); // Revert on error
+            } catch (error: any) {
+                toast({ title: 'Error al actualizar', description: error.message, variant: 'destructive' });
+                // Revert UI on error
+                updateState({ agreements: state.agreements });
             }
         },
         handleDeleteAgreement: async () => {
@@ -291,7 +301,7 @@ export const useConsignments = () => {
         abandonCurrentSession: async () => {
             if (!user || !state.countingState.session) return;
             await abandonCountingSessionServer(state.countingState.session.id, user.id);
-            updateState({ countingState: { ...initialCountingState, step: 'setup' } });
+            updateState({ countingState: initialCountingState });
         },
         handleGenerateBoleta: async () => {
              if (!user || !state.countingState.session) return;
@@ -301,8 +311,8 @@ export const useConsignments = () => {
                 toast({ title: 'Boleta Generada', description: `Se creó la boleta ${newBoleta.consecutive}` });
                 updateState({ currentTab: 'boletas', countingState: initialCountingState });
                 boletaActions.loadBoletas();
-             } catch (error) {
-                 toast({ title: 'Error al generar boleta', variant: 'destructive'});
+             } catch (error: any) {
+                 toast({ title: 'Error al generar boleta', description: error.message, variant: 'destructive'});
              } finally {
                 updateState({ countingState: { ...state.countingState, isLoading: false } });
              }
@@ -322,8 +332,8 @@ export const useConsignments = () => {
                         existingSession: null,
                     }
                 });
-            } catch (error) {
-                toast({ title: 'Error al reanudar', variant: 'destructive' });
+            } catch (error: any) {
+                toast({ title: 'Error al reanudar', description: error.message, variant: 'destructive' });
                 updateState({ countingState: { ...state.countingState, isLoading: false } });
             }
         },
@@ -331,10 +341,7 @@ export const useConsignments = () => {
             if (!user || !state.countingState.existingSession) return;
             await abandonCountingSessionServer(state.countingState.existingSession.id, user.id);
             updateState({
-                countingState: {
-                    ...initialCountingState,
-                    step: 'setup',
-                }
+                countingState: initialCountingState,
             });
             toast({ title: 'Sesión Abandonada' });
         },
@@ -342,17 +349,21 @@ export const useConsignments = () => {
     
     // --- BOLETAS LOGIC ---
      const boletaActions = {
-        loadBoletas: async () => {
-            updateState({ boletasState: { ...state.boletasState, isLoading: true } });
+        loadBoletas: useCallback(async () => {
+            updateState(prevState => ({ boletasState: { ...prevState.boletasState, isLoading: true } }));
             try {
                 const boletasData = await getBoletas(state.boletasState.filters);
-                updateState({ boletasState: { ...state.boletasState, boletas: boletasData } });
-            } catch (error) {
+                updateState(prevState => ({
+                    boletasState: { ...prevState.boletasState, boletas: boletasData }
+                }));
+            } catch (error: any) {
                  toast({ title: 'Error', description: 'No se pudieron cargar las boletas.', variant: 'destructive'});
             } finally {
-                 updateState({ boletasState: { ...state.boletasState, isLoading: false } });
+                 updateState(prevState => ({
+                    boletasState: { ...prevState.boletasState, isLoading: false }
+                 }));
             }
-        },
+        }, [state.boletasState.filters, toast, updateState]),
         openBoletaDetails: (boletaId: number) => { /* Logic to open detail modal */ },
         openStatusModal: (boleta: RestockBoleta, status: string) => { /* Logic to open status change modal */ },
     };
@@ -361,8 +372,7 @@ export const useConsignments = () => {
         if (state.currentTab === 'boletas') {
             boletaActions.loadBoletas();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.currentTab]);
+    }, [state.currentTab, boletaActions]);
     
     // --- SELECTORS ---
     const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);

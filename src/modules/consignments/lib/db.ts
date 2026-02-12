@@ -4,7 +4,8 @@
  */
 "use server";
 
-import { connectDb, getAllUsers as getAllUsersFromMain, getCompanySettings } from '@/modules/core/lib/db';
+import { connectDb, getCompanySettings } from '@/modules/core/lib/db';
+import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { sendEmail } from '@/modules/core/lib/email-service';
@@ -127,10 +128,13 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
             agreementId = info.lastInsertRowid as number;
         }
 
-        db.prepare('DELETE FROM consignment_products WHERE agreement_id = ?').run(agreementId);
-        const insertProduct = db.prepare('INSERT INTO consignment_products (agreement_id, product_id, max_stock, price) VALUES (?, ?, ?, ?)');
-        for (const product of products) {
-            insertProduct.run(agreementId, product.product_id, product.max_stock, product.price);
+        // Only modify products if a new list is provided for a new or existing agreement
+        if (products && products.length >= 0) {
+            db.prepare('DELETE FROM consignment_products WHERE agreement_id = ?').run(agreementId);
+            const insertProduct = db.prepare('INSERT INTO consignment_products (agreement_id, product_id, max_stock, price) VALUES (?, ?, ?, ?)');
+            for (const product of products) {
+                insertProduct.run(agreementId, product.product_id, product.max_stock, product.price);
+            }
         }
         return db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as ConsignmentAgreement;
     });
@@ -194,7 +198,7 @@ export async function startOrContinueCountingSession(agreementId: number, userId
     const otherUserSession = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND status = 'in-progress'`).get(agreementId) as CountingSession | undefined;
     if (otherUserSession) {
         const allUsers = await getAllUsersFromMain();
-        const otherUserName = allUsers.find(u => u.id === otherUserSession.user_id)?.name || 'otro usuario';
+        const otherUserName = allUsers.find((u: User) => u.id === otherUserSession.user_id)?.name || 'otro usuario';
         throw new Error(`El acuerdo ya está siendo inventariado por ${otherUserName}.`);
     }
 
@@ -271,7 +275,7 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
         
         // This is a placeholder for getting supervisor emails. In a real app, this would be more robust.
         // For now, it sends to the user who created it as a confirmation.
-        const user = await getAllUsersFromMain().then(users => users.find(u => u.id === userId));
+        const user = await getAllUsersFromMain().then((users: User[]) => users.find((u: User) => u.id === userId));
         if (user?.email) {
             sendEmail({ to: user.email, subject, html: body });
         }
@@ -337,7 +341,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
     const updatedBoleta = transaction();
     // Send email notification outside transaction
     try {
-        const creator = await getAllUsersFromMain().then(users => users.find(u => u.name === updatedBoleta.createdBy));
+        const creator = await getAllUsersFromMain().then((users: User[]) => users.find((u: User) => u.name === updatedBoleta.created_by));
         if (creator?.email && status === 'approved') {
             const subject = `Boleta de Consignación Aprobada: ${updatedBoleta.consecutive}`;
             const body = `<p>La boleta de reposición <strong>${updatedBoleta.consecutive}</strong> que creaste ha sido aprobada por <strong>${updatedBy}</strong>.</p><p>Ya puedes proceder con la impresión y el despacho.</p>`;
@@ -403,4 +407,46 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
     }));
 
     return { boletas: JSON.parse(JSON.stringify(boletasWithLines)) };
+}
+
+export async function getActiveConsignmentSessions(): Promise<(CountingSession & { agreement_name: string; user_name: string; })[]> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const mainDb = await connectDb();
+
+    const sessions = db.prepare(`
+        SELECT cs.id, cs.agreement_id, cs.user_id, cs.created_at, ca.client_name
+        FROM counting_sessions cs
+        JOIN consignment_agreements ca ON cs.agreement_id = ca.id
+        WHERE cs.status = 'in-progress'
+    `).all() as (CountingSession & { client_name: string })[];
+
+    if (sessions.length === 0) return [];
+    
+    const userIds = sessions.map(s => s.user_id);
+    const users = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as { id: number, name: string }[];
+    const userMap = new Map(users.map((u: User) => [u.id, u.name]));
+
+    const results = sessions.map(s => ({
+        ...s,
+        agreement_name: s.client_name,
+        user_name: userMap.get(s.user_id) || 'Usuario Desconocido'
+    }));
+    
+    return JSON.parse(JSON.stringify(results));
+}
+
+export async function forceReleaseConsignmentSession(sessionId: number, updatedBy: string): Promise<void> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const session = db.prepare('SELECT * FROM counting_sessions WHERE id = ?').get(sessionId) as CountingSession | undefined;
+
+    if (!session) {
+        throw new Error('No se encontró la sesión a liberar.');
+    }
+    
+    db.transaction(() => {
+        db.prepare('DELETE FROM counting_session_lines WHERE session_id = ?').run(sessionId);
+        db.prepare('DELETE FROM counting_sessions WHERE id = ?').run(sessionId);
+    })();
+    
+    logWarn(`Consignment session ${sessionId} was forcibly released by ${updatedBy}.`);
 }

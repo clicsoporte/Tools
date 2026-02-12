@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side authentication and user management functions.
  * These functions interact directly with the database to handle user data.
@@ -20,6 +21,7 @@ import { initializeWarehouseDb, runWarehouseMigrations, getLocations as getWareh
 import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
 import { initializeOperationsDb, runOperationsMigrations } from '../../operations/lib/db';
 import { initializeItToolsDb, runItToolsMigrations } from '../../it-tools/lib/db';
+import { initializeConsignmentsDb, runConsignmentsMigrations } from '../../consignments/lib/db';
 import { getWarehouseData } from '../../warehouse/lib/db';
 import { revalidatePath } from 'next/cache';
 

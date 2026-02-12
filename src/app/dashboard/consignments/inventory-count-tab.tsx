@@ -1,3 +1,4 @@
+
 // This is a new file
 'use client';
 
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Loader2, Play, CheckCircle } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { ConsignmentProduct } from '@/modules/core/types';
 import { Label } from '@/components/ui/label';
 
@@ -66,28 +67,35 @@ export function InventoryCountTab({ hook }: InventoryCountTabProps) {
                     <div className="space-y-4">
                         <h3 className="font-semibold text-lg">{selectors.getAgreementName(countingState.session.agreement_id)}</h3>
                          <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                            {countingState.productsToCount.map((p: ConsignmentProduct) => (
-                                <Card key={p.product_id} className="p-4">
-                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                        <div className="flex-1">
-                                            <p className="font-medium">{selectors.getProductName(p.product_id)}</p>
-                                            <p className="text-xs text-muted-foreground">{p.product_id}</p>
-                                            <p className="text-sm text-muted-foreground mt-1">Stock Máximo: {p.max_stock}</p>
+                            {countingState.productsToCount.length > 0 ? (
+                                countingState.productsToCount.map((p: ConsignmentProduct) => (
+                                    <Card key={p.product_id} className="p-4">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                            <div className="flex-1">
+                                                <p className="font-medium">{selectors.getProductName(p.product_id)}</p>
+                                                <p className="text-xs text-muted-foreground">{p.product_id}</p>
+                                                <p className="text-sm text-muted-foreground mt-1">Stock Máximo: {p.max_stock}</p>
+                                            </div>
+                                            <div className="w-full sm:w-32">
+                                                <Label htmlFor={`count-${p.product_id}`} className="sr-only">Cantidad</Label>
+                                                <Input
+                                                    id={`count-${p.product_id}`}
+                                                    type="number"
+                                                    placeholder="Cant."
+                                                    defaultValue={selectors.getInitialCount(p.product_id)}
+                                                    onBlur={(e) => actions.countActions.handleSaveLine(p.product_id, Number(e.target.value))}
+                                                    className="text-right text-2xl h-14 font-bold hide-number-arrows"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="w-full sm:w-32">
-                                            <Label htmlFor={`count-${p.product_id}`} className="sr-only">Cantidad</Label>
-                                            <Input
-                                                id={`count-${p.product_id}`}
-                                                type="number"
-                                                placeholder="Cant."
-                                                defaultValue={selectors.getInitialCount(p.product_id)}
-                                                onBlur={(e) => actions.countActions.handleSaveLine(p.product_id, Number(e.target.value))}
-                                                className="text-right text-2xl h-14 font-bold hide-number-arrows"
-                                            />
-                                        </div>
-                                    </div>
-                                </Card>
-                            ))}
+                                    </Card>
+                                ))
+                            ) : (
+                                <div className="text-center text-muted-foreground py-8">
+                                    <p>Este acuerdo no tiene productos autorizados.</p>
+                                    <p>Ve a la pestaña &quot;Acuerdos de Consignación&quot; para añadirlos.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

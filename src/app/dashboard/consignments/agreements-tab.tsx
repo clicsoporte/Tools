@@ -1,3 +1,4 @@
+
 // This is a new file
 'use client';
 
@@ -146,7 +147,7 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
                                             <TableRow>
                                                 <TableHead>Producto</TableHead>
                                                 <TableHead>Máximo</TableHead>
-                                                <TableHead>Precio</TableHead>
+                                                <TableHead>Precio (sin IVA)</TableHead>
                                                 <TableHead></TableHead>
                                             </TableRow>
                                         </TableHeader>
