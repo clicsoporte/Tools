@@ -21,7 +21,7 @@ import {
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 
-export async function getConsignmentAgreements() {
+export async function getConsignmentAgreements(): Promise<(ConsignmentAgreement & { product_count?: number })[]> {
     return getAgreementsServer();
 }
 

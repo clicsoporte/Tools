@@ -59,11 +59,11 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {selectors.filteredAgreements.map((agreement: ConsignmentAgreement) => (
+                            {selectors.filteredAgreements.map((agreement: ConsignmentAgreement & { product_count?: number }) => (
                                 <TableRow key={agreement.id}>
                                     <TableCell className="font-medium">{agreement.client_name}</TableCell>
                                     <TableCell>{agreement.erp_warehouse_id}</TableCell>
-                                    <TableCell>{(agreement as any).product_count || 0}</TableCell>
+                                    <TableCell>{agreement.product_count || 0}</TableCell>
                                     <TableCell>
                                         <Switch
                                             checked={agreement.is_active === 1}
