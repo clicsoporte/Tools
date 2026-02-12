@@ -83,7 +83,7 @@ export function BoletasTab({ hook }: BoletasTabProps) {
                                                 <FileCheck2 className="mr-2 h-4 w-4" /> Marcar como Facturada
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'canceled')} className="text-red-500">
+                                            <DropdownMenuItem onSelect={() => actions.boletaActions.openStatusModal(boleta, 'canceled')} className="text-red-500" disabled={boleta.status === 'canceled' || boleta.status === 'invoiced'}>
                                                 <Ban className="mr-2 h-4 w-4" /> Cancelar Boleta
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>

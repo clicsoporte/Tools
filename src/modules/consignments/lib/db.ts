@@ -187,20 +187,28 @@ export async function getActiveCountingSessionForUser(userId: number): Promise<(
 export async function startOrContinueCountingSession(agreementId: number, userId: number): Promise<CountingSession & { lines: CountingSessionLine[] }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
-    let session = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND user_id = ? AND status = 'in-progress'`).get(agreementId, userId) as CountingSession | undefined;
+    // First, check if another user has locked this agreement.
+    const otherUserSession = db.prepare(`
+        SELECT * FROM counting_sessions 
+        WHERE agreement_id = ? AND status = 'in-progress' AND user_id != ?
+    `).get(agreementId, userId) as CountingSession | undefined;
     
-    if (session) {
-        const lines = db.prepare('SELECT * FROM counting_session_lines WHERE session_id = ?').all(session.id) as CountingSessionLine[];
-        return { ...session, lines };
-    }
-
-    const otherUserSession = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND status = 'in-progress'`).get(agreementId) as CountingSession | undefined;
     if (otherUserSession) {
         const allUsers = await getAllUsersFromMain();
         const otherUserName = allUsers.find((u: User) => u.id === otherUserSession.user_id)?.name || 'otro usuario';
         throw new Error(`El acuerdo ya está siendo inventariado por ${otherUserName}.`);
     }
 
+    // Now, check if the current user has a session for this agreement.
+    let session = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND user_id = ? AND status = 'in-progress'`).get(agreementId, userId) as CountingSession | undefined;
+    
+    if (session) {
+        // Session already exists for this user and agreement, return it.
+        const lines = db.prepare('SELECT * FROM counting_session_lines WHERE session_id = ?').all(session.id) as CountingSessionLine[];
+        return { ...session, lines };
+    }
+
+    // No session exists, create a new one.
     const info = db.prepare(`INSERT INTO counting_sessions (agreement_id, user_id, status, created_at) VALUES (?, ?, 'in-progress', datetime('now'))`).run(agreementId, userId);
     const newSession = db.prepare('SELECT * FROM counting_sessions WHERE id = ?').get(info.lastInsertRowid) as CountingSession;
     return { ...newSession, lines: [] };
@@ -422,8 +430,8 @@ export async function getActiveConsignmentSessions(): Promise<(CountingSession &
     if (sessions.length === 0) return [];
     
     const userIds = sessions.map(s => s.user_id);
-    const users = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as User[];
-    const userMap = new Map(users.map((u: User) => [u.id, u.name]));
+    const users = mainDb.prepare(`SELECT id, name FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`).all(...userIds) as { id: number; name: string }[];
+    const userMap = new Map(users.map((u) => [u.id, u.name]));
 
     const results = sessions.map(s => ({
         ...s,

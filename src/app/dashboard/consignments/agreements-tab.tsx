@@ -1,4 +1,3 @@
-
 // This is a new file
 'use client';
 
