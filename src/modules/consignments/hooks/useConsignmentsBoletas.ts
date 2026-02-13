@@ -7,9 +7,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getBoletas, updateBoletaStatus, getBoletaDetails, updateBoleta } from '../lib/actions';
+import { getBoletas, updateBoletaStatus, getBoletaDetails, updateBoleta, getConsignmentAgreements } from '../lib/actions';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { RestockBoleta, BoletaLine, BoletaHistory, ConsignmentSettings } from '@/modules/core/types';
+import type { RestockBoleta, BoletaLine, BoletaHistory, ConsignmentSettings, ConsignmentAgreement } from '@/modules/core/types';
 import { getConsignmentSettings } from '../lib/actions';
 import { generateDocument } from '@/lib/pdf-generator';
 import { format, parseISO } from 'date-fns';
@@ -33,6 +33,7 @@ export const useConsignmentsBoletas = () => {
     const [state, setState] = useState({
         isLoading: true,
         isSubmitting: false,
+        agreements: [] as ConsignmentAgreement[],
         boletas: [] as RestockBoleta[],
         isStatusModalOpen: false,
         boletaToUpdate: null as RestockBoleta | null,
@@ -52,25 +53,26 @@ export const useConsignmentsBoletas = () => {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
 
-    const loadBoletas = useCallback(async () => {
+    const loadInitialData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const [boletasData, settingsData] = await Promise.all([
+            const [boletasData, settingsData, agreementsData] = await Promise.all([
                 getBoletas({ status: state.filters.status }),
-                getConsignmentSettings()
+                getConsignmentSettings(),
+                getConsignmentAgreements(),
             ]);
-            updateState({ boletas: boletasData, settings: settingsData });
+            updateState({ boletas: boletasData, settings: settingsData, agreements: agreementsData });
         } catch (error) {
             logError('Failed to load boletas', { error });
-            toast({ title: 'Error', description: 'No se pudieron cargar las boletas.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'No se pudieron cargar los datos de las boletas.', variant: 'destructive' });
         } finally {
             updateState({ isLoading: false });
         }
     }, [toast, updateState, state.filters.status]);
 
     useEffect(() => {
-        loadBoletas();
-    }, [loadBoletas]);
+        loadInitialData();
+    }, [loadInitialData]);
     
     const openStatusModal = (boleta: RestockBoleta, status: string) => {
         updateState({
@@ -95,7 +97,7 @@ export const useConsignmentsBoletas = () => {
             });
             toast({ title: 'Estado Actualizado' });
             updateState({ isStatusModalOpen: false });
-            await loadBoletas();
+            await loadInitialData();
         } catch (error: any) {
             logError('Failed to update boleta status', { error: error.message });
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -132,7 +134,7 @@ export const useConsignmentsBoletas = () => {
             await updateBoleta(state.detailedBoleta.boleta, state.detailedBoleta.lines, user.name);
             toast({ title: 'Boleta Actualizada' });
             updateState({ isDetailsModalOpen: false });
-            await loadBoletas();
+            await loadInitialData();
         } catch (error: any) {
             logError('Failed to save boleta changes', { error: error.message });
             toast({ title: 'Error', variant: 'destructive' });
@@ -152,7 +154,7 @@ export const useConsignmentsBoletas = () => {
             }
 
             const tableHeaders = state.settings.pdfExportColumns || ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'];
-            const columnLabels = {
+            const columnLabels: { [key: string]: string } = {
                 'product_id': 'Código',
                 'product_description': 'Descripción',
                 'counted_quantity': 'Inv. Físico',
@@ -176,7 +178,7 @@ export const useConsignmentsBoletas = () => {
             const doc = generateDocument({
                 docTitle: 'BOLETA DE REPOSICIÓN DE CONSIGNACIÓN',
                 docId: boleta.consecutive,
-                meta: details.history.map(h => ({
+                meta: details.history.map((h: BoletaHistory) => ({
                     label: `${statusConfig[h.status]?.label || h.status} por:`,
                     value: `${h.updatedBy} - ${format(parseISO(h.timestamp), 'dd/MM/yy HH:mm')}`
                 })).concat(boleta.erp_invoice_number ? [{ label: 'Factura ERP:', value: boleta.erp_invoice_number }] : []),
@@ -187,7 +189,7 @@ export const useConsignmentsBoletas = () => {
                     { title: 'Bodega ERP:', content: state.agreements.find(a => a.id === boleta.agreement_id)?.erp_warehouse_id || 'N/A' },
                 ],
                 table: {
-                    columns: tableHeaders.map(id => (columnLabels as any)[id] || id),
+                    columns: tableHeaders.map(id => columnLabels[id] || id),
                     rows: tableRows,
                     columnStyles: {
                         2: { halign: 'right' },
@@ -211,6 +213,10 @@ export const useConsignmentsBoletas = () => {
         }
     };
     
+    const getAgreementName = useCallback((id: number) => {
+        return state.agreements.find(a => a.id === id)?.client_name || 'Desconocido';
+    }, [state.agreements]);
+    
     const selectors = {
         hasPermission,
         statusConfig,
@@ -219,11 +225,12 @@ export const useConsignmentsBoletas = () => {
                 const dir = state.sortDirection === 'asc' ? 1 : -1;
                 switch (state.sortKey) {
                     case 'created_at': return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
+                    case 'client_name': return getAgreementName(a.agreement_id).localeCompare(getAgreementName(b.agreement_id)) * dir;
                     default: return String(a[state.sortKey]).localeCompare(String(b[state.sortKey])) * dir;
                 }
             });
-        }, [state.boletas, state.sortKey, state.sortDirection]),
-        getAgreementName: (id: number) => state.agreements.find(a => a.id === id)?.client_name || 'Desconocido',
+        }, [state.boletas, state.sortKey, state.sortDirection, getAgreementName]),
+        getAgreementName,
     };
 
     return {
