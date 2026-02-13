@@ -8,7 +8,7 @@ import { connectDb, getCompanySettings } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
-import { sendEmail } from '@/modules/core/lib/email-service';
+import { createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -330,19 +330,21 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
 
     const newBoleta = transaction();
 
-    // Send email notification outside the transaction
+    // Send notification to approvers
     try {
         const agreement = db.prepare('SELECT client_name FROM consignment_agreements WHERE id = ?').get(newBoleta.agreement_id) as { client_name: string };
-        const subject = `Nueva Boleta de Consignación Pendiente: ${newBoleta.consecutive}`;
-        const body = `<p>Se ha generado una nueva boleta de reposición (${newBoleta.consecutive}) para el cliente <strong>${agreement.client_name}</strong>.</p><p>La boleta fue creada por ${userName} y está pendiente de aprobación.</p>`;
+        const message = `Nueva boleta ${newBoleta.consecutive} para ${agreement.client_name} requiere aprobación.`;
         
-        const users: User[] = await getAllUsersFromMain();
-        const creator = users.find((u: User) => u.name === userName);
-        if (creator?.email) {
-            sendEmail({ to: creator.email, subject, html: body });
-        }
+        await createNotificationForPermission(
+            'consignments:approve',
+            message,
+            '/dashboard/consignments/boletas',
+            newBoleta.id,
+            'consignment_boleta',
+            'approval_request'
+        );
     } catch (e: any) {
-        logError('Failed to send new boleta notification email', { boletaId: newBoleta.id, error: e.message });
+        logError('Failed to send new boleta notification', { boletaId: newBoleta.id, error: e.message });
     }
 
 
@@ -417,9 +419,13 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const users: User[] = await getAllUsersFromMain();
         const creator = users.find((u: User) => u.name === updatedBoleta.created_by);
         if (creator?.email && status === 'approved') {
-            const subject = `Boleta de Consignación Aprobada: ${updatedBoleta.consecutive}`;
-            const body = `<p>La boleta de reposición <strong>${updatedBoleta.consecutive}</strong> que creaste ha sido aprobada por <strong>${updatedBy}</strong>.</p><p>Ya puedes proceder con la impresión y el despacho.</p>`;
-            sendEmail({ to: creator.email, subject, html: body });
+            await createNotification({
+                userId: creator.id,
+                message: `La boleta ${updatedBoleta.consecutive} ha sido aprobada.`,
+                href: '/dashboard/consignments/boletas',
+                entityId: updatedBoleta.id,
+                entityType: 'consignment_boleta',
+            });
         }
     } catch (e: any) {
         logError('Failed to send boleta status update email', { boletaId, error: e.message });

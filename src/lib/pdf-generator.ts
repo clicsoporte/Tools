@@ -94,7 +94,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.text(`Cédula: ${data.companyData.taxId}`, companyX, companyY);
         companyY += 10;
         if (data.companyData.address) {
-            const splitAddress = doc.splitTextToSize(data.companyData.address, (pageWidth / 3)); // Reduced width for address
+            const splitAddress = doc.splitTextToSize(data.companyData.address, (pageWidth / 3) - margin + 20); // Reduced width for address
             doc.text(splitAddress, companyX, companyY);
             companyY += (splitAddress.length * 10);
         }
