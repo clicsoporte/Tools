@@ -5,7 +5,7 @@
 
 import type { ITNote } from '@/modules/core/types';
 import { getNotes as getNotesServer, saveNote as saveNoteServer, deleteNote as deleteNoteServer } from './db';
-import { adminTools, analyticsTools, mainTools, warehouseTools } from '@/modules/core/lib/data';
+import { adminTools, analyticsTools, mainTools, warehouseTools, consignmentsTools, itTools } from '@/modules/core/lib/data';
 
 export async function getNotes(): Promise<ITNote[]> {
     return getNotesServer();
@@ -26,6 +26,8 @@ export async function getAvailableModules(): Promise<{ id: string, name: string 
         ...adminTools,
         ...analyticsTools,
         ...warehouseTools,
+        ...consignmentsTools,
+        ...itTools
     ];
 
     // Define IDs for top-level container pages that we don't want to link to.
@@ -34,6 +36,7 @@ export async function getAvailableModules(): Promise<{ id: string, name: string 
         'it-tools', // Can't link a note to the module it's in
         'operations', // Module is under construction
         'warehouse', // It's a container, we have specific warehouse tools
+        'consignments', // It's a container now too
     ]);
     
     const modulesMap = new Map<string, { id: string; name: string }>();

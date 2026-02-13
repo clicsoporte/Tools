@@ -5,11 +5,11 @@
 "use server";
 
 import { connectDb, getCompanySettings } from '@/modules/core/lib/db';
-import { getAllUsersForReport as getAllUsersFromMain } from '@/modules/core/lib/auth';
+import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { sendEmail } from '@/modules/core/lib/email-service';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';

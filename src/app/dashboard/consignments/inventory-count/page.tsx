@@ -44,7 +44,7 @@ export default function InventoryCountPage() {
                                     <SelectValue placeholder="Selecciona un cliente..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {selectors.agreementOptions.map((agreement) => (
+                                    {selectors.agreementOptions.map((agreement: { value: string; label: string }) => (
                                         <SelectItem key={agreement.value} value={agreement.value}>
                                             {agreement.label}
                                         </SelectItem>

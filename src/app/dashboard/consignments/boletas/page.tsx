@@ -171,7 +171,7 @@ export default function BoletasPage() {
         return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
     };
 
-    const statusOptions = Object.entries(selectors.statusConfig).map(([value, {label}]) => ({ value, label }));
+    const statusOptions = Object.entries(selectors.statusConfig).map(([value, {label}]: [string, {label: string}]) => ({ value, label }));
 
     if (state.isLoading) {
         return (

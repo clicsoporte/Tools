@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file contains the initial or default data for the application.
  * This data is used to populate the database on its first run.
@@ -13,7 +12,7 @@ import {
   Lightbulb, FileText, Calculator, PanelLeft, Mail, KeyRound, BellRing,
   Palette, UserCheck, ShoppingBag, QrCode, HelpCircle, ClipboardCheck,
   ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, LayoutGrid,
-  FileSignature, Cpu, BookCopy, Container, Tags, Truck, Settings
+  FileSignature, Cpu, BookCopy, Container, Tags, Truck, Settings, ListChecks
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -100,6 +99,14 @@ export const mainTools: Tool[] = [
     href: "/dashboard/it-tools",
     icon: Cpu,
     bgColor: "bg-gray-700",
+  },
+  {
+    id: "consignments:access",
+    name: "Gestión de Consignaciones",
+    description: "Administrar productos en consignación en instalaciones de clientes.",
+    href: "/dashboard/consignments",
+    icon: Container,
+    bgColor: "bg-lime-500",
   },
      {
       id: "hacienda:query",

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Centralized PDF generation service for the entire application.
  * This module provides a single, configurable function to create consistent and
