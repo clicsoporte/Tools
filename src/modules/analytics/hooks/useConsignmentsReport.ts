@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook for managing the logic for the new Consignments Report page.
  */
@@ -16,7 +15,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/lib/excel-export';
 import { generateDocument } from '@/lib/pdf-generator';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 // Define types for report data if they are not already in core types
@@ -50,7 +49,7 @@ export function useConsignmentsReport() {
     const [state, setState] = useState<State>({
         isLoading: true,
         hasRun: false,
-        dateRange: { from: new Date(new Date().getFullYear(), new Date().getMonth(), 1), to: new Date() },
+        dateRange: { from: undefined, to: undefined },
         agreements: [],
         selectedAgreementId: null,
         reportData: [],
@@ -61,6 +60,13 @@ export function useConsignmentsReport() {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
     
+    useEffect(() => {
+        // Set initial date range only on the client-side to avoid hydration issues
+        updateState({
+            dateRange: { from: startOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), to: new Date() }
+        });
+    }, [updateState]);
+
     useEffect(() => {
         setTitle("Reporte de Cierre de Consignaciones");
         const fetchAgreements = async () => {
@@ -75,7 +81,11 @@ export function useConsignmentsReport() {
                 }
             }
         };
-        fetchAgreements();
+        if(isAuthorized) {
+            fetchAgreements();
+        } else {
+             updateState({ isLoading: false });
+        }
     }, [setTitle, isAuthorized, toast, updateState]);
 
     const handleGenerateReport = useCallback(async () => {
