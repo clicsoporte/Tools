@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client-side functions for interacting with the Consignments module's server-side DB functions.
  */
@@ -203,7 +204,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
              
              if (recipientEmails.length > 0) {
                  const agreement = await getAgreementDetailsServer(updatedBoleta.agreement_id);
-                 await sendBoletaEmailClient({
+                 await sendBoletaEmail({
                     boletaId: updatedBoleta.id,
                     subject: `Nueva Boleta de Consignación para Aprobación: ${updatedBoleta.consecutive}`,
                     introText: `Se ha enviado una nueva boleta de reposición para el cliente <strong>${agreement?.agreement.client_name}</strong>, preparada por <strong>${updatedBoleta.created_by}</strong> y enviada a aprobación por <strong>${payload.updatedBy}</strong>.`,
@@ -216,7 +217,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         if (creator?.email && creator.name !== payload.updatedBy) {
             if (payload.status === 'approved') {
                 await createNotification({ userId: creator.id, message: `La boleta ${updatedBoleta.consecutive} ha sido aprobada.`, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
-                await sendBoletaEmailClient({
+                await sendBoletaEmail({
                     boletaId: updatedBoleta.id,
                     subject: `Boleta de Consignación Aprobada: ${updatedBoleta.consecutive}`,
                     introText: `La boleta <strong>${updatedBoleta.consecutive}</strong> ha sido aprobada y está lista para despacho.`,
@@ -224,7 +225,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
                 });
             } else if (payload.status === 'invoiced') {
                  await createNotification({ userId: creator.id, message: `La boleta ${updatedBoleta.consecutive} ha sido facturada.`, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
-                await sendBoletaEmailClient({
+                await sendBoletaEmail({
                     boletaId: updatedBoleta.id,
                     subject: `Boleta de Consignación Facturada: ${updatedBoleta.consecutive}`,
                     introText: `La boleta <strong>${updatedBoleta.consecutive}</strong> ha sido marcada como facturada.`,
