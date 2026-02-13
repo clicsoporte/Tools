@@ -306,7 +306,7 @@ export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyR
     }
 }
 
-export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ reportRows: ConsignmentReportRow[], boletas: RestockBoleta[] }> {
+export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ reportRows: ConsignmentReportRow[], boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
     try {
         const agreementDetails = await getAgreementDetails(parseInt(agreementId, 10));
         if (!agreementDetails) {

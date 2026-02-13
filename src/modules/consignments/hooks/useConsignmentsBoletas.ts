@@ -14,6 +14,7 @@ import type { RestockBoleta, BoletaLine, BoletaHistory, ConsignmentSettings, Con
 import { getConsignmentSettings } from '../lib/actions';
 import { generateDocument } from '@/lib/pdf-generator';
 import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export type BoletaSortKey = 'consecutive' | 'client_name' | 'created_at' | 'status';
 export type BoletaSortDirection = 'asc' | 'desc';
@@ -34,7 +35,7 @@ export const useConsignmentsBoletas = () => {
     const [state, setState] = useState({
         isLoading: true,
         isSubmitting: false,
-        agreements: [] as ConsignmentAgreement[],
+        agreements: [] as ConsignmentAgreement[], // Added this to the state
         boletas: [] as RestockBoleta[],
         isStatusModalOpen: false,
         boletaToUpdate: null as RestockBoleta | null,
@@ -59,7 +60,7 @@ export const useConsignmentsBoletas = () => {
         updateState({ isLoading: true });
         try {
             const [boletasData, settingsData, agreementsData] = await Promise.all([
-                getBoletas({ status: [] }), // Fetch all boletas
+                getBoletas({ status: [] }),
                 getConsignmentSettings(),
                 getConsignmentAgreements(),
             ]);

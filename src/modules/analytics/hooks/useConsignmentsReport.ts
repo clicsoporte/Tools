@@ -11,7 +11,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getConsignmentsReportData } from '@/modules/analytics/lib/actions';
 import { getConsignmentAgreements } from '@/modules/consignments/lib/actions';
-import type { DateRange, ConsignmentAgreement, Company, RestockBoleta } from '@/modules/core/types';
+import type { DateRange, ConsignmentAgreement, Company, RestockBoleta, BoletaLine } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/lib/excel-export';
@@ -38,7 +38,7 @@ interface State {
     agreements: ConsignmentAgreement[];
     selectedAgreementId: string | null;
     reportData: ConsignmentReportRow[];
-    processedBoletas: RestockBoleta[];
+    processedBoletas: (RestockBoleta & { lines: BoletaLine[] })[];
 }
 
 export function useConsignmentsReport() {

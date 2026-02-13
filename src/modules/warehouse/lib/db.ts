@@ -685,11 +685,11 @@ export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'created
     }
 }
 
-export async function getInventoryUnits(filters: { dateRange?: DateRange, includeVoided?: boolean } = {}): Promise<InventoryUnit[]> {
+export async function getInventoryUnits(filters: { dateRange?: DateRange, includeVoided?: boolean, statuses?: string[] } = {}): Promise<InventoryUnit[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     let query = 'SELECT * FROM inventory_units';
-    const params = [];
-    const whereClauses = [];
+    const params: any[] = [];
+    const whereClauses: string[] = [];
 
     if (filters.dateRange?.from) {
         whereClauses.push("createdAt >= ?");
@@ -703,6 +703,11 @@ export async function getInventoryUnits(filters: { dateRange?: DateRange, includ
     }
     if (!filters.includeVoided) {
         whereClauses.push("correctionConsecutive IS NULL");
+    }
+    if (filters.statuses && filters.statuses.length > 0) {
+        const placeholders = filters.statuses.map(() => '?').join(',');
+        whereClauses.push(`status IN (${placeholders})`);
+        params.push(...filters.statuses);
     }
 
     if (whereClauses.length > 0) {

@@ -135,7 +135,7 @@ export const getMovements = async (itemId?: string): Promise<MovementLog[]> => g
 
 // --- Inventory Unit Actions ---
 export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive' | 'status'>): Promise<InventoryUnit> => addInventoryUnitServer(unit);
-export const getInventoryUnits = async (filters: { dateRange?: DateRange, includeVoided?: boolean } = {}): Promise<InventoryUnit[]> => getInventoryUnitsServer(filters);
+export const getInventoryUnits = async (filters: { dateRange?: DateRange, includeVoided?: boolean, statuses?: string[] } = {}): Promise<InventoryUnit[]> => getInventoryUnitsServer(filters);
 export const deleteInventoryUnit = async (id: number): Promise<void> => deleteInventoryUnitServer(id);
 export const getInventoryUnitById = async (id: string | number): Promise<InventoryUnit | null> => getInventoryUnitByIdServer(id);
 
