@@ -99,17 +99,29 @@ export function useConsignmentsReport() {
         if (!state.reportData.length) return;
         const agreement = state.agreements.find(a => String(a.id) === state.selectedAgreementId);
 
-        const headers = ["Código", "Producto", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total"];
-        const dataToExport = state.reportData.map(row => [
-            row.productId,
-            row.productDescription,
-            row.initialStock,
-            row.totalReplenished,
-            row.finalStock,
-            row.consumption,
-            row.price,
-            row.totalValue
-        ]);
+        const headers = ["Código", "Producto", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total", "Boletas Involucradas", "Facturas ERP"];
+        
+        const dataToExport = state.reportData.map(row => {
+            const boletasForProduct = state.processedBoletas.filter(boleta => 
+                boleta.lines.some(line => line.product_id === row.productId && line.replenish_quantity > 0)
+            );
+
+            const boletaConsecutives = [...new Set(boletasForProduct.map(b => b.consecutive))].join(', ');
+            const invoiceNumbers = [...new Set(boletasForProduct.map(b => b.erp_invoice_number).filter(Boolean))].join(', ');
+
+            return [
+                row.productId,
+                row.productDescription,
+                row.initialStock,
+                row.totalReplenished,
+                row.finalStock,
+                row.consumption,
+                row.price,
+                row.totalValue,
+                boletaConsecutives,
+                invoiceNumbers,
+            ];
+        });
         
         const title = "Reporte de Cierre de Consignación";
         const meta = [
@@ -124,7 +136,7 @@ export function useConsignmentsReport() {
             meta,
             headers,
             data: dataToExport,
-            columnWidths: [20, 40, 15, 15, 15, 15, 15, 15],
+            columnWidths: [20, 40, 15, 15, 15, 15, 15, 15, 25, 25],
         });
     };
 
