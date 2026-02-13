@@ -73,7 +73,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
     const { state, actions, selectors } = hook;
     const { isSubmitting, isDetailsModalOpen, detailedBoleta, isDetailsLoading } = state;
 
-    const canEditLines = detailedBoleta?.boleta.status === 'pending' && selectors.hasPermission('consignments:approve');
+    const canEditLines = detailedBoleta?.boleta.status === 'pending' && selectors.permissions.canApprove;
     
     const statusConfig = selectors.statusConfig;
 
@@ -258,25 +258,23 @@ export default function BoletasPage() {
                                                     <Printer className="mr-2 h-4 w-4" /> Imprimir Boleta
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                {selectors.hasPermission('consignments:approve') &&
-                                                    <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'approved')} disabled={boleta.status !== 'pending'}>
-                                                        <Check className="mr-2 h-4 w-4" /> Aprobar
-                                                    </DropdownMenuItem>
-                                                }
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'approved'}>
+                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'approved')} disabled={boleta.status !== 'pending' || !selectors.permissions.canApprove}>
+                                                    <Check className="mr-2 h-4 w-4" /> Aprobar
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'approved' || !selectors.permissions.canSend}>
                                                     <Truck className="mr-2 h-4 w-4" /> Marcar como Enviada
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'invoiced')} disabled={boleta.status !== 'sent'}>
+                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'invoiced')} disabled={boleta.status !== 'sent' || !selectors.permissions.canInvoice}>
                                                     <FileCheck2 className="mr-2 h-4 w-4" /> Marcar como Facturada
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'pending')} disabled={boleta.status !== 'approved'} className="text-orange-600">
+                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'pending')} disabled={boleta.status !== 'approved' || !selectors.permissions.canRevert} className="text-orange-600">
                                                     <Undo2 className="mr-2 h-4 w-4" /> Devolver a Pendiente
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'invoiced'} className="text-orange-600">
+                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'invoiced' || !selectors.permissions.canRevert} className="text-orange-600">
                                                     <Undo2 className="mr-2 h-4 w-4" /> Revertir a Enviada
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'canceled')} className="text-red-500" disabled={boleta.status === 'canceled' || boleta.status === 'invoiced'}>
+                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'canceled')} className="text-red-500" disabled={boleta.status === 'canceled' || boleta.status === 'invoiced' || !selectors.permissions.canCancel}>
                                                     <Ban className="mr-2 h-4 w-4" /> Cancelar Boleta
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>

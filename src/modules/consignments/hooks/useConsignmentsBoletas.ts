@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview Hook for managing the logic for the Consignments Boletas page.
  */
@@ -29,7 +28,7 @@ const statusConfig: { [key: string]: { label: string; color: string } } = {
 };
 
 export const useConsignmentsBoletas = () => {
-    const { hasPermission } = useAuthorization(['consignments:approve']);
+    const { hasPermission } = useAuthorization();
     const { toast } = useToast();
     const { user, companyData } = useAuth();
 
@@ -238,7 +237,6 @@ export const useConsignmentsBoletas = () => {
     }, [state.agreements]);
     
     const selectors = {
-        hasPermission,
         statusConfig,
         sortedBoletas: useMemo(() => {
             let filtered = state.boletas;
@@ -267,6 +265,13 @@ export const useConsignmentsBoletas = () => {
                 .map(a => ({ value: String(a.id), label: a.client_name }))
                 .sort((a, b) => a.label.localeCompare(b.label));
         }, [state.agreements]),
+        permissions: useMemo(() => ({
+            canApprove: hasPermission('consignments:boleta:approve'),
+            canSend: hasPermission('consignments:boleta:send'),
+            canInvoice: hasPermission('consignments:boleta:invoice'),
+            canCancel: hasPermission('consignments:boleta:cancel'),
+            canRevert: hasPermission('consignments:boleta:revert'),
+        }), [hasPermission]),
     };
 
     return {
