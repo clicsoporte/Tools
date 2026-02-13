@@ -10,6 +10,8 @@ import * as XLSX from 'xlsx';
 interface ExportToExcelOptions {
     fileName: string;
     sheetName?: string;
+    title?: string;
+    meta?: { label: string; value: any }[];
     headers: string[];
     data: (string | number | null | undefined)[][];
     columnWidths?: number[];
@@ -17,48 +19,84 @@ interface ExportToExcelOptions {
 
 /**
  * Creates and downloads an Excel (.xlsx) file from the provided data.
+ * Can include a title and metadata rows before the main table.
  * 
  * @param {ExportToExcelOptions} options - The configuration for the Excel file.
- * @param {string} options.fileName - The name of the file to be downloaded (without extension).
- * @param {string[]} options.headers - An array of strings for the table headers.
- * @param {(string | number | null | undefined)[][]} options.data - A 2D array of data for the rows.
- * @param {string} [options.sheetName='Datos'] - The name of the worksheet.
- * @param {number[]} [options.columnWidths] - Optional array of widths for each column.
  */
 export const exportToExcel = ({
     fileName,
     sheetName = 'Datos',
+    title,
+    meta,
     headers,
     data,
     columnWidths,
 }: ExportToExcelOptions) => {
-    // Create a new workbook and a worksheet
-    const workbook = XLSX.utils.book_new();
+    const dataForSheet: any[][] = [];
+    let headerRowIndex = 0;
+
+    // Add title row if provided
+    if (title) {
+        dataForSheet.push([title]);
+        headerRowIndex++;
+    }
+
+    // Add metadata rows if provided
+    if (meta && meta.length > 0) {
+        meta.forEach(item => dataForSheet.push([item.label, item.value]));
+        headerRowIndex += meta.length;
+    }
+
+    // Add a spacer row if there was a title or meta
+    if (title || (meta && meta.length > 0)) {
+        dataForSheet.push([]); 
+        headerRowIndex++;
+    }
+
+    // Add table headers and data
+    dataForSheet.push(headers);
+    data.forEach(row => dataForSheet.push(row));
+
+    const worksheet = XLSX.utils.aoa_to_sheet(dataForSheet);
+
+    // --- Apply Styles and Merges ---
+    const headerStyle = { font: { bold: true } };
+    const titleStyle = { font: { bold: true, sz: 16 } };
+
+    // Style and merge title row
+    if (title) {
+        const titleCellAddress = XLSX.utils.encode_cell({ r: 0, c: 0 });
+        if (worksheet[titleCellAddress]) {
+            worksheet[titleCellAddress].s = titleStyle;
+        }
+        
+        const merge = { s: { r: 0, c: 0 }, e: { r: 0, c: Math.max(0, headers.length - 1) } };
+        if (!worksheet['!merges']) worksheet['!merges'] = [];
+        worksheet['!merges'].push(merge);
+    }
     
-    // Add headers to the beginning of the data array
-    const dataWithHeaders = [headers, ...data];
+    // Style meta labels
+    if (meta && meta.length > 0) {
+        for (let i = 0; i < meta.length; i++) {
+            const metaCellAddress = XLSX.utils.encode_cell({ r: (title ? 1 : 0) + i, c: 0 });
+            if (worksheet[metaCellAddress]) {
+                worksheet[metaCellAddress].s = headerStyle;
+            }
+        }
+    }
 
-    // Create worksheet from the array of arrays
-    const worksheet = XLSX.utils.aoa_to_sheet(dataWithHeaders);
-
-    // Apply column widths if provided
+    // Style table headers
+    for (let C = 0; C < headers.length; ++C) {
+        const address = XLSX.utils.encode_cell({ r: headerRowIndex, c: C });
+        if (!worksheet[address]) continue;
+        worksheet[address].s = headerStyle;
+    }
+    
     if (columnWidths) {
         worksheet['!cols'] = columnWidths.map(width => ({ wch: width }));
     }
 
-    // Apply bold style to header row
-    const headerCellStyle = { font: { bold: true } };
-    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-        const address = XLSX.utils.encode_cell({ r: 0, c: C });
-        if (!worksheet[address]) continue;
-        worksheet[address].s = headerCellStyle;
-    }
-
-    // Append the worksheet to the workbook
+    const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-
-    // Generate the .xlsx file and trigger the download
-    XLSX.writeFile(workbook, `${fileName}.xlsx`);
+    XLSX.writeFile(workbook, `${fileName}_${new Date().getTime()}.xlsx`);
 };
-

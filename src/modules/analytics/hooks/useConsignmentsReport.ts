@@ -15,7 +15,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/lib/excel-export';
 import { generateDocument } from '@/lib/pdf-generator';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 // Define types for report data if they are not already in core types
@@ -94,6 +94,8 @@ export function useConsignmentsReport() {
 
     const handleExportExcel = () => {
         if (!state.reportData.length) return;
+        const agreement = state.agreements.find(a => String(a.id) === state.selectedAgreementId);
+
         const headers = ["Código", "Producto", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total"];
         const dataToExport = state.reportData.map(row => [
             row.productId,
@@ -105,11 +107,21 @@ export function useConsignmentsReport() {
             row.price,
             row.totalValue
         ]);
+        
+        const title = "Reporte de Cierre de Consignación";
+        const meta = [
+            { label: "Cliente:", value: agreement?.client_name || 'N/A' },
+            { label: "Período:", value: `${state.dateRange.from ? format(state.dateRange.from, 'dd/MM/yyyy', { locale: es }) : ''} al ${state.dateRange.to ? format(state.dateRange.to, 'dd/MM/yyyy', { locale: es }) : ''}` }
+        ];
+
         exportToExcel({
-            fileName: `cierre_consignacion_${state.agreements.find(a => String(a.id) === state.selectedAgreementId)?.client_name.replace(/\s+/g, '_') || ''}`,
+            fileName: `cierre_consignacion_${agreement?.client_name.replace(/\s+/g, '_') || ''}`,
             sheetName: 'Cierre',
+            title,
+            meta,
             headers,
             data: dataToExport,
+            columnWidths: [20, 40, 15, 15, 15, 15, 15, 15],
         });
     };
 
@@ -146,7 +158,7 @@ export function useConsignmentsReport() {
             docId: '',
             companyData,
             logoDataUrl,
-            meta: [{ label: 'Cliente', value: agreement?.client_name || '' }, { label: 'Período', value: `${format(state.dateRange.from!, 'dd/MM/yyyy')} al ${format(state.dateRange.to!, 'dd/MM/yyyy')}` }],
+            meta: [{ label: 'Cliente', value: agreement?.client_name || '' }, { label: 'Período', value: `${state.dateRange.from ? format(state.dateRange.from, 'dd/MM/yyyy') : ''} al ${state.dateRange.to ? format(state.dateRange.to, 'dd/MM/yyyy') : ''}` }],
             blocks: [],
             table: { columns: tableHeaders, rows: tableRows, columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } } },
             totals: [{ label: 'Total a Facturar:', value: `¢${selectors.totalConsumptionValue.toLocaleString('es-CR', { minimumFractionDigits: 2 })}` }],
