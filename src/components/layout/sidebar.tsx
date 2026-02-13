@@ -33,6 +33,7 @@ import {
   Calculator,
   FileSignature,
   Cpu,
+  Container,
 } from "lucide-react";
 import type { Tool } from "@/modules/core/types";
 import { UserNav } from "./user-nav";
@@ -77,6 +78,13 @@ const navLinks: Tool[] = [
     description: 'Calcular costos y precios a partir de facturas XML.',
     href: '/dashboard/cost-assistant',
     icon: Calculator,
+  },
+  {
+    id: "consignments:access",
+    name: "Gestión de Consignaciones",
+    description: "Administrar productos en consignación en instalaciones de clientes.",
+    href: "/dashboard/consignments",
+    icon: Container,
   },
   {
     id: 'operations:access',
