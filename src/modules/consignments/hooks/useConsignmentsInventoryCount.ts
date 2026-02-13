@@ -16,13 +16,26 @@ import { createNotification } from '@/modules/core/lib/notifications-actions';
 
 type WizardStep = 'setup' | 'resume' | 'counting' | 'finished';
 
+interface State {
+    isLoading: boolean;
+    step: WizardStep;
+    agreements: ConsignmentAgreement[];
+    selectedAgreementId: string | null;
+    session: (CountingSession & { lines: CountingSessionLine[] }) | null;
+    existingSession: (CountingSession & { lines: CountingSessionLine[] }) | null;
+    productsToCount: ConsignmentProduct[];
+    counts: Record<string, string>;
+    lastCountInfo: { product: string; location: string; quantity: number } | null;
+}
+
+
 export const useConsignmentsInventoryCount = () => {
     const { hasPermission } = useAuthorization(['consignments:count']);
     const { toast } = useToast();
     const { user, products } = useAuth();
     const router = useRouter();
 
-    const [state, setState] = useState({
+    const [state, setState] = useState<State>({
         isLoading: true,
         step: 'setup' as WizardStep,
         agreements: [] as ConsignmentAgreement[],
@@ -31,6 +44,7 @@ export const useConsignmentsInventoryCount = () => {
         existingSession: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
         productsToCount: [] as ConsignmentProduct[],
         counts: {} as Record<string, string>,
+        lastCountInfo: null,
     });
 
     const updateState = useCallback((newState: Partial<typeof state>) => {

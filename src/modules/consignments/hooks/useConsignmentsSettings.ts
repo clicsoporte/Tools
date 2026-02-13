@@ -11,6 +11,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { getConsignmentSettings, saveConsignmentSettings } from '../lib/actions';
 import type { ConsignmentSettings, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
+import { getAllUsers } from '@/modules/core/lib/auth-client';
 
 const availableColumns = [
     { id: 'product_id', label: 'Código Producto' },
@@ -24,7 +25,7 @@ export const useConsignmentsSettings = () => {
     const { setTitle } = usePageTitle();
     const { isAuthorized } = useAuthorization(['admin:settings:consignments']);
     const { toast } = useToast();
-    const { allUsers } = useAuth();
+    const [allUsers, setAllUsers] = useState<User[]>([]);
 
     const [state, setState] = useState({
         isLoading: true,
@@ -43,7 +44,10 @@ export const useConsignmentsSettings = () => {
     useEffect(() => {
         setTitle('Configuración de Consignaciones');
         if (isAuthorized) {
-            getConsignmentSettings().then(settingsData => {
+            Promise.all([
+                getConsignmentSettings(),
+                getAllUsers()
+            ]).then(([settingsData, usersData]) => {
                 const completeSettings = {
                     ...state.settings,
                     ...settingsData,
@@ -51,6 +55,7 @@ export const useConsignmentsSettings = () => {
                     additionalNotificationEmails: settingsData.additionalNotificationEmails || '',
                 };
                 updateState({ settings: completeSettings, isLoading: false });
+                setAllUsers(usersData);
             });
         }
     }, [setTitle, isAuthorized, updateState, state.settings]);

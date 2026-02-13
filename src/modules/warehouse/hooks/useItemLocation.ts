@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook to manage the state and logic for the ItemLocation assignment page.
  */
@@ -65,6 +66,8 @@ interface State {
     moveProductConfirmOpen: boolean;
     mixedLocationConfirmOpen: boolean;
     moveAndMixConfirmOpen: boolean;
+    conflictingItems: Product[];
+    isTargetLocationMixed: boolean;
 }
 
 export function useItemLocation() {
@@ -98,6 +101,8 @@ export function useItemLocation() {
         moveProductConfirmOpen: false,
         mixedLocationConfirmOpen: false,
         moveAndMixConfirmOpen: false,
+        conflictingItems: [],
+        isTargetLocationMixed: false,
     });
     
     const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);
