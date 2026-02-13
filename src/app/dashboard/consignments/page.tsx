@@ -11,7 +11,7 @@ import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useMemo } from "react";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import { ListChecks, ClipboardCheck, Lock } from "lucide-react";
+import { consignmentsTools } from "@/modules/core/lib/data";
 import type { Tool } from "@/modules/core/types";
 
 export default function ConsignmentsDashboardPage() {
@@ -19,41 +19,6 @@ export default function ConsignmentsDashboardPage() {
     const { isAuthorized, hasPermission } = useAuthorization();
     const { isAuthReady } = useAuth();
     
-    const consignmentsTools: Tool[] = [
-        {
-            id: "consignments:setup",
-            name: "Acuerdos de Consignación",
-            description: "Crear y gestionar los acuerdos de productos en consignación por cliente.",
-            href: "/dashboard/consignments/agreements",
-            icon: ListChecks,
-            bgColor: "bg-teal-600",
-        },
-        {
-            id: "consignments:count",
-            name: "Toma de Inventario",
-            description: "Realizar el conteo físico de productos en las instalaciones del cliente.",
-            href: "/dashboard/consignments/inventory-count",
-            icon: ClipboardCheck,
-            bgColor: "bg-blue-600",
-        },
-        {
-            id: "consignments:approve",
-            name: "Gestión de Boletas",
-            description: "Aprobar, imprimir y dar seguimiento a las boletas de reposición.",
-            href: "/dashboard/consignments/boletas",
-            icon: ListChecks,
-            bgColor: "bg-orange-600",
-        },
-        {
-            id: "consignments:locks:manage",
-            name: "Bloqueos de Conteo",
-            description: "Ver y liberar sesiones de conteo de consignación activas.",
-            href: "/dashboard/consignments/locks",
-            icon: Lock,
-            bgColor: "bg-slate-500",
-        }
-    ];
-
     useEffect(() => {
         setTitle("Gestión de Consignaciones");
     }, [setTitle]);
