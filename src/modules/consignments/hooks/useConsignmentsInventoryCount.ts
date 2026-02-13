@@ -28,6 +28,7 @@ export const useConsignmentsInventoryCount = () => {
         session: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
         existingSession: null as (CountingSession & { lines: CountingSessionLine[] }) | null,
         productsToCount: [] as ConsignmentProduct[],
+        counts: {} as Record<string, string>,
     });
 
     const updateState = useCallback((newState: Partial<typeof state>) => {
@@ -44,7 +45,11 @@ export const useConsignmentsInventoryCount = () => {
                 ]);
                 updateState({ agreements: agreementsData.filter(a => a.is_active) });
                 if (activeSession) {
-                    updateState({ existingSession: activeSession, step: 'resume' });
+                    const initialCounts: Record<string, string> = {};
+                    activeSession.lines.forEach(line => {
+                        initialCounts[line.product_id] = String(line.counted_quantity);
+                    });
+                    updateState({ existingSession: activeSession, step: 'resume', counts: initialCounts });
                 }
             } catch (error) {
                 logError('Failed to load initial data for inventory count', { error });
@@ -69,10 +74,16 @@ export const useConsignmentsInventoryCount = () => {
                 getAgreementDetails(agreementId)
             ]);
 
+            const initialCounts: Record<string, string> = {};
+            sessionData.lines.forEach(line => {
+                initialCounts[line.product_id] = String(line.counted_quantity);
+            });
+
             updateState({ 
                 session: sessionData, 
                 productsToCount: agreementDetails?.products || [],
-                step: 'counting' 
+                step: 'counting',
+                counts: initialCounts,
             });
         } catch (error: any) {
             logError('Failed to start counting session', { error: error.message });
@@ -82,8 +93,19 @@ export const useConsignmentsInventoryCount = () => {
         }
     };
 
+    const handleQuantityChange = (productId: string, value: string) => {
+        updateState({
+            counts: {
+                ...state.counts,
+                [productId]: value
+            }
+        });
+    };
+
     const handleSaveLine = async (productId: string, quantity: number) => {
         if (!state.session) return;
+        if (isNaN(quantity)) return;
+
         await saveCountLine(state.session.id, productId, quantity);
         toast({ title: 'Guardado', description: 'Conteo registrado.', duration: 2000 });
     };
@@ -99,11 +121,16 @@ export const useConsignmentsInventoryCount = () => {
         updateState({ isLoading: true });
         try {
             const agreementDetails = await getAgreementDetails(state.existingSession.agreement_id);
+            const initialCounts: Record<string, string> = {};
+            state.existingSession.lines.forEach(line => {
+                initialCounts[line.product_id] = String(line.counted_quantity);
+            });
             updateState({ 
                 session: state.existingSession, 
                 productsToCount: agreementDetails?.products || [],
                 step: 'counting',
-                existingSession: null
+                existingSession: null,
+                counts: initialCounts,
             });
         } catch (error: any) {
             logError('Failed to resume session', { error: error.message });
@@ -116,7 +143,7 @@ export const useConsignmentsInventoryCount = () => {
     const abandonCurrentSession = async () => {
         if (!user || !state.session) return;
         await abandonCountingSession(state.session.id, user.id);
-        updateState({ session: null, step: 'setup', productsToCount: [] });
+        updateState({ session: null, step: 'setup', productsToCount: [], counts: {} });
     };
 
     const handleGenerateBoleta = async () => {
@@ -142,7 +169,6 @@ export const useConsignmentsInventoryCount = () => {
         agreementOptions: useMemo(() => state.agreements.map(a => ({ value: String(a.id), label: a.client_name })), [state.agreements]),
         getAgreementName: (id: number) => state.agreements.find(a => a.id === id)?.client_name || 'Desconocido',
         getProductName: (id: string) => products.find(p => p.id === id)?.description || 'Desconocido',
-        getInitialCount: (productId: string) => state.session?.lines.find(l => l.product_id === productId)?.counted_quantity,
     };
     
     return {
@@ -150,6 +176,7 @@ export const useConsignmentsInventoryCount = () => {
         actions: {
             handleSelectAgreement,
             handleStartSession,
+            handleQuantityChange,
             handleSaveLine,
             abandonSession,
             resumeSession,

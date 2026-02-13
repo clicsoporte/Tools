@@ -88,7 +88,8 @@ export default function InventoryCountPage() {
                                                         id={`count-${p.product_id}`}
                                                         type="number"
                                                         placeholder="Cant."
-                                                        defaultValue={selectors.getInitialCount(p.product_id)}
+                                                        value={state.counts[p.product_id] || ''}
+                                                        onChange={(e) => actions.handleQuantityChange(p.product_id, e.target.value)}
                                                         onBlur={(e) => actions.handleSaveLine(p.product_id, Number(e.target.value))}
                                                         className="text-right text-2xl h-14 font-bold hide-number-arrows"
                                                     />
