@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the state and logic of the Consignments settings page.
  */
@@ -48,8 +49,8 @@ export const useConsignmentsSettings = () => {
                 getAllUsers()
             ]).then(([settingsData, usersData]) => {
                 const completeSettings = {
-                    ...state.settings,
-                    ...settingsData,
+                    pdfTopLegend: settingsData.pdfTopLegend || '',
+                    pdfExportColumns: settingsData.pdfExportColumns || availableColumns.map(c => c.id),
                     notificationUserIds: settingsData.notificationUserIds || [],
                     additionalNotificationEmails: settingsData.additionalNotificationEmails || '',
                 };
@@ -57,7 +58,8 @@ export const useConsignmentsSettings = () => {
                 setAllUsers(usersData);
             });
         }
-    }, [setTitle, isAuthorized, updateState, state.settings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized]);
 
     const handleColumnVisibilityChange = (columnId: string, checked: boolean) => {
         updateState({
