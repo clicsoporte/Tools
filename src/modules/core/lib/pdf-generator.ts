@@ -6,7 +6,8 @@
 import jsPDF from "jspdf";
 import autoTable, { type RowInput } from "jspdf-autotable";
 import { format, parseISO } from 'date-fns';
-import type { Company } from '../types';
+import type { Company, Product, User, WarehouseLocation } from '@/modules/core/types';
+import QRCode from 'qrcode';
 
 export interface DocumentData {
     docTitle: string;
@@ -77,7 +78,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
                 const imgHeight = 45; 
                 const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
                 doc.addImage(data.logoDataUrl, 'PNG', margin, companyY, imgWidth, imgHeight);
-                companyX = margin + imgWidth + 15;
+                companyX = margin + imgWidth + 2; // Reduced from 15 to move text left
             } catch (e) {
                 console.error("Error adding logo image to PDF:", e);
             }
@@ -265,3 +266,71 @@ export const generateDocument = (data: DocumentData): jsPDF => {
 
     return doc;
 };
+
+
+const renderLocationPathAsString = (locationId: number | null, locations: WarehouseLocation[]): string => {
+    if (!locationId) return '';
+    const path: WarehouseLocation[] = [];
+    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
+    while (current) {
+        path.unshift(current);
+        const parentId = current.parentId;
+        if (!parentId) break;
+        current = locations.find(l => l.id === parentId);
+    }
+    return path.map(l => l.name).join(' > ');
+};
+
+
+export async function generateScannerLabelsPDF({
+    itemsToPrint,
+    allLocations,
+    user
+}: {
+    itemsToPrint: { product: Product, location: WarehouseLocation }[],
+    allLocations: WarehouseLocation[],
+    user: User | null
+}): Promise<jsPDF> {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: [288, 216] }); // 4x3 inches
+    doc.deletePage(1);
+
+    for (const item of itemsToPrint) {
+        doc.addPage();
+        const { product, location } = item;
+        const qrContent = `${location.id}>${product.id}`;
+        const qrCodeDataUrl = await QRCode.toDataURL(qrContent, { errorCorrectionLevel: 'M', width: 200 });
+
+        const margin = 20;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        doc.addImage(qrCodeDataUrl, 'PNG', margin, margin, 100, 100);
+
+        const textX = margin + 110;
+        const textWidth = pageWidth - textX - margin;
+        
+        let currentY = margin + 10;
+        
+        doc.setFontSize(14).setFont('Helvetica', 'bold').text('Producto:', textX, currentY);
+        currentY += 16;
+        
+        doc.setFontSize(10).setFont('Helvetica', 'normal');
+        const descLines = doc.splitTextToSize(`[${product.id}] ${product.description}`, textWidth);
+        doc.text(descLines, textX, currentY);
+        currentY += (descLines.length * 12) + 10;
+
+        doc.setFontSize(12).setFont('Helvetica', 'bold').text('Ubicación:', textX, currentY);
+        currentY += 14;
+
+        doc.setFontSize(10).setFont('Helvetica', 'normal');
+        const locPath = renderLocationPathAsString(location.id, allLocations);
+        const locLines = doc.splitTextToSize(locPath, textWidth);
+        doc.text(locLines, textX, currentY);
+
+        const footerY = pageHeight - margin;
+        doc.setFontSize(8).setTextColor(150);
+        doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy')} por ${user?.name || 'Sistema'}`, pageWidth - margin, footerY, { align: 'right' });
+    }
+
+    return doc;
+}
