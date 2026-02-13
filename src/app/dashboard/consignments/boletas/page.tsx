@@ -163,7 +163,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
 export default function BoletasPage() {
     const { state, actions, selectors } = useConsignmentsBoletas();
     const { sortKey, sortDirection, filters } = state;
-    const { sortedBoletas } = selectors;
+    const { sortedBoletas, agreementOptions } = selectors;
     usePageTitle().setTitle('Gestión de Boletas');
 
     const renderSortIcon = (key: BoletaSortKey) => {
@@ -171,7 +171,7 @@ export default function BoletasPage() {
         return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
     };
 
-    const statusOptions = Object.entries(selectors.statusConfig).map(([value, { label }]: [string, { label: string }]) => ({ value, label }));
+    const statusOptions = Object.entries(selectors.statusConfig).map(([value, { label }]) => ({ value, label }));
 
     if (state.isLoading) {
         return (
@@ -185,19 +185,27 @@ export default function BoletasPage() {
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <Card className="max-w-5xl mx-auto">
                 <CardHeader>
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                             <CardTitle>Gestión de Boletas de Reposición</CardTitle>
                             <CardDescription>
                                 Aprueba, edita y gestiona el ciclo de vida de las boletas de envío.
                             </CardDescription>
                         </div>
-                         <MultiSelectFilter
-                            title="Filtrar por Estado"
-                            options={statusOptions}
-                            selectedValues={filters.status}
-                            onSelectedChange={actions.setBoletaStatusFilter}
-                        />
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <MultiSelectFilter
+                                title="Filtrar por Cliente"
+                                options={agreementOptions}
+                                selectedValues={filters.client}
+                                onSelectedChange={actions.setBoletaClientFilter}
+                            />
+                             <MultiSelectFilter
+                                title="Filtrar por Estado"
+                                options={statusOptions}
+                                selectedValues={filters.status}
+                                onSelectedChange={actions.setBoletaStatusFilter}
+                            />
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>

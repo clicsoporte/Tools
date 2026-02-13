@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the logic for the Consignments Boletas page.
  */
@@ -45,6 +46,7 @@ export const useConsignmentsBoletas = () => {
         sortDirection: 'desc' as BoletaSortDirection,
         filters: {
             status: ['pending', 'approved', 'sent', 'invoiced'],
+            client: [] as string[],
         },
         settings: null as ConsignmentSettings | null,
     });
@@ -53,11 +55,11 @@ export const useConsignmentsBoletas = () => {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
 
-    const loadBoletasAndAgreements = useCallback(async () => {
+    const loadData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
             const [boletasData, settingsData, agreementsData] = await Promise.all([
-                getBoletas({ status: state.filters.status }),
+                getBoletas({ status: [] }), // Fetch all boletas
                 getConsignmentSettings(),
                 getConsignmentAgreements(),
             ]);
@@ -68,11 +70,11 @@ export const useConsignmentsBoletas = () => {
         } finally {
             updateState({ isLoading: false });
         }
-    }, [toast, updateState, state.filters.status]);
+    }, [toast, updateState]);
 
     useEffect(() => {
-        loadBoletasAndAgreements();
-    }, [loadBoletasAndAgreements, state.filters.status]);
+        loadData();
+    }, [loadData]);
     
     const openStatusModal = (boleta: RestockBoleta, status: string) => {
         updateState({
@@ -97,7 +99,7 @@ export const useConsignmentsBoletas = () => {
             });
             toast({ title: 'Estado Actualizado' });
             updateState({ isStatusModalOpen: false });
-            await loadBoletasAndAgreements();
+            await loadData();
         } catch (error: any) {
             logError('Failed to update boleta status', { error: error.message });
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -134,7 +136,7 @@ export const useConsignmentsBoletas = () => {
             await updateBoleta(state.detailedBoleta.boleta, state.detailedBoleta.lines, user.name);
             toast({ title: 'Boleta Actualizada' });
             updateState({ isDetailsModalOpen: false });
-            await loadBoletasAndAgreements();
+            await loadData();
         } catch (error: any) {
             logError('Failed to save boleta changes', { error: error.message });
             toast({ title: 'Error', variant: 'destructive' });
@@ -181,9 +183,10 @@ export const useConsignmentsBoletas = () => {
                 value: `${h.updatedBy} - ${format(parseISO(h.timestamp), 'dd/MM/yy HH:mm')}`
             }));
             
+            const agreement = state.agreements.find(a => a.id === boleta.agreement_id);
             let blocks = [
-                { title: 'Cliente:', content: state.agreements.find(a => a.id === boleta.agreement_id)?.client_name || 'N/A' },
-                { title: 'Bodega ERP:', content: `${state.agreements.find(a => a.id === boleta.agreement_id)?.erp_warehouse_id || 'N/A'} - ${state.agreements.find(a => a.id === boleta.agreement_id)?.client_name || 'N/A'}`},
+                { title: 'Cliente:', content: agreement?.client_name || 'N/A' },
+                { title: 'Bodega ERP:', content: `${agreement?.erp_warehouse_id || 'N/A'} - ${agreement?.client_name || 'N/A'}`},
             ];
 
             if (boleta.status === 'invoiced' && boleta.erp_invoice_number) {
@@ -231,7 +234,17 @@ export const useConsignmentsBoletas = () => {
         hasPermission,
         statusConfig,
         sortedBoletas: useMemo(() => {
-            return [...state.boletas].sort((a, b) => {
+            let filtered = state.boletas;
+
+            if (state.filters.status.length > 0) {
+                filtered = filtered.filter(boleta => state.filters.status.includes(boleta.status));
+            }
+            if (state.filters.client.length > 0) {
+                const clientAgreementIds = new Set(state.filters.client.map(Number));
+                filtered = filtered.filter(boleta => clientAgreementIds.has(boleta.agreement_id));
+            }
+
+            return [...filtered].sort((a, b) => {
                 const dir = state.sortDirection === 'asc' ? 1 : -1;
                 switch (state.sortKey) {
                     case 'created_at': return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
@@ -239,14 +252,20 @@ export const useConsignmentsBoletas = () => {
                     default: return String(a[state.sortKey as keyof RestockBoleta]).localeCompare(String(b[state.sortKey as keyof RestockBoleta])) * dir;
                 }
             });
-        }, [state.boletas, state.sortKey, state.sortDirection, getAgreementName]),
+        }, [state.boletas, state.sortKey, state.sortDirection, getAgreementName, state.filters.status, state.filters.client]),
         getAgreementName,
+        agreementOptions: useMemo(() => {
+            if (!state.agreements) return [];
+            return state.agreements
+                .map(a => ({ value: String(a.id), label: a.client_name }))
+                .sort((a, b) => a.label.localeCompare(b.label));
+        }, [state.agreements]),
     };
 
     return {
         state,
         actions: {
-            loadBoletas: loadBoletasAndAgreements,
+            loadBoletas: loadData,
             openStatusModal,
             handleStatusUpdatePayloadChange,
             submitStatusUpdate,
@@ -260,7 +279,10 @@ export const useConsignmentsBoletas = () => {
                 updateState({ sortKey: key, sortDirection: state.sortKey === key && state.sortDirection === 'asc' ? 'desc' : 'asc' });
             },
             setBoletaStatusFilter: (statuses: string[]) => {
-                updateState({ filters: { status: statuses } });
+                updateState({ filters: { ...state.filters, status: statuses } });
+            },
+            setBoletaClientFilter: (clients: string[]) => {
+                updateState({ filters: { ...state.filters, client: clients } });
             },
         },
         selectors
