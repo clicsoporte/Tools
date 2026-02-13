@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for interacting with the Consignments module's server-side DB functions.
  */
@@ -39,7 +38,7 @@ export async function getAgreementDetails(agreementId: number): Promise<{ agreem
     return getAgreementDetailsServer(agreementId);
 }
 
-export async function deleteConsignmentAgreement(agreementId: number): Promise<void> {
+export async function deleteConsignmentAgreement(agreementId: number): Promise<{ success: boolean; message: string }> {
     await authorizeAction('consignments:setup');
     return deleteAgreementServer(agreementId);
 }

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -9,7 +8,7 @@ import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
 import { sendEmail } from '@/modules/core/lib/email-service';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
-import { createNotification } from '@/modules/core/lib/notifications-actions';
+import { createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -207,6 +206,11 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
 }
 
 export async function runConsignmentsMigrations(db: import('better-sqlite3').Database) {
+    const boletasTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='restock_boletas'`).get();
+    if (!boletasTable) {
+        // Table doesn't exist, likely a fresh install handled by initialize.
+        return;
+    }
     const tableInfo = db.prepare(`PRAGMA table_info(restock_boletas)`).all() as { name: string }[];
     const columns = new Set(tableInfo.map(c => c.name));
     if (!columns.has('notes')) {
@@ -219,6 +223,17 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
         const defaultPdfColumns = ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'];
         db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfTopLegend', 'Documento de Reposición')`).run();
         db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
+        db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('notificationUserIds', '[]')`).run();
+        db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('additionalNotificationEmails', '')`).run();
+    } else {
+        const notificationUserIdsRow = db.prepare(`SELECT value FROM consignments_settings WHERE key = 'notificationUserIds'`).get() as { value: string } | undefined;
+        if (!notificationUserIdsRow) {
+            db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('notificationUserIds', '[]')`).run();
+        }
+        const additionalEmailsRow = db.prepare(`SELECT value FROM consignments_settings WHERE key = 'additionalNotificationEmails'`).get() as { value: string } | undefined;
+        if (!additionalEmailsRow) {
+            db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('additionalNotificationEmails', '')`).run();
+        }
     }
 }
 
@@ -227,6 +242,8 @@ export async function getSettings(): Promise<ConsignmentSettings> {
     const defaults: ConsignmentSettings = {
         pdfTopLegend: 'Documento de Reposición',
         pdfExportColumns: ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'],
+        notificationUserIds: [],
+        additionalNotificationEmails: '',
     };
     try {
         const rows = db.prepare(`SELECT key, value FROM consignments_settings`).all() as { key: string; value: string }[];
@@ -251,11 +268,12 @@ export async function getSettings(): Promise<ConsignmentSettings> {
 export async function saveSettings(settings: ConsignmentSettings): Promise<void> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const transaction = db.transaction(() => {
-        if (settings.pdfTopLegend) {
-            db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('pdfTopLegend', ?)`).run(settings.pdfTopLegend);
-        }
-        if (settings.pdfExportColumns) {
-            db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(settings.pdfExportColumns));
+        const keys: (keyof ConsignmentSettings)[] = ['pdfTopLegend', 'pdfExportColumns', 'notificationUserIds', 'additionalNotificationEmails'];
+        for (const key of keys) {
+            if (settings[key] !== undefined) {
+                const value = typeof settings[key] === 'object' ? JSON.stringify(settings[key]) : String(settings[key]);
+                db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES (?, ?)`).run(key, value);
+            }
         }
     });
     transaction();
@@ -299,32 +317,38 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
     return transaction();
 }
 
-export async function deleteAgreement(agreementId: number): Promise<void> {
+export async function deleteAgreement(agreementId: number): Promise<{ success: boolean; message: string }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-
-    const transaction = db.transaction(() => {
-        // Check for dependencies first.
+    try {
+        // Pre-check for associated boletas
         const boletaCount = db.prepare('SELECT COUNT(*) as count FROM restock_boletas WHERE agreement_id = ?').get(agreementId) as { count: number };
         if (boletaCount.count > 0) {
-            throw new Error(`No se puede eliminar el acuerdo porque tiene ${boletaCount.count} boleta(s) asociadas. Por favor, elimina las boletas primero.`);
+            return { success: false, message: `No se puede eliminar el acuerdo porque tiene ${boletaCount.count} boleta(s) asociadas. Elimina las boletas primero.` };
         }
 
-        // The ON DELETE CASCADE constraint on consignment_products will handle product deletion.
-        const result = db.prepare('DELETE FROM consignment_agreements WHERE id = ?').run(agreementId);
-
-        if (result.changes === 0) {
-            throw new Error('No se encontró el acuerdo a eliminar.');
+        // Attempt deletion
+        const deleteResult = db.prepare('DELETE FROM consignment_agreements WHERE id = ?').run(agreementId);
+        
+        if (deleteResult.changes === 0) {
+            return { success: false, message: 'No se encontró el acuerdo a eliminar.' };
         }
-    });
 
-    try {
-        transaction();
-        logInfo(`Consignment agreement with ID ${agreementId} was deleted.`);
+        await logInfo(`Consignment agreement with ID ${agreementId} was deleted.`);
+        return { success: true, message: 'Acuerdo eliminado con éxito.' };
+
     } catch (error: any) {
         logError('Failed to delete consignment agreement', { error: error.message, agreementId });
-        throw error;
+
+        // Specifically catch the foreign key constraint error, although the pre-check should prevent this.
+        if (error.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+            return { success: false, message: 'No se puede eliminar el acuerdo porque tiene documentos (boletas) asociados.' };
+        }
+        
+        // Return a generic error for other unexpected database issues
+        return { success: false, message: 'Ocurrió un error inesperado en la base de datos.' };
     }
 }
+
 
 export async function getAgreementDetails(agreementId: number): Promise<{ agreement: ConsignmentAgreement, products: ConsignmentProduct[] } | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
@@ -407,7 +431,7 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
         const mainDbProducts = productIds.length > 0 ? mainDb.prepare(`SELECT * FROM products WHERE id IN (${placeholders})`).all(...productIds) as Product[] : [];
 
         const consecutive = `${agreement.client_id}-${String(agreement.next_boleta_number).padStart(4, '0')}`;
-        const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, created_at) VALUES (?, ?, 'pending', ?, datetime('now'))`)
+        const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, created_at) VALUES (?, ?, 'review', ?, datetime('now'))`)
             .run(consecutive, agreement.id, userName);
         const boletaId = boletaInfo.lastInsertRowid as number;
 
@@ -433,30 +457,20 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
 
     const newBoleta = transaction();
 
-    // Send email notification to approvers
+    // Send email notification to creator of boleta
     try {
-        const allRoles = await getAllRolesFromDb();
-        const allUsers = await getAllUsersFromMain();
-        
-        const approverRoleIds = allRoles
-            .filter(role => role.id === 'admin' || role.permissions.includes('consignments:approve'))
-            .map(role => role.id);
-        
-        const recipientEmails = allUsers
-            .filter(user => approverRoleIds.includes(user.role) && user.email)
-            .map(user => user.email);
-
         const agreement = db.prepare('SELECT client_name FROM consignment_agreements WHERE id = ?').get(newBoleta.agreement_id) as { client_name: string };
-        
-        await sendBoletaEmail({
-            boletaId: newBoleta.id,
-            subject: `Nueva Boleta de Reposición para Aprobación: ${newBoleta.consecutive}`,
-            introText: `Se ha generado una nueva boleta de reposición para el cliente <strong>${agreement.client_name}</strong>, creada por <strong>${newBoleta.created_by}</strong>.`,
-            recipientEmails,
-        });
+        const creatorUser = (await getAllUsersFromMain()).find(u => u.name === newBoleta.created_by);
 
-    } catch (e: any) {
-        logError('Failed to send new boleta email notification', { boletaId: newBoleta.id, error: e.message });
+        if (creatorUser?.email) {
+            await sendEmail({
+                to: [creatorUser.email],
+                subject: `Conteo de Consignación Registrado: ${newBoleta.consecutive}`,
+                html: `<p>Se ha generado la boleta de reposición <strong>${newBoleta.consecutive}</strong> para el cliente <strong>${agreement.client_name}</strong> a partir de tu conteo. Ahora pasará a revisión.</p>`,
+            });
+        }
+    } catch(e: any) {
+         logError('Failed to send new boleta creation email', { boletaId: newBoleta.id, error: e.message });
     }
 
     return newBoleta;
@@ -505,6 +519,9 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         if (status === 'approved') {
             setClauses.push('approved_by = @approvedBy', 'approved_at = datetime(\'now\')');
             params.approvedBy = updatedBy;
+        } else if (status === 'pending') {
+            // When reverting to pending, clear the approval fields
+            setClauses.push('approved_by = NULL', 'approved_at = NULL');
         }
         
         if (status === 'invoiced') {
@@ -515,6 +532,11 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             setClauses.push('erp_invoice_number = NULL');
         }
         
+        if (currentBoleta.status === 'review' && status === 'pending') {
+            setClauses.push('submitted_by = @updatedBy');
+            params.updatedBy = updatedBy;
+        }
+
         const updateQuery = `UPDATE restock_boletas SET ${setClauses.join(', ')} WHERE id = @boletaId`;
         db.prepare(updateQuery).run(params);
         
@@ -525,20 +547,34 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
     });
 
     const updatedBoleta = transaction();
+
     // Send email notification outside transaction
     try {
         const users: User[] = await getAllUsersFromMain();
-        const creator = users.find((u: User) => u.name === updatedBoleta.created_by);
+        const creator = users.find((u: User) => u.name === (updatedBoleta.submitted_by || updatedBoleta.created_by));
+        const settings = await getSettings();
 
-        if (creator?.email) {
-            if (status === 'approved') {
-                await createNotification({
-                    userId: creator.id,
-                    message: `La boleta ${updatedBoleta.consecutive} ha sido aprobada.`,
-                    href: '/dashboard/consignments/boletas',
-                    entityId: updatedBoleta.id,
-                    entityType: 'consignment_boleta',
+        // Notify approvers when a boleta is submitted for approval
+        if (status === 'pending') {
+             const userIds = settings.notificationUserIds || [];
+             const additionalEmails = settings.additionalNotificationEmails?.split(',').map(e => e.trim()).filter(Boolean) || [];
+             const recipientEmails = users.filter(u => userIds.includes(u.id)).map(u => u.email).concat(additionalEmails);
+             
+             if (recipientEmails.length > 0) {
+                 const agreement = db.prepare('SELECT client_name FROM consignment_agreements WHERE id = ?').get(updatedBoleta.agreement_id) as { client_name: string };
+                 await sendBoletaEmail({
+                    boletaId: updatedBoleta.id,
+                    subject: `Nueva Boleta de Consignación para Aprobación: ${updatedBoleta.consecutive}`,
+                    introText: `Se ha enviado una nueva boleta de reposición para el cliente <strong>${agreement.client_name}</strong>, preparada por <strong>${updatedBoleta.created_by}</strong> y enviada a aprobación por <strong>${updatedBy}</strong>.`,
+                    recipientEmails,
                 });
+             }
+        }
+
+        // Notify the creator/submitter about status changes
+        if (creator?.email && creator.name !== updatedBy) {
+            if (status === 'approved') {
+                await createNotification({ userId: creator.id, message: `La boleta ${updatedBoleta.consecutive} ha sido aprobada.`, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
                 await sendBoletaEmail({
                     boletaId: updatedBoleta.id,
                     subject: `Boleta de Consignación Aprobada: ${updatedBoleta.consecutive}`,
@@ -546,6 +582,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
                     recipientEmails: [creator.email],
                 });
             } else if (status === 'invoiced') {
+                 await createNotification({ userId: creator.id, message: `La boleta ${updatedBoleta.consecutive} ha sido facturada.`, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
                 await sendBoletaEmail({
                     boletaId: updatedBoleta.id,
                     subject: `Boleta de Consignación Facturada: ${updatedBoleta.consecutive}`,
@@ -558,7 +595,6 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
     } catch (e: any) {
         logError('Failed to send boleta status update notification', { boletaId, error: e.message });
     }
-
 
     return updatedBoleta;
 }

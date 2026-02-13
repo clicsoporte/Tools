@@ -152,13 +152,17 @@ export const useConsignmentsAgreements = () => {
         if (!state.agreementToDelete) return;
         updateState({ isSubmitting: true });
         try {
-            await deleteConsignmentAgreement(state.agreementToDelete.id);
-            toast({ title: 'Acuerdo Eliminado' });
-            updateState({ agreementToDelete: null });
-            await loadAgreements();
+            const result = await deleteConsignmentAgreement(state.agreementToDelete.id);
+            if (result.success) {
+                toast({ title: 'Acuerdo Eliminado' });
+                updateState({ agreementToDelete: null });
+                await loadAgreements();
+            } else {
+                toast({ title: 'Error al Eliminar', description: result.message, variant: 'destructive' });
+            }
         } catch (error: any) {
             logError('Failed to delete agreement', { error: error.message });
-            toast({ title: 'Error al Eliminar', description: error.message, variant: 'destructive' });
+            toast({ title: 'Error Inesperado', description: 'Ocurrió un error de sistema. Revisa la consola para más detalles.', variant: 'destructive' });
         } finally {
             updateState({ isSubmitting: false });
         }
