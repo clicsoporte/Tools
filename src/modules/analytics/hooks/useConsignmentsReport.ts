@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the logic for the new Consignments Report page.
  */
@@ -10,7 +11,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getConsignmentsReportData } from '@/modules/analytics/lib/actions';
 import { getConsignmentAgreements } from '@/modules/consignments/lib/actions';
-import type { DateRange, ConsignmentAgreement, Company } from '@/modules/core/types';
+import type { DateRange, ConsignmentAgreement, Company, RestockBoleta } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/lib/excel-export';
@@ -37,6 +38,7 @@ interface State {
     agreements: ConsignmentAgreement[];
     selectedAgreementId: string | null;
     reportData: ConsignmentReportRow[];
+    processedBoletas: RestockBoleta[];
 }
 
 export function useConsignmentsReport() {
@@ -52,6 +54,7 @@ export function useConsignmentsReport() {
         agreements: [],
         selectedAgreementId: null,
         reportData: [],
+        processedBoletas: [],
     });
 
     const updateState = useCallback((newState: Partial<State>) => {
@@ -82,8 +85,8 @@ export function useConsignmentsReport() {
         }
         updateState({ isLoading: true, hasRun: true });
         try {
-            const data = await getConsignmentsReportData(state.selectedAgreementId, state.dateRange as { from: Date, to: Date });
-            updateState({ reportData: data });
+            const { reportRows, boletas } = await getConsignmentsReportData(state.selectedAgreementId, state.dateRange as { from: Date, to: Date });
+            updateState({ reportData: reportRows, processedBoletas: boletas });
         } catch (error: any) {
             logError("Failed to generate consignments report", { error: error.message });
             toast({ title: "Error al Generar", description: error.message, variant: 'destructive'});

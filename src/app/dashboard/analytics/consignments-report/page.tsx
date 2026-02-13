@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function ConsignmentsReportPage() {
     const { state, actions, selectors, isAuthorized } = useConsignmentsReport();
-    const { isLoading, hasRun, dateRange, agreements, selectedAgreementId, reportData } = state;
+    const { isLoading, hasRun, dateRange, agreements, selectedAgreementId, reportData, processedBoletas } = state;
 
     if (!isAuthorized) return null;
 
@@ -70,6 +70,20 @@ export default function ConsignmentsReportPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
+                    {processedBoletas.length > 0 && (
+                        <div className="mb-4 p-4 border rounded-lg bg-muted/50">
+                            <h4 className="font-semibold mb-2">Boletas Incluidas en este Reporte</h4>
+                            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                                {processedBoletas.map(boleta => (
+                                    <li key={boleta.id}>
+                                        <strong>{boleta.consecutive}</strong>
+                                        {boleta.status === 'invoiced' && boleta.erp_invoice_number && <span className="text-red-600 font-semibold">{` (Factura: ${boleta.erp_invoice_number})`}</span>}
+                                        {boleta.approved_by && ` - Aprobada por: ${boleta.approved_by}`}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     <ScrollArea className="h-[60vh] border rounded-md">
                         <Table>
                             <TableHeader>

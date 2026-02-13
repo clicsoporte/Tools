@@ -186,7 +186,7 @@ const renderLocationPathAsString = (locationId: number, locations: any[]): strin
 export async function getPhysicalInventoryReportData({ dateRange }: { dateRange?: DateRange }): Promise<{ comparisonData: PhysicalInventoryComparisonItem[], allLocations: WarehouseLocation[] }> {
     try {
         const [physicalInventory, erpStock, allProducts, allLocations, allItemLocations, selectableLocations] = await Promise.all([
-            getPhysicalInventory(dateRange),
+            getInventoryUnits({ dateRange, includeVoided: false, statuses: ['applied'] }),
             getAllStock(),
             getAllProducts(),
             getWarehouseLocations(),
@@ -203,20 +203,20 @@ export async function getPhysicalInventoryReportData({ dateRange }: { dateRange?
         });
 
         const comparisonData: PhysicalInventoryComparisonItem[] = physicalInventory.map(item => {
-            const erpQuantity = erpStockMap.get(item.itemId) ?? 0;
-            const location = locationMap.get(item.locationId);
+            const erpQuantity = erpStockMap.get(item.productId) ?? 0;
+            const location = item.locationId ? locationMap.get(item.locationId) : undefined;
             return {
-                productId: item.itemId,
-                productDescription: productMap.get(item.itemId) || 'Producto Desconocido',
-                locationId: item.locationId,
+                productId: item.productId,
+                productDescription: productMap.get(item.productId) || 'Producto Desconocido',
+                locationId: item.locationId!,
                 locationName: location?.name || 'Ubicación Desconocida',
                 locationCode: location?.code || 'N/A',
                 physicalCount: item.quantity,
                 erpStock: erpQuantity,
                 difference: item.quantity - erpQuantity,
-                lastCountDate: item.lastUpdated,
-                updatedBy: item.updatedBy || 'N/A',
-                assignedLocationPath: itemLocationMap.get(item.itemId) || 'Sin Asignar',
+                lastCountDate: item.appliedAt || item.createdAt,
+                updatedBy: item.appliedBy || item.createdBy,
+                assignedLocationPath: itemLocationMap.get(item.productId) || 'Sin Asignar',
             };
         });
 
@@ -231,7 +231,7 @@ export async function getPhysicalInventoryReportData({ dateRange }: { dateRange?
 export async function getReceivingReportData({ dateRange }: { dateRange?: DateRange }): Promise<{ units: InventoryUnit[], locations: WarehouseLocation[] }> {
     try {
         const [units, locations] = await Promise.all([
-            getInventoryUnits({ dateRange }),
+            getInventoryUnits({ dateRange, includeVoided: true }),
             getWarehouseLocations(),
         ]);
         return JSON.parse(JSON.stringify({ units, locations }));
@@ -306,7 +306,7 @@ export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyR
     }
 }
 
-export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<ConsignmentReportRow[]> {
+export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ reportRows: ConsignmentReportRow[], boletas: RestockBoleta[] }> {
     try {
         const agreementDetails = await getAgreementDetails(parseInt(agreementId, 10));
         if (!agreementDetails) {
@@ -376,7 +376,9 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
         });
 
         // Filter out rows that have no activity at all
-        return reportRows.filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0);
+        const finalReportRows = reportRows.filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0);
+        
+        return { reportRows: finalReportRows, boletas: boletasInPeriod };
 
     } catch (error: any) {
         logError('Failed to generate consignments report data', { error });
