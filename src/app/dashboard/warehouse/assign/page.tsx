@@ -145,14 +145,18 @@ export default function AssignItemPage() {
                                         <TableHead className="cursor-pointer" onClick={() => actions.handleSort('product')}>
                                             <div className="flex items-center gap-2">Código {renderSortIcon('product')}</div>
                                         </TableHead>
-                                        <TableHead>Descripción</TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => actions.handleSort('description')}>
+                                            <div className="flex items-center gap-2">Descripción {renderSortIcon('description')}</div>
+                                        </TableHead>
                                         <TableHead className="cursor-pointer" onClick={() => actions.handleSort('client')}>
                                             <div className="flex items-center gap-2">Cliente {renderSortIcon('client')}</div>
                                         </TableHead>
                                         <TableHead className="cursor-pointer" onClick={() => actions.handleSort('location')}>
                                             <div className="flex items-center gap-2">Ubicación Asignada {renderSortIcon('location')}</div>
                                         </TableHead>
-                                        <TableHead>Tipo</TableHead>
+                                        <TableHead className="cursor-pointer" onClick={() => actions.handleSort('type')}>
+                                            <div className="flex items-center gap-2">Tipo {renderSortIcon('type')}</div>
+                                        </TableHead>
                                         <TableHead className="cursor-pointer" onClick={() => actions.handleSort('updatedAt')}>
                                             <div className="flex items-center gap-2">Actualizado {renderSortIcon('updatedAt')}</div>
                                         </TableHead>

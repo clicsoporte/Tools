@@ -39,7 +39,7 @@ const emptyFormData = {
     requiresCertificate: false,
 };
 
-export type SortKey = 'product' | 'client' | 'location' | 'updatedAt';
+export type SortKey = 'product' | 'description' | 'client' | 'location' | 'type' | 'updatedAt';
 export type SortDirection = 'asc' | 'desc';
 
 interface State {
@@ -251,11 +251,15 @@ export function useItemLocation() {
                 } else if (conflictResult.productHasOtherLocations) {
                     updateState({ moveProductConfirmOpen: true });
                 } else if (conflictResult.locationHasOtherProducts) {
-                    updateState({ mixedLocationConfirmOpen: true });
+                    updateState({ 
+                        conflictingItems: [conflictResult.conflictingProduct!].filter(Boolean), 
+                        isMixedLocationConfirmOpen: true,
+                        isTargetLocationMixed: allLocations.find(l => l.id === Number(state.formData.selectedLocationId))?.is_mixed === 1,
+                    });
                 } else {
                     await handleSubmit('add'); 
                 }
-                if(conflictResult.productHasOtherLocations || conflictResult.locationHasOtherProducts) {
+                 if(conflictResult.productHasOtherLocations || conflictResult.locationHasOtherProducts) {
                     updateState({ isSubmitting: false });
                 }
             } catch(e: any) {
@@ -337,18 +341,25 @@ export function useItemLocation() {
                     valA = a.itemId;
                     valB = b.itemId;
                     break;
+                case 'description':
+                    valA = authProducts.find(p => p.id === a.itemId)?.description || '';
+                    valB = authProducts.find(p => p.id === b.itemId)?.description || '';
+                    break;
                 case 'client':
-                    valA = authCustomers.find(c => c.id === a.clientId)?.name || 'zzzz'; // 'zzzz' to sort empty ones last
+                    valA = authCustomers.find(c => c.id === a.clientId)?.name || 'zzzz';
                     valB = authCustomers.find(c => c.id === b.clientId)?.name || 'zzzz';
                     break;
                 case 'location':
                     valA = renderLocationPathAsString(a.locationId, allLocations);
                     valB = renderLocationPathAsString(b.locationId, allLocations);
                     break;
+                case 'type':
+                    valA = a.isExclusive ? 'Exclusivo' : 'General';
+                    valB = b.isExclusive ? 'Exclusivo' : 'General';
+                    break;
                 case 'updatedAt':
                     valA = a.updatedAt || '';
                     valB = b.updatedAt || '';
-                    // For dates, reverse comparison to sort newest first by default
                     return (valB.localeCompare(valA)) * dir;
                 default:
                     return 0;
