@@ -197,7 +197,7 @@ export const useConsignmentsInventoryCount = () => {
         }
     };
 
-    const reset = () => {
+    const resetWizard = () => {
         updateState({
             step: 'setup',
             selectedAgreementId: null,
@@ -225,7 +225,7 @@ export const useConsignmentsInventoryCount = () => {
             resumeSession,
             abandonCurrentSession,
             handleGenerateBoleta,
-            reset,
+            reset: resetWizard,
         },
         selectors
     };

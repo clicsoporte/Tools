@@ -5,115 +5,12 @@
 
 import { connectDb, getCompanySettings, getAllProducts as getAllProductsFromMainDb, getAllRoles as getAllRolesFromDb } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
-import { sendEmail } from '@/modules/core/lib/email-service';
 import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
-import { createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
-
-
-/**
- * Sends a detailed HTML email for a given restock boleta.
- * @param boletaId The ID of the boleta to detail in the email.
- * @param subject The subject of the email.
- * @param introText The introductory text for the email body.
- * @param recipientEmails An array of email addresses to send to.
- */
-async function sendBoletaEmail({
-    boletaId,
-    subject,
-    introText,
-    recipientEmails,
-}: {
-    boletaId: number;
-    subject: string;
-    introText: string;
-    recipientEmails: string[];
-}) {
-    if (recipientEmails.length === 0) {
-        logWarn(`Tried to send boleta email for #${boletaId} but no recipients were found.`);
-        return;
-    }
-
-    try {
-        const details = await getBoletaDetails(boletaId);
-
-        if (!details) {
-            throw new Error(`Details for boleta #${boletaId} not found.`);
-        }
-
-        const { boleta, lines } = details;
-        const db = await connectDb(CONSIGNMENTS_DB_FILE);
-        const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(boleta.agreement_id) as ConsignmentAgreement;
-
-        let html = `
-            <div style="font-family: sans-serif; font-size: 14px; color: #333;">
-                <p>${introText}</p>
-                <h3 style="color: #2c3e50;">Boleta: ${boleta.consecutive}</h3>
-                ${boleta.status === 'invoiced' && boleta.erp_invoice_number ? `<p><strong>Factura ERP: <span style="color: #c0392b;">${boleta.erp_invoice_number}</span></strong></p>` : ''}
-                <p><strong>Cliente:</strong> ${agreement.client_name}</p>
-                <p><strong>Bodega ERP:</strong> ${agreement.erp_warehouse_id || 'N/A'}</p>
-                <p><strong>Fecha de Creación:</strong> ${format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</p>
-                <hr>
-                <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 12px;">
-                    <thead style="background-color: #f2f2f2;">
-                        <tr>
-                            <th style="text-align: left;">Código</th>
-                            <th style="text-align: left;">Descripción</th>
-                            <th style="text-align: right;">Inv. Físico</th>
-                            <th style="text-align: right;">Máximo</th>
-                            <th style="text-align: right;">A Reponer</th>
-                            <th style="text-align: right;">Precio</th>
-                            <th style="text-align: right;">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        let totalValue = 0;
-        for (const line of lines) {
-            const lineValue = line.replenish_quantity * line.price;
-            totalValue += lineValue;
-            html += `
-                <tr>
-                    <td style="font-family: monospace;">${line.product_id}</td>
-                    <td>${line.product_description}</td>
-                    <td style="text-align: right;">${line.counted_quantity}</td>
-                    <td style="text-align: right;">${line.max_stock}</td>
-                    <td style="text-align: right; font-weight: bold; color: #2980b9;">${line.replenish_quantity}</td>
-                    <td style="text-align: right;">${line.price.toLocaleString('es-CR', { style: 'currency', currency: 'CRC' })}</td>
-                    <td style="text-align: right;">${lineValue.toLocaleString('es-CR', { style: 'currency', currency: 'CRC' })}</td>
-                </tr>
-            `;
-        }
-        
-        html += `
-                </tbody>
-                <tfoot>
-                    <tr style="background-color: #f2f2f2; font-weight: bold;">
-                        <td colspan="6" style="text-align: right;">Total a Reponer:</td>
-                        <td style="text-align: right;">${totalValue.toLocaleString('es-CR', { style: 'currency', currency: 'CRC' })}</td>
-                    </tr>
-                </tfoot>
-            </table>
-            <p style="margin-top: 20px; font-size: 12px; color: #7f8c8d;">Este es un correo automático generado por Clic-Tools.</p>
-            </div>
-        `;
-        
-        await sendEmail({
-            to: recipientEmails,
-            subject,
-            html,
-        });
-        logInfo(`Consignment boleta email sent for #${boletaId} to ${recipientEmails.length} recipient(s).`);
-
-    } catch (error: any) {
-        logError('Failed to send boleta HTML email', { error: error.message, boletaId });
-    }
-}
 
 
 export async function initializeConsignmentsDb(db: import('better-sqlite3').Database) {
@@ -162,6 +59,7 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             agreement_id INTEGER NOT NULL,
             status TEXT NOT NULL,
             created_by TEXT,
+            submitted_by TEXT,
             created_at TEXT,
             approved_by TEXT,
             approved_at TEXT,
@@ -215,6 +113,9 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
     const columns = new Set(tableInfo.map(c => c.name));
     if (!columns.has('notes')) {
         db.exec('ALTER TABLE restock_boletas ADD COLUMN notes TEXT');
+    }
+    if (!columns.has('submitted_by')) {
+        db.exec('ALTER TABLE restock_boletas ADD COLUMN submitted_by TEXT');
     }
 
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignments_settings'`).get();
@@ -320,13 +221,11 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
 export async function deleteAgreement(agreementId: number): Promise<{ success: boolean; message: string }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     try {
-        // Pre-check for associated boletas
         const boletaCount = db.prepare('SELECT COUNT(*) as count FROM restock_boletas WHERE agreement_id = ?').get(agreementId) as { count: number };
         if (boletaCount.count > 0) {
-            return { success: false, message: `No se puede eliminar el acuerdo porque tiene ${boletaCount.count} boleta(s) asociadas. Elimina las boletas primero.` };
+            return { success: false, message: `No se puede eliminar. El acuerdo tiene ${boletaCount.count} boleta(s) asociada(s).` };
         }
 
-        // Attempt deletion
         const deleteResult = db.prepare('DELETE FROM consignment_agreements WHERE id = ?').run(agreementId);
         
         if (deleteResult.changes === 0) {
@@ -339,12 +238,10 @@ export async function deleteAgreement(agreementId: number): Promise<{ success: b
     } catch (error: any) {
         logError('Failed to delete consignment agreement', { error: error.message, agreementId });
 
-        // Specifically catch the foreign key constraint error, although the pre-check should prevent this.
         if (error.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
-            return { success: false, message: 'No se puede eliminar el acuerdo porque tiene documentos (boletas) asociados.' };
+            return { success: false, message: 'No se puede eliminar. El acuerdo tiene documentos (boletas) asociados.' };
         }
         
-        // Return a generic error for other unexpected database issues
         return { success: false, message: 'Ocurrió un error inesperado en la base de datos.' };
     }
 }
@@ -457,22 +354,6 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
 
     const newBoleta = transaction();
 
-    // Send email notification to creator of boleta
-    try {
-        const agreement = db.prepare('SELECT client_name FROM consignment_agreements WHERE id = ?').get(newBoleta.agreement_id) as { client_name: string };
-        const creatorUser = (await getAllUsersFromMain()).find(u => u.name === newBoleta.created_by);
-
-        if (creatorUser?.email) {
-            await sendEmail({
-                to: [creatorUser.email],
-                subject: `Conteo de Consignación Registrado: ${newBoleta.consecutive}`,
-                html: `<p>Se ha generado la boleta de reposición <strong>${newBoleta.consecutive}</strong> para el cliente <strong>${agreement.client_name}</strong> a partir de tu conteo. Ahora pasará a revisión.</p>`,
-            });
-        }
-    } catch(e: any) {
-         logError('Failed to send new boleta creation email', { boletaId: newBoleta.id, error: e.message });
-    }
-
     return newBoleta;
 }
 
@@ -486,8 +367,6 @@ export async function getBoletas(filters: { status: string[], dateRange?: { from
         whereClauses.push(`status IN (${filters.status.map(() => '?').join(',')})`);
         params.push(...filters.status);
     }
-    // Add date range filter if needed
-    //...
 
     if (whereClauses.length > 0) {
         query += ` WHERE ${whereClauses.join(' AND ')}`;
@@ -520,8 +399,11 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             setClauses.push('approved_by = @approvedBy', 'approved_at = datetime(\'now\')');
             params.approvedBy = updatedBy;
         } else if (status === 'pending') {
-            // When reverting to pending, clear the approval fields
-            setClauses.push('approved_by = NULL', 'approved_at = NULL');
+            setClauses.push('submitted_by = @updatedBy');
+            params.updatedBy = updatedBy;
+        } else if (status === 'pending-revert') { // Special internal status for reverting
+             setClauses.push('status = @newStatus', 'approved_by = NULL', 'approved_at = NULL');
+             params.newStatus = 'pending';
         }
         
         if (status === 'invoiced') {
@@ -530,11 +412,6 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         } else if (currentBoleta.status === 'invoiced' && status === 'sent') {
             // This is a revert action. Clear the invoice number.
             setClauses.push('erp_invoice_number = NULL');
-        }
-        
-        if (currentBoleta.status === 'review' && status === 'pending') {
-            setClauses.push('submitted_by = @updatedBy');
-            params.updatedBy = updatedBy;
         }
 
         const updateQuery = `UPDATE restock_boletas SET ${setClauses.join(', ')} WHERE id = @boletaId`;
@@ -546,57 +423,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         return db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta;
     });
 
-    const updatedBoleta = transaction();
-
-    // Send email notification outside transaction
-    try {
-        const users: User[] = await getAllUsersFromMain();
-        const creator = users.find((u: User) => u.name === (updatedBoleta.submitted_by || updatedBoleta.created_by));
-        const settings = await getSettings();
-
-        // Notify approvers when a boleta is submitted for approval
-        if (status === 'pending') {
-             const userIds = settings.notificationUserIds || [];
-             const additionalEmails = settings.additionalNotificationEmails?.split(',').map(e => e.trim()).filter(Boolean) || [];
-             const recipientEmails = users.filter(u => userIds.includes(u.id)).map(u => u.email).concat(additionalEmails);
-             
-             if (recipientEmails.length > 0) {
-                 const agreement = db.prepare('SELECT client_name FROM consignment_agreements WHERE id = ?').get(updatedBoleta.agreement_id) as { client_name: string };
-                 await sendBoletaEmail({
-                    boletaId: updatedBoleta.id,
-                    subject: `Nueva Boleta de Consignación para Aprobación: ${updatedBoleta.consecutive}`,
-                    introText: `Se ha enviado una nueva boleta de reposición para el cliente <strong>${agreement.client_name}</strong>, preparada por <strong>${updatedBoleta.created_by}</strong> y enviada a aprobación por <strong>${updatedBy}</strong>.`,
-                    recipientEmails,
-                });
-             }
-        }
-
-        // Notify the creator/submitter about status changes
-        if (creator?.email && creator.name !== updatedBy) {
-            if (status === 'approved') {
-                await createNotification({ userId: creator.id, message: `La boleta ${updatedBoleta.consecutive} ha sido aprobada.`, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
-                await sendBoletaEmail({
-                    boletaId: updatedBoleta.id,
-                    subject: `Boleta de Consignación Aprobada: ${updatedBoleta.consecutive}`,
-                    introText: `La boleta <strong>${updatedBoleta.consecutive}</strong> ha sido aprobada y está lista para despacho.`,
-                    recipientEmails: [creator.email],
-                });
-            } else if (status === 'invoiced') {
-                 await createNotification({ userId: creator.id, message: `La boleta ${updatedBoleta.consecutive} ha sido facturada.`, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
-                await sendBoletaEmail({
-                    boletaId: updatedBoleta.id,
-                    subject: `Boleta de Consignación Facturada: ${updatedBoleta.consecutive}`,
-                    introText: `La boleta <strong>${updatedBoleta.consecutive}</strong> ha sido marcada como facturada.`,
-                    recipientEmails: [creator.email],
-                });
-            }
-        }
-
-    } catch (e: any) {
-        logError('Failed to send boleta status update notification', { boletaId, error: e.message });
-    }
-
-    return updatedBoleta;
+    return transaction();
 }
 
 export async function getBoletaDetails(boletaId: number): Promise<{ boleta: RestockBoleta, lines: BoletaLine[], history: BoletaHistory[] } | null> {
@@ -661,7 +488,7 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
         lines: allLines.filter(l => l.boleta_id === b.id)
     }));
 
-    return { boletas: JSON.parse(JSON.stringify(boletasWithLines)) };
+    return JSON.parse(JSON.stringify(boletasWithLines));
 }
 
 export async function getLatestBoletaBeforeDate(agreementId: number, date: Date): Promise<(RestockBoleta & { lines: BoletaLine[] }) | null> {

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook for managing the state and logic of the Consignments settings page.
  */

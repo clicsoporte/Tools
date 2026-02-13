@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook to manage the state and logic for the ItemLocation assignment page.
  */
