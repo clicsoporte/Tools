@@ -20,7 +20,8 @@ export type BoletaSortKey = 'consecutive' | 'client_name' | 'created_at' | 'stat
 export type BoletaSortDirection = 'asc' | 'desc';
 
 const statusConfig: { [key: string]: { label: string; color: string } } = {
-    pending: { label: "Pendiente", color: "#eab308" },
+    review: { label: "En Revisión", color: "#f59e0b" },
+    pending: { label: "Pendiente Aprob.", color: "#0ea5e9" },
     approved: { label: "Aprobada", color: "#22c55e" },
     sent: { label: "Enviada", color: "#3b82f6" },
     invoiced: { label: "Facturada", color: "#4f46e5" },
@@ -47,7 +48,7 @@ export const useConsignmentsBoletas = () => {
         sortKey: 'created_at' as BoletaSortKey,
         sortDirection: 'desc' as BoletaSortDirection,
         filters: {
-            status: ['pending', 'approved', 'sent'],
+            status: ['review', 'pending', 'approved', 'sent'],
             client: [] as string[],
         },
         settings: null as ConsignmentSettings | null,
@@ -166,7 +167,7 @@ export const useConsignmentsBoletas = () => {
                 'product_id': 'Código',
                 'product_description': 'Descripción',
                 'counted_quantity': 'Inv. Físico',
-                'max_stock': 'Máximo',
+                'max_stock': 'Stock Máximo',
                 'replenish_quantity': 'A Reponer',
             };
             
@@ -196,7 +197,7 @@ export const useConsignmentsBoletas = () => {
             ];
 
             if (boleta.status === 'invoiced' && boleta.erp_invoice_number) {
-                blocks.unshift({ title: 'ESTADO:', content: `FACTURADA - FACTURA ERP #${boleta.erp_invoice_number}` });
+                 blocks.unshift({ title: 'ESTADO:', content: `FACTURADA - FACTURA ERP #${boleta.erp_invoice_number}` });
                 metaInfo.push({ label: 'Factura ERP:', value: boleta.erp_invoice_number });
             }
 
@@ -266,6 +267,7 @@ export const useConsignmentsBoletas = () => {
                 .sort((a, b) => a.label.localeCompare(b.label));
         }, [state.agreements]),
         permissions: useMemo(() => ({
+            canSubmitForApproval: hasPermission('consignments:boleta:approve'),
             canApprove: hasPermission('consignments:boleta:approve'),
             canSend: hasPermission('consignments:boleta:send'),
             canInvoice: hasPermission('consignments:boleta:invoice'),

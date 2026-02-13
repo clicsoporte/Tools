@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the logic for the Consignments Inventory Count page.
  */
@@ -11,6 +12,7 @@ import { getConsignmentAgreements, startOrContinueCountingSession, saveCountLine
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import type { ConsignmentAgreement, CountingSession, CountingSessionLine, ConsignmentProduct } from '@/modules/core/types';
+import { createNotification } from '@/modules/core/lib/notifications-actions';
 
 type WizardStep = 'setup' | 'resume' | 'counting' | 'finished';
 
@@ -73,6 +75,13 @@ export const useConsignmentsInventoryCount = () => {
                 startOrContinueCountingSession(agreementId, user.id),
                 getAgreementDetails(agreementId)
             ]);
+
+            if (!agreementDetails || agreementDetails.products.length === 0) {
+                 toast({ title: 'Sin Productos', description: 'Este acuerdo no tiene productos autorizados para consignación. No se puede iniciar el conteo.', variant: 'destructive', duration: 6000 });
+                 await abandonCountingSession(sessionData.id, user.id);
+                 updateState({ isLoading: false });
+                 return;
+            }
 
             const initialCounts: Record<string, string> = {};
             sessionData.lines.forEach(line => {
@@ -154,8 +163,16 @@ export const useConsignmentsInventoryCount = () => {
         }
         updateState({ isLoading: true });
         try {
-            await generateBoletaFromSession(state.session.id, user.id, user.name);
-            toast({ title: 'Boleta Generada', description: 'La boleta de reposición se ha creado y está pendiente de aprobación.' });
+            const boleta = await generateBoletaFromSession(state.session.id, user.id, user.name);
+            toast({ title: 'Boleta Generada', description: `La boleta de reposición ${boleta.consecutive} se ha creado y está pendiente de revisión.` });
+            
+            // Notification for the counter
+            await createNotification({
+                userId: user.id,
+                message: `Conteo finalizado. Se generó la boleta ${boleta.consecutive} para revisión.`,
+                href: '/dashboard/consignments/boletas',
+            });
+
             router.push('/dashboard/consignments/boletas');
         } catch (error: any) {
             logError('Failed to generate boleta', { error: error.message });
@@ -163,6 +180,17 @@ export const useConsignmentsInventoryCount = () => {
         } finally {
             updateState({ isLoading: false });
         }
+    };
+
+    const resetWizard = () => {
+        updateState({
+            step: 'setup',
+            selectedAgreementId: null,
+            session: null,
+            productsToCount: [],
+            counts: {},
+            lastCountInfo: null,
+        });
     };
 
     const selectors = {
@@ -181,7 +209,8 @@ export const useConsignmentsInventoryCount = () => {
             abandonSession,
             resumeSession,
             abandonCurrentSession,
-            handleGenerateBoleta
+            handleGenerateBoleta,
+            resetWizard,
         },
         selectors
     };

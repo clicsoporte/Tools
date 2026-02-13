@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Page for managing consignments settings.
  */
@@ -10,8 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Save } from 'lucide-react';
+import { Save, Users } from 'lucide-react';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function ConsignmentsSettingsPage() {
     const { state, actions, selectors, isAuthorized } = useConsignmentsSettings();
@@ -49,7 +52,7 @@ export default function ConsignmentsSettingsPage() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Columnas en Boleta de Reposición</Label>
+                            <Label>Columnas en Boleta de Reposición (PDF)</Label>
                             <DialogColumnSelector
                                 allColumns={selectors.availableColumns}
                                 visibleColumns={state.settings.pdfExportColumns || []}
@@ -60,6 +63,33 @@ export default function ConsignmentsSettingsPage() {
                              <p className="text-sm text-muted-foreground">
                                 Selecciona las columnas que aparecerán en el PDF de la boleta de reposición.
                             </p>
+                        </div>
+                        <div className="space-y-4 pt-4 border-t">
+                            <h3 className="font-semibold text-lg">Notificaciones por Correo</h3>
+                            <div className="space-y-2">
+                                <Label>Usuarios a Notificar para Aprobación</Label>
+                                <MultiSelectFilter
+                                    title="Seleccionar Usuarios"
+                                    options={selectors.userOptions}
+                                    selectedValues={(state.settings.notificationUserIds || []).map(String)}
+                                    onSelectedChange={(ids) => actions.updateSetting('notificationUserIds', ids.map(Number))}
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Selecciona los usuarios del sistema que recibirán un correo cuando una boleta requiera aprobación.
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="additional-emails">Correos Adicionales (separados por coma)</Label>
+                                <Textarea
+                                    id="additional-emails"
+                                    value={state.settings.additionalNotificationEmails || ''}
+                                    onChange={(e) => actions.updateSetting('additionalNotificationEmails', e.target.value)}
+                                    placeholder="ejemplo@correo.com, otro@correo.com"
+                                />
+                                 <p className="text-sm text-muted-foreground">
+                                    Añade buzones de grupo o correos que no sean usuarios del sistema.
+                                </p>
+                            </div>
                         </div>
                     </CardContent>
                     <CardFooter>

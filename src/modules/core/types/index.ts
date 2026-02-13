@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
@@ -1032,7 +1033,7 @@ export type CountingSessionLine = {
     counted_quantity: number;
 };
 
-export type RestockBoletaStatus = 'pending' | 'approved' | 'sent' | 'invoiced' | 'canceled';
+export type RestockBoletaStatus = 'review' | 'pending' | 'approved' | 'sent' | 'invoiced' | 'canceled';
 
 export type RestockBoleta = {
     id: number;
@@ -1040,6 +1041,7 @@ export type RestockBoleta = {
     agreement_id: number;
     status: RestockBoletaStatus;
     created_by: string;
+    submitted_by?: string;
     created_at: string;
     approved_by?: string;
     approved_at?: string;
@@ -1070,6 +1072,8 @@ export type BoletaHistory = {
 export type ConsignmentSettings = {
     pdfTopLegend?: string;
     pdfExportColumns?: string[];
+    notificationUserIds?: number[];
+    additionalNotificationEmails?: string;
 };
 
 /**
