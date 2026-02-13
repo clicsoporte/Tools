@@ -35,7 +35,7 @@ export const useConsignmentsBoletas = () => {
     const [state, setState] = useState({
         isLoading: true,
         isSubmitting: false,
-        agreements: [] as ConsignmentAgreement[], // Added this to the state
+        agreements: [] as ConsignmentAgreement[],
         boletas: [] as RestockBoleta[],
         isStatusModalOpen: false,
         boletaToUpdate: null as RestockBoleta | null,
@@ -250,7 +250,7 @@ export const useConsignmentsBoletas = () => {
                 switch (state.sortKey) {
                     case 'created_at': return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
                     case 'client_name': return getAgreementName(a.agreement_id).localeCompare(getAgreementName(b.agreement_id)) * dir;
-                    default: return String(a[state.sortKey as keyof RestockBoleta]).localeCompare(String(b[state.sortKey as keyof RestockBoleta])) * dir;
+                    default: return String(a[state.sortKey as keyof RestockBoleta] || '').localeCompare(String(b[state.sortKey as keyof RestockBoleta] || '')) * dir;
                 }
             });
         }, [state.boletas, state.sortKey, state.sortDirection, getAgreementName, state.filters.status, state.filters.client]),
@@ -266,7 +266,7 @@ export const useConsignmentsBoletas = () => {
     return {
         state,
         actions: {
-            loadBoletas: loadData,
+            loadData,
             openStatusModal,
             handleStatusUpdatePayloadChange,
             submitStatusUpdate,
