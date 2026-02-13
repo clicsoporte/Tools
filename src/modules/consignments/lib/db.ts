@@ -337,9 +337,9 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
         const body = `<p>Se ha generado una nueva boleta de reposición (${newBoleta.consecutive}) para el cliente <strong>${agreement.client_name}</strong>.</p><p>La boleta fue creada por ${userName} y está pendiente de aprobación.</p>`;
         
         const users: User[] = await getAllUsersFromMain();
-        const user = users.find((u: User) => u.id === userId);
-        if (user?.email) {
-            sendEmail({ to: user.email, subject, html: body });
+        const creator = users.find((u: User) => u.name === userName);
+        if (creator?.email) {
+            sendEmail({ to: creator.email, subject, html: body });
         }
     } catch (e: any) {
         logError('Failed to send new boleta notification email', { boletaId: newBoleta.id, error: e.message });

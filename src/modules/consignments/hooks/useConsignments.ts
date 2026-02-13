@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook for managing the state and logic of the Consignments module main page.
  */
@@ -87,7 +86,6 @@ const initialBoletasState: {
 const initialState = {
     isLoading: true,
     isSubmitting: false,
-    currentTab: 'agreements',
     agreements: [] as (ConsignmentAgreement & { product_count?: number })[],
     showOnlyActiveAgreements: true,
     // Agreement Form
@@ -144,10 +142,8 @@ export const useConsignments = () => {
     }, [state.boletasState.filters, toast, updateState]);
     
     useEffect(() => {
-        if (state.currentTab === 'boletas') {
-            loadBoletasCallback();
-        }
-    }, [state.currentTab, loadBoletasCallback]);
+        loadBoletasCallback();
+    }, [loadBoletasCallback]);
     
     useEffect(() => {
         setTitle('Gestión de Consignaciones');
@@ -370,7 +366,8 @@ export const useConsignments = () => {
              try {
                 const newBoleta = await generateBoletaFromSession(state.countingState.session.id, user.id, user.name);
                 toast({ title: 'Boleta Generada', description: `Se creó la boleta ${newBoleta.consecutive}` });
-                updateState(prevState => ({ ...prevState, currentTab: 'boletas', countingState: initialCountingState }));
+                updateState(prevState => ({ ...prevState, countingState: initialCountingState }));
+                await loadBoletasCallback();
              } catch (error: any) {
                  toast({ title: 'Error al generar boleta', description: error.message, variant: 'destructive'});
              } finally {
@@ -404,7 +401,7 @@ export const useConsignments = () => {
             updateState(prevState => ({ ...prevState, countingState: initialCountingState }));
             toast({ title: 'Sesión Abandonada' });
         },
-    }), [user, state.countingState, toast, updateState]);
+    }), [user, state.countingState, toast, updateState, loadBoletasCallback]);
     
     const sortedBoletas = useMemo(() => {
         const { boletas, sortKey, sortDirection } = state.boletasState;
@@ -566,7 +563,6 @@ export const useConsignments = () => {
                 if (sentEntry) meta.push({ label: 'Enviado por', value: `${sentEntry.updatedBy} - ${format(parseISO(sentEntry.timestamp), 'dd/MM/yy HH:mm')}` });
                 if (invoicedEntry) meta.push({ label: 'Facturado por', value: `${invoicedEntry.updatedBy} - ${format(parseISO(invoicedEntry.timestamp), 'dd/MM/yy HH:mm')} (Factura: ${boleta.erp_invoice_number})` });
 
-
                 const warehouse = stockSettings?.warehouses.find(w => w.id === agreement.erp_warehouse_id);
                 const erpWarehouseContent = warehouse ? `${agreement.erp_warehouse_id} - ${warehouse.name}` : agreement.erp_warehouse_id || 'N/A';
 
@@ -624,7 +620,8 @@ export const useConsignments = () => {
                 updateState(prevState => ({...prevState, isSubmitting: false}));
             }
         },
-    }), [loadBoletasCallback, user, toast, companyData, stockSettings, state.agreements, state.boletasState]);
+        setBoletaStatusFilter: (filter: string[]) => updateState(prev => ({...prev, boletasState: {...prev.boletasState, filters: { status: filter } }})),
+    }), [user, toast, companyData, stockSettings, state.agreements, state.boletasState, updateState, loadBoletasCallback]);
     
     const selectors = useMemo(() => ({
         hasPermission,
@@ -637,11 +634,11 @@ export const useConsignments = () => {
         getAgreementName: (id: number) => state.agreements.find(a => a.id === id)?.client_name || 'Desconocido',
         getInitialCount: (productId: string) => state.countingState.session?.lines.find(l => l.product_id === productId)?.counted_quantity,
         statusConfig: {
-            pending: { label: "Pendiente", color: "bg-yellow-500" },
-            approved: { label: "Aprobada", color: "bg-green-500" },
-            sent: { label: "Enviada", color: "bg-blue-500" },
-            invoiced: { label: "Facturada", color: "bg-indigo-500" },
-            canceled: { label: "Cancelada", color: "bg-red-700" },
+            pending: { label: "Pendiente", color: "#f59e0b" },
+            approved: { label: "Aprobada", color: "#10b981" },
+            sent: { label: "Enviada", color: "#3b82f6" },
+            invoiced: { label: "Facturada", color: "#6366f1" },
+            canceled: { label: "Cancelada", color: "#ef4444" },
         },
         sortedBoletas,
     }), [hasPermission, state.agreements, state.showOnlyActiveAgreements, debouncedClientSearch, customers, stockSettings, debouncedProductSearch, products, state.countingState.session, sortedBoletas]);
@@ -649,7 +646,6 @@ export const useConsignments = () => {
     return {
         state,
         actions: {
-            setCurrentTab: (tab: 'agreements' | 'inventory_count' | 'boletas') => updateState(prevState => ({...prevState, currentTab: tab})),
             agreementActions,
             countActions,
             boletaActions,
@@ -658,3 +654,4 @@ export const useConsignments = () => {
         isAuthorized,
     };
 };
+

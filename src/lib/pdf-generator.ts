@@ -94,7 +94,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.text(`Cédula: ${data.companyData.taxId}`, companyX, companyY);
         companyY += 10;
         if (data.companyData.address) {
-            const splitAddress = doc.splitTextToSize(data.companyData.address, (pageWidth / 2.5));
+            const splitAddress = doc.splitTextToSize(data.companyData.address, (pageWidth / 2) - margin - 15);
             doc.text(splitAddress, companyX, companyY);
             companyY += (splitAddress.length * 10);
         }
@@ -264,78 +264,5 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         addFooter(doc, i, totalPages);
     }
 
-    return doc;
-};
-
-
-const renderLocationPathAsString = (locationId: number, locations: WarehouseLocation[]): string => {
-    if (!locationId) return "N/A";
-    const path: WarehouseLocation[] = [];
-    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
-    while (current) {
-        path.unshift(current);
-        const parentId = current.parentId;
-        current = parentId ? locations.find(l => l.id === parentId) : undefined;
-    }
-    return path.map(l => l.name).join(' > ');
-};
-
-async function drawScannerLabelPage(doc: jsPDF, item: { product: Product, location: WarehouseLocation }, allLocations: WarehouseLocation[], user: User | null) {
-    doc.addPage();
-    
-    const qrContent = `${item.location.id}>${item.product.id}`;
-    const qrCodeDataUrl = await QRCode.toDataURL(qrContent, { errorCorrectionLevel: 'M', width: 200 });
-    
-    const margin = 40;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    
-    // QR Code
-    doc.addImage(qrCodeDataUrl, 'PNG', margin, margin, 100, 100);
-
-    // Metadata
-    doc.setFontSize(9);
-    doc.setFont('Helvetica', 'normal');
-    doc.setTextColor('#666');
-    doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - margin, margin, { align: 'right' });
-    if (user) {
-        doc.text(`por ${user.name}`, pageWidth - margin, margin + 12, { align: 'right' });
-    }
-
-    // Main Content
-    doc.setTextColor('#000');
-    doc.setFontSize(150);
-    doc.setFont('Helvetica', 'bold');
-    doc.text(item.product.id, pageWidth / 2, pageHeight / 2 - 40, { align: 'center'});
-
-    doc.setFontSize(52);
-    doc.setFont('Helvetica', 'normal');
-    const secondaryTextLines = doc.splitTextToSize(item.product.description, pageWidth - margin * 2);
-    doc.text(secondaryTextLines, pageWidth / 2, pageHeight / 2 + 50, { align: 'center' });
-
-    // Footer
-    const footerText = renderLocationPathAsString(item.location.id, allLocations);
-    doc.setFontSize(24);
-    doc.setFont('Helvetica', 'bold');
-    doc.text('Ubicación:', margin, pageHeight - 80);
-    doc.setFontSize(28);
-    doc.setFont('Helvetica', 'normal');
-    const footerLines = doc.splitTextToSize(footerText, pageWidth - margin * 2);
-    doc.text(footerLines, margin, pageHeight - 50);
-}
-
-
-export const generateScannerLabelsPDF = async ({ itemsToPrint, allLocations, user }: {
-    itemsToPrint: { product: Product, location: WarehouseLocation }[],
-    allLocations: WarehouseLocation[],
-    user: User | null
-}) => {
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
-    doc.deletePage(1);
-
-    for (const item of itemsToPrint) {
-        await drawScannerLabelPage(doc, item, allLocations, user);
-    }
-    
     return doc;
 };

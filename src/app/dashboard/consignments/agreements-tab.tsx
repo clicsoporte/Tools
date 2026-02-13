@@ -6,7 +6,7 @@ import type { useConsignments } from '@/modules/consignments/hooks/useConsignmen
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,19 +28,19 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
             <Card>
                 <CardHeader>
                     <div className="flex justify-between items-center">
-                        <CardTitle>Acuerdos de Consignación</CardTitle>
+                        <div>
+                            <CardTitle>1. Acuerdos de Consignación</CardTitle>
+                            <CardDescription>
+                                Define los clientes, bodegas, productos y stocks máximos para cada consignación.
+                            </CardDescription>
+                        </div>
                         {selectors.hasPermission('consignments:setup') && (
                             <Button onClick={() => actions.agreementActions.openAgreementForm()}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Nuevo Acuerdo
                             </Button>
                         )}
                     </div>
-                    <CardDescription>
-                        Define los clientes, bodegas, productos y stocks máximos para cada consignación.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center space-x-2 mb-4">
+                    <div className="flex items-center space-x-2 pt-4">
                         <Switch
                             id="active-filter"
                             checked={state.showOnlyActiveAgreements}
@@ -48,6 +48,8 @@ export function AgreementsTab({ hook }: AgreementsTabProps) {
                         />
                         <Label htmlFor="active-filter">Mostrar solo acuerdos activos</Label>
                     </div>
+                </CardHeader>
+                <CardContent>
                     <Table>
                         <TableHeader>
                             <TableRow>

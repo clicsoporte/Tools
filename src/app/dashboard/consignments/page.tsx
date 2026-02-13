@@ -7,12 +7,8 @@
 import React from 'react';
 import { useConsignments } from '@/modules/consignments/hooks/useConsignments';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Loader2, FileText, Check, Ban, Truck, FileCheck2, Printer, Undo2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AgreementsTab } from './agreements-tab';
-import { InventoryCountTab } from './inventory-count-tab';
-import { BoletasTab } from './boletas-tab';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -23,8 +19,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { BoletaLine, BoletaHistory } from '@/modules/core/types';
+import type { BoletaLine, BoletaHistory } from '@/modules/core/types';
 import { cn } from '@/lib/utils';
+import { AgreementsTab } from './agreements-tab';
+import { InventoryCountTab } from './inventory-count-tab';
+import { BoletasTab } from './boletas-tab';
 
 function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignments> }) {
     const { state, actions } = hook;
@@ -38,7 +37,6 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignments>
         sent: 'Marcar como Enviada',
         invoiced: 'Marcar como Facturada',
         canceled: 'Cancelar',
-        revert_to_sent: 'Revertir a Enviada',
     };
 
     return (
@@ -54,7 +52,7 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignments>
                     {statusUpdatePayload.status === 'invoiced' && (
                         <div className="space-y-2">
                             <Label htmlFor="erp-invoice">Número de Factura ERP</Label>
-                            <Input id="erp-invoice" value={statusUpdatePayload.erpInvoiceNumber} onChange={(e) => actions.boletaActions.handleStatusUpdatePayloadChange('erpInvoiceNumber', e.target.value)} />
+                            <Input id="erp-invoice" value={statusUpdatePayload.erpInvoiceNumber || ''} onChange={(e) => actions.boletaActions.handleStatusUpdatePayloadChange('erpInvoiceNumber', e.target.value)} />
                         </div>
                     )}
                     <div className="space-y-2">
@@ -138,7 +136,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                                     return (
                                         <div key={h.id} className="text-xs">
                                             <div className="flex justify-between items-center">
-                                                <Badge className={cn(statusInfo.color, "text-white")}>{statusInfo.label}</Badge>
+                                                <Badge style={{ backgroundColor: statusInfo.color }} className="text-white">{statusInfo.label}</Badge>
                                                 <p className="text-muted-foreground">{format(parseISO(h.timestamp), 'dd/MM/yy HH:mm', {locale: es})}</p>
                                             </div>
                                             <p className="text-muted-foreground mt-1">Por: {h.updatedBy}</p>
@@ -171,7 +169,7 @@ export default function ConsignmentsPage() {
     const { isAuthorized } = useAuthorization(['consignments:access']);
     const hook = useConsignments();
     const { state } = hook;
-    const { isLoading, currentTab } = state;
+    const { isLoading } = state;
 
     if (isLoading) {
         return (
@@ -195,24 +193,11 @@ export default function ConsignmentsPage() {
     }
 
     return (
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Tabs value={currentTab} onValueChange={(value) => hook.actions.setCurrentTab(value as any)} className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="agreements">1. Acuerdos de Consignación</TabsTrigger>
-                    <TabsTrigger value="inventory_count">2. Toma de Inventario</TabsTrigger>
-                    <TabsTrigger value="boletas">3. Gestión de Boletas</TabsTrigger>
-                </TabsList>
-                <TabsContent value="agreements">
-                    <AgreementsTab hook={hook} />
-                </TabsContent>
-                <TabsContent value="inventory_count">
-                    <InventoryCountTab hook={hook} />
-                </TabsContent>
-                <TabsContent value="boletas">
-                    <BoletasTab hook={hook} />
-                </TabsContent>
-            </Tabs>
-             <StatusUpdateDialog hook={hook} />
+        <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
+            <AgreementsTab hook={hook} />
+            <InventoryCountTab hook={hook} />
+            <BoletasTab hook={hook} />
+            <StatusUpdateDialog hook={hook} />
             <BoletaDetailsDialog hook={hook} />
         </main>
     );

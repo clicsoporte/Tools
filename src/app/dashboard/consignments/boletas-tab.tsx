@@ -3,17 +3,17 @@
 
 import React from 'react';
 import type { useConsignments } from '@/modules/consignments/hooks/useConsignments';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2, Printer, ArrowUp, ArrowDown } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { RestockBoleta } from '@/modules/core/types';
-import { cn } from '@/lib/utils';
 import type { BoletaSortKey } from '@/modules/consignments/hooks/useConsignments';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 
 type BoletasTabProps = {
   hook: ReturnType<typeof useConsignments>;
@@ -22,7 +22,7 @@ type BoletasTabProps = {
 export function BoletasTab({ hook }: BoletasTabProps) {
     const { state, actions, selectors } = hook;
     const { boletasState } = state;
-    const { isLoading, sortKey, sortDirection } = boletasState;
+    const { sortKey, sortDirection, filters } = boletasState;
     const { sortedBoletas } = selectors;
 
     const renderSortIcon = (key: BoletaSortKey) => {
@@ -30,13 +30,25 @@ export function BoletasTab({ hook }: BoletasTabProps) {
         return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
     };
 
+    const statusOptions = Object.entries(selectors.statusConfig).map(([value, {label}]) => ({ value, label }));
+
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Gestión de Boletas de Reposición</CardTitle>
-                <CardDescription>
-                    Aprueba, edita y gestiona el ciclo de vida de las boletas de envío.
-                </CardDescription>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>3. Gestión de Boletas de Reposición</CardTitle>
+                        <CardDescription>
+                            Aprueba, edita y gestiona el ciclo de vida de las boletas de envío.
+                        </CardDescription>
+                    </div>
+                     <MultiSelectFilter
+                        title="Filtrar por Estado"
+                        options={statusOptions}
+                        selectedValues={filters.status}
+                        onSelectedChange={actions.boletaActions.setBoletaStatusFilter}
+                    />
+                </div>
             </CardHeader>
             <CardContent>
                 <Table>

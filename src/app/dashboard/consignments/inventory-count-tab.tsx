@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Loader2, Play, CheckCircle } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ConsignmentProduct } from '@/modules/core/types';
 import { Label } from '@/components/ui/label';
 
@@ -23,7 +23,7 @@ export function InventoryCountTab({ hook }: InventoryCountTabProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Toma de Inventario en Sitio</CardTitle>
+                <CardTitle>2. Toma de Inventario en Sitio</CardTitle>
                  <CardDescription>
                     {countingState.step === 'counting' ? 'Continúa con el inventario actual.' : 'Selecciona un acuerdo de consignación para iniciar la toma de inventario.'}
                 </CardDescription>
@@ -92,7 +92,7 @@ export function InventoryCountTab({ hook }: InventoryCountTabProps) {
                             ) : (
                                 <div className="text-center py-10 text-muted-foreground">
                                     <p className="font-semibold">Este acuerdo no tiene productos autorizados.</p>
-                                    <p className="text-sm">Ve a la pestaña &quot;Acuerdos de Consignación&quot; para añadirlos.</p>
+                                    <p className="text-sm">Ve a la sección &quot;Acuerdos de Consignación&quot; para añadirlos.</p>
                                 </div>
                             )}
                         </div>

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Page for managing consignments settings.
  */
