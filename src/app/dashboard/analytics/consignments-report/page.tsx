@@ -1,7 +1,4 @@
 
-/**
- * @fileoverview Page for the new Consignments Report.
- */
 'use client';
 
 import React from 'react';
@@ -67,8 +64,8 @@ export default function ConsignmentsReportPage() {
                     <div className="flex justify-between items-center">
                         <CardTitle>Resultados del Cierre</CardTitle>
                          <div className="flex items-center gap-2">
-                            <Button variant="outline" disabled={isLoading || reportData.length === 0}><FileDown className="mr-2"/>Exportar PDF</Button>
-                            <Button variant="outline" disabled={isLoading || reportData.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
+                            <Button variant="outline" onClick={actions.handleExportPDF} disabled={isLoading || reportData.length === 0}><FileDown className="mr-2"/>Exportar PDF</Button>
+                            <Button variant="outline" onClick={actions.handleExportExcel} disabled={isLoading || reportData.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
                         </div>
                     </div>
                 </CardHeader>
