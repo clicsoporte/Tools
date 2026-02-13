@@ -78,7 +78,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
                 const imgHeight = 45; 
                 const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
                 doc.addImage(data.logoDataUrl, 'PNG', margin, companyY, imgWidth, imgHeight);
-                companyX = margin + imgWidth + 15;
+                companyX = margin + imgWidth + 2; // Reduced from 15 to move text left
             } catch (e) {
                 console.error("Error adding logo image to PDF:", e);
             }
@@ -94,7 +94,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.text(`Cédula: ${data.companyData.taxId}`, companyX, companyY);
         companyY += 10;
         if (data.companyData.address) {
-            const splitAddress = doc.splitTextToSize(data.companyData.address, (pageWidth / 3) - margin + 20); // Reduced width for address
+            const splitAddress = doc.splitTextToSize(data.companyData.address, (pageWidth / 2) - margin + 40);
             doc.text(splitAddress, companyX, companyY);
             companyY += (splitAddress.length * 10);
         }
@@ -114,8 +114,15 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFontSize(9);
         doc.setFont('Helvetica', 'normal');
         data.meta.forEach(item => {
-            doc.text(`${item.label}: ${item.value}`, rightColX, rightY, { align: 'right' });
-            rightY += 12;
+            if (item.label.endsWith('::')) {
+                doc.text(item.label, rightColX, rightY, { align: 'right' });
+                rightY += 12;
+                doc.text(item.value, rightColX, rightY, { align: 'right' });
+                rightY += 12;
+            } else {
+                doc.text(`${item.label}: ${item.value}`, rightColX, rightY, { align: 'right' });
+                rightY += 12;
+            }
         });
         
         if (data.sellerInfo) {

@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Hook for managing the logic for the Consignments Boletas page.
  */
@@ -185,7 +186,7 @@ export const useConsignmentsBoletas = () => {
             
             let docTitle = 'BOLETA DE REPOSICIÓN DE CONSIGNACIÓN';
             const metaInfo: {label: string, value: string}[] = details.history.map((h: BoletaHistory) => ({
-                label: `${statusConfig[h.status]?.label || h.status} por:`,
+                label: `${statusConfig[h.status]?.label || h.status} por::`,
                 value: `${h.updatedBy} - ${format(parseISO(h.timestamp), 'dd/MM/yy HH:mm')}`
             }));
             
