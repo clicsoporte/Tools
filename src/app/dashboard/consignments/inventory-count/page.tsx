@@ -28,86 +28,93 @@ export default function InventoryCountPage() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 flex items-center justify-center">
-            <Card className="w-full max-w-2xl">
-                <CardHeader>
-                    <CardTitle>Toma de Inventario en Sitio</CardTitle>
-                    <CardDescription>
-                        {step === 'counting' ? 'Continúa con el inventario actual.' : 'Selecciona un acuerdo de consignación para iniciar la toma de inventario.'}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {step === 'setup' && (
-                        <div className="flex flex-col gap-4 items-center w-full max-w-sm mx-auto">
-                            <Select onValueChange={(val) => actions.handleSelectAgreement(val)} disabled={isLoading}>
-                                <SelectTrigger className="w-full h-12 text-base">
-                                    <SelectValue placeholder="Selecciona un cliente..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {selectors.agreementOptions.map((agreement: { value: string; label: string }) => (
-                                        <SelectItem key={agreement.value} value={agreement.value}>
-                                            {agreement.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Button onClick={actions.handleStartSession} disabled={isLoading || !selectedAgreementId} className="w-full h-12 text-lg">
-                                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                <Play className="mr-2 h-4 w-4"/> Iniciar Conteo
-                            </Button>
-                        </div>
-                    )}
-                    {step === 'resume' && existingSession && (
-                        <div className="text-center space-y-4">
-                            <h3 className="font-semibold text-lg">Sesión en Progreso</h3>
-                            <p className="text-muted-foreground">
-                                Tienes una sesión de conteo sin terminar para el cliente <strong>{selectors.getAgreementName(existingSession.agreement_id)}</strong>.
-                            </p>
-                            <p>¿Deseas continuar donde la dejaste o abandonarla para empezar de nuevo?</p>
-                            <div className="flex justify-center gap-4 pt-4">
-                                <Button variant="destructive" onClick={actions.abandonSession}>Abandonar Sesión</Button>
-                                <Button onClick={actions.resumeSession}>Continuar Sesión</Button>
-                            </div>
-                        </div>
-                    )}
-                    {step === 'counting' && session && (
-                        <div className="space-y-4">
-                            <h3 className="font-semibold text-lg">{selectors.getAgreementName(session.agreement_id)}</h3>
-                            <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                                {productsToCount.length > 0 ? (
-                                    productsToCount.map((p: ConsignmentProduct) => (
-                                        <Card key={p.product_id} className="p-4">
-                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                                <div className="flex-1">
-                                                    <p className="font-medium">{selectors.getProductName(p.product_id)}</p>
-                                                    <p className="text-xs text-muted-foreground">{p.product_id}</p>
-                                                    <p className="text-sm text-muted-foreground mt-1">Stock Máximo: {p.max_stock}</p>
-                                                </div>
-                                                <div className="w-full sm:w-32">
-                                                    <Label htmlFor={`count-${p.product_id}`} className="sr-only">Cantidad</Label>
-                                                    <Input
-                                                        id={`count-${p.product_id}`}
-                                                        type="number"
-                                                        placeholder="Cant."
-                                                        value={state.counts[p.product_id] || ''}
-                                                        onChange={(e) => actions.handleQuantityChange(p.product_id, e.target.value)}
-                                                        onBlur={(e) => actions.handleSaveLine(p.product_id, Number(e.target.value))}
-                                                        className="text-right text-2xl h-14 font-bold hide-number-arrows"
-                                                    />
-                                                </div>
+            {step === 'setup' && (
+                <Card className="w-full max-w-md">
+                     <CardHeader>
+                        <CardTitle>Toma de Inventario en Sitio</CardTitle>
+                        <CardDescription>
+                            Selecciona un acuerdo de consignación para iniciar.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-4 items-center w-full max-w-sm mx-auto">
+                        <Select onValueChange={(val) => actions.handleSelectAgreement(val)} disabled={isLoading}>
+                            <SelectTrigger className="w-full h-12 text-base">
+                                <SelectValue placeholder="Selecciona un cliente..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {selectors.agreementOptions.map((agreement: { value: string; label: string }) => (
+                                    <SelectItem key={agreement.value} value={agreement.value}>
+                                        {agreement.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Button onClick={actions.handleStartSession} disabled={isLoading || !selectedAgreementId} className="w-full h-12 text-lg">
+                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            <Play className="mr-2 h-4 w-4"/> Iniciar Conteo
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
+            {step === 'resume' && existingSession && (
+                <Card className="w-full max-w-md text-center">
+                    <CardHeader>
+                        <CardTitle>Sesión en Progreso</CardTitle>
+                        <CardDescription>
+                            Tienes una sesión sin terminar para <strong>{selectors.getAgreementName(existingSession.agreement_id)}</strong>.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <p>¿Deseas continuar donde la dejaste o abandonarla para empezar de nuevo?</p>
+                    </CardContent>
+                    <CardFooter className="justify-center gap-4">
+                        <Button variant="destructive" onClick={actions.abandonSession}>Abandonar</Button>
+                        <Button onClick={actions.resumeSession}>Continuar Sesión</Button>
+                    </CardFooter>
+                </Card>
+            )}
+            {step === 'counting' && session && (
+                <Card className="w-full max-w-xl">
+                    <CardHeader>
+                        <CardTitle>Contando en: {selectors.getAgreementName(session.agreement_id)}</CardTitle>
+                        <CardDescription>
+                            Ingresa las cantidades físicas para cada producto. Los datos se guardan al pasar de un campo a otro.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
+                            {productsToCount.length > 0 ? (
+                                productsToCount.map((p: ConsignmentProduct) => (
+                                    <Card key={p.product_id} className="p-4">
+                                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 items-center">
+                                            <div className="col-span-2 sm:col-span-3">
+                                                <p className="font-medium leading-snug">{selectors.getProductName(p.product_id)}</p>
+                                                <p className="text-sm text-muted-foreground font-mono">{p.product_id}</p>
+                                                <p className="text-sm text-muted-foreground mt-1">Stock Máximo: <span className="font-semibold">{p.max_stock}</span></p>
                                             </div>
-                                        </Card>
-                                    ))
-                                ) : (
-                                    <div className="text-center py-10 text-muted-foreground">
-                                        <p className="font-semibold">Este acuerdo no tiene productos autorizados.</p>
-                                        <p className="text-sm">Ve a la sección &quot;Acuerdos de Consignación&quot; para añadirlos.</p>
-                                    </div>
-                                )}
-                            </div>
+                                            <div className="col-span-1">
+                                                <Label htmlFor={`count-${p.product_id}`} className="sr-only">Cantidad</Label>
+                                                <Input
+                                                    id={`count-${p.product_id}`}
+                                                    type="number"
+                                                    placeholder="Cant."
+                                                    value={state.counts[p.product_id] || ''}
+                                                    onChange={(e) => actions.handleQuantityChange(p.product_id, e.target.value)}
+                                                    onBlur={(e) => actions.handleSaveLine(p.product_id, Number(e.target.value))}
+                                                    className="text-right text-2xl h-14 font-bold hide-number-arrows"
+                                                />
+                                            </div>
+                                        </div>
+                                    </Card>
+                                ))
+                            ) : (
+                                <div className="text-center py-10 text-muted-foreground">
+                                    <p className="font-semibold">Este acuerdo no tiene productos autorizados.</p>
+                                    <p className="text-sm">Ve a la sección &quot;Acuerdos de Consignación&quot; para añadirlos.</p>
+                                </div>
+                            )}
                         </div>
-                    )}
-                </CardContent>
-                {step === 'counting' && session && (
+                    </CardContent>
                     <CardFooter className="justify-between">
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -130,8 +137,22 @@ export default function InventoryCountPage() {
                             <CheckCircle className="mr-2 h-4 w-4"/> Finalizar y Generar Boleta
                         </Button>
                     </CardFooter>
-                )}
-            </Card>
+                </Card>
+            )}
+            {step === 'finished' && (
+                <Card className="w-full max-w-md text-center">
+                    <CardHeader>
+                        <CheckCircle className="mx-auto h-16 w-16 text-green-500"/>
+                        <CardTitle className="mt-4 text-2xl">¡Sesión Finalizada!</CardTitle>
+                        <CardDescription>
+                            Se ha generado la boleta de reposición y está pendiente de aprobación.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardFooter className="justify-center">
+                        <Button onClick={actions.resetWizard}>Iniciar Nuevo Conteo</Button>
+                    </CardFooter>
+                </Card>
+            )}
         </main>
     );
 }
