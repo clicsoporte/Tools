@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getConsignmentAgreements, startOrContinueCountingSession, saveCountLine, abandonCountingSession, generateBoletaFromSession, getActiveCountingSessionForUser } from '../lib/actions';
+import { getConsignmentAgreements, startOrContinueCountingSession, saveCountLine, abandonCountingSession, generateBoletaFromSession, getActiveCountingSessionForUser, getAgreementDetails } from '../lib/actions';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import type { ConsignmentAgreement, CountingSession, CountingSessionLine, ConsignmentProduct } from '@/modules/core/types';
@@ -63,11 +63,15 @@ export const useConsignmentsInventoryCount = () => {
         if (!user || !state.selectedAgreementId) return;
         updateState({ isLoading: true });
         try {
-            const sessionData = await startOrContinueCountingSession(Number(state.selectedAgreementId), user.id);
-            const agreement = state.agreements.find(a => a.id === Number(state.selectedAgreementId));
+            const agreementId = Number(state.selectedAgreementId);
+            const [sessionData, agreementDetails] = await Promise.all([
+                startOrContinueCountingSession(agreementId, user.id),
+                getAgreementDetails(agreementId)
+            ]);
+
             updateState({ 
                 session: sessionData, 
-                productsToCount: (agreement as any)?.products || [],
+                productsToCount: agreementDetails?.products || [],
                 step: 'counting' 
             });
         } catch (error: any) {
@@ -90,15 +94,23 @@ export const useConsignmentsInventoryCount = () => {
         updateState({ existingSession: null, step: 'setup' });
     };
 
-    const resumeSession = () => {
+    const resumeSession = async () => {
         if (!state.existingSession) return;
-        const agreement = state.agreements.find(a => a.id === state.existingSession!.agreement_id);
-        updateState({ 
-            session: state.existingSession, 
-            productsToCount: (agreement as any)?.products || [],
-            step: 'counting',
-            existingSession: null
-        });
+        updateState({ isLoading: true });
+        try {
+            const agreementDetails = await getAgreementDetails(state.existingSession.agreement_id);
+            updateState({ 
+                session: state.existingSession, 
+                productsToCount: agreementDetails?.products || [],
+                step: 'counting',
+                existingSession: null
+            });
+        } catch (error: any) {
+            logError('Failed to resume session', { error: error.message });
+            toast({ title: 'Error al Reanudar', description: 'No se pudieron cargar los detalles del acuerdo.', variant: 'destructive'});
+        } finally {
+            updateState({ isLoading: false });
+        }
     };
 
     const abandonCurrentSession = async () => {
@@ -109,6 +121,10 @@ export const useConsignmentsInventoryCount = () => {
 
     const handleGenerateBoleta = async () => {
         if (!user || !state.session) return;
+        if (state.productsToCount.length === 0) {
+            toast({ title: "Acción no permitida", description: "No puedes generar una boleta para un acuerdo sin productos autorizados.", variant: "destructive" });
+            return;
+        }
         updateState({ isLoading: true });
         try {
             await generateBoletaFromSession(state.session.id, user.id, user.name);
