@@ -53,7 +53,7 @@ export const useConsignmentsBoletas = () => {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
 
-    const loadInitialData = useCallback(async () => {
+    const loadBoletas = useCallback(async () => {
         updateState({ isLoading: true });
         try {
             const [boletasData, settingsData, agreementsData] = await Promise.all([
@@ -71,8 +71,8 @@ export const useConsignmentsBoletas = () => {
     }, [toast, updateState, state.filters.status]);
 
     useEffect(() => {
-        loadInitialData();
-    }, [loadInitialData]);
+        loadBoletas();
+    }, [loadBoletas]);
     
     const openStatusModal = (boleta: RestockBoleta, status: string) => {
         updateState({
@@ -97,7 +97,7 @@ export const useConsignmentsBoletas = () => {
             });
             toast({ title: 'Estado Actualizado' });
             updateState({ isStatusModalOpen: false });
-            await loadInitialData();
+            await loadBoletas();
         } catch (error: any) {
             logError('Failed to update boleta status', { error: error.message });
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -134,7 +134,7 @@ export const useConsignmentsBoletas = () => {
             await updateBoleta(state.detailedBoleta.boleta, state.detailedBoleta.lines, user.name);
             toast({ title: 'Boleta Actualizada' });
             updateState({ isDetailsModalOpen: false });
-            await loadInitialData();
+            await loadBoletas();
         } catch (error: any) {
             logError('Failed to save boleta changes', { error: error.message });
             toast({ title: 'Error', variant: 'destructive' });
@@ -251,6 +251,7 @@ export const useConsignmentsBoletas = () => {
             },
             setBoletaStatusFilter: (statuses: string[]) => {
                 updateState({ filters: { status: statuses } });
+                loadBoletas();
             },
         },
         selectors

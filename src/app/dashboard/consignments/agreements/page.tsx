@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -84,9 +83,31 @@ export default function AgreementsPage() {
                                         <Button variant="ghost" size="icon" onClick={() => actions.openAgreementForm(agreement)} disabled={!selectors.hasPermission('consignments:setup')}>
                                             <Edit2 className="h-4 w-4" />
                                         </Button>
-                                         <Button variant="ghost" size="icon" disabled={!selectors.hasPermission('consignments:setup')} onClick={() => actions.setAgreementToDelete(agreement)}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
+                                         <AlertDialog open={state.agreementToDelete?.id === agreement.id} onOpenChange={(open) => !open && actions.setAgreementToDelete(null)}>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" disabled={!selectors.hasPermission('consignments:setup')} onClick={() => actions.setAgreementToDelete(agreement)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Esta acción eliminará permanentemente el acuerdo para <strong>{state.agreementToDelete?.client_name}</strong>. Esto solo es posible si el acuerdo no tiene boletas de reposición asociadas.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={actions.handleDeleteAgreement}
+                                                        disabled={state.isSubmitting}
+                                                    >
+                                                        {state.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                        Sí, Eliminar
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -164,10 +185,10 @@ export default function AgreementsPage() {
                                             <TableRow key={p.product_id}>
                                                 <TableCell>{selectors.getProductName(p.product_id)}</TableCell>
                                                 <TableCell>
-                                                    <Input type="number" value={p.max_stock} onChange={(e) => actions.updateProductField(index, 'max_stock', Number(e.target.value))} className="w-24 hide-number-arrows"/>
+                                                    <Input type="number" value={p.max_stock || ''} onChange={(e) => actions.updateProductField(index, 'max_stock', Number(e.target.value))} className="w-24 hide-number-arrows"/>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Input type="number" value={p.price} onChange={(e) => actions.updateProductField(index, 'price', Number(e.target.value))} className="w-28 hide-number-arrows"/>
+                                                    <Input type="number" value={p.price || ''} onChange={(e) => actions.updateProductField(index, 'price', Number(e.target.value))} className="w-28 hide-number-arrows"/>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Button variant="ghost" size="icon" onClick={() => actions.removeProductFromAgreement(index)}>
@@ -190,27 +211,6 @@ export default function AgreementsPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            
-            <AlertDialog open={!!state.agreementToDelete} onOpenChange={() => actions.setAgreementToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción eliminará permanentemente el acuerdo para <strong>{state.agreementToDelete?.client_name}</strong>. Esto solo es posible si el acuerdo no tiene boletas de reposición asociadas.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={actions.handleDeleteAgreement}
-                            disabled={state.isSubmitting}
-                        >
-                            {state.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            Sí, Eliminar
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </main>
     );
 }

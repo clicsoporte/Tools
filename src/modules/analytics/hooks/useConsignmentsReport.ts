@@ -10,11 +10,11 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getConsignmentsReportData } from '@/modules/analytics/lib/actions';
 import { getConsignmentAgreements } from '@/modules/consignments/lib/actions';
-import type { DateRange, ConsignmentAgreement } from '@/modules/core/types';
+import type { DateRange, ConsignmentAgreement, Company } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
-import { exportToExcel } from '@/modules/core/lib/excel-export';
-import { generateDocument } from '@/modules/core/lib/pdf-generator';
+import { exportToExcel } from '@/lib/excel-export';
+import { generateDocument } from '@/lib/pdf-generator';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -91,6 +91,69 @@ export function useConsignmentsReport() {
             updateState({ isLoading: false });
         }
     }, [state.selectedAgreementId, state.dateRange, toast, updateState]);
+
+    const handleExportExcel = () => {
+        if (!state.reportData.length) return;
+        const headers = ["Código", "Producto", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total"];
+        const dataToExport = state.reportData.map(row => [
+            row.productId,
+            row.productDescription,
+            row.initialStock,
+            row.totalReplenished,
+            row.finalStock,
+            row.consumption,
+            row.price,
+            row.totalValue
+        ]);
+        exportToExcel({
+            fileName: `cierre_consignacion_${state.agreements.find(a => String(a.id) === state.selectedAgreementId)?.client_name.replace(/\s+/g, '_') || ''}`,
+            sheetName: 'Cierre',
+            headers,
+            data: dataToExport,
+        });
+    };
+
+    const handleExportPDF = async () => {
+        if (!state.reportData.length || !companyData) return;
+        const agreement = state.agreements.find(a => String(a.id) === state.selectedAgreementId);
+
+        let logoDataUrl: string | null = null;
+        if (companyData.logoUrl) {
+            try {
+                const response = await fetch(companyData.logoUrl);
+                const blob = await response.blob();
+                logoDataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) { console.error("Error processing logo for PDF:", e); }
+        }
+
+        const tableHeaders = ["Producto", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio", "Total"];
+        const tableRows = state.reportData.map(row => [
+            `${row.productDescription}\n(${row.productId})`,
+            row.initialStock.toLocaleString(),
+            row.totalReplenished.toLocaleString(),
+            row.finalStock.toLocaleString(),
+            row.consumption.toLocaleString(),
+            `¢${row.price.toLocaleString('es-CR', { minimumFractionDigits: 2 })}`,
+            `¢${row.totalValue.toLocaleString('es-CR', { minimumFractionDigits: 2 })}`
+        ]);
+
+        const doc = generateDocument({
+            docTitle: "Reporte de Cierre de Consignación",
+            docId: '',
+            companyData,
+            logoDataUrl,
+            meta: [{ label: 'Cliente', value: agreement?.client_name || '' }, { label: 'Período', value: `${format(state.dateRange.from!, 'dd/MM/yyyy')} al ${format(state.dateRange.to!, 'dd/MM/yyyy')}` }],
+            blocks: [],
+            table: { columns: tableHeaders, rows: tableRows, columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } } },
+            totals: [{ label: 'Total a Facturar:', value: `¢${selectors.totalConsumptionValue.toLocaleString('es-CR', { minimumFractionDigits: 2 })}` }],
+            orientation: 'landscape'
+        });
+        doc.save(`cierre_consignacion_${agreement?.client_name.replace(/\s+/g, '_')}.pdf`);
+    };
     
     const selectors = {
         agreementOptions: useMemo(() => 
@@ -107,7 +170,8 @@ export function useConsignmentsReport() {
             setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined }}),
             setSelectedAgreementId: (id: string) => updateState({ selectedAgreementId: id }),
             handleGenerateReport,
-            // Add export actions here
+            handleExportExcel,
+            handleExportPDF,
         },
         selectors,
         isAuthorized,

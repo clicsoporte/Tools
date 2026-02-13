@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Loader2, Play, CheckCircle } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ConsignmentProduct } from '@/modules/core/types';
 import { Label } from '@/components/ui/label';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
@@ -126,7 +125,7 @@ export default function InventoryCountPage() {
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
-                        <Button onClick={actions.handleGenerateBoleta} disabled={isLoading}>
+                        <Button onClick={actions.handleGenerateBoleta} disabled={isLoading || productsToCount.length === 0}>
                             <CheckCircle className="mr-2 h-4 w-4"/> Finalizar y Generar Boleta
                         </Button>
                     </CardFooter>
