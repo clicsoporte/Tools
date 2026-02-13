@@ -20,11 +20,11 @@ export type BoletaSortKey = 'consecutive' | 'client_name' | 'created_at' | 'stat
 export type BoletaSortDirection = 'asc' | 'desc';
 
 const statusConfig: { [key: string]: { label: string; color: string } } = {
-    pending: { label: "Pendiente", color: "bg-yellow-500" },
-    approved: { label: "Aprobada", color: "bg-green-500" },
-    sent: { label: "Enviada", color: "bg-blue-500" },
-    invoiced: { label: "Facturada", color: "bg-indigo-600" },
-    canceled: { label: "Cancelada", color: "bg-red-700" }
+    pending: { label: "Pendiente", color: "#eab308" },
+    approved: { label: "Aprobada", color: "#22c55e" },
+    sent: { label: "Enviada", color: "#3b82f6" },
+    invoiced: { label: "Facturada", color: "#4f46e5" },
+    canceled: { label: "Cancelada", color: "#b91c1c" }
 };
 
 export const useConsignmentsBoletas = () => {
@@ -33,7 +33,8 @@ export const useConsignmentsBoletas = () => {
     const { user, companyData } = useAuth();
 
     const [state, setState] = useState({
-        isLoading: true,
+        isInitialLoading: true,
+        isRefreshing: false,
         isSubmitting: false,
         agreements: [] as ConsignmentAgreement[],
         boletas: [] as RestockBoleta[],
@@ -46,7 +47,7 @@ export const useConsignmentsBoletas = () => {
         sortKey: 'created_at' as BoletaSortKey,
         sortDirection: 'desc' as BoletaSortDirection,
         filters: {
-            status: ['pending', 'approved', 'sent', 'invoiced'],
+            status: ['pending', 'approved', 'sent'],
             client: [] as string[],
         },
         settings: null as ConsignmentSettings | null,
@@ -56,8 +57,12 @@ export const useConsignmentsBoletas = () => {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
 
-    const loadData = useCallback(async () => {
-        updateState({ isLoading: true });
+    const loadData = useCallback(async (isRefresh = false) => {
+        if(isRefresh){
+            updateState({ isRefreshing: true });
+        } else {
+            updateState({ isInitialLoading: true });
+        }
         try {
             const [boletasData, settingsData, agreementsData] = await Promise.all([
                 getBoletas({ status: [] }),
@@ -69,7 +74,7 @@ export const useConsignmentsBoletas = () => {
             logError('Failed to load boletas or agreements', { error });
             toast({ title: 'Error', description: 'No se pudieron cargar los datos.', variant: 'destructive' });
         } finally {
-            updateState({ isLoading: false });
+            updateState({ isInitialLoading: false, isRefreshing: false });
         }
     }, [toast, updateState]);
 
@@ -100,7 +105,7 @@ export const useConsignmentsBoletas = () => {
             });
             toast({ title: 'Estado Actualizado' });
             updateState({ isStatusModalOpen: false });
-            await loadData();
+            await loadData(true);
         } catch (error: any) {
             logError('Failed to update boleta status', { error: error.message });
             toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -137,7 +142,7 @@ export const useConsignmentsBoletas = () => {
             await updateBoleta(state.detailedBoleta.boleta, state.detailedBoleta.lines, user.name);
             toast({ title: 'Boleta Actualizada' });
             updateState({ isDetailsModalOpen: false });
-            await loadData();
+            await loadData(true);
         } catch (error: any) {
             logError('Failed to save boleta changes', { error: error.message });
             toast({ title: 'Error', variant: 'destructive' });

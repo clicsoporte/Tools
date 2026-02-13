@@ -530,24 +530,29 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const users: User[] = await getAllUsersFromMain();
         const creator = users.find((u: User) => u.name === updatedBoleta.created_by);
 
-        if (status === 'approved' && creator?.id) {
-             await createNotification({
-                userId: creator.id,
-                message: `La boleta ${updatedBoleta.consecutive} ha sido aprobada.`,
-                href: '/dashboard/consignments/boletas',
-                entityId: updatedBoleta.id,
-                entityType: 'consignment_boleta',
-            });
-        }
-        
-        // NEW LOGIC for 'invoiced' status
-        if (status === 'invoiced' && creator?.email) {
-            await sendBoletaEmail({
-                boletaId: updatedBoleta.id,
-                subject: `Boleta de Consignación Facturada: ${updatedBoleta.consecutive}`,
-                introText: `La boleta <strong>${updatedBoleta.consecutive}</strong> ha sido marcada como facturada.`,
-                recipientEmails: [creator.email], // Send to the creator
-            });
+        if (creator?.email) {
+            if (status === 'approved') {
+                await createNotification({
+                    userId: creator.id,
+                    message: `La boleta ${updatedBoleta.consecutive} ha sido aprobada.`,
+                    href: '/dashboard/consignments/boletas',
+                    entityId: updatedBoleta.id,
+                    entityType: 'consignment_boleta',
+                });
+                await sendBoletaEmail({
+                    boletaId: updatedBoleta.id,
+                    subject: `Boleta de Consignación Aprobada: ${updatedBoleta.consecutive}`,
+                    introText: `La boleta <strong>${updatedBoleta.consecutive}</strong> ha sido aprobada y está lista para despacho.`,
+                    recipientEmails: [creator.email],
+                });
+            } else if (status === 'invoiced') {
+                await sendBoletaEmail({
+                    boletaId: updatedBoleta.id,
+                    subject: `Boleta de Consignación Facturada: ${updatedBoleta.consecutive}`,
+                    introText: `La boleta <strong>${updatedBoleta.consecutive}</strong> ha sido marcada como facturada.`,
+                    recipientEmails: [creator.email],
+                });
+            }
         }
 
     } catch (e: any) {

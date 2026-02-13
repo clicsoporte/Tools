@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2, Printer, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
+import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2, Printer, ArrowUp, ArrowDown, Loader2, RefreshCw } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
@@ -29,6 +29,7 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignmentsB
     if (!boletaToUpdate) return null;
     
     const statusLabels: Record<string, string> = {
+        pending: 'Devolver a Pendiente',
         approved: 'Aprobar',
         sent: 'Marcar como Enviada',
         invoiced: 'Marcar como Facturada',
@@ -127,7 +128,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                             <ScrollArea className="h-72 border rounded-md p-2">
                                 <div className="space-y-3">
                                 {detailedBoleta.history.map((h: BoletaHistory) => {
-                                    const statusInfo = statusConfig[h.status as keyof typeof statusConfig] || { label: h.status, color: 'bg-gray-400' };
+                                    const statusInfo = statusConfig[h.status as keyof typeof statusConfig] || { label: h.status, color: '#94a3b8' };
                                     return (
                                         <div key={h.id} className="text-xs">
                                             <div className="flex justify-between items-center">
@@ -173,7 +174,7 @@ export default function BoletasPage() {
 
     const statusOptions = Object.entries(selectors.statusConfig).map(([value, { label }]) => ({ value, label }));
 
-    if (state.isLoading) {
+    if (state.isInitialLoading) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Skeleton className="h-96 w-full max-w-5xl mx-auto" />
@@ -192,20 +193,24 @@ export default function BoletasPage() {
                                 Aprueba, edita y gestiona el ciclo de vida de las boletas de envío.
                             </CardDescription>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <MultiSelectFilter
-                                title="Filtrar por Cliente"
-                                options={agreementOptions}
-                                selectedValues={filters.client}
-                                onSelectedChange={actions.setBoletaClientFilter}
-                            />
-                             <MultiSelectFilter
-                                title="Filtrar por Estado"
-                                options={statusOptions}
-                                selectedValues={filters.status}
-                                onSelectedChange={actions.setBoletaStatusFilter}
-                            />
-                        </div>
+                        <Button variant="outline" onClick={() => actions.loadData(true)} disabled={state.isRefreshing}>
+                            {state.isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                            Refrescar
+                        </Button>
+                    </div>
+                     <div className="flex items-center gap-2 flex-wrap pt-4">
+                        <MultiSelectFilter
+                            title="Filtrar por Cliente"
+                            options={agreementOptions}
+                            selectedValues={filters.client}
+                            onSelectedChange={actions.setBoletaClientFilter}
+                        />
+                         <MultiSelectFilter
+                            title="Filtrar por Estado"
+                            options={statusOptions}
+                            selectedValues={filters.status}
+                            onSelectedChange={actions.setBoletaStatusFilter}
+                        />
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -265,6 +270,9 @@ export default function BoletasPage() {
                                                     <FileCheck2 className="mr-2 h-4 w-4" /> Marcar como Facturada
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
+                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'pending')} disabled={boleta.status !== 'approved'} className="text-orange-600">
+                                                    <Undo2 className="mr-2 h-4 w-4" /> Devolver a Pendiente
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'invoiced'} className="text-orange-600">
                                                     <Undo2 className="mr-2 h-4 w-4" /> Revertir a Enviada
                                                 </DropdownMenuItem>
