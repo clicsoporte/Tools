@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file contains the initial or default data for the application.
  * This data is used to populate the database on its first run.
@@ -46,6 +47,13 @@ export const initialUsers: User[] = [];
  */
 export const mainTools: Tool[] = [
   {
+    id: "dashboard:access",
+    name: "Panel",
+    description: "Visión general de las herramientas y actividad.",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
     id: "quotes:create",
     name: "Cotizador",
     description: "Crear y gestionar cotizaciones para clientes.",
@@ -68,22 +76,6 @@ export const mainTools: Tool[] = [
     href: "/dashboard/planner",
     icon: CalendarCheck,
     bgColor: "bg-purple-700",
-  },
-  {
-    id: "consignments:access",
-    name: "Consignaciones",
-    description: "Gestionar inventario en consignación, conteos y reposiciones.",
-    href: "/dashboard/consignments",
-    icon: Container,
-    bgColor: "bg-lime-500",
-  },
-  {
-    id: "consignments:locks:manage",
-    name: "Bloqueos de Consignación",
-    description: "Ver y liberar sesiones de conteo de consignación activas.",
-    href: "/dashboard/consignments/locks",
-    icon: Lock,
-    bgColor: "bg-red-500",
   },
   {
     id: 'cost-assistant:access',
@@ -216,6 +208,41 @@ export const warehouseTools: Tool[] = [
         href: '/dashboard/warehouse/locks',
         icon: Lock,
         bgColor: 'bg-slate-500',
+    }
+];
+
+export const consignmentsTools: Tool[] = [
+    {
+        id: "consignments:setup",
+        name: "Acuerdos de Consignación",
+        description: "Crear y gestionar los acuerdos de productos en consignación por cliente.",
+        href: "/dashboard/consignments/agreements",
+        icon: ListChecks,
+        bgColor: "bg-teal-600",
+    },
+    {
+        id: "consignments:count",
+        name: "Toma de Inventario",
+        description: "Realizar el conteo físico de productos en las instalaciones del cliente.",
+        href: "/dashboard/consignments/inventory-count",
+        icon: ClipboardCheck,
+        bgColor: "bg-blue-600",
+    },
+    {
+        id: "consignments:approve",
+        name: "Gestión de Boletas",
+        description: "Aprobar, imprimir y dar seguimiento a las boletas de reposición.",
+        href: "/dashboard/consignments/boletas",
+        icon: FileText,
+        bgColor: "bg-orange-600",
+    },
+    {
+        id: "consignments:locks:manage",
+        name: "Bloqueos de Conteo",
+        description: "Ver y liberar sesiones de conteo de consignación activas.",
+        href: "/dashboard/consignments/locks",
+        icon: Lock,
+        bgColor: "bg-slate-500",
     }
 ];
 
