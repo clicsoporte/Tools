@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook for managing the logic for the Consignments Inventory Count page.
  */
@@ -12,7 +11,7 @@ import { getConsignmentAgreements, startOrContinueCountingSession, saveCountLine
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import type { ConsignmentAgreement, CountingSession, CountingSessionLine, ConsignmentProduct } from '@/modules/core/types';
-import { createNotification } from '@/modules/core/lib/notifications-actions';
+import { createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
 
 type WizardStep = 'setup' | 'resume' | 'counting' | 'finished';
 
@@ -178,14 +177,16 @@ export const useConsignmentsInventoryCount = () => {
         updateState({ isLoading: true });
         try {
             const boleta = await generateBoletaFromSession(state.session.id, user.id, user.name);
-            toast({ title: 'Boleta Generada', description: `La boleta de reposición ${boleta.consecutive} se ha creado y está pendiente de revisión.` });
+            toast({ title: 'Boleta Generada', description: `La boleta ${boleta.consecutive} se ha creado y está pendiente de revisión.` });
             
-            // Notification for the counter
-            await createNotification({
-                userId: user.id,
-                message: `Conteo finalizado. Se generó la boleta ${boleta.consecutive} para revisión.`,
-                href: '/dashboard/consignments/boletas',
-            });
+            await createNotificationForPermission(
+                'consignments:boleta:approve',
+                `Nueva boleta de consignación ${boleta.consecutive} requiere revisión.`,
+                '/dashboard/consignments/boletas',
+                boleta.id,
+                'consignment_boleta',
+                'review'
+            );
 
             router.push('/dashboard/consignments/boletas');
         } catch (error: any) {
@@ -196,7 +197,7 @@ export const useConsignmentsInventoryCount = () => {
         }
     };
 
-    const resetWizard = () => {
+    const reset = () => {
         updateState({
             step: 'setup',
             selectedAgreementId: null,
@@ -224,7 +225,7 @@ export const useConsignmentsInventoryCount = () => {
             resumeSession,
             abandonCurrentSession,
             handleGenerateBoleta,
-            resetWizard,
+            reset,
         },
         selectors
     };

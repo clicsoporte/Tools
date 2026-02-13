@@ -258,7 +258,7 @@ export function useItemLocation() {
                 } else if (conflictResult.locationHasOtherProducts) {
                     updateState({ 
                         conflictingItems: [conflictResult.conflictingProduct!].filter(Boolean), 
-                        isMixedLocationConfirmOpen: true,
+                        mixedLocationConfirmOpen: true,
                         isTargetLocationMixed: allLocations.find(l => l.id === Number(state.formData.selectedLocationId))?.is_mixed === 1,
                     });
                 } else {

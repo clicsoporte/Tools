@@ -149,7 +149,7 @@ export default function InventoryCountPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardFooter className="justify-center">
-                        <Button onClick={actions.resetWizard}>Iniciar Nuevo Conteo</Button>
+                        <Button onClick={actions.reset}>Iniciar Nuevo Conteo</Button>
                     </CardFooter>
                 </Card>
             )}
