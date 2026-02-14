@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getBoletas, updateBoletaStatus, getBoletaDetails, updateBoleta, getConsignmentAgreements } from '../lib/actions';
+import { getBoletas, updateBoletaStatus, getBoletaDetails, updateBoleta, getConsignmentAgreements, getAgreementDetails } from '../lib/actions';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import type { RestockBoleta, BoletaLine, BoletaHistory, ConsignmentSettings, ConsignmentAgreement, Company } from '@/modules/core/types';
 import { getConsignmentSettings } from '../lib/actions';
@@ -116,13 +116,48 @@ export const useConsignmentsBoletas = () => {
     };
     
     const openBoletaDetails = async (boletaId: number) => {
-        updateState({ isDetailsModalOpen: true, isDetailsLoading: true });
+        updateState({ isDetailsModalOpen: true, isDetailsLoading: true, detailedBoleta: null });
         try {
-            const details = await getBoletaDetails(boletaId);
-            updateState({ detailedBoleta: details });
-        } catch (error) {
-            logError('Failed to get boleta details', { error });
-            toast({ title: 'Error', variant: 'destructive' });
+            const boletaDetails = await getBoletaDetails(boletaId);
+            if (!boletaDetails) {
+                throw new Error("No se encontraron los detalles de la boleta.");
+            }
+
+            // If the boleta is still editable, fetch the latest rules from the agreement.
+            if (['review', 'pending'].includes(boletaDetails.boleta.status)) {
+                const agreementDetails = await getAgreementDetails(boletaDetails.boleta.agreement_id);
+                if (agreementDetails) {
+                    const agreementProductMap = new Map(agreementDetails.products.map(p => [p.product_id, p]));
+    
+                    const recalculatedLines = boletaDetails.lines.map(line => {
+                        const currentProductRule = agreementProductMap.get(line.product_id);
+                        const newMaxStock = currentProductRule ? currentProductRule.max_stock : line.max_stock;
+                        const newPrice = currentProductRule ? currentProductRule.price : line.price;
+                        const replenish_quantity = Math.max(0, newMaxStock - line.counted_quantity);
+    
+                        return {
+                            ...line,
+                            max_stock: newMaxStock,
+                            price: newPrice,
+                            replenish_quantity,
+                        };
+                    });
+    
+                    updateState({
+                        detailedBoleta: { ...boletaDetails, lines: recalculatedLines }
+                    });
+                } else {
+                    // If agreement is gone for some reason, just show the saved data
+                    updateState({ detailedBoleta: boletaDetails });
+                }
+            } else {
+                // For non-editable statuses, just show the saved data
+                updateState({ detailedBoleta: boletaDetails });
+            }
+
+        } catch (error: any) {
+            logError('Failed to get boleta details', { error: error.message });
+            toast({ title: 'Error', description: `No se pudieron cargar los detalles: ${error.message}`, variant: 'destructive' });
         } finally {
             updateState({ isDetailsLoading: false });
         }
@@ -186,7 +221,7 @@ export const useConsignmentsBoletas = () => {
             
             let docTitle = 'BOLETA DE REPOSICIÓN DE CONSIGNACIÓN';
             const metaInfo: {label: string, value: string}[] = details.history.map((h: BoletaHistory) => ({
-                label: `${statusConfig[h.status]?.label || h.status} por::`,
+                label: `${statusConfig[h.status]?.label || h.status} por:`,
                 value: `${h.updatedBy} - ${format(parseISO(h.timestamp), 'dd/MM/yy HH:mm')}`
             }));
             

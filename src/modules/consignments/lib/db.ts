@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -192,7 +193,7 @@ export async function getAgreements(): Promise<(ConsignmentAgreement & { product
     return JSON.parse(JSON.stringify(agreements));
 }
 
-export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number }, products: Omit<ConsignmentProduct, 'id' | 'agreement_id'>[]): Promise<ConsignmentAgreement> {
+export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number }, products: Omit<ConsignmentProduct, 'id' | 'agreement_id'>[]) {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const transaction = db.transaction(() => {
         let agreementId = agreement.id;
@@ -441,16 +442,15 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     const transaction = db.transaction(() => {
-        // Only update certain fields on the main boleta table
         db.prepare('UPDATE restock_boletas SET notes = ? WHERE id = ?').run(boleta.notes, boleta.id);
         
-        const updateLineStmt = db.prepare('UPDATE boleta_lines SET replenish_quantity = ? WHERE id = ?');
+        const updateLineStmt = db.prepare('UPDATE boleta_lines SET replenish_quantity = ?, max_stock = ?, price = ? WHERE id = ?');
         for (const line of lines) {
-            updateLineStmt.run(line.replenish_quantity, line.id);
+            updateLineStmt.run(line.replenish_quantity, line.max_stock, line.price, line.id);
         }
         
         db.prepare('INSERT INTO boleta_history (boleta_id, timestamp, status, updatedBy, notes) VALUES (?, datetime(\'now\'), ?, ?, ?)')
-          .run(boleta.id, boleta.status, updatedBy, 'Líneas de boleta editadas.');
+          .run(boleta.id, boleta.status, updatedBy, 'Líneas de boleta editadas y recalculadas.');
 
         return db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boleta.id) as RestockBoleta;
     });
@@ -548,3 +548,4 @@ export async function forceReleaseConsignmentSession(sessionId: number, updatedB
     
     logWarn(`Consignment session ${sessionId} was forcibly released by ${updatedBy}.`);
 }
+
