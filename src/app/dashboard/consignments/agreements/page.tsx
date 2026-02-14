@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useConsignmentsAgreements } from '@/modules/consignments/hooks/useConsignmentsAgreements';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -16,6 +16,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function AgreementsPage() {
     const { state, actions, selectors } = useConsignmentsAgreements();
@@ -93,18 +94,23 @@ export default function AgreementsPage() {
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
                                                     <AlertDialogDescription>
-                                                        Esta acción eliminará permanentemente el acuerdo para <strong>{state.agreementToDelete?.client_name}</strong>. Esto solo es posible si el acuerdo no tiene boletas de reposición asociadas.
+                                                        {state.agreementToDelete?.boleta_count && state.agreementToDelete.boleta_count > 0 
+                                                            ? `No se puede eliminar. El acuerdo tiene ${state.agreementToDelete.boleta_count} boleta(s) asociadas. Por favor, elimínelas primero.`
+                                                            : `Esta acción eliminará permanentemente el acuerdo para ${state.agreementToDelete?.client_name}.`
+                                                        }
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                    <AlertDialogAction
-                                                        onClick={actions.handleDeleteAgreement}
-                                                        disabled={state.isSubmitting}
-                                                    >
-                                                        {state.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                                        Sí, Eliminar
-                                                    </AlertDialogAction>
+                                                    {(!state.agreementToDelete?.boleta_count || state.agreementToDelete.boleta_count === 0) && (
+                                                        <AlertDialogAction
+                                                            onClick={actions.handleDeleteAgreement}
+                                                            disabled={state.isSubmitting}
+                                                        >
+                                                            {state.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                            Sí, Eliminar
+                                                        </AlertDialogAction>
+                                                    )}
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
@@ -144,7 +150,6 @@ export default function AgreementsPage() {
                                     value={state.warehouseSearchTerm}
                                     onValueChange={actions.setWarehouseSearchTerm}
                                     open={state.isWarehouseSearchOpen}
-                                    onOpenChange={actions.setIsWarehouseSearchOpen}
                                     placeholder="Buscar bodega virtual..."
                                 />
                             </div>
@@ -170,36 +175,33 @@ export default function AgreementsPage() {
                                     placeholder="Añadir producto..."
                                 />
                             </div>
-                            <div className="max-h-60 overflow-y-auto border rounded-md">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Producto</TableHead>
-                                            <TableHead>Máximo</TableHead>
-                                            <TableHead>Precio (sin IVA)</TableHead>
-                                            <TableHead></TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {state.agreementProducts.map((p: ConsignmentProduct, index: number) => (
-                                            <TableRow key={p.product_id}>
-                                                <TableCell>{selectors.getProductName(p.product_id)}</TableCell>
-                                                <TableCell>
-                                                    <Input type="number" value={p.max_stock || ''} onChange={(e) => actions.updateProductField(index, 'max_stock', Number(e.target.value))} className="w-24 hide-number-arrows"/>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Input type="number" value={p.price || ''} onChange={(e) => actions.updateProductField(index, 'price', Number(e.target.value))} className="w-28 hide-number-arrows"/>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Button variant="ghost" size="icon" onClick={() => actions.removeProductFromAgreement(index)}>
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                             <ScrollArea className="max-h-60 overflow-y-auto border rounded-md p-2">
+                                <div className="space-y-3">
+                                    {state.agreementProducts.map((p: ConsignmentProduct, index: number) => (
+                                        <Card key={p.product_id}>
+                                            <CardHeader className="p-3 flex flex-row items-center justify-between">
+                                                <div>
+                                                    <p className="font-medium">{selectors.getProductName(p.product_id)}</p>
+                                                    <p className="text-xs text-muted-foreground">{p.product_id}</p>
+                                                </div>
+                                                <Button variant="ghost" size="icon" onClick={() => actions.removeProductFromAgreement(index)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </CardHeader>
+                                            <CardContent className="p-3 pt-0 grid grid-cols-2 gap-3">
+                                                 <div className="space-y-1">
+                                                    <Label htmlFor={`max-stock-${index}`} className="text-xs">Stock Máximo</Label>
+                                                    <Input id={`max-stock-${index}`} type="number" value={p.max_stock || ''} onChange={(e) => actions.updateProductField(index, 'max_stock', Number(e.target.value))} className="hide-number-arrows text-right h-10"/>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label htmlFor={`price-${index}`} className="text-xs">Precio (sin IVA)</Label>
+                                                    <Input id={`price-${index}`} type="number" value={p.price || ''} onChange={(e) => actions.updateProductField(index, 'price', Number(e.target.value))} className="hide-number-arrows text-right h-10"/>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </ScrollArea>
                         </div>
                     </div>
                     <DialogFooter>

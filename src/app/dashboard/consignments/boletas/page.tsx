@@ -3,12 +3,12 @@
 
 import React from 'react';
 import { useConsignmentsBoletas } from '@/modules/consignments/hooks/useConsignmentsBoletas';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2, Printer, ArrowUp, ArrowDown, Loader2, RefreshCw } from 'lucide-react';
+import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2, Printer, ArrowUp, ArrowDown, Loader2, RefreshCw, Send } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
@@ -29,7 +29,7 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignmentsB
     if (!boletaToUpdate) return null;
     
     const statusLabels: Record<string, string> = {
-        pending: 'Devolver a Pendiente',
+        pending: 'Enviar a Aprobación',
         approved: 'Aprobar',
         sent: 'Marcar como Enviada',
         invoiced: 'Marcar como Facturada',
@@ -73,7 +73,7 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
     const { state, actions, selectors } = hook;
     const { isSubmitting, isDetailsModalOpen, detailedBoleta, isDetailsLoading } = state;
 
-    const canEditLines = detailedBoleta?.boleta.status === 'pending' && selectors.permissions.canApprove;
+    const canEditLines = detailedBoleta?.boleta.status === 'review' && selectors.permissions.canApprove;
     
     const statusConfig = selectors.statusConfig;
 
@@ -89,43 +89,43 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
                         <div className="md:col-span-2 space-y-4">
                              <h4 className="font-semibold">Líneas de Reposición</h4>
-                             <ScrollArea className="h-72 border rounded-md">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Producto</TableHead>
-                                            <TableHead className="text-right">Inv. Físico</TableHead>
-                                            <TableHead className="text-right">Máximo</TableHead>
-                                            <TableHead className="text-right w-28">Reponer</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {detailedBoleta.lines.map((line: BoletaLine) => (
-                                            <TableRow key={line.id}>
-                                                <TableCell>
-                                                    <p className="font-medium">{line.product_description}</p>
-                                                    <p className="text-xs text-muted-foreground">{line.product_id}</p>
-                                                </TableCell>
-                                                <TableCell className="text-right">{line.counted_quantity}</TableCell>
-                                                <TableCell className="text-right">{line.max_stock}</TableCell>
-                                                <TableCell>
-                                                    <Input 
-                                                        type="number" 
-                                                        value={line.replenish_quantity}
-                                                        onChange={e => actions.handleDetailedLineChange(line.id, Number(e.target.value))}
-                                                        className="text-right"
-                                                        disabled={!canEditLines}
-                                                    />
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                             </ScrollArea>
+                             <ScrollArea className="h-96 border rounded-md p-2">
+                                <div className="space-y-3">
+                                    {detailedBoleta.lines.map((line: BoletaLine) => (
+                                        <Card key={line.id}>
+                                            <CardContent className="p-3">
+                                                <p className="font-medium">{line.product_description}</p>
+                                                <p className="text-xs text-muted-foreground mb-2">{line.product_id}</p>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                    <div className="space-y-1">
+                                                        <Label htmlFor={`count-${line.id}`} className="text-xs">Inv. Físico</Label>
+                                                        <Input id={`count-${line.id}`} value={line.counted_quantity} disabled className="h-8 text-right bg-muted" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label htmlFor={`max-${line.id}`} className="text-xs">Máximo</Label>
+                                                        <Input id={`max-${line.id}`} value={line.max_stock} disabled className="h-8 text-right bg-muted" />
+                                                    </div>
+                                                    <div className="space-y-1 col-span-2 md:col-span-2">
+                                                        <Label htmlFor={`replenish-${line.id}`} className="text-xs">A Reponer</Label>
+                                                        <Input 
+                                                            id={`replenish-${line.id}`}
+                                                            type="number" 
+                                                            value={line.replenish_quantity}
+                                                            onChange={e => actions.handleDetailedLineChange(line.id, Number(e.target.value))}
+                                                            className="text-right h-10 text-lg font-bold"
+                                                            disabled={!canEditLines}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </ScrollArea>
                         </div>
                         <div className="space-y-4">
                             <h4 className="font-semibold">Historial de Estados</h4>
-                            <ScrollArea className="h-72 border rounded-md p-2">
+                            <ScrollArea className="h-96 border rounded-md p-2">
                                 <div className="space-y-3">
                                 {detailedBoleta.history.map((h: BoletaHistory) => {
                                     const statusInfo = statusConfig[h.status as keyof typeof statusConfig] || { label: h.status, color: '#94a3b8' };
@@ -258,6 +258,9 @@ export default function BoletasPage() {
                                                     <Printer className="mr-2 h-4 w-4" /> Imprimir Boleta
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
+                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'pending')} disabled={boleta.status !== 'review' || !selectors.permissions.canSubmitForApproval}>
+                                                    <Send className="mr-2 h-4 w-4" /> Enviar a Aprobación
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'approved')} disabled={boleta.status !== 'pending' || !selectors.permissions.canApprove}>
                                                     <Check className="mr-2 h-4 w-4" /> Aprobar
                                                 </DropdownMenuItem>
