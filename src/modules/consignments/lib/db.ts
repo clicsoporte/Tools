@@ -78,6 +78,7 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             replenish_quantity REAL NOT NULL,
             max_stock REAL NOT NULL,
             price REAL NOT NULL,
+            is_manually_edited BOOLEAN DEFAULT FALSE,
             FOREIGN KEY (boleta_id) REFERENCES restock_boletas(id) ON DELETE CASCADE
         );
 
@@ -117,6 +118,12 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
     }
     if (!columns.has('submitted_by')) {
         db.exec('ALTER TABLE restock_boletas ADD COLUMN submitted_by TEXT');
+    }
+
+    const linesTableInfo = db.prepare(`PRAGMA table_info(boleta_lines)`).all() as { name: string }[];
+    const linesColumns = new Set(linesTableInfo.map(c => c.name));
+    if (!linesColumns.has('is_manually_edited')) {
+        db.exec('ALTER TABLE boleta_lines ADD COLUMN is_manually_edited BOOLEAN DEFAULT FALSE');
     }
 
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignments_settings'`).get();
@@ -448,9 +455,9 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     const transaction = db.transaction(() => {
         db.prepare('UPDATE restock_boletas SET notes = ? WHERE id = ?').run(boleta.notes, boleta.id);
         
-        const updateLineStmt = db.prepare('UPDATE boleta_lines SET replenish_quantity = ?, max_stock = ?, price = ? WHERE id = ?');
+        const updateLineStmt = db.prepare('UPDATE boleta_lines SET replenish_quantity = ?, max_stock = ?, price = ?, is_manually_edited = ? WHERE id = ?');
         for (const line of lines) {
-            updateLineStmt.run(line.replenish_quantity, line.max_stock, line.price, line.id);
+            updateLineStmt.run(line.replenish_quantity, line.max_stock, line.price, line.is_manually_edited ? 1 : 0, line.id);
         }
         
         db.prepare('INSERT INTO boleta_history (boleta_id, timestamp, status, updatedBy, notes) VALUES (?, datetime(\'now\'), ?, ?, ?)')

@@ -106,7 +106,14 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                                                         <Input id={`max-${line.id}`} value={line.max_stock} disabled className="h-8 text-right bg-muted" />
                                                     </div>
                                                     <div className="space-y-1 col-span-2 md:col-span-2">
-                                                        <Label htmlFor={`replenish-${line.id}`} className="text-xs">A Reponer</Label>
+                                                        <div className="flex justify-between items-center">
+                                                            <Label htmlFor={`replenish-${line.id}`} className="text-xs">A Reponer</Label>
+                                                            {line.is_manually_edited === 1 && (
+                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => actions.handleResetLineQuantity(line.id)}>
+                                                                    <Undo2 className="h-4 w-4 text-orange-500"/>
+                                                                </Button>
+                                                            )}
+                                                        </div>
                                                         <Input 
                                                             id={`replenish-${line.id}`}
                                                             type="number" 

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
@@ -1058,6 +1057,7 @@ export type BoletaLine = {
     replenish_quantity: number;
     max_stock: number;
     price: number;
+    is_manually_edited?: 0 | 1;
 };
 
 export type BoletaHistory = {
