@@ -23,6 +23,23 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [2.9.1] - Publicado
+
+### Mejoras de Experiencia de Usuario (UX) y Calidad de Vida
+
+-   **[UX Consignación]** Se rediseñaron las ventanas de diálogo del módulo de "Consignaciones" (Acuerdos y Boletas) para usar un sistema de tarjetas en lugar de tablas. Este cambio mejora drásticamente la visualización en dispositivos móviles y previene que los números largos se corten.
+-   **[UX Consignación]** Se añadió una nueva columna "Total a Reponer" a la tabla principal de "Gestión de Boletas", permitiendo una vista rápida de la magnitud de cada envío.
+-   **[UX Consignación]** Se agregaron descripciones emergentes (tooltips) a los encabezados de la tabla de "Gestión de Boletas" para explicar el propósito de cada columna.
+-   **[UX Consignación]** El mensaje de error al intentar eliminar un "Acuerdo" que tiene boletas asociadas ahora es claro y amigable, guiando al usuario sobre cómo proceder en lugar de mostrar un error técnico.
+
+### Correcciones y Mejoras de Lógica
+
+-   **[Lógica Consignación] Recálculo Inteligente de Boletas.** Se ha mejorado el flujo de edición de boletas. El sistema ahora detecta si una cantidad a reponer fue editada manualmente y respeta ese valor en futuras ediciones. Si las reglas del acuerdo cambian (ej. se ajusta el stock máximo), el sistema solo recalculará las cantidades que no hayan sido modificadas manualmente. Se añadió un discreto botón de "reset" para volver al cálculo automático si se desea.
+-   **[Corrección de Estabilidad]** Se corrigió un error en el selector de usuarios para las notificaciones de consignación que impedía que la selección se mantuviera correctamente.
+-   **[Refactorización de Seguridad]** Se implementó una capa de seguridad más robusta con un nuevo `auth-guard` del lado del servidor. Las páginas y acciones ahora utilizan `authorizePage` y `authorizeAction` para una validación de permisos más estricta y centralizada.
+
+---
+
 ## [2.9.0] - Publicado
 
 ### Funcionalidades y Mejoras Principales
