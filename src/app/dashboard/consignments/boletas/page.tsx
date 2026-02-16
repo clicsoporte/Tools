@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignmentsBoletas> }) {
     const { state, actions } = hook;
@@ -191,119 +192,174 @@ export default function BoletasPage() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Card className="max-w-6xl mx-auto">
-                <CardHeader>
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
-                            <CardTitle>Gestión de Boletas de Reposición</CardTitle>
-                            <CardDescription>
-                                Aprueba, edita y gestiona el ciclo de vida de las boletas de envío.
-                            </CardDescription>
+            <TooltipProvider>
+                <Card className="max-w-6xl mx-auto">
+                    <CardHeader>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <CardTitle>Gestión de Boletas de Reposición</CardTitle>
+                                <CardDescription>
+                                    Aprueba, edita y gestiona el ciclo de vida de las boletas de envío.
+                                </CardDescription>
+                            </div>
+                            <Button variant="outline" onClick={() => actions.loadData(true)} disabled={state.isRefreshing}>
+                                {state.isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                                Refrescar
+                            </Button>
                         </div>
-                        <Button variant="outline" onClick={() => actions.loadData(true)} disabled={state.isRefreshing}>
-                            {state.isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                            Refrescar
-                        </Button>
-                    </div>
-                     <div className="flex items-center gap-2 flex-wrap pt-4">
-                        <MultiSelectFilter
-                            title="Filtrar por Cliente"
-                            options={agreementOptions}
-                            selectedValues={filters.client}
-                            onSelectedChange={actions.setBoletaClientFilter}
-                        />
-                         <MultiSelectFilter
-                            title="Filtrar por Estado"
-                            options={statusOptions}
-                            selectedValues={filters.status}
-                            onSelectedChange={actions.setBoletaStatusFilter}
-                        />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('consecutive')}>
-                                    <div className="flex items-center">Consecutivo {renderSortIcon('consecutive')}</div>
-                                </TableHead>
-                                <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('client_name')}>
-                                     <div className="flex items-center">Cliente {renderSortIcon('client_name')}</div>
-                                </TableHead>
-                                <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('created_at')}>
-                                    <div className="flex items-center">Fecha Creación {renderSortIcon('created_at')}</div>
-                                </TableHead>
-                                <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('status')}>
-                                    <div className="flex items-center">Estado {renderSortIcon('status')}</div>
-                                </TableHead>
-                                <TableHead className="cursor-pointer text-right" onClick={() => actions.handleBoletaSort('total_replenish_quantity')}>
-                                    <div className="flex items-center justify-end">Total a Reponer {renderSortIcon('total_replenish_quantity')}</div>
-                                </TableHead>
-                                <TableHead>Factura ERP</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedBoletas.map((boleta: RestockBoleta) => (
-                                <TableRow key={boleta.id}>
-                                    <TableCell className="font-mono text-red-600 font-bold">{boleta.consecutive}</TableCell>
-                                    <TableCell>{selectors.getAgreementName(boleta.agreement_id)}</TableCell>
-                                    <TableCell>{format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</TableCell>
-                                    <TableCell>
-                                        <Badge style={{ backgroundColor: selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.color }} className="text-white">
-                                            {selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.label || 'Desconocido'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right font-medium">
-                                        {(boleta.total_replenish_quantity ?? 0).toLocaleString()}
-                                    </TableCell>
-                                    <TableCell className="font-mono">{boleta.erp_invoice_number}</TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
-                                                <DropdownMenuItem onSelect={() => actions.openBoletaDetails(boleta.id)}>
-                                                    <FileText className="mr-2 h-4 w-4" /> Ver/Editar Detalles
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => actions.handlePrintBoleta(boleta)} disabled={!['approved', 'sent', 'invoiced'].includes(boleta.status)}>
-                                                    <Printer className="mr-2 h-4 w-4" /> Imprimir Boleta
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'pending')} disabled={boleta.status !== 'review' || !selectors.permissions.canSubmitForApproval}>
-                                                    <Send className="mr-2 h-4 w-4" /> Enviar a Aprobación
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'approved')} disabled={boleta.status !== 'pending' || !selectors.permissions.canApprove}>
-                                                    <Check className="mr-2 h-4 w-4" /> Aprobar
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'approved' || !selectors.permissions.canSend}>
-                                                    <Truck className="mr-2 h-4 w-4" /> Marcar como Enviada
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'invoiced')} disabled={boleta.status !== 'sent' || !selectors.permissions.canInvoice}>
-                                                    <FileCheck2 className="mr-2 h-4 w-4" /> Marcar como Facturada
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'pending')} disabled={boleta.status !== 'approved' || !selectors.permissions.canRevert} className="text-orange-600">
-                                                    <Undo2 className="mr-2 h-4 w-4" /> Devolver a Pendiente
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'invoiced' || !selectors.permissions.canRevert} className="text-orange-600">
-                                                    <Undo2 className="mr-2 h-4 w-4" /> Revertir a Enviada
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'canceled')} className="text-red-500" disabled={boleta.status === 'canceled' || boleta.status === 'invoiced' || !selectors.permissions.canCancel}>
-                                                    <Ban className="mr-2 h-4 w-4" /> Cancelar Boleta
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
+                         <div className="flex items-center gap-2 flex-wrap pt-4">
+                            <MultiSelectFilter
+                                title="Filtrar por Cliente"
+                                options={agreementOptions}
+                                selectedValues={filters.client}
+                                onSelectedChange={actions.setBoletaClientFilter}
+                            />
+                             <MultiSelectFilter
+                                title="Filtrar por Estado"
+                                options={statusOptions}
+                                selectedValues={filters.status}
+                                onSelectedChange={actions.setBoletaStatusFilter}
+                            />
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('consecutive')}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex items-center">Consecutivo {renderSortIcon('consecutive')}</div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Número único de la boleta de reposición. Se genera automáticamente basado en el cliente.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('client_name')}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex items-center">Cliente {renderSortIcon('client_name')}</div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Cliente de consignación al que pertenece la boleta.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('created_at')}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex items-center">Fecha Creación {renderSortIcon('created_at')}</div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Fecha y hora en que se finalizó el conteo de inventario y se generó la boleta.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('status')}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex items-center">Estado {renderSortIcon('status')}</div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Estado actual de la boleta en el flujo de aprobación.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TableHead>
+                                    <TableHead className="cursor-pointer text-right" onClick={() => actions.handleBoletaSort('total_replenish_quantity')}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex items-center justify-end">Total a Reponer {renderSortIcon('total_replenish_quantity')}</div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Suma total de las unidades de todos los productos que se necesitan reponer para alcanzar el stock máximo.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TableHead>
+                                    <TableHead>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div>Factura ERP</div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Número de la factura del ERP con la que se procesó esta reposición. Aparece después de marcar la boleta como 'Facturada'.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TableHead>
+                                    <TableHead className="text-right">
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div>Acciones</div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Menú de acciones disponibles para la boleta según su estado actual y tus permisos.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-            <StatusUpdateDialog hook={{state, actions, selectors}} />
-            <BoletaDetailsDialog hook={{state, actions, selectors}} />
+                            </TableHeader>
+                            <TableBody>
+                                {sortedBoletas.map((boleta: RestockBoleta) => (
+                                    <TableRow key={boleta.id}>
+                                        <TableCell className="font-mono text-red-600 font-bold">{boleta.consecutive}</TableCell>
+                                        <TableCell>{selectors.getAgreementName(boleta.agreement_id)}</TableCell>
+                                        <TableCell>{format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</TableCell>
+                                        <TableCell>
+                                            <Badge style={{ backgroundColor: selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.color }} className="text-white">
+                                                {selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.label || 'Desconocido'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium">
+                                            {(boleta.total_replenish_quantity ?? 0).toLocaleString()}
+                                        </TableCell>
+                                        <TableCell className="font-mono">{boleta.erp_invoice_number}</TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    <DropdownMenuItem onSelect={() => actions.openBoletaDetails(boleta.id)}>
+                                                        <FileText className="mr-2 h-4 w-4" /> Ver/Editar Detalles
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => actions.handlePrintBoleta(boleta)} disabled={!['approved', 'sent', 'invoiced'].includes(boleta.status)}>
+                                                        <Printer className="mr-2 h-4 w-4" /> Imprimir Boleta
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'pending')} disabled={boleta.status !== 'review' || !selectors.permissions.canSubmitForApproval}>
+                                                        <Send className="mr-2 h-4 w-4" /> Enviar a Aprobación
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'approved')} disabled={boleta.status !== 'pending' || !selectors.permissions.canApprove}>
+                                                        <Check className="mr-2 h-4 w-4" /> Aprobar
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'approved' || !selectors.permissions.canSend}>
+                                                        <Truck className="mr-2 h-4 w-4" /> Marcar como Enviada
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'invoiced')} disabled={boleta.status !== 'sent' || !selectors.permissions.canInvoice}>
+                                                        <FileCheck2 className="mr-2 h-4 w-4" /> Marcar como Facturada
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'review')} disabled={!['pending', 'approved'].includes(boleta.status) || !selectors.permissions.canRevert} className="text-orange-600">
+                                                        <Undo2 className="mr-2 h-4 w-4" /> Devolver a Revisión
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'sent')} disabled={boleta.status !== 'invoiced' || !selectors.permissions.canRevert} className="text-orange-600">
+                                                        <Undo2 className="mr-2 h-4 w-4" /> Revertir a Enviada
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => actions.openStatusModal(boleta, 'canceled')} className="text-red-500" disabled={boleta.status === 'canceled' || boleta.status === 'invoiced' || !selectors.permissions.canCancel}>
+                                                        <Ban className="mr-2 h-4 w-4" /> Cancelar Boleta
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+                <StatusUpdateDialog hook={{state, actions, selectors}} />
+                <BoletaDetailsDialog hook={{state, actions, selectors}} />
+            </TooltipProvider>
         </main>
     );
 }
