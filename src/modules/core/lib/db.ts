@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import { initialCompany, initialRoles } from './data';
 import { DB_MODULES } from './db-modules';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession, AnalyticsSettings, TransitStatusAlias, WarehouseSettings, WarehouseInventoryItem } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession, AnalyticsSettings, TransitStatusAlias, WarehouseLocation, WarehouseSettings, WarehouseInventoryItem } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -25,6 +25,7 @@ import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cos
 import { initializeOperationsDb, runOperationsMigrations } from '../../operations/lib/db';
 import { initializeItToolsDb, runItToolsMigrations } from '../../it-tools/lib/db';
 import { initializeConsignmentsDb, runConsignmentsMigrations } from '../../consignments/lib/db';
+import { revalidatePath } from 'next/cache';
 
 const DB_FILE = 'intratool.db';
 const WAREHOUSE_DB_FILE = 'warehouse.db';
@@ -1829,9 +1830,9 @@ export async function getWarehouseData(): Promise<{ locations: WarehouseLocation
     const locations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
     const inventory = db.prepare('SELECT * FROM inventory').all() as WarehouseInventoryItem[];
     const itemLocations = db.prepare('SELECT * FROM item_locations').all() as ItemLocation[];
-    const stock = await getAllStockFromMain();
-    const warehouseSettings = await getWarehouseSettings(); // Uses the new local function
-    const stockSettings = await getStockSettingsFromMain();
+    const stock = await getAllStock();
+    const warehouseSettings = await getWarehouseSettings();
+    const stockSettings = await getStockSettings();
 
     return JSON.parse(JSON.stringify({
         locations: locations || [],
