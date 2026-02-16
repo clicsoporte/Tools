@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for interacting with the warehouse module's server-side DB functions.
  * This abstraction layer ensures components only call client-safe functions.
@@ -42,6 +41,8 @@ import {
     checkAssignmentConflict as checkAssignmentConflictServer,
     updateLocationPopulationStatus as updateLocationPopulationStatusServer,
     finalizePopulationSession as finalizePopulationSessionServer,
+    getRacks as getRacksServer,
+    getLevelsForRack as getLevelsForRackServer,
 } from './db';
 import { getStockSettings as getStockSettingsDb, saveStockSettings as saveStockSettingsDb } from '@/modules/core/lib/db';
 import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User, DateRange, Product } from '@/modules/core/types';
@@ -131,6 +132,9 @@ export async function unassignAllByLocation(locationId: number, userName: string
 
 // --- Page-specific data loaders ---
 export const getWarehouseData = async () => getWarehouseDataServer();
+export const getRacks = async (): Promise<WarehouseLocation[]> => getRacksServer();
+export const getLevelsForRack = async (rackId: number): Promise<(WarehouseLocation & { isCompleted?: boolean })[]> => getLevelsForRackServer(rackId);
+
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);
 
 // --- Inventory Unit Actions ---

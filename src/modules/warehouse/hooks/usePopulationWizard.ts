@@ -8,7 +8,17 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getLocations, getChildLocations, lockEntity, releaseLock, assignItemToLocation, updateLocationPopulationStatus, finalizePopulationSession } from '@/modules/warehouse/lib/actions';
+import { 
+    getLocations, 
+    getChildLocations, 
+    lockEntity, 
+    releaseLock, 
+    assignItemToLocation, 
+    updateLocationPopulationStatus, 
+    finalizePopulationSession,
+    getRacks,
+    getLevelsForRack,
+} from '@/modules/warehouse/lib/actions';
 import { getActiveWizardSession, saveWizardSession, clearWizardSession } from '@/modules/core/lib/db';
 import type { Product, WarehouseLocation, WizardSession } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -37,7 +47,11 @@ export const usePopulationWizard = () => {
 
     const [isLoading, setIsLoading] = useState(true);
     const [wizardStep, setWizardStep] = useState<WizardStep>('setup');
+    
+    // Holds ALL locations for path rendering, loaded in the background.
     const [allLocations, setAllLocations] = useState<(WarehouseLocation & { isCompleted?: boolean })[]>([]);
+    // Holds ONLY racks for the initial dropdown, loaded quickly.
+    const [racks, setRacks] = useState<WarehouseLocation[]>([]);
     
     const [selectedRackId, setSelectedRackId] = useState<number | null>(null);
     const [rackLevels, setRackLevels] = useState<(WarehouseLocation & { isCompleted?: boolean })[]>([]);
@@ -57,16 +71,6 @@ export const usePopulationWizard = () => {
     const [existingSession, setExistingSession] = useState<WizardSession | null>(null);
     
     const [sessionAssignments, setSessionAssignments] = useState<{ locationId: number, itemId: string }[]>([]);
-
-    const rackOptions = useMemo(() => {
-        if (!debouncedRackSearch && !isRackSearchOpen) return allLocations.filter(l => l.type === 'rack').map(r => ({ value: String(r.id), label: `${r.name} (${r.code})` }));
-
-        return allLocations
-            .filter(l => l.type === 'rack' && 
-                (l.name.toLowerCase().includes(debouncedRackSearch.toLowerCase()) || l.code.toLowerCase().includes(debouncedRackSearch.toLowerCase()))
-            )
-            .map(r => ({ value: String(r.id), label: `${r.name} (${r.code})` }));
-    }, [allLocations, debouncedRackSearch, isRackSearchOpen]);
     
     const productOptions = useMemo(() => {
         if (!debouncedProductSearch) return [];
@@ -83,11 +87,13 @@ export const usePopulationWizard = () => {
             setIsLoading(true);
             try {
                 if (user) {
-                    const [locs, session] = await Promise.all([
-                        getLocations(),
-                        getActiveWizardSession(user.id)
+                    const [racksData, session, allLocs] = await Promise.all([
+                        getRacks(),
+                        getActiveWizardSession(user.id),
+                        getLocations() // Keep loading all locations in background for path rendering
                     ]);
-                    setAllLocations(locs);
+                    setRacks(racksData);
+                    setAllLocations(allLocs);
                     if (session) {
                         setExistingSession(session);
                         setWizardStep('resume');
@@ -107,18 +113,33 @@ export const usePopulationWizard = () => {
     const handleSelectRack = async (rackIdStr: string) => {
         const id = Number(rackIdStr);
         setSelectedRackId(id);
-        const selectedRack = allLocations.find(l => l.id === id);
+        const selectedRack = racks.find(l => l.id === id);
         if (selectedRack) {
             setRackSearchTerm(`${selectedRack.name} (${selectedRack.code})`);
         }
         setIsRackSearchOpen(false);
 
-        const allLocs = await getLocations(); // Re-fetch to get latest lock and completion status
-        setAllLocations(allLocs);
-        const levels = allLocs.filter(l => l.parentId === id);
-        setRackLevels(levels);
-        setSelectedLevelIds(new Set());
+        // Fetch levels on demand
+        try {
+            const levels = await getLevelsForRack(id);
+            setRackLevels(levels);
+            setSelectedLevelIds(new Set());
+        } catch(err: any) {
+            toast({ title: 'Error', description: 'No se pudieron cargar los niveles para este rack.', variant: 'destructive' });
+            setRackLevels([]);
+        }
     };
+
+    const rackOptions = useMemo(() => {
+        if (!debouncedRackSearch && !isRackSearchOpen) return racks.map(r => ({ value: String(r.id), label: `${r.name} (${r.code})` }));
+
+        return racks
+            .filter(l => 
+                (l.name.toLowerCase().includes(debouncedRackSearch.toLowerCase()) || l.code.toLowerCase().includes(debouncedRackSearch.toLowerCase()))
+            )
+            .map(r => ({ value: String(r.id), label: `${r.name} (${r.code})` }));
+    }, [racks, debouncedRackSearch, isRackSearchOpen]);
+
 
     const handleToggleLevel = (levelId: number) => {
         setSelectedLevelIds(prev => {
@@ -185,7 +206,7 @@ export const usePopulationWizard = () => {
                         locationId: currentLocation.id,
                         clientId: null,
                         updatedBy: user.name,
-                    });
+                    }, 'add');
                      setSessionAssignments(prev => [...prev, { locationId: currentLocation.id, itemId: productId }]);
                     const product = authProducts.find(p => p.id === productId);
                     const productName = product?.description || productId;

@@ -299,7 +299,7 @@ export async function getLocations(): Promise<(WarehouseLocation & { isCompleted
         db.exec(`ALTER TABLE locations ADD COLUMN population_status TEXT DEFAULT 'P'`);
     }
 
-    const allItemLocations = db.prepare('SELECT locationId FROM item_locations').all() as { locationId: number }[];
+    const allItemLocations = db.prepare('SELECT DISTINCT locationId FROM item_locations').all() as { locationId: number }[];
     const populatedLocationIds = new Set(allItemLocations.map(il => il.locationId));
 
     const enrichedLocations = allLocations.map(loc => {
@@ -307,7 +307,7 @@ export async function getLocations(): Promise<(WarehouseLocation & { isCompleted
         const children = allLocations.filter(l => l.parentId === loc.id);
         if (children.length > 0) {
             const finalChildren = getChildLeafLocations_transactional(db, [loc.id]);
-            const isCompleted = finalChildren.length > 0 && finalChildren.every(childId => populatedLocationIds.has(childId.id));
+            const isCompleted = finalChildren.length > 0 && finalChildren.every(child => populatedLocationIds.has(child.id));
             return { ...loc, isCompleted };
         }
         return { ...loc, isCompleted: populatedLocationIds.has(loc.id) };
@@ -529,6 +529,32 @@ export async function getWarehouseData(): Promise<{ locations: WarehouseLocation
         warehouseSettings: warehouseSettings,
         stockSettings: stockSettings || { warehouses: [] },
     }));
+}
+
+export async function getRacks(): Promise<WarehouseLocation[]> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    const settings = await getWarehouseSettings();
+    const rackType = settings.locationLevels.find(l => l.name.toLowerCase().includes('rack'))?.type || 'rack';
+    const racks = db.prepare('SELECT * FROM locations WHERE type = ? ORDER BY name').all(rackType) as WarehouseLocation[];
+    return JSON.parse(JSON.stringify(racks));
+}
+
+export async function getLevelsForRack(rackId: number): Promise<(WarehouseLocation & { isCompleted?: boolean })[]> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    const levels = db.prepare('SELECT * FROM locations WHERE parentId = ? ORDER BY name').all(rackId) as WarehouseLocation[];
+
+    if (levels.length === 0) return [];
+
+    const allItemLocations = db.prepare('SELECT DISTINCT locationId FROM item_locations').all() as { locationId: number }[];
+    const populatedLocationIds = new Set(allItemLocations.map(il => il.locationId));
+    
+    const enrichedLevels = levels.map(level => {
+        const finalChildren = getChildLeafLocations_transactional(db, [level.id]);
+        const isCompleted = finalChildren.length > 0 && finalChildren.every(child => populatedLocationIds.has(child.id));
+        return { ...level, isCompleted };
+    });
+
+    return JSON.parse(JSON.stringify(enrichedLevels));
 }
 
 export async function getMovements(itemId?: string): Promise<MovementLog[]> {
