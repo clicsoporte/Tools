@@ -166,7 +166,7 @@ export const useConsignmentsBoletas = () => {
     const handleDetailedLineChange = (lineId: number, newQuantity: number) => {
         if (!state.detailedBoleta) return;
         const updatedLines = state.detailedBoleta.lines.map(line => 
-            line.id === lineId ? { ...line, replenish_quantity: newQuantity, is_manually_edited: 1 } : line
+            line.id === lineId ? { ...line, replenish_quantity: newQuantity, is_manually_edited: 1 as 1 } : line
         );
         updateState({ detailedBoleta: { ...state.detailedBoleta, lines: updatedLines }});
     };
@@ -178,7 +178,7 @@ export const useConsignmentsBoletas = () => {
                 return {
                     ...line,
                     replenish_quantity: Math.max(0, line.max_stock - line.counted_quantity),
-                    is_manually_edited: 0,
+                    is_manually_edited: 0 as 0,
                 };
             }
             return line;
