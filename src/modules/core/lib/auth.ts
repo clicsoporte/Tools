@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side authentication and user management functions.
  * These functions interact directly with the database to handle user data.
@@ -7,7 +6,7 @@
  */
 "use server";
 
-import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getUnreadSuggestions, getDbModules, getStockSettings } from './db';
+import { connectDb, getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getExemptionLaws, getUnreadSuggestions, getDbModules, getStockSettings, getWarehouseData } from './db';
 import { sendEmail, getEmailSettings as getEmailSettingsFromDb } from './email-service';
 import type { User, ExchangeRateApiResponse, EmailSettings, Role } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
@@ -22,7 +21,6 @@ import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cos
 import { initializeOperationsDb, runOperationsMigrations } from '../../operations/lib/db';
 import { initializeItToolsDb, runItToolsMigrations } from '../../it-tools/lib/db';
 import { initializeConsignmentsDb, runConsignmentsMigrations } from '../../consignments/lib/db';
-import { getWarehouseData } from '../../warehouse/lib/db';
 import { revalidatePath } from 'next/cache';
 
 const SALT_ROUNDS = 10;

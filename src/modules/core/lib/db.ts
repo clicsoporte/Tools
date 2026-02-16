@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import { initialCompany, initialRoles } from './data';
 import { DB_MODULES } from './db-modules';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession, AnalyticsSettings, TransitStatusAlias } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession, AnalyticsSettings, TransitStatusAlias, WarehouseSettings, WarehouseInventoryItem } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -20,13 +20,14 @@ import { getExchangeRate, getEmailSettings } from './api-actions';
 import { NewUserSchema, UserSchema } from './auth-schemas';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
-import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
+import { initializeWarehouseDb, runWarehouseMigrations, getSelectableLocations as getSelectableLocationsServer } from '../../warehouse/lib/db';
 import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
 import { initializeOperationsDb, runOperationsMigrations } from '../../operations/lib/db';
 import { initializeItToolsDb, runItToolsMigrations } from '../../it-tools/lib/db';
 import { initializeConsignmentsDb, runConsignmentsMigrations } from '../../consignments/lib/db';
 
 const DB_FILE = 'intratool.db';
+const WAREHOUSE_DB_FILE = 'warehouse.db';
 const SALT_ROUNDS = 10;
 const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
 const UPDATE_BACKUP_DIR = 'update_backups';
@@ -1782,4 +1783,62 @@ export async function forceWalCheckpoint(): Promise<void> {
     await runWalCheckpoint();
 }
 
-    
+/**
+ * Retrieves warehouse-specific settings.
+ */
+export async function getWarehouseSettings(): Promise<WarehouseSettings> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    const defaults: WarehouseSettings = {
+        locationLevels: [
+            { type: 'building', name: 'Edificio' },
+            { type: 'zone', name: 'Zona' },
+            { type: 'rack', name: 'Rack' },
+            { type: 'shelf', name: 'Estante' },
+            { type: 'bin', name: 'Casilla' }
+        ],
+        unitPrefix: 'U-',
+        nextUnitNumber: 1,
+        receptionPrefix: 'ING-',
+        nextReceptionNumber: 1,
+        correctionPrefix: 'COR-',
+        nextCorrectionNumber: 1,
+        dispatchNotificationEmails: '',
+        populationSupervisorEmails: '',
+        pdfTopLegend: 'Documento de Control Interno',
+        lastLegacyMigration: null,
+        lastPopulationInit: null,
+        lastCleanup: null,
+    };
+    try {
+        const row = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string } | undefined;
+        if (row) {
+            const settings = JSON.parse(row.value);
+            return { ...defaults, ...settings };
+        }
+    } catch (error) {
+        console.error("Error fetching warehouse settings, returning default.", error);
+    }
+    return defaults;
+}
+
+/**
+ * Retrieves all warehouse-related data in a single batch.
+ */
+export async function getWarehouseData(): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], stock: StockInfo[], itemLocations: ItemLocation[], warehouseSettings: WarehouseSettings, stockSettings: StockSettings }> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    const locations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
+    const inventory = db.prepare('SELECT * FROM inventory').all() as WarehouseInventoryItem[];
+    const itemLocations = db.prepare('SELECT * FROM item_locations').all() as ItemLocation[];
+    const stock = await getAllStockFromMain();
+    const warehouseSettings = await getWarehouseSettings(); // Uses the new local function
+    const stockSettings = await getStockSettingsFromMain();
+
+    return JSON.parse(JSON.stringify({
+        locations: locations || [],
+        inventory: inventory || [],
+        stock: stock || [],
+        itemLocations: itemLocations || [],
+        warehouseSettings: warehouseSettings,
+        stockSettings: stockSettings || { warehouses: [] },
+    }));
+}

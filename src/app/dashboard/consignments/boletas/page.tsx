@@ -185,7 +185,7 @@ export default function BoletasPage() {
     if (state.isInitialLoading) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
-                <Skeleton className="h-96 w-full max-w-5xl mx-auto" />
+                <Skeleton className="h-96 w-full max-w-6xl mx-auto" />
             </main>
         )
     }
@@ -248,7 +248,7 @@ export default function BoletasPage() {
                                     </TableHead>
                                     <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('created_at')}>
                                         <Tooltip>
-                                            <TooltipTrigger as Child>
+                                            <TooltipTrigger asChild>
                                                 <div className="flex items-center">Fecha Creación {renderSortIcon('created_at')}</div>
                                             </TooltipTrigger>
                                             <TooltipContent>
@@ -258,7 +258,7 @@ export default function BoletasPage() {
                                     </TableHead>
                                     <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('status')}>
                                         <Tooltip>
-                                            <TooltipTrigger as Child>
+                                            <TooltipTrigger asChild>
                                                 <div className="flex items-center">Estado {renderSortIcon('status')}</div>
                                             </TooltipTrigger>
                                             <TooltipContent>
@@ -268,7 +268,7 @@ export default function BoletasPage() {
                                     </TableHead>
                                     <TableHead className="cursor-pointer text-right" onClick={() => actions.handleBoletaSort('total_replenish_quantity')}>
                                         <Tooltip>
-                                            <TooltipTrigger as Child>
+                                            <TooltipTrigger asChild>
                                                 <div className="flex items-center justify-end">Total a Reponer {renderSortIcon('total_replenish_quantity')}</div>
                                             </TooltipTrigger>
                                             <TooltipContent>
@@ -278,17 +278,17 @@ export default function BoletasPage() {
                                     </TableHead>
                                     <TableHead>
                                         <Tooltip>
-                                            <TooltipTrigger as Child>
+                                            <TooltipTrigger>
                                                 <div>Factura ERP</div>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>Número de la factura del ERP con la que se procesó esta reposición. Aparece después de marcar la boleta como &lt;code&gt;Facturada&lt;/code&gt;.</p>
+                                                <p>Número de la factura del ERP con la que se procesó esta reposición. Aparece después de marcar la boleta como <code>Facturada</code>.</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </TableHead>
                                     <TableHead className="text-right">
                                         <Tooltip>
-                                            <TooltipTrigger as Child>
+                                            <TooltipTrigger>
                                                 <div>Acciones</div>
                                             </TooltipTrigger>
                                             <TooltipContent>
