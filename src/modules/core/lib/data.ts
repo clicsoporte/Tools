@@ -108,6 +108,14 @@ export const mainTools: Tool[] = [
     icon: Container,
     bgColor: "bg-lime-500",
   },
+  {
+    id: "warehouse:access",
+    name: "Almacén",
+    description: "Consultar ubicaciones, gestionar unidades y registrar conteos.",
+    href: "/dashboard/warehouse",
+    icon: Warehouse,
+    bgColor: "bg-cyan-600",
+  },
      {
       id: "hacienda:query",
       name: "Consultas Hacienda",
@@ -236,7 +244,7 @@ export const consignmentsTools: Tool[] = [
         bgColor: "bg-blue-600",
     },
     {
-        id: "consignments:approve",
+        id: "consignments:boleta:approve",
         name: "Gestión de Boletas",
         description: "Aprobar, imprimir y dar seguimiento a las boletas de reposición.",
         href: "/dashboard/consignments/boletas",
