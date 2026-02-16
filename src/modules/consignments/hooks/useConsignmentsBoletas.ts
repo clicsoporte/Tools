@@ -16,7 +16,7 @@ import { generateDocument } from '@/lib/pdf-generator';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export type BoletaSortKey = 'consecutive' | 'client_name' | 'created_at' | 'status';
+export type BoletaSortKey = 'consecutive' | 'client_name' | 'created_at' | 'status' | 'total_replenish_quantity';
 export type BoletaSortDirection = 'asc' | 'desc';
 
 const statusConfig: { [key: string]: { label: string; color: string } } = {
@@ -123,7 +123,6 @@ export const useConsignmentsBoletas = () => {
                 throw new Error("No se encontraron los detalles de la boleta.");
             }
 
-            // If the boleta is still editable, fetch the latest rules from the agreement.
             if (['review', 'pending'].includes(boletaDetails.boleta.status)) {
                 const agreementDetails = await getAgreementDetails(boletaDetails.boleta.agreement_id);
                 if (agreementDetails) {
@@ -133,7 +132,10 @@ export const useConsignmentsBoletas = () => {
                         const currentProductRule = agreementProductMap.get(line.product_id);
                         const newMaxStock = currentProductRule ? currentProductRule.max_stock : line.max_stock;
                         const newPrice = currentProductRule ? currentProductRule.price : line.price;
-                        const replenish_quantity = Math.max(0, newMaxStock - line.counted_quantity);
+                        
+                        const replenish_quantity = line.is_manually_edited === 1
+                            ? line.replenish_quantity
+                            : Math.max(0, newMaxStock - line.counted_quantity);
     
                         return {
                             ...line,
@@ -147,11 +149,9 @@ export const useConsignmentsBoletas = () => {
                         detailedBoleta: { ...boletaDetails, lines: recalculatedLines }
                     });
                 } else {
-                    // If agreement is gone for some reason, just show the saved data
                     updateState({ detailedBoleta: boletaDetails });
                 }
             } else {
-                // For non-editable statuses, just show the saved data
                 updateState({ detailedBoleta: boletaDetails });
             }
 
@@ -166,11 +166,26 @@ export const useConsignmentsBoletas = () => {
     const handleDetailedLineChange = (lineId: number, newQuantity: number) => {
         if (!state.detailedBoleta) return;
         const updatedLines = state.detailedBoleta.lines.map(line => 
-            line.id === lineId ? { ...line, replenish_quantity: newQuantity } : line
+            line.id === lineId ? { ...line, replenish_quantity: newQuantity, is_manually_edited: 1 } : line
         );
         updateState({ detailedBoleta: { ...state.detailedBoleta, lines: updatedLines }});
     };
     
+    const handleResetLineQuantity = (lineId: number) => {
+        if (!state.detailedBoleta) return;
+        const updatedLines = state.detailedBoleta.lines.map(line => {
+            if (line.id === lineId) {
+                return {
+                    ...line,
+                    replenish_quantity: Math.max(0, line.max_stock - line.counted_quantity),
+                    is_manually_edited: 0,
+                };
+            }
+            return line;
+        });
+        updateState({ detailedBoleta: { ...state.detailedBoleta, lines: updatedLines } });
+    };
+
     const saveBoletaChanges = async () => {
         if (!state.detailedBoleta || !user) return;
         updateState({ isSubmitting: true });
@@ -290,6 +305,7 @@ export const useConsignmentsBoletas = () => {
                 switch (state.sortKey) {
                     case 'created_at': return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
                     case 'client_name': return getAgreementName(a.agreement_id).localeCompare(getAgreementName(b.agreement_id)) * dir;
+                    case 'total_replenish_quantity': return ((a.total_replenish_quantity || 0) - (b.total_replenish_quantity || 0)) * dir;
                     default: return String(a[state.sortKey as keyof RestockBoleta] || '').localeCompare(String(b[state.sortKey as keyof RestockBoleta] || '')) * dir;
                 }
             });
@@ -320,6 +336,7 @@ export const useConsignmentsBoletas = () => {
             submitStatusUpdate,
             openBoletaDetails,
             handleDetailedLineChange,
+            handleResetLineQuantity,
             saveBoletaChanges,
             handlePrintBoleta,
             setStatusModalOpen: (open: boolean) => updateState({ isStatusModalOpen: open }),

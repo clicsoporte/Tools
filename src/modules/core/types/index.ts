@@ -44,8 +44,8 @@ export type Company = {
     quoterShowTaxId?: boolean;
     searchDebounceTime?: number;
     syncWarningHours?: number;
-    importMode: 'file' | 'sql';
     lastSyncTimestamp?: string | null;
+    importMode: 'file' | 'sql';
     customerFilePath?: string;
     productFilePath?: string;
     exemptionFilePath?: string;
@@ -146,7 +146,7 @@ export type QuoteDraft = {
     userId: number;
     customerId: string | null;
     customer?: Customer | null;
-    lines: Omit<QuoteLine, 'displayQuantity' | 'displayPrice'>[];
+    lines: Omit<QuoteLine, "displayQuantity" | "displayPrice">[];
     totals: {
         subtotal: number;
         totalTaxes: number;
@@ -1046,6 +1046,7 @@ export type RestockBoleta = {
     approved_at?: string;
     erp_invoice_number?: string;
     notes?: string;
+    total_replenish_quantity?: number;
 };
 
 export type BoletaLine = {

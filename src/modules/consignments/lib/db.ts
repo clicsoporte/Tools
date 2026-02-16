@@ -235,7 +235,7 @@ export async function deleteAgreement(agreementId: number): Promise<{ success: b
     try {
         const boletaCount = db.prepare('SELECT COUNT(*) as count FROM restock_boletas WHERE agreement_id = ?').get(agreementId) as { count: number };
         if (boletaCount.count > 0) {
-            return { success: false, message: `No se puede eliminar. El acuerdo tiene ${boletaCount.count} boleta(s) asociada(s).` };
+            return { success: false, message: `No se puede eliminar. El acuerdo tiene ${boletaCount.count} boleta(s) asociada(s). Por favor, elimínelas primero.` };
         }
 
         const deleteResult = db.prepare('DELETE FROM consignment_agreements WHERE id = ?').run(agreementId);
@@ -249,11 +249,6 @@ export async function deleteAgreement(agreementId: number): Promise<{ success: b
 
     } catch (error: any) {
         logError('Failed to delete consignment agreement', { error: error.message, agreementId });
-
-        if (error.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
-            return { success: false, message: 'No se puede eliminar. El acuerdo tiene documentos (boletas) asociados.' };
-        }
-        
         return { success: false, message: 'Ocurrió un error inesperado en la base de datos.' };
     }
 }
@@ -344,7 +339,7 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
             .run(consecutive, agreement.id, userName);
         const boletaId = boletaInfo.lastInsertRowid as number;
 
-        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, counted_quantity, replenish_quantity, max_stock, price) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, ?, ?, ?, 0)');
         
         for (const line of sessionLines) {
             const agreementProduct = agreementProducts.find(p => p.product_id === line.product_id);
@@ -371,12 +366,18 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
 
 export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date } }): Promise<RestockBoleta[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    let query = 'SELECT * FROM restock_boletas';
+    let query = `
+        SELECT 
+            rb.*,
+            SUM(bl.replenish_quantity) as total_replenish_quantity
+        FROM restock_boletas rb
+        LEFT JOIN boleta_lines bl ON rb.id = bl.boleta_id
+    `;
     const params: any[] = [];
     const whereClauses: string[] = [];
     
     if (filters.status && filters.status.length > 0) {
-        whereClauses.push(`status IN (${filters.status.map(() => '?').join(',')})`);
+        whereClauses.push(`rb.status IN (${filters.status.map(() => '?').join(',')})`);
         params.push(...filters.status);
     }
 
@@ -384,7 +385,7 @@ export async function getBoletas(filters: { status: string[], dateRange?: { from
         query += ` WHERE ${whereClauses.join(' AND ')}`;
     }
     
-    query += ' ORDER BY created_at DESC';
+    query += ' GROUP BY rb.id ORDER BY rb.created_at DESC';
 
     const boletas = db.prepare(query).all(...params) as RestockBoleta[];
     return JSON.parse(JSON.stringify(boletas));

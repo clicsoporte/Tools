@@ -93,36 +93,36 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                                 <div className="space-y-3">
                                     {detailedBoleta.lines.map((line: BoletaLine) => (
                                         <Card key={line.id}>
-                                            <CardContent className="p-3">
+                                            <CardHeader className="p-3">
                                                 <p className="font-medium">{line.product_description}</p>
-                                                <p className="text-xs text-muted-foreground mb-2">{line.product_id}</p>
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                    <div className="space-y-1">
-                                                        <Label htmlFor={`count-${line.id}`} className="text-xs">Inv. Físico</Label>
-                                                        <Input id={`count-${line.id}`} value={line.counted_quantity} disabled className="h-8 text-right bg-muted" />
+                                                <p className="text-xs text-muted-foreground">{line.product_id}</p>
+                                            </CardHeader>
+                                            <CardContent className="p-3 pt-0 grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+                                                 <div className="space-y-1">
+                                                    <Label htmlFor={`count-${line.id}`} className="text-xs">Inv. Físico</Label>
+                                                    <Input id={`count-${line.id}`} value={line.counted_quantity} disabled className="h-8 text-right bg-muted" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label htmlFor={`max-${line.id}`} className="text-xs">Máximo</Label>
+                                                    <Input id={`max-${line.id}`} value={line.max_stock} disabled className="h-8 text-right bg-muted" />
+                                                </div>
+                                                <div className="space-y-1 col-span-2 md:col-span-2">
+                                                    <div className="flex justify-between items-center">
+                                                        <Label htmlFor={`replenish-${line.id}`} className="text-xs">A Reponer</Label>
+                                                        {line.is_manually_edited === 1 && (
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => actions.handleResetLineQuantity(line.id)}>
+                                                                <Undo2 className="h-4 w-4 text-orange-500"/>
+                                                            </Button>
+                                                        )}
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        <Label htmlFor={`max-${line.id}`} className="text-xs">Máximo</Label>
-                                                        <Input id={`max-${line.id}`} value={line.max_stock} disabled className="h-8 text-right bg-muted" />
-                                                    </div>
-                                                    <div className="space-y-1 col-span-2 md:col-span-2">
-                                                        <div className="flex justify-between items-center">
-                                                            <Label htmlFor={`replenish-${line.id}`} className="text-xs">A Reponer</Label>
-                                                            {line.is_manually_edited === 1 && (
-                                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => actions.handleResetLineQuantity(line.id)}>
-                                                                    <Undo2 className="h-4 w-4 text-orange-500"/>
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                        <Input 
-                                                            id={`replenish-${line.id}`}
-                                                            type="number" 
-                                                            value={line.replenish_quantity}
-                                                            onChange={e => actions.handleDetailedLineChange(line.id, Number(e.target.value))}
-                                                            className="text-right h-10 text-lg font-bold"
-                                                            disabled={!canEditLines}
-                                                        />
-                                                    </div>
+                                                    <Input 
+                                                        id={`replenish-${line.id}`}
+                                                        type="number" 
+                                                        value={line.replenish_quantity}
+                                                        onChange={e => actions.handleDetailedLineChange(line.id, Number(e.target.value))}
+                                                        className="text-right h-10 text-lg font-bold"
+                                                        disabled={!canEditLines}
+                                                    />
                                                 </div>
                                             </CardContent>
                                         </Card>
@@ -191,7 +191,7 @@ export default function BoletasPage() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Card className="max-w-5xl mx-auto">
+            <Card className="max-w-6xl mx-auto">
                 <CardHeader>
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
@@ -236,6 +236,9 @@ export default function BoletasPage() {
                                 <TableHead className="cursor-pointer" onClick={() => actions.handleBoletaSort('status')}>
                                     <div className="flex items-center">Estado {renderSortIcon('status')}</div>
                                 </TableHead>
+                                <TableHead className="cursor-pointer text-right" onClick={() => actions.handleBoletaSort('total_replenish_quantity')}>
+                                    <div className="flex items-center justify-end">Total a Reponer {renderSortIcon('total_replenish_quantity')}</div>
+                                </TableHead>
                                 <TableHead>Factura ERP</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
@@ -250,6 +253,9 @@ export default function BoletasPage() {
                                         <Badge style={{ backgroundColor: selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.color }} className="text-white">
                                             {selectors.statusConfig[boleta.status as keyof typeof selectors.statusConfig]?.label || 'Desconocido'}
                                         </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">
+                                        {(boleta.total_replenish_quantity ?? 0).toLocaleString()}
                                     </TableCell>
                                     <TableCell className="font-mono">{boleta.erp_invoice_number}</TableCell>
                                     <TableCell className="text-right">
