@@ -181,17 +181,21 @@ export async function saveSettings(settings: ConsignmentSettings): Promise<void>
     transaction();
 }
 
-export async function getAgreements(): Promise<(ConsignmentAgreement & { product_count?: number})[]> {
+export async function getAgreements(): Promise<(ConsignmentAgreement & { product_count?: number; boleta_count?: number })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const agreements = db.prepare(`
-        SELECT ca.*, COUNT(cp.id) as product_count
+        SELECT 
+            ca.*, 
+            COUNT(DISTINCT cp.id) as product_count,
+            (SELECT COUNT(*) FROM restock_boletas rb WHERE rb.agreement_id = ca.id) as boleta_count
         FROM consignment_agreements ca
         LEFT JOIN consignment_products cp ON ca.id = cp.agreement_id
         GROUP BY ca.id
         ORDER BY ca.client_name
-    `).all() as (ConsignmentAgreement & { product_count?: number })[];
+    `).all() as (ConsignmentAgreement & { product_count?: number; boleta_count?: number })[];
     return JSON.parse(JSON.stringify(agreements));
 }
+
 
 export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number }, products: Omit<ConsignmentProduct, 'id' | 'agreement_id'>[]) {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
@@ -548,4 +552,3 @@ export async function forceReleaseConsignmentSession(sessionId: number, updatedB
     
     logWarn(`Consignment session ${sessionId} was forcibly released by ${updatedBy}.`);
 }
-

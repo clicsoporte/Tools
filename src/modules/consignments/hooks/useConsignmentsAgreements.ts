@@ -18,6 +18,8 @@ const emptyAgreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> = 
   is_active: 1,
 };
 
+type AgreementWithCounts = ConsignmentAgreement & { product_count?: number; boleta_count?: number; };
+
 export const useConsignmentsAgreements = () => {
     const { hasPermission } = useAuthorization(['consignments:setup']);
     const { toast } = useToast();
@@ -26,12 +28,12 @@ export const useConsignmentsAgreements = () => {
     const [state, setState] = useState({
         isLoading: true,
         isSubmitting: false,
-        agreements: [] as (ConsignmentAgreement & { product_count?: number })[],
+        agreements: [] as AgreementWithCounts[],
         isAgreementFormOpen: false,
-        editingAgreement: null as ConsignmentAgreement | null,
+        editingAgreement: null as AgreementWithCounts | null,
         agreementFormData: emptyAgreement,
         agreementProducts: [] as ConsignmentProduct[],
-        agreementToDelete: null as ConsignmentAgreement | null,
+        agreementToDelete: null as AgreementWithCounts | null,
         showOnlyActiveAgreements: true,
         clientSearchTerm: '',
         isClientSearchOpen: false,
@@ -65,7 +67,7 @@ export const useConsignmentsAgreements = () => {
         loadAgreements();
     }, [loadAgreements]);
 
-    const openAgreementForm = async (agreement: ConsignmentAgreement | null = null) => {
+    const openAgreementForm = async (agreement: AgreementWithCounts | null = null) => {
         if (agreement) {
             const details = await getAgreementDetails(agreement.id);
             if (details) {
@@ -206,7 +208,7 @@ export const useConsignmentsAgreements = () => {
             handleSaveAgreement,
             handleDeleteAgreement,
             toggleAgreementStatus,
-            setAgreementToDelete: (agreement: ConsignmentAgreement | null) => updateState({ agreementToDelete: agreement }),
+            setAgreementToDelete: (agreement: AgreementWithCounts | null) => updateState({ agreementToDelete: agreement }),
             setShowOnlyActiveAgreements: (show: boolean) => updateState({ showOnlyActiveAgreements: show }),
             setIsAgreementFormOpen: (open: boolean) => updateState({ isAgreementFormOpen: open }),
             setClientSearchTerm: (term: string) => updateState({ clientSearchTerm: term }),

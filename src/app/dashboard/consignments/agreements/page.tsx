@@ -68,7 +68,7 @@ export default function AgreementsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {selectors.filteredAgreements.map((agreement: ConsignmentAgreement & { product_count?: number }) => (
+                            {selectors.filteredAgreements.map((agreement) => (
                                 <TableRow key={agreement.id}>
                                     <TableCell className="font-medium">{agreement.client_name}</TableCell>
                                     <TableCell>{agreement.erp_warehouse_id}</TableCell>
@@ -150,6 +150,7 @@ export default function AgreementsPage() {
                                     value={state.warehouseSearchTerm}
                                     onValueChange={actions.setWarehouseSearchTerm}
                                     open={state.isWarehouseSearchOpen}
+                                    onOpenChange={actions.setIsWarehouseSearchOpen}
                                     placeholder="Buscar bodega virtual..."
                                 />
                             </div>

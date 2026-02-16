@@ -212,7 +212,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   useEffect(() => {
-    loadAuthData();
+    loadAuthData().catch(err => {
+      console.error("Failed to load authentication data on mount:", err);
+      // Optionally set an error state here to display a global error message
+    });
   }, [loadAuthData]);
 
   useEffect(() => {
