@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Hook for managing the logic for the Consignments Boletas page.
  */
@@ -45,6 +46,10 @@ export const useConsignmentsBoletas = () => {
         isDetailsModalOpen: false,
         isDetailsLoading: false,
         detailedBoleta: null as { boleta: RestockBoleta, lines: BoletaLine[], history: BoletaHistory[] } | null,
+        isHistoryModalOpen: false,
+        historyBoleta: null as RestockBoleta | null,
+        history: [] as BoletaHistory[],
+        isHistoryLoading: false,
         sortKey: 'created_at' as BoletaSortKey,
         sortDirection: 'desc' as BoletaSortDirection,
         filters: {
@@ -235,10 +240,15 @@ export const useConsignmentsBoletas = () => {
             });
             
             let docTitle = 'BOLETA DE REPOSICIÓN DE CONSIGNACIÓN';
-            const metaInfo: {label: string, value: string}[] = details.history.map((h: BoletaHistory) => ({
-                label: `${statusConfig[h.status]?.label || h.status} por:`,
-                value: `${h.updatedBy} - ${format(parseISO(h.timestamp), 'dd/MM/yy HH:mm')}`
-            }));
+            const metaInfo: {label: string, value: string}[] = [];
+
+            metaInfo.push({ label: 'Fecha Creación:', value: format(parseISO(details.boleta.created_at), 'dd/MM/yyyy HH:mm') });
+            const submitter = details.boleta.submitted_by || details.boleta.created_by;
+            metaInfo.push({ label: 'Creado Por:', value: submitter });
+            
+            if (details.boleta.approved_by && details.boleta.approved_at) {
+                metaInfo.push({ label: 'Aprobado Por:', value: `${details.boleta.approved_by} - ${format(parseISO(details.boleta.approved_at), 'dd/MM/yy HH:mm')}` });
+            }
             
             const agreement = state.agreements.find(a => a.id === boleta.agreement_id);
             let blocks = [
@@ -280,6 +290,22 @@ export const useConsignmentsBoletas = () => {
             toast({ title: 'Error al Imprimir', variant: 'destructive' });
         } finally {
             updateState({ isSubmitting: false });
+        }
+    };
+    
+    const openHistoryModal = async (boleta: RestockBoleta) => {
+        updateState({ isHistoryModalOpen: true, isHistoryLoading: true, historyBoleta: boleta, history: [] });
+        try {
+            const boletaDetails = await getBoletaDetails(boleta.id);
+            if (!boletaDetails) {
+                throw new Error("No se encontraron los detalles de la boleta.");
+            }
+            updateState({ history: boletaDetails.history });
+        } catch (error: any) {
+            logError('Failed to get boleta history', { error: error.message });
+            toast({ title: 'Error', description: `No se pudo cargar el historial: ${error.message}`, variant: 'destructive' });
+        } finally {
+            updateState({ isHistoryLoading: false });
         }
     };
     
@@ -339,6 +365,8 @@ export const useConsignmentsBoletas = () => {
             handleResetLineQuantity,
             saveBoletaChanges,
             handlePrintBoleta,
+            openHistoryModal,
+            setHistoryModalOpen: (open: boolean) => updateState({ isHistoryModalOpen: open }),
             setStatusModalOpen: (open: boolean) => updateState({ isStatusModalOpen: open }),
             setDetailsModalOpen: (open: boolean) => updateState({ isDetailsModalOpen: open }),
             handleBoletaSort: (key: BoletaSortKey) => {

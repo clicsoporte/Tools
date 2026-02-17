@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2, Printer, ArrowUp, ArrowDown, Loader2, RefreshCw, Send } from 'lucide-react';
+import { MoreHorizontal, FileText, Check, Ban, Truck, FileCheck2, Trash2, Undo2, Printer, ArrowUp, ArrowDown, Loader2, RefreshCw, Send, History } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
@@ -169,6 +169,52 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
     );
 }
 
+function HistoryDialog({ hook }: { hook: ReturnType<typeof useConsignmentsBoletas> }) {
+    const { state, actions, selectors } = hook;
+    const { isHistoryModalOpen, historyBoleta, history, isHistoryLoading } = state;
+    
+    return (
+        <Dialog open={isHistoryModalOpen} onOpenChange={actions.setHistoryModalOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Historial de Cambios - Boleta {historyBoleta?.consecutive}</DialogTitle>
+                    <DialogDescription>Registro de todos los cambios de estado para esta boleta.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    {isHistoryLoading ? (
+                        <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div>
+                    ) : history.length > 0 ? (
+                        <ScrollArea className="h-96">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Fecha y Hora</TableHead>
+                                        <TableHead>Estado</TableHead>
+                                        <TableHead>Usuario</TableHead>
+                                        <TableHead>Notas</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {history.map(entry => (
+                                        <TableRow key={entry.id}>
+                                            <TableCell>{format(parseISO(entry.timestamp), 'dd/MM/yyyy HH:mm:ss', { locale: es })}</TableCell>
+                                            <TableCell><Badge style={{ backgroundColor: selectors.statusConfig[entry.status as keyof typeof selectors.statusConfig]?.color }} className="text-white">{selectors.statusConfig[entry.status as keyof typeof selectors.statusConfig]?.label || entry.status}</Badge></TableCell>
+                                            <TableCell>{entry.updatedBy}</TableCell>
+                                            <TableCell>{entry.notes || '-'}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    ) : (
+                        <p className="text-center text-muted-foreground py-8">No hay historial de cambios para esta boleta.</p>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function BoletasPage() {
     const { state, actions, selectors } = useConsignmentsBoletas();
     const { sortKey, sortDirection, filters } = state;
@@ -322,6 +368,9 @@ export default function BoletasPage() {
                                                     <DropdownMenuItem onSelect={() => actions.openBoletaDetails(boleta.id)}>
                                                         <FileText className="mr-2 h-4 w-4" /> Ver/Editar Detalles
                                                     </DropdownMenuItem>
+                                                     <DropdownMenuItem onSelect={() => actions.openHistoryModal(boleta)}>
+                                                        <History className="mr-2 h-4 w-4" /> Ver Historial
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuItem onSelect={() => actions.handlePrintBoleta(boleta)} disabled={!['approved', 'sent', 'invoiced'].includes(boleta.status)}>
                                                         <Printer className="mr-2 h-4 w-4" /> Imprimir Boleta
                                                     </DropdownMenuItem>
@@ -359,6 +408,7 @@ export default function BoletasPage() {
                 </Card>
                 <StatusUpdateDialog hook={{state, actions, selectors}} />
                 <BoletaDetailsDialog hook={{state, actions, selectors}} />
+                <HistoryDialog hook={{state, actions, selectors}} />
             </TooltipProvider>
         </main>
     );
