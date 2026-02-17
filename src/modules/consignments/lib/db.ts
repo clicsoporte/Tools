@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -239,12 +238,17 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
             agreementId = info.lastInsertRowid as number;
         }
 
-        // Only modify products if a new list is provided for a new or existing agreement
         if (products && products.length >= 0) {
             db.prepare('DELETE FROM consignment_products WHERE agreement_id = ?').run(agreementId);
-            const insertProduct = db.prepare('INSERT INTO consignment_products (agreement_id, product_id, max_stock, price, client_product_code) VALUES (?, ?, ?, ?, ?)');
+            const insertProduct = db.prepare('INSERT INTO consignment_products (agreement_id, product_id, max_stock, price, client_product_code) VALUES (@agreement_id, @product_id, @max_stock, @price, @client_product_code)');
             for (const product of products) {
-                insertProduct.run(agreementId, product.product_id, product.max_stock, product.price, product.client_product_code);
+                insertProduct.run({
+                    agreement_id: agreementId,
+                    product_id: product.product_id,
+                    max_stock: product.max_stock,
+                    price: product.price,
+                    client_product_code: product.client_product_code || null
+                });
             }
         }
         return db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as ConsignmentAgreement;
@@ -492,7 +496,7 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return transaction();
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses: RestockBoletaStatus[] = []): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[] })[] }> {
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses: RestockBoletaStatus[] = []): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[] }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     let query = `
@@ -593,4 +597,5 @@ export async function forceReleaseConsignmentSession(sessionId: number, updatedB
     
     logWarn(`Consignment session ${sessionId} was forcibly released by ${updatedBy}.`);
 }
+
 
