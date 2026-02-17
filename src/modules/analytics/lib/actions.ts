@@ -7,7 +7,7 @@
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
 import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb, getAllProducts } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentProduct } from '@/modules/core/types';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
@@ -306,7 +306,7 @@ export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyR
     }
 }
 
-export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ reportRows: ConsignmentReportRow[], boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[] })[] }> {
+export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ reportRows: ConsignmentReportRow[], boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
     try {
         const agreementDetails = await getAgreementDetails(parseInt(agreementId, 10));
         if (!agreementDetails) {
@@ -374,6 +374,7 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
             return {
                 productId: product.product_id,
                 productDescription: productMap.get(product.product_id) || 'Producto Desconocido',
+                clientProductCode: product.client_product_code || '',
                 initialStock,
                 totalReplenished,
                 finalStock,
@@ -393,7 +394,7 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
         return { reportRows: finalReportRows, boletas: boletasInPeriod };
 
     } catch (error: any) {
-        logError('Failed to generate consignments report data', { error });
+        logError('Failed to generate consignments report data', { error: error.message });
         throw new Error(`No se pudo generar el reporte de consignaciones: ${error.message}`);
     }
 }
