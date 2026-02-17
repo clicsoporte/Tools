@@ -10,6 +10,9 @@ import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, Countin
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { sendEmail } from '@/modules/core/lib/email-service';
+import { getAllUsers } from '@/modules/core/lib/auth-client';
+
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
 
@@ -23,13 +26,15 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             erp_warehouse_id TEXT,
             next_boleta_number INTEGER NOT NULL DEFAULT 1,
             notes TEXT,
-            is_active BOOLEAN NOT NULL DEFAULT 1
+            is_active BOOLEAN NOT NULL DEFAULT 1,
+            product_code_display_mode TEXT NOT NULL DEFAULT 'erp_only'
         );
 
         CREATE TABLE IF NOT EXISTS consignment_products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             agreement_id INTEGER NOT NULL,
             product_id TEXT NOT NULL,
+            client_product_code TEXT,
             max_stock REAL NOT NULL,
             price REAL NOT NULL,
             FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id) ON DELETE CASCADE,
@@ -73,6 +78,7 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             boleta_id INTEGER NOT NULL,
             product_id TEXT NOT NULL,
+            client_product_code TEXT,
             product_description TEXT NOT NULL,
             counted_quantity REAL NOT NULL,
             replenish_quantity REAL NOT NULL,
@@ -125,6 +131,22 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
     if (!linesColumns.has('is_manually_edited')) {
         db.exec('ALTER TABLE boleta_lines ADD COLUMN is_manually_edited BOOLEAN DEFAULT FALSE');
     }
+    if (!linesColumns.has('client_product_code')) {
+        db.exec('ALTER TABLE boleta_lines ADD COLUMN client_product_code TEXT');
+    }
+
+    const agreementsTableInfo = db.prepare(`PRAGMA table_info(consignment_agreements)`).all() as { name: string }[];
+    const agreementsColumns = new Set(agreementsTableInfo.map(c => c.name));
+    if (!agreementsColumns.has('product_code_display_mode')) {
+        db.exec(`ALTER TABLE consignment_agreements ADD COLUMN product_code_display_mode TEXT NOT NULL DEFAULT 'erp_only'`);
+    }
+
+    const productsTableInfo = db.prepare(`PRAGMA table_info(consignment_products)`).all() as { name: string }[];
+    const productsColumns = new Set(productsTableInfo.map(c => c.name));
+    if (!productsColumns.has('client_product_code')) {
+        db.exec('ALTER TABLE consignment_products ADD COLUMN client_product_code TEXT');
+    }
+
 
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignments_settings'`).get();
     if (!settingsTable) {
@@ -209,20 +231,20 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
     const transaction = db.transaction(() => {
         let agreementId = agreement.id;
         if (agreementId) { // Update
-            db.prepare('UPDATE consignment_agreements SET client_id = ?, client_name = ?, erp_warehouse_id = ?, notes = ?, is_active = ? WHERE id = ?')
-              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreementId);
+            db.prepare('UPDATE consignment_agreements SET client_id = ?, client_name = ?, erp_warehouse_id = ?, notes = ?, is_active = ?, product_code_display_mode = ? WHERE id = ?')
+              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode, agreementId);
         } else { // Create
-            const info = db.prepare('INSERT INTO consignment_agreements (client_id, client_name, erp_warehouse_id, notes, is_active) VALUES (?, ?, ?, ?, ?)')
-              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active);
+            const info = db.prepare('INSERT INTO consignment_agreements (client_id, client_name, erp_warehouse_id, notes, is_active, product_code_display_mode) VALUES (?, ?, ?, ?, ?, ?)')
+              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode);
             agreementId = info.lastInsertRowid as number;
         }
 
         // Only modify products if a new list is provided for a new or existing agreement
         if (products && products.length >= 0) {
             db.prepare('DELETE FROM consignment_products WHERE agreement_id = ?').run(agreementId);
-            const insertProduct = db.prepare('INSERT INTO consignment_products (agreement_id, product_id, max_stock, price) VALUES (?, ?, ?, ?)');
+            const insertProduct = db.prepare('INSERT INTO consignment_products (agreement_id, product_id, max_stock, price, client_product_code) VALUES (?, ?, ?, ?, ?)');
             for (const product of products) {
-                insertProduct.run(agreementId, product.product_id, product.max_stock, product.price);
+                insertProduct.run(agreementId, product.product_id, product.max_stock, product.price, product.client_product_code);
             }
         }
         return db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as ConsignmentAgreement;
@@ -339,7 +361,7 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
             .run(consecutive, agreement.id, userName);
         const boletaId = boletaInfo.lastInsertRowid as number;
 
-        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, ?, ?, ?, 0)');
+        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, client_product_code, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)');
         
         for (const line of sessionLines) {
             const agreementProduct = agreementProducts.find(p => p.product_id === line.product_id);
@@ -348,7 +370,7 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
             const replenishQty = Math.max(0, agreementProduct.max_stock - line.counted_quantity);
             const productDescription = mainDbProducts.find(p => p.id === line.product_id)?.description || 'Desconocido';
             
-            insertLine.run(boletaId, line.product_id, productDescription, line.counted_quantity, replenishQty, agreementProduct.max_stock, agreementProduct.price);
+            insertLine.run(boletaId, line.product_id, productDescription, agreementProduct.client_product_code, line.counted_quantity, replenishQty, agreementProduct.max_stock, agreementProduct.price);
         }
 
         db.prepare(`UPDATE consignment_agreements SET next_boleta_number = ? WHERE id = ?`).run(agreement.next_boleta_number + 1, agreement.id);
@@ -500,7 +522,7 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
         lines: allLines.filter(l => l.boleta_id === b.id)
     }));
 
-    return JSON.parse(JSON.stringify(boletasWithLines));
+    return { boletas: JSON.parse(JSON.stringify(boletasWithLines)) };
 }
 
 export async function getLatestBoletaBeforeDate(agreementId: number, date: Date): Promise<(RestockBoleta & { lines: BoletaLine[] }) | null> {
