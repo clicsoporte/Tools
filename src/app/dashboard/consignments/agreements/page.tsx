@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -10,13 +11,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { PlusCircle, Edit2, Loader2, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit2, Loader2, Trash2, Settings2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SearchInput } from '@/components/ui/search-input';
 import { ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export default function AgreementsPage() {
     const { state, actions, selectors } = useConsignmentsAgreements();
@@ -154,6 +156,27 @@ export default function AgreementsPage() {
                                     placeholder="Buscar bodega virtual..."
                                 />
                             </div>
+                             <div className="space-y-2">
+                                <Label>Modo de Visualización de Código</Label>
+                                <RadioGroup 
+                                    value={state.agreementFormData.product_code_display_mode} 
+                                    onValueChange={(value) => actions.handleFieldChange('product_code_display_mode', value)}
+                                    className="flex space-x-4"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="erp_only" id="erp_only" />
+                                        <Label htmlFor="erp_only">Solo ERP</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="alias_only" id="alias_only" />
+                                        <Label htmlFor="alias_only">Solo Alias</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="both" id="both" />
+                                        <Label htmlFor="both">Ambos</Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
                             <div className="space-y-2">
                                 <Label htmlFor="notes">Notas</Label>
                                 <Textarea
@@ -176,7 +199,7 @@ export default function AgreementsPage() {
                                     placeholder="Añadir producto..."
                                 />
                             </div>
-                             <ScrollArea className="max-h-60 overflow-y-auto border rounded-md p-2">
+                             <ScrollArea className="h-96 overflow-y-auto border rounded-md p-2">
                                 <div className="space-y-3">
                                     {state.agreementProducts.map((p: ConsignmentProduct, index: number) => (
                                         <Card key={p.product_id}>
@@ -190,13 +213,17 @@ export default function AgreementsPage() {
                                                 </Button>
                                             </CardHeader>
                                             <CardContent className="p-3 pt-0 grid grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <Label htmlFor={`client-code-${index}`} className="text-xs">Código Cliente (Alias)</Label>
+                                                    <Input id={`client-code-${index}`} value={p.client_product_code || ''} onChange={(e) => actions.updateProductField(index, 'client_product_code', e.target.value)} className="h-8"/>
+                                                </div>
                                                  <div className="space-y-1">
                                                     <Label htmlFor={`max-stock-${index}`} className="text-xs">Stock Máximo</Label>
-                                                    <Input id={`max-stock-${index}`} type="number" value={p.max_stock || ''} onChange={(e) => actions.updateProductField(index, 'max_stock', Number(e.target.value))} className="hide-number-arrows text-right h-10"/>
+                                                    <Input id={`max-stock-${index}`} type="number" value={p.max_stock || ''} onChange={(e) => actions.updateProductField(index, 'max_stock', Number(e.target.value))} className="text-right h-8"/>
                                                 </div>
-                                                <div className="space-y-1">
+                                                <div className="space-y-1 col-span-2">
                                                     <Label htmlFor={`price-${index}`} className="text-xs">Precio (sin IVA)</Label>
-                                                    <Input id={`price-${index}`} type="number" value={p.price || ''} onChange={(e) => actions.updateProductField(index, 'price', Number(e.target.value))} className="hide-number-arrows text-right h-10"/>
+                                                    <Input id={`price-${index}`} type="number" value={p.price || ''} onChange={(e) => actions.updateProductField(index, 'price', Number(e.target.value))} className="text-right h-8"/>
                                                 </div>
                                             </CardContent>
                                         </Card>
@@ -217,3 +244,5 @@ export default function AgreementsPage() {
         </main>
     );
 }
+
+    
