@@ -326,7 +326,7 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
         }
 
         // 2. Get all relevant boletas within the date range for replenishments and final count
-        const { boletas: boletasInPeriod } = await getBoletasByDateRange(agreementId, dateRange, ['approved', 'sent', 'invoiced']);
+        const boletasInPeriod = await getBoletasByDateRange(agreementId, dateRange, ['approved', 'sent', 'invoiced']);
         
         // 3. Calculate total replenishments
         const replenishedMap = new Map<string, number>();
