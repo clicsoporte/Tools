@@ -248,7 +248,7 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return updateBoletaServer(boleta, lines, updatedBy);
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[] }> {
     return getBoletasByDateRangeServer(agreementId, dateRange, statuses);
 }
 
@@ -269,3 +269,4 @@ export async function getConsignmentSettings(): Promise<ConsignmentSettings> {
 export async function saveConsignmentSettings(settings: ConsignmentSettings): Promise<void> {
     return saveConsignmentSettingsServer(settings);
 }
+

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the logic for the new Consignments Report page.
  */
@@ -10,7 +11,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getConsignmentsReportData } from '@/modules/analytics/lib/actions';
 import { getConsignmentAgreements } from '@/modules/consignments/lib/actions';
-import type { DateRange, ConsignmentAgreement, Company, RestockBoleta, BoletaLine } from '@/modules/core/types';
+import type { DateRange, ConsignmentAgreement, Company, RestockBoleta, BoletaLine, BoletaHistory } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/lib/excel-export';
@@ -28,6 +29,10 @@ export interface ConsignmentReportRow {
     consumption: number;
     price: number;
     totalValue: number;
+    boletaConsecutives: string;
+    creationDates: string;
+    erpInvoices: string;
+    approvers: string;
 }
 
 interface State {
@@ -37,7 +42,7 @@ interface State {
     agreements: ConsignmentAgreement[];
     selectedAgreementId: string | null;
     reportData: ConsignmentReportRow[];
-    processedBoletas: (RestockBoleta & { lines: BoletaLine[] })[];
+    processedBoletas: (RestockBoleta & { lines: BoletaLine[], history: BoletaHistory[] })[];
 }
 
 export function useConsignmentsReport() {
@@ -109,29 +114,22 @@ export function useConsignmentsReport() {
         if (!state.reportData.length) return;
         const agreement = state.agreements.find(a => String(a.id) === state.selectedAgreementId);
 
-        const headers = ["Código", "Producto", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total", "Boletas Involucradas", "Facturas ERP"];
+        const headers = ["Código", "Producto", "Boleta(s)", "Fecha(s) Creación", "Factura(s) ERP", "Aprobado Por", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total"];
         
-        const dataToExport = state.reportData.map(row => {
-            const boletasForProduct = state.processedBoletas.filter(boleta => 
-                boleta.lines.some(line => line.product_id === row.productId && line.replenish_quantity > 0)
-            );
-
-            const boletaConsecutives = [...new Set(boletasForProduct.map(b => b.consecutive))].join(', ');
-            const invoiceNumbers = [...new Set(boletasForProduct.map(b => b.erp_invoice_number).filter(Boolean))].join(', ');
-
-            return [
-                row.productId,
-                row.productDescription,
-                row.initialStock,
-                row.totalReplenished,
-                row.finalStock,
-                row.consumption,
-                row.price,
-                row.totalValue,
-                boletaConsecutives,
-                invoiceNumbers,
-            ];
-        });
+        const dataToExport = state.reportData.map(row => [
+            row.productId,
+            row.productDescription,
+            row.boletaConsecutives,
+            row.creationDates,
+            row.erpInvoices,
+            row.approvers,
+            row.initialStock,
+            row.totalReplenished,
+            row.finalStock,
+            row.consumption,
+            row.price,
+            row.totalValue,
+        ]);
         
         const title = "Reporte de Cierre de Consignación";
         const meta = [
@@ -146,7 +144,7 @@ export function useConsignmentsReport() {
             meta,
             headers,
             data: dataToExport,
-            columnWidths: [20, 40, 15, 15, 15, 15, 15, 15, 25, 25],
+            columnWidths: [20, 40, 20, 20, 20, 20, 15, 15, 15, 15, 15, 15],
         });
     };
 
@@ -167,9 +165,13 @@ export function useConsignmentsReport() {
             } catch (e) { console.error("Error processing logo for PDF:", e); }
         }
 
-        const tableHeaders = ["Producto", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio", "Total"];
+        const tableHeaders = ["Producto", "Boleta(s)", "Fecha(s)", "Factura(s)", "Aprobado", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio", "Total"];
         const tableRows = state.reportData.map(row => [
             `${row.productDescription}\n(${row.productId})`,
+            row.boletaConsecutives,
+            row.creationDates,
+            row.erpInvoices,
+            row.approvers,
             row.initialStock.toLocaleString(),
             row.totalReplenished.toLocaleString(),
             row.finalStock.toLocaleString(),
@@ -185,7 +187,14 @@ export function useConsignmentsReport() {
             logoDataUrl,
             meta: [{ label: 'Cliente', value: agreement?.client_name || '' }, { label: 'Período', value: `${state.dateRange.from ? format(state.dateRange.from, 'dd/MM/yyyy') : ''} al ${state.dateRange.to ? format(state.dateRange.to, 'dd/MM/yyyy') : ''}` }],
             blocks: [],
-            table: { columns: tableHeaders, rows: tableRows, columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } } },
+            table: { 
+                columns: tableHeaders, 
+                rows: tableRows, 
+                columnStyles: { 
+                    5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 
+                    8: { halign: 'right' }, 9: { halign: 'right' }, 10: { halign: 'right' } 
+                } 
+            },
             totals: [{ label: 'Total a Facturar:', value: `¢${selectors.totalConsumptionValue.toLocaleString('es-CR', { minimumFractionDigits: 2 })}` }],
             orientation: 'landscape'
         });

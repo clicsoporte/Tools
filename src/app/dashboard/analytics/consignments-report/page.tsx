@@ -89,6 +89,10 @@ export default function ConsignmentsReportPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Producto</TableHead>
+                                    <TableHead>Boleta(s)</TableHead>
+                                    <TableHead>Fecha(s)</TableHead>
+                                    <TableHead>Factura(s) ERP</TableHead>
+                                    <TableHead>Aprobado Por</TableHead>
                                     <TableHead className="text-right">Inv. Inicial</TableHead>
                                     <TableHead className="text-right">Total Repuesto</TableHead>
                                     <TableHead className="text-right">Inv. Final</TableHead>
@@ -99,9 +103,9 @@ export default function ConsignmentsReportPage() {
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                     <TableRow><TableCell colSpan={7} className="h-32 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+                                     <TableRow><TableCell colSpan={11} className="h-32 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
                                 ) : !hasRun ? (
-                                    <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">Selecciona un cliente y un rango de fechas y haz clic en &quot;Generar Reporte&quot;.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={11} className="h-32 text-center text-muted-foreground">Selecciona un cliente y un rango de fechas y haz clic en &quot;Generar Reporte&quot;.</TableCell></TableRow>
                                 ) : reportData.length > 0 ? (
                                     reportData.map(row => (
                                         <TableRow key={row.productId}>
@@ -109,6 +113,10 @@ export default function ConsignmentsReportPage() {
                                                 <p className="font-medium">{row.productDescription}</p>
                                                 <p className="text-xs text-muted-foreground">{row.productId}</p>
                                             </TableCell>
+                                            <TableCell>{row.boletaConsecutives}</TableCell>
+                                            <TableCell>{row.creationDates}</TableCell>
+                                            <TableCell>{row.erpInvoices}</TableCell>
+                                            <TableCell>{row.approvers}</TableCell>
                                             <TableCell className="text-right">{row.initialStock.toLocaleString()}</TableCell>
                                             <TableCell className="text-right text-blue-600">{row.totalReplenished.toLocaleString()}</TableCell>
                                             <TableCell className="text-right">{row.finalStock.toLocaleString()}</TableCell>
@@ -118,7 +126,7 @@ export default function ConsignmentsReportPage() {
                                         </TableRow>
                                     ))
                                 ) : (
-                                     <TableRow><TableCell colSpan={7} className="h-32 text-center text-muted-foreground">No se encontraron datos de consumo para el período seleccionado.</TableCell></TableRow>
+                                     <TableRow><TableCell colSpan={11} className="h-32 text-center text-muted-foreground">No se encontraron datos de consumo para el período seleccionado.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>

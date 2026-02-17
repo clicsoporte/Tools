@@ -492,7 +492,7 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return transaction();
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses: RestockBoletaStatus[] = []): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses: RestockBoletaStatus[] = []): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[] })[] }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     let query = `
@@ -516,14 +516,25 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
     const placeholders = boletaIds.map(() => '?').join(',');
 
     const allLines = db.prepare(`SELECT * FROM boleta_lines WHERE boleta_id IN (${placeholders})`).all(...boletaIds) as BoletaLine[];
+    const allHistory = db.prepare(`SELECT * FROM boleta_history WHERE boleta_id IN (${placeholders})`).all(...boletaIds) as BoletaHistory[];
 
-    const boletasWithLines = boletas.map(b => ({
+    const historyMap = new Map<number, BoletaHistory[]>();
+    allHistory.forEach(h => {
+        if (!historyMap.has(h.boleta_id)) {
+            historyMap.set(h.boleta_id, []);
+        }
+        historyMap.get(h.boleta_id)!.push(h);
+    });
+
+    const boletasWithDetails = boletas.map(b => ({
         ...b,
-        lines: allLines.filter(l => l.boleta_id === b.id)
+        lines: allLines.filter(l => l.boleta_id === b.id),
+        history: historyMap.get(b.id) || []
     }));
 
-    return { boletas: JSON.parse(JSON.stringify(boletasWithLines)) };
+    return { boletas: JSON.parse(JSON.stringify(boletasWithDetails)) };
 }
+
 
 export async function getLatestBoletaBeforeDate(agreementId: number, date: Date): Promise<(RestockBoleta & { lines: BoletaLine[] }) | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
@@ -582,3 +593,4 @@ export async function forceReleaseConsignmentSession(sessionId: number, updatedB
     
     logWarn(`Consignment session ${sessionId} was forcibly released by ${updatedBy}.`);
 }
+

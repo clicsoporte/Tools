@@ -7,8 +7,8 @@
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
 import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb, getAllProducts } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, RestockBoletaStatus } from '@/modules/core/types';
-import { differenceInDays, parseISO } from 'date-fns';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus } from '@/modules/core/types';
+import { differenceInDays, parseISO, format } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
 import { getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
@@ -306,7 +306,7 @@ export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyR
     }
 }
 
-export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ reportRows: ConsignmentReportRow[], boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
+export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ reportRows: ConsignmentReportRow[], boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[] })[] }> {
     try {
         const agreementDetails = await getAgreementDetails(parseInt(agreementId, 10));
         if (!agreementDetails) {
@@ -326,8 +326,7 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
         }
 
         // 2. Get all relevant boletas within the date range for replenishments and final count
-        const boletasInPeriodResult = await getBoletasByDateRange(agreementId, dateRange, ['approved', 'sent', 'invoiced']);
-        const boletasInPeriod = boletasInPeriodResult.boletas;
+        const { boletas: boletasInPeriod } = await getBoletasByDateRange(agreementId, dateRange, ['approved', 'sent', 'invoiced']);
         
         // 3. Calculate total replenishments
         const replenishedMap = new Map<string, number>();
@@ -341,7 +340,6 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
         // 4. Get Final Stock (from the LATEST boleta within the date range)
         const finalStockMap = new Map<string, number>();
         if (boletasInPeriod.length > 0) {
-            // The boletas are already sorted by date ASC, so the last one is the latest.
             const latestBoletaInPeriod = boletasInPeriod[boletasInPeriod.length - 1];
             for (const line of latestBoletaInPeriod.lines) {
                 finalStockMap.set(line.product_id, line.counted_quantity);
@@ -364,6 +362,15 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
             const consumption = hasFinalCount ? (initialStock + totalReplenished) - finalStock : 0;
             const totalValue = consumption * product.price;
 
+            const relevantBoletas = boletasInPeriod.filter(b => 
+                b.lines.some(l => l.product_id === product.product_id && l.replenish_quantity > 0)
+            );
+
+            const boletaConsecutives = [...new Set(relevantBoletas.map(b => b.consecutive))].join(', ');
+            const creationDates = [...new Set(relevantBoletas.map(b => format(parseISO(b.created_at), 'dd/MM/yy')))].join(', ');
+            const erpInvoices = [...new Set(relevantBoletas.map(b => b.erp_invoice_number).filter(Boolean))].join(', ');
+            const approvers = [...new Set(relevantBoletas.map(b => b.approved_by).filter(Boolean))].join(', ');
+
             return {
                 productId: product.product_id,
                 productDescription: productMap.get(product.product_id) || 'Producto Desconocido',
@@ -373,6 +380,10 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
                 consumption: consumption > 0 ? consumption : 0,
                 price: product.price,
                 totalValue: totalValue > 0 ? totalValue : 0,
+                boletaConsecutives,
+                creationDates,
+                erpInvoices,
+                approvers,
             };
         });
 
