@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the logic for the Consignments Agreements page.
  */
@@ -16,6 +17,7 @@ const emptyAgreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> = 
   client_id: '',
   client_name: '',
   is_active: 1,
+  product_code_display_mode: 'erp_only',
 };
 
 type AgreementWithCounts = ConsignmentAgreement & { product_count?: number; boleta_count?: number; };
