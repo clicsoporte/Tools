@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side authentication and user management functions.
  * These functions interact directly with the database to handle user data.
@@ -400,15 +401,25 @@ export async function sendPasswordRecoveryEmail(email: string, clientInfo: { ip:
 
     try {
         const emailSettings = await getEmailSettingsFromDb();
+        const companySettings = await getCompanySettings();
         if (!emailSettings.smtpHost) {
             throw new Error("La configuración de SMTP no está establecida. No se puede enviar el correo.");
         }
         
-        const emailBody = (emailSettings.recoveryEmailBody || '')
+        let emailBody = (emailSettings.recoveryEmailBody || '')
             .replace('[NOMBRE_USUARIO]', user.name)
             .replace('[CLAVE_TEMPORAL]', tempPassword);
             
-        await sendEmail({ to: user.email, subject: emailSettings.recoveryEmailSubject || 'Recuperación de Contraseña', html: emailBody });
+        if (companySettings?.publicUrl) {
+            emailBody += `<p style="margin-top: 20px; font-size: 12px; color: #7f8c8d;">Accede al sistema en: <a href="${companySettings.publicUrl}">${companySettings.publicUrl}</a></p>`;
+        }
+            
+        await sendEmail({
+            to: user.email,
+            subject: emailSettings.recoveryEmailSubject || 'Recuperación de Contraseña',
+            html: emailBody
+        });
+
         await logInfo(`Password recovery email sent successfully to ${user.name}.`, logMeta);
     } catch (error: any) {
         await logError('Failed to send password recovery email.', { ...logMeta, error: error.message });

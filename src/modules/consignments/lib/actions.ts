@@ -28,6 +28,7 @@ import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, Countin
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
+import { getCompanySettings } from '@/modules/core/lib/db';
 import { sendEmail } from '@/modules/core/lib/email-service';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -56,6 +57,7 @@ async function sendBoletaEmail({
         const details = await getBoletaDetailsServer(boletaId);
         if (!details) throw new Error(`Details for boleta #${boletaId} not found.`);
         
+        const companySettings = await getCompanySettings();
         const { boleta, lines } = details;
         const agreement = await getAgreementDetailsServer(boleta.agreement_id);
         const clientName = agreement?.agreement.client_name || 'N/A';
@@ -124,6 +126,7 @@ async function sendBoletaEmail({
         html += `
             </table>
             <p style="margin-top: 20px; font-size: 12px; color: #7f8c8d;">Este es un correo automático generado por Clic-Tools.</p>
+            ${companySettings?.publicUrl ? `<p style="font-size: 12px; color: #7f8c8d;">Accede al sistema en: <a href="${companySettings.publicUrl}">${companySettings.publicUrl}</a></p>` : ''}
             </div>
         `;
         
@@ -179,14 +182,16 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
     
     try {
         const creator = (await getAllUsers()).find(u => u.name === userName);
+        const agreementDetails = await getAgreementDetailsServer(newBoleta.agreement_id);
+        const introText = `Se ha generado la boleta de reposición <strong>${newBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> a partir de tu conteo. Ahora pasará a revisión.`;
+        
         if (creator?.email) {
-             const agreementDetails = await getAgreementDetailsServer(newBoleta.agreement_id);
              await sendBoletaEmail({
                 boletaId: newBoleta.id,
                 subject: `Conteo de Consignación Registrado: ${newBoleta.consecutive}`,
-                introText: `Se ha generado la boleta de reposición <strong>${newBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> a partir de tu conteo. Ahora pasará a revisión.`,
+                introText,
                 recipientEmails: [creator.email],
-                includePrice: false
+                includePrice: false, // Do not show prices to the counter
             });
         }
     } catch (e: any) {
@@ -215,7 +220,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const statusLabel = (statusConfig as any)[payload.status] || payload.status;
         const users: User[] = await getAllUsers();
         const creator = users.find((u: User) => u.name === (updatedBoleta.submitted_by || updatedBoleta.created_by));
-        const settings = await getConsignmentSettings();
+        const settings = await getConsignmentSettingsServer();
         const agreementDetails = await getAgreementDetailsServer(updatedBoleta.agreement_id);
         const agreementNotificationUserIds = agreementDetails?.agreement.notification_user_ids || [];
 
@@ -236,10 +241,11 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
                 });
              }
         }
+        
+        const milestoneStatuses: RestockBoletaStatus[] = ['approved', 'sent', 'invoiced', 'canceled'];
 
         // 2. Notify the creator about major status changes (milestones)
-        const milestoneStatuses: RestockBoletaStatus[] = ['approved', 'sent', 'invoiced', 'canceled'];
-        if (creator?.email && milestoneStatuses.includes(payload.status as RestockBoletaStatus)) {
+        if (creator && creator.id !== payload.updatedBy && milestoneStatuses.includes(payload.status as RestockBoletaStatus)) {
             const subject = `Boleta ${updatedBoleta.consecutive} actualizada a: ${statusLabel}`;
             const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.
                 ${payload.status === 'approved' ? ` Aprobada por <strong>${updatedBoleta.approved_by}</strong>. Ya está lista para despacho.` : ''}
@@ -247,19 +253,18 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
                 
             await createNotification({ userId: creator.id, message: subject, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
             
-            // Send the detailed email WITHOUT prices to the creator
             await sendBoletaEmail({
                 boletaId: updatedBoleta.id,
                 subject,
                 introText,
                 recipientEmails: [creator.email],
-                includePrice: false,
+                includePrice: false, // Creator never sees prices
             });
         }
         
-        // 3. Notify agreement-specific users about ANY status change (excluding the creator to avoid double-sends)
+        // 3. Notify agreement-specific users about ANY status change (excluding the user who triggered the change to avoid self-notification)
         const agreementRecipientEmails = users
-            .filter(u => agreementNotificationUserIds.includes(u.id) && u.id !== creator?.id)
+            .filter(u => agreementNotificationUserIds.includes(u.id) && u.name !== payload.updatedBy)
             .map(u => u.email);
         
         if (agreementRecipientEmails.length > 0) {
@@ -270,7 +275,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
                 subject,
                 introText,
                 recipientEmails: agreementRecipientEmails,
-                includePrice: true
+                includePrice: true // Agreement stakeholders see prices
             });
         }
 
@@ -291,7 +296,7 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
 
 export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
     const result = await getBoletasByDateRangeServer(agreementId, dateRange, statuses);
-    return result.boletas;
+    return result;
 }
 
 
