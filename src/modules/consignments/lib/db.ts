@@ -448,9 +448,6 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
 
         let setClauses = [
             'status = @status',
-            'lastStatusUpdateNotes = @notes',
-            'lastStatusUpdateBy = @updatedBy',
-            'pendingAction = \'none\'', // This field doesn't exist on this table, but keeping for safety from copy-paste. Should be removed.
         ];
 
         if (status === 'approved') {
