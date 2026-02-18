@@ -541,7 +541,6 @@ export type InventoryUnit = {
     createdBy: string;
     status: 'pending' | 'applied' | 'voided';
     appliedAt?: string | null;
-    appliedBy?: string;
     annulledAt?: string | null;
     annulledBy?: string | null;
 };
@@ -719,7 +718,7 @@ export type Notification = {
     timestamp: string;
     entityId?: number; // e.g., order ID
     entityType?: string; // e.g., 'purchase-request'
-    entityStatus?: ProductionOrderStatus | PurchaseRequestStatus; // The CURRENT status of the entity
+    entityStatus?: ProductionOrderStatus | PurchaseRequestStatus | RestockBoletaStatus; // The CURRENT status of the entity
     taskType?: string; // e.g., 'approve'
     isSuggestion?: boolean; // Flag to identify suggestion notifications
     suggestionId?: number; // Original suggestion ID
@@ -1092,3 +1091,5 @@ export class AuthError extends Error {
     this.name = "AuthError";
   }
 }
+
+    

@@ -205,7 +205,7 @@ export async function getBoletas(filters: { status: string[], dateRange?: { from
     return getBoletasServer(filters);
 }
 
-export async function updateBoletaStatus(payload: { boletaId: number, status: string, notes: string, updatedBy: string, erpInvoiceNumber?: string }): Promise<RestockBoleta> {
+export async function updateBoletaStatus(payload: { boletaId: number, status: RestockBoletaStatus, notes: string, updatedBy: string, erpInvoiceNumber?: string }): Promise<RestockBoleta> {
     const updatedBoleta = await updateBoletaStatusServer(payload);
     
     try {
@@ -217,7 +217,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             invoiced: 'Facturada',
             canceled: 'Cancelada',
         };
-        const statusLabel = (statusConfig as any)[payload.status] || payload.status;
+        const statusLabel = statusConfig[payload.status] || payload.status;
         const users: User[] = await getAllUsers();
         const creator = users.find((u: User) => u.name === (updatedBoleta.submitted_by || updatedBoleta.created_by));
         const updater = users.find(u => u.name === payload.updatedBy);
@@ -225,73 +225,57 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const agreementDetails = await getAgreementDetailsServer(updatedBoleta.agreement_id);
 
         const allRecipients = new Map<string, { includePrice: boolean }>();
+        const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.`;
+        const subject = `Actualización de Boleta: ${updatedBoleta.consecutive} - ${statusLabel}`;
 
-        // Logic for 'pending' status (approval needed)
-        if (payload.status === 'pending') {
-            const globalUserIds = settings.notificationUserIds || [];
-            const agreementUserIds = agreementDetails?.agreement.notification_user_ids || [];
-            const allApproverIds = new Set([...globalUserIds, ...agreementUserIds]);
-            
-            users.forEach(user => {
-                if (allApproverIds.has(user.id)) {
-                    allRecipients.set(user.email, { includePrice: true });
-                }
-            });
-            
-            const additionalEmails = settings.additionalNotificationEmails?.split(',').map(e => e.trim()).filter(Boolean) || [];
-            additionalEmails.forEach(email => allRecipients.set(email, { includePrice: true }));
-
-            for (const [email, config] of allRecipients.entries()) {
-                const introText = `Se ha enviado una nueva boleta de reposición para el cliente <strong>${agreementDetails?.agreement.client_name}</strong>, preparada por <strong>${updatedBoleta.created_by}</strong> y enviada a aprobación por <strong>${payload.updatedBy}</strong>.`;
-                await sendBoletaEmail({
-                    boletaId: updatedBoleta.id,
-                    subject: `Nueva Boleta de Consignación para Aprobación: ${updatedBoleta.consecutive}`,
-                    introText,
-                    recipientEmails: [email],
-                    includePrice: config.includePrice,
-                });
-            }
+        // Notify creator (no prices) if they are not the one making the change.
+        if (creator && creator.name !== payload.updatedBy) {
+            allRecipients.set(creator.email, { includePrice: false });
         }
         
-        // Logic for milestone/reversion status changes
-        const milestoneStatuses: RestockBoletaStatus[] = ['review', 'approved', 'sent', 'invoiced', 'canceled'];
-        if (milestoneStatuses.includes(payload.status as RestockBoletaStatus)) {
-            // Notify creator (no prices)
-            if (creator?.email && creator.name !== payload.updatedBy) {
-                allRecipients.set(creator.email, { includePrice: false });
+        // Notify agreement-specific users (with prices), if they are not the one making the change.
+        const agreementUserIds = agreementDetails?.agreement.notification_user_ids || [];
+        users.forEach(user => {
+            if (agreementUserIds.includes(user.id) && user.name !== payload.updatedBy) {
+                allRecipients.set(user.email, { includePrice: true });
             }
+        });
 
-            // Notify agreement-specific users (with prices), overwriting the no-price rule if they are also the creator
-            const agreementUserIds = agreementDetails?.agreement.notification_user_ids || [];
+        // Add global notification users (with prices)
+        if (payload.status === 'pending') {
+            const globalUserIds = settings.notificationUserIds || [];
             users.forEach(user => {
-                if (agreementUserIds.includes(user.id) && user.name !== payload.updatedBy) {
+                if (globalUserIds.includes(user.id)) {
                     allRecipients.set(user.email, { includePrice: true });
                 }
             });
-
-            for (const [email, config] of allRecipients.entries()) {
-                const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.`;
-                await sendBoletaEmail({
-                    boletaId: updatedBoleta.id,
-                    subject: `Actualización de Boleta: ${updatedBoleta.consecutive} - ${statusLabel}`,
-                    introText,
-                    recipientEmails: [email],
-                    includePrice: config.includePrice,
-                });
-            }
-
-             // Send in-app notification to creator if someone else acted
-            if (creator && creator.name !== payload.updatedBy) {
-                await createNotification({
-                    userId: creator.id,
-                    message: `La boleta ${updatedBoleta.consecutive} ha sido actualizada a: ${statusLabel}.`,
-                    href: '/dashboard/consignments/boletas',
-                    entityId: updatedBoleta.id,
-                    entityType: 'consignment_boleta',
-                    entityStatus: payload.status,
-                });
-            }
+            const additionalEmails = settings.additionalNotificationEmails?.split(',').map(e => e.trim()).filter(Boolean) || [];
+            additionalEmails.forEach(email => allRecipients.set(email, { includePrice: true }));
         }
+
+        // Send emails
+        for (const [email, config] of allRecipients.entries()) {
+            await sendBoletaEmail({
+                boletaId: updatedBoleta.id,
+                subject,
+                introText,
+                recipientEmails: [email],
+                includePrice: config.includePrice,
+            });
+        }
+        
+        // Send in-app notification to creator if someone else acted
+        if (creator && creator.name !== payload.updatedBy) {
+            await createNotification({
+                userId: creator.id,
+                message: `La boleta ${updatedBoleta.consecutive} ha sido actualizada a: ${statusLabel}.`,
+                href: '/dashboard/consignments/boletas',
+                entityId: updatedBoleta.id,
+                entityType: 'consignment_boleta',
+                entityStatus: payload.status,
+            });
+        }
+        
     } catch (e: any) {
         logError('Failed to send boleta status update notification (from actions)', { boletaId: payload.boletaId, error: e.message });
     }
@@ -332,4 +316,4 @@ export async function saveConsignmentSettings(settings: ConsignmentSettings): Pr
     return saveConsignmentSettingsServer(settings);
 }
 
-
+    
