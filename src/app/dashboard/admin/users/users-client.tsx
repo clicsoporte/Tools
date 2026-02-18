@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -169,7 +170,7 @@ export default function UsersClient() {
   if (isLoading) {
     return (
       <main className="flex-1 p-4 md:p-6 lg:p-8">
-        <div className="mx-auto max-w-4xl space-y-6">
+        <div className="mx-auto max-w-6xl space-y-6">
           <Skeleton className="h-64 w-full" />
         </div>
       </main>
@@ -178,7 +179,7 @@ export default function UsersClient() {
 
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Gestión de Usuarios</h1>
