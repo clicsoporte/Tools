@@ -39,11 +39,13 @@ async function sendBoletaEmail({
     subject,
     introText,
     recipientEmails,
+    includePrice = false,
 }: {
     boletaId: number;
     subject: string;
     introText: string;
     recipientEmails: string[];
+    includePrice?: boolean;
 }) {
     if (recipientEmails.length === 0) {
         logWarn(`Tried to send boleta email for #${boletaId} but no recipients were found.`);
@@ -52,10 +54,7 @@ async function sendBoletaEmail({
 
     try {
         const details = await getBoletaDetailsServer(boletaId);
-
-        if (!details) {
-            throw new Error(`Details for boleta #${boletaId} not found.`);
-        }
+        if (!details) throw new Error(`Details for boleta #${boletaId} not found.`);
         
         const { boleta, lines } = details;
         const agreement = await getAgreementDetailsServer(boleta.agreement_id);
@@ -79,12 +78,19 @@ async function sendBoletaEmail({
                             <th style="text-align: right;">Inv. Físico</th>
                             <th style="text-align: right;">Máximo</th>
                             <th style="text-align: right;">A Reponer</th>
+                            ${includePrice ? `
+                            <th style="text-align: right;">Precio</th>
+                            <th style="text-align: right;">Total</th>
+                            ` : ''}
                         </tr>
                     </thead>
                     <tbody>
         `;
 
+        let totalValue = 0;
         for (const line of lines) {
+            const lineTotal = line.replenish_quantity * line.price;
+            totalValue += lineTotal;
             html += `
                 <tr>
                     <td style="font-family: monospace;">${line.product_id}</td>
@@ -92,12 +98,28 @@ async function sendBoletaEmail({
                     <td style="text-align: right;">${line.counted_quantity}</td>
                     <td style="text-align: right;">${line.max_stock}</td>
                     <td style="text-align: right; font-weight: bold; color: #2980b9;">${line.replenish_quantity}</td>
+                    ${includePrice ? `
+                    <td style="text-align: right;">¢${line.price.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</td>
+                    <td style="text-align: right; font-weight: bold;">¢${lineTotal.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</td>
+                    ` : ''}
                 </tr>
             `;
         }
         
+        html += `</tbody>`;
+
+        if (includePrice) {
+            html += `
+                <tfoot>
+                    <tr>
+                        <td colspan="6" style="text-align: right; font-weight: bold;">Total a Reponer:</td>
+                        <td style="text-align: right; font-weight: bold; font-size: 14px;">¢${totalValue.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                </tfoot>
+            `;
+        }
+
         html += `
-                </tbody>
             </table>
             <p style="margin-top: 20px; font-size: 12px; color: #7f8c8d;">Este es un correo automático generado por Clic-Tools.</p>
             </div>
@@ -158,10 +180,11 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
         if (creator?.email) {
              const agreementDetails = await getAgreementDetailsServer(newBoleta.agreement_id);
              await sendBoletaEmail({
-                to: creator.email,
+                boletaId: newBoleta.id,
                 subject: `Conteo de Consignación Registrado: ${newBoleta.consecutive}`,
                 introText: `Se ha generado la boleta de reposición <strong>${newBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> a partir de tu conteo. Ahora pasará a revisión.`,
-                boletaId: newBoleta.id
+                recipientEmails: [creator.email],
+                includePrice: false
             });
         }
     } catch (e: any) {
@@ -207,6 +230,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
                     subject: `Nueva Boleta de Consignación para Aprobación: ${updatedBoleta.consecutive}`,
                     introText: `Se ha enviado una nueva boleta de reposición para el cliente <strong>${agreementDetails?.agreement.client_name}</strong>, preparada por <strong>${updatedBoleta.created_by}</strong> y enviada a aprobación por <strong>${payload.updatedBy}</strong>.`,
                     recipientEmails,
+                    includePrice: true,
                 });
              }
         }
@@ -215,7 +239,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         if (creator?.email && creator.name !== payload.updatedBy) {
             const subject = `Boleta ${updatedBoleta.consecutive} actualizada a: ${statusLabel}`;
             const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.
-                ${payload.status === 'approved' ? ' Ya está lista para despacho.' : ''}
+                ${payload.status === 'approved' ? ` Aprobada por <strong>${updatedBoleta.approved_by}</strong>. Ya está lista para despacho.` : ''}
                 ${payload.status === 'invoiced' ? ` Factura ERP: ${updatedBoleta.erp_invoice_number}` : ''}`;
                 
             await createNotification({ userId: creator.id, message: subject, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
@@ -230,7 +254,13 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         if (agreementRecipientEmails.length > 0) {
             const subject = `Actualización de Estado - Boleta ${updatedBoleta.consecutive} (${agreementDetails?.agreement.client_name})`;
             const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> ha cambiado de estado a <strong>${statusLabel}</strong>.`;
-            await sendEmail({ to: agreementRecipientEmails, subject, html: `<p>${introText}</p>`});
+            await sendBoletaEmail({
+                boletaId: updatedBoleta.id,
+                subject,
+                introText,
+                recipientEmails: agreementRecipientEmails,
+                includePrice: true
+            });
         }
 
     } catch (e: any) {
@@ -252,6 +282,7 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
     const result = await getBoletasByDateRangeServer(agreementId, dateRange, statuses);
     return { boletas: result };
 }
+
 
 export async function getActiveConsignmentSessions(): Promise<(CountingSession & { agreement_name: string; user_name: string; })[]> {
     await authorizeAction('consignments:locks:manage');
