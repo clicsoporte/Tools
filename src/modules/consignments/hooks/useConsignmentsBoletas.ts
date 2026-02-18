@@ -138,9 +138,14 @@ export const useConsignmentsBoletas = () => {
                         const newMaxStock = currentProductRule ? currentProductRule.max_stock : line.max_stock;
                         const newPrice = currentProductRule ? currentProductRule.price : line.price;
                         
-                        const replenish_quantity = line.is_manually_edited === 1
-                            ? line.replenish_quantity
-                            : Math.max(0, newMaxStock - line.counted_quantity);
+                        let replenish_quantity;
+                        if (line.is_manually_edited === 1) {
+                            replenish_quantity = line.replenish_quantity;
+                        } else {
+                            replenish_quantity = newMaxStock > 0
+                                ? Math.max(0, newMaxStock - line.counted_quantity)
+                                : 0;
+                        }
     
                         return {
                             ...line,
@@ -180,9 +185,13 @@ export const useConsignmentsBoletas = () => {
         if (!state.detailedBoleta) return;
         const updatedLines = state.detailedBoleta.lines.map(line => {
             if (line.id === lineId) {
+                 const replenish_quantity = line.max_stock > 0
+                    ? Math.max(0, line.max_stock - line.counted_quantity)
+                    : 0;
+
                 return {
                     ...line,
-                    replenish_quantity: Math.max(0, line.max_stock - line.counted_quantity),
+                    replenish_quantity,
                     is_manually_edited: 0 as 0,
                 };
             }

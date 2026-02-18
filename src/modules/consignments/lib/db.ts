@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -383,7 +384,11 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
             const agreementProduct = agreementProducts.find(p => p.product_id === line.product_id);
             if (!agreementProduct) continue;
             
-            const replenishQty = Math.max(0, agreementProduct.max_stock - line.counted_quantity);
+            // If max_stock is 0, replenish quantity is 0, otherwise calculate it.
+            const replenishQty = agreementProduct.max_stock > 0
+                ? Math.max(0, agreementProduct.max_stock - line.counted_quantity)
+                : 0;
+
             const productDescription = mainDbProducts.find(p => p.id === line.product_id)?.description || 'Desconocido';
             
             insertLine.run(boletaId, line.product_id, productDescription, agreementProduct.client_product_code, line.counted_quantity, replenishQty, agreementProduct.max_stock, agreementProduct.price);
@@ -441,8 +446,6 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         
         const updateParams: any = {
             status,
-            notes: notes || null,
-            updatedBy,
             id: boletaId,
         };
 
