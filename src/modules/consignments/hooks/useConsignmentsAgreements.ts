@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the logic for the Consignments Agreements page.
  */
@@ -10,13 +11,15 @@ import { logError } from '@/modules/core/lib/logger';
 import { getConsignmentAgreements, saveConsignmentAgreement, deleteConsignmentAgreement, getAgreementDetails } from '../lib/actions';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
-import type { ConsignmentAgreement, ConsignmentProduct, Product, Warehouse } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, Product, Warehouse, User } from '@/modules/core/types';
+import { getAllUsers as getAllUsersClient } from '@/modules/core/lib/auth-client';
 
 const emptyAgreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> = {
   client_id: '',
   client_name: '',
   is_active: 1,
   product_code_display_mode: 'erp_only',
+  notification_user_ids: [],
 };
 
 type AgreementWithCounts = ConsignmentAgreement & { product_count?: number; boleta_count?: number; };
@@ -25,6 +28,8 @@ export const useConsignmentsAgreements = () => {
     const { hasPermission } = useAuthorization(['consignments:setup']);
     const { toast } = useToast();
     const { customers, products: authProducts, stockSettings, companyData } = useAuth();
+
+    const [allUsers, setAllUsers] = useState<User[]>([]);
 
     const [state, setState] = useState({
         isLoading: true,
@@ -66,6 +71,7 @@ export const useConsignmentsAgreements = () => {
 
     useEffect(() => {
         loadAgreements();
+        getAllUsersClient().then(setAllUsers);
     }, [loadAgreements]);
 
     const openAgreementForm = async (agreement: AgreementWithCounts | null = null) => {
@@ -74,7 +80,7 @@ export const useConsignmentsAgreements = () => {
             if (details) {
                 updateState({
                     editingAgreement: agreement,
-                    agreementFormData: details.agreement,
+                    agreementFormData: { ...details.agreement, notification_user_ids: details.agreement.notification_user_ids || [] },
                     agreementProducts: details.products,
                     clientSearchTerm: details.agreement.client_name,
                     warehouseSearchTerm: details.agreement.erp_warehouse_id || '',
@@ -195,6 +201,7 @@ export const useConsignmentsAgreements = () => {
             return warehouses.filter(w => w.name.toLowerCase().includes(debouncedWarehouseSearch.toLowerCase()) || w.id.toLowerCase().includes(debouncedWarehouseSearch.toLowerCase())).map(w => ({ value: w.id, label: `[${w.id}] ${w.name}` }))
         }, [stockSettings, debouncedWarehouseSearch]),
         getProductName: (id: string) => authProducts.find(p => p.id === id)?.description || 'Desconocido',
+        userOptions: useMemo(() => allUsers.map(u => ({ value: String(u.id), label: u.name })), [allUsers]),
     };
 
     return {

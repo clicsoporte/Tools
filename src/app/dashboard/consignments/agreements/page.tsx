@@ -19,6 +19,8 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
+import { Separator } from '@/components/ui/separator';
 
 export default function AgreementsPage() {
     const { state, actions, selectors } = useConsignmentsAgreements();
@@ -183,6 +185,19 @@ export default function AgreementsPage() {
                                     id="notes"
                                     value={state.agreementFormData.notes || ''}
                                     onChange={(e) => actions.handleFieldChange('notes', e.target.value)}
+                                />
+                            </div>
+                            <Separator />
+                            <div className="space-y-2">
+                                <Label>Usuarios a Notificar</Label>
+                                 <p className="text-sm text-muted-foreground">
+                                    Estos usuarios recibirán un correo con cada cambio de estado de las boletas de este cliente.
+                                </p>
+                                <MultiSelectFilter
+                                    title="Seleccionar Usuarios"
+                                    options={selectors.userOptions}
+                                    selectedValues={(state.agreementFormData.notification_user_ids || []).map(String)}
+                                    onSelectedChange={(ids) => actions.handleFieldChange('notification_user_ids', ids.map(Number))}
                                 />
                             </div>
                         </div>

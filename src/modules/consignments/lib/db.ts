@@ -27,7 +27,8 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             next_boleta_number INTEGER NOT NULL DEFAULT 1,
             notes TEXT,
             is_active BOOLEAN NOT NULL DEFAULT 1,
-            product_code_display_mode TEXT NOT NULL DEFAULT 'erp_only'
+            product_code_display_mode TEXT NOT NULL DEFAULT 'erp_only',
+            notification_user_ids TEXT
         );
 
         CREATE TABLE IF NOT EXISTS consignment_products (
@@ -112,6 +113,12 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
 }
 
 export async function runConsignmentsMigrations(db: import('better-sqlite3').Database) {
+    const agreementsTableInfo = db.prepare(`PRAGMA table_info(consignment_agreements)`).all() as { name: string }[];
+    const agreementsColumns = new Set(agreementsTableInfo.map(c => c.name));
+    if (!agreementsColumns.has('notification_user_ids')) {
+        db.exec('ALTER TABLE consignment_agreements ADD COLUMN notification_user_ids TEXT');
+    }
+    
     const boletasTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='restock_boletas'`).get();
     if (!boletasTable) {
         // Table doesn't exist, likely a fresh install handled by initialize.
@@ -135,8 +142,6 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
         db.exec('ALTER TABLE boleta_lines ADD COLUMN client_product_code TEXT');
     }
 
-    const agreementsTableInfo = db.prepare(`PRAGMA table_info(consignment_agreements)`).all() as { name: string }[];
-    const agreementsColumns = new Set(agreementsTableInfo.map(c => c.name));
     if (!agreementsColumns.has('product_code_display_mode')) {
         db.exec(`ALTER TABLE consignment_agreements ADD COLUMN product_code_display_mode TEXT NOT NULL DEFAULT 'erp_only'`);
     }
@@ -230,12 +235,13 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const transaction = db.transaction(() => {
         let agreementId = agreement.id;
+        const notificationUserIdsJson = JSON.stringify(agreement.notification_user_ids || []);
         if (agreementId) { // Update
-            db.prepare('UPDATE consignment_agreements SET client_id = ?, client_name = ?, erp_warehouse_id = ?, notes = ?, is_active = ?, product_code_display_mode = ? WHERE id = ?')
-              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode, agreementId);
+            db.prepare('UPDATE consignment_agreements SET client_id = ?, client_name = ?, erp_warehouse_id = ?, notes = ?, is_active = ?, product_code_display_mode = ?, notification_user_ids = ? WHERE id = ?')
+              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode, notificationUserIdsJson, agreementId);
         } else { // Create
-            const info = db.prepare('INSERT INTO consignment_agreements (client_id, client_name, erp_warehouse_id, notes, is_active, product_code_display_mode) VALUES (?, ?, ?, ?, ?, ?)')
-              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode);
+            const info = db.prepare('INSERT INTO consignment_agreements (client_id, client_name, erp_warehouse_id, notes, is_active, product_code_display_mode, notification_user_ids) VALUES (?, ?, ?, ?, ?, ?, ?)')
+              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode, notificationUserIdsJson);
             agreementId = info.lastInsertRowid as number;
         }
 
@@ -285,6 +291,11 @@ export async function getAgreementDetails(agreementId: number): Promise<{ agreem
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as ConsignmentAgreement | undefined;
     if (!agreement) return null;
+    if (agreement.notification_user_ids && typeof agreement.notification_user_ids === 'string') {
+        agreement.notification_user_ids = JSON.parse(agreement.notification_user_ids);
+    } else {
+        agreement.notification_user_ids = [];
+    }
     const products = db.prepare('SELECT * FROM consignment_products WHERE agreement_id = ?').all(agreementId) as ConsignmentProduct[];
     return JSON.parse(JSON.stringify({ agreement, products }));
 }
@@ -497,7 +508,7 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return transaction();
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses: RestockBoletaStatus[] = []): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[] }> {
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[] }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     let query = `

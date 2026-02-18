@@ -1009,6 +1009,7 @@ export type ConsignmentAgreement = {
     notes?: string;
     is_active: 0 | 1;
     product_code_display_mode: 'erp_only' | 'alias_only' | 'both';
+    notification_user_ids?: number[];
 };
 
 export type ConsignmentProduct = {
