@@ -244,7 +244,7 @@ export const consignmentsTools: Tool[] = [
         bgColor: "bg-blue-600",
     },
     {
-        id: "consignments:boleta:approve",
+        id: "consignments:boletas:read",
         name: "Gestión de Boletas",
         description: "Aprobar, imprimir y dar seguimiento a las boletas de reposición.",
         href: "/dashboard/consignments/boletas",

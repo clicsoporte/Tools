@@ -30,7 +30,7 @@ const statusConfig: { [key: string]: { label: string; color: string } } = {
 };
 
 export const useConsignmentsBoletas = () => {
-    const { hasPermission } = useAuthorization();
+    const { hasPermission, isAuthorized } = useAuthorization(['consignments:boletas:read']);
     const { toast } = useToast();
     const { user, companyData } = useAuth();
 
@@ -42,7 +42,7 @@ export const useConsignmentsBoletas = () => {
         boletas: [] as RestockBoleta[],
         isStatusModalOpen: false,
         boletaToUpdate: null as RestockBoleta | null,
-        statusUpdatePayload: { status: '', notes: '', erpInvoiceNumber: '' },
+        statusUpdatePayload: { status: '' as RestockBoletaStatus, notes: '', erpInvoiceNumber: '' },
         isDetailsModalOpen: false,
         isDetailsLoading: false,
         detailedBoleta: null as { boleta: RestockBoleta, lines: BoletaLine[], history: BoletaHistory[] } | null,
@@ -85,10 +85,12 @@ export const useConsignmentsBoletas = () => {
     }, [toast, updateState]);
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        if (isAuthorized) {
+            loadData();
+        }
+    }, [loadData, isAuthorized]);
     
-    const openStatusModal = (boleta: RestockBoleta, status: string) => {
+    const openStatusModal = (boleta: RestockBoleta, status: RestockBoletaStatus) => {
         updateState({
             boletaToUpdate: boleta,
             statusUpdatePayload: { status, notes: '', erpInvoiceNumber: '' },
@@ -106,9 +108,9 @@ export const useConsignmentsBoletas = () => {
         try {
             await updateBoletaStatus({
                 boletaId: state.boletaToUpdate.id,
-                updatedBy: user.name,
-                status: state.statusUpdatePayload.status as RestockBoletaStatus,
+                status: state.statusUpdatePayload.status,
                 notes: state.statusUpdatePayload.notes,
+                updatedBy: user.name,
                 erpInvoiceNumber: state.statusUpdatePayload.erpInvoiceNumber
             });
             toast({ title: 'Estado Actualizado' });
