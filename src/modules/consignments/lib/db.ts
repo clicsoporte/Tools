@@ -439,34 +439,38 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             throw new Error("Boleta no encontrada.");
         }
         
-        if (status === 'invoiced' && !erpInvoiceNumber?.trim()) {
-            throw new Error("El número de factura del ERP es requerido para marcar como facturada.");
-        }
+        const updateParams: any = {
+            status,
+            notes: notes || null,
+            updatedBy,
+            id: boletaId,
+        };
 
-        let setClauses = ['status = @status'];
-        const params: any = { status, boletaId };
+        let setClauses = [
+            'status = @status',
+            'lastStatusUpdateNotes = @notes',
+            'lastStatusUpdateBy = @updatedBy',
+            'pendingAction = \'none\'', // This field doesn't exist on this table, but keeping for safety from copy-paste. Should be removed.
+        ];
 
         if (status === 'approved') {
             setClauses.push('approved_by = @approvedBy', 'approved_at = datetime(\'now\')');
-            params.approvedBy = updatedBy;
+            updateParams.approvedBy = updatedBy;
         } else if (status === 'pending') {
-            setClauses.push('submitted_by = @updatedBy');
-            params.updatedBy = updatedBy;
-        } else if (status === 'pending-revert') { // Special internal status for reverting
-             setClauses.push('status = @newStatus', 'approved_by = NULL', 'approved_at = NULL');
-             params.newStatus = 'pending';
-        }
-        
-        if (status === 'invoiced') {
+            setClauses.push('submitted_by = @submittedBy');
+            updateParams.submittedBy = updatedBy;
+        } else if (status === 'invoiced') {
+            if (!erpInvoiceNumber?.trim()) {
+                throw new Error("El número de factura del ERP es requerido para marcar como facturada.");
+            }
             setClauses.push('erp_invoice_number = @erpInvoiceNumber');
-            params.erpInvoiceNumber = erpInvoiceNumber;
+            updateParams.erpInvoiceNumber = erpInvoiceNumber;
         } else if (currentBoleta.status === 'invoiced' && status === 'sent') {
-            // This is a revert action. Clear the invoice number.
             setClauses.push('erp_invoice_number = NULL');
         }
-
-        const updateQuery = `UPDATE restock_boletas SET ${setClauses.join(', ')} WHERE id = @boletaId`;
-        db.prepare(updateQuery).run(params);
+        
+        const updateQuery = `UPDATE restock_boletas SET ${setClauses.join(', ')} WHERE id = @id`;
+        db.prepare(updateQuery).run(updateParams);
         
         db.prepare('INSERT INTO boleta_history (boleta_id, timestamp, status, updatedBy, notes) VALUES (?, datetime(\'now\'), ?, ?, ?)')
           .run(boletaId, status, updatedBy, notes);

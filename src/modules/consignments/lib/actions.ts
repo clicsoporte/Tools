@@ -60,6 +60,7 @@ async function sendBoletaEmail({
         const agreement = await getAgreementDetailsServer(boleta.agreement_id);
         const clientName = agreement?.agreement.client_name || 'N/A';
         const warehouseId = agreement?.agreement.erp_warehouse_id || 'N/A';
+        const submittedBy = boleta.submitted_by || boleta.created_by;
 
         let html = `
             <div style="font-family: sans-serif; font-size: 14px; color: #333;">
@@ -69,6 +70,7 @@ async function sendBoletaEmail({
                 <p><strong>Cliente:</strong> ${clientName}</p>
                 <p><strong>Bodega ERP:</strong> ${warehouseId}</p>
                 <p><strong>Fecha de Creación:</strong> ${format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</p>
+                ${submittedBy ? `<p><strong>Toma de Inventario por:</strong> ${submittedBy}</p>` : ''}
                 <hr>
                 <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 12px;">
                     <thead style="background-color: #f2f2f2;">
@@ -235,8 +237,9 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
              }
         }
 
-        // 2. Notify the creator about status changes
-        if (creator?.email && creator.name !== payload.updatedBy) {
+        // 2. Notify the creator about major status changes (milestones)
+        const milestoneStatuses: RestockBoletaStatus[] = ['approved', 'sent', 'invoiced', 'canceled'];
+        if (creator?.email && milestoneStatuses.includes(payload.status as RestockBoletaStatus)) {
             const subject = `Boleta ${updatedBoleta.consecutive} actualizada a: ${statusLabel}`;
             const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.
                 ${payload.status === 'approved' ? ` Aprobada por <strong>${updatedBoleta.approved_by}</strong>. Ya está lista para despacho.` : ''}
@@ -246,9 +249,9 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             await sendEmail({ to: [creator.email], subject, html: `<p>${introText}</p>` });
         }
         
-        // 3. Notify agreement-specific users about ANY status change
+        // 3. Notify agreement-specific users about ANY status change (excluding the creator to avoid double-sends)
         const agreementRecipientEmails = users
-            .filter(u => agreementNotificationUserIds.includes(u.id) && u.id !== creator?.id && u.name !== payload.updatedBy)
+            .filter(u => agreementNotificationUserIds.includes(u.id) && u.id !== creator?.id)
             .map(u => u.email);
         
         if (agreementRecipientEmails.length > 0) {
