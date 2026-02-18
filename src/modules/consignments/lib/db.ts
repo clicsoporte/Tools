@@ -517,7 +517,7 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
     `;
     const params: any[] = [agreementId, dateRange.from.toISOString(), dateRange.to.toISOString()];
 
-    if (statuses.length > 0) {
+    if (statuses && statuses.length > 0) {
         query += ` AND status IN (${statuses.map(() => '?').join(',')})`;
         params.push(...statuses);
     }
@@ -610,4 +610,4 @@ export async function forceReleaseConsignmentSession(sessionId: number, updatedB
     logWarn(`Consignment session ${sessionId} was forcibly released by ${updatedBy}.`);
 }
 
-
+    

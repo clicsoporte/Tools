@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server Actions for the Analytics module.
  */
@@ -306,7 +305,7 @@ export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyR
     }
 }
 
-export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ reportRows: ConsignmentReportRow[], boletas: (RestockBoleta & { lines: BoletaLine[] })[] }> {
+export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ reportRows: ConsignmentReportRow[], boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[] }> {
     try {
         const agreementDetails = await getAgreementDetails(parseInt(agreementId, 10));
         if (!agreementDetails) {
@@ -389,7 +388,7 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
         });
 
         // Filter out rows that have no activity at all
-        const finalReportRows = reportRows.filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0);
+        const finalReportRows = reportRows.filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.consumption > 0);
         
         return { reportRows: finalReportRows, boletas: boletasInPeriod };
 
@@ -398,3 +397,5 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
         throw new Error(`No se pudo generar el reporte de consignaciones: ${error.message}`);
     }
 }
+
+    
