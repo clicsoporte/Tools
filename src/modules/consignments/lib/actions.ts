@@ -245,7 +245,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const milestoneStatuses: RestockBoletaStatus[] = ['approved', 'sent', 'invoiced', 'canceled'];
 
         // 2. Notify the creator about major status changes (milestones)
-        if (creator && creator.id !== payload.updatedBy && milestoneStatuses.includes(payload.status as RestockBoletaStatus)) {
+        if (creator && creator.name !== payload.updatedBy && milestoneStatuses.includes(payload.status as RestockBoletaStatus)) {
             const subject = `Boleta ${updatedBoleta.consecutive} actualizada a: ${statusLabel}`;
             const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.
                 ${payload.status === 'approved' ? ` Aprobada por <strong>${updatedBoleta.approved_by}</strong>. Ya está lista para despacho.` : ''}
@@ -317,3 +317,4 @@ export async function getConsignmentSettings(): Promise<ConsignmentSettings> {
 export async function saveConsignmentSettings(settings: ConsignmentSettings): Promise<void> {
     return saveConsignmentSettingsServer(settings);
 }
+
