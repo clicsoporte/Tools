@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook to manage the logic for the new receiving report page.
  */
@@ -15,8 +16,8 @@ import { subDays, startOfDay, format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useDebounce } from 'use-debounce';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import { exportToExcel } from '@/modules/core/lib/excel-export';
-import { generateDocument } from '@/modules/core/lib/pdf-generator';
+import { exportToExcel } from '@/lib/excel-export';
+import { generateDocument } from '@/lib/pdf-generator';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +45,13 @@ const availableColumns = [
     { id: 'appliedBy', label: 'Aplicado Por' },
     { id: 'appliedAt', label: 'Fecha Aplicación' },
 ];
+
+const statusTranslations: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    pending: { label: 'Pendiente', variant: 'secondary' },
+    applied: { label: 'Aplicado', variant: 'default' },
+    voided: { label: 'Anulado', variant: 'destructive' },
+};
+
 
 interface State {
     isLoading: boolean;
@@ -213,7 +221,7 @@ export function useReceivingReport() {
             selectors.visibleColumnsData.map(col => {
                 const { content, type } = selectors.getColumnContent(item, col.id);
                 if (type === 'badge') {
-                    return content.text;
+                    return content;
                 }
                 if (React.isValidElement(content)) {
                      const textContent = React.Children.toArray((content as React.ReactElement).props.children).join('').replace(/<[^>]*>?/gm, ' ');
@@ -237,7 +245,7 @@ export function useReceivingReport() {
             selectors.visibleColumnsData.map(col => {
                 const { content, type } = selectors.getColumnContent(item, col.id);
                 if (type === 'badge') {
-                    return content.text;
+                    return content;
                 }
                 if (React.isValidElement(content)) {
                     return React.Children.toArray((content as React.ReactElement).props.children).join('').replace(/<[^>]*>?/gm, ' ');
@@ -263,12 +271,8 @@ export function useReceivingReport() {
         getLocationPath,
         availableColumns,
         visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][], [state.visibleColumns]),
-        getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string, variant?: "default" | "secondary" | "destructive" | "outline" | undefined; } => {
-            const statusInfo = {
-                pending: { label: 'Pendiente', variant: 'secondary' },
-                applied: { label: 'Aplicado', variant: 'default' },
-                voided: { label: 'Anulado', variant: 'destructive' },
-            }[item.status] || { label: item.status, variant: 'outline' };
+        getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string, variant?: "default" | "secondary" | "destructive" | "outline" } => {
+            const statusInfo = statusTranslations[item.status] || { label: item.status, variant: 'outline' };
 
             switch (colId) {
                 case 'status': return { type: 'badge', content: statusInfo.label, variant: statusInfo.variant, className: item.status === 'applied' ? 'bg-green-600' : '' };
@@ -331,7 +335,7 @@ export function useReceivingReport() {
         handleColumnVisibilityChange: (columnId: string, checked: boolean) => {
             updateState({ visibleColumns: checked ? [...state.visibleColumns, columnId] : state.visibleColumns.filter(id => id !== columnId) });
         },
-        handleSavePreferences: savePreferences,
+        handleSavePreferences,
     };
     
     return {
