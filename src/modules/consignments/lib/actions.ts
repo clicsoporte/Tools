@@ -243,10 +243,18 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             const subject = `Boleta ${updatedBoleta.consecutive} actualizada a: ${statusLabel}`;
             const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.
                 ${payload.status === 'approved' ? ` Aprobada por <strong>${updatedBoleta.approved_by}</strong>. Ya está lista para despacho.` : ''}
-                ${payload.status === 'invoiced' ? ` Factura ERP: ${updatedBoleta.erp_invoice_number}` : ''}`;
+                ${payload.status === 'invoiced' && updatedBoleta.erp_invoice_number ? ` Factura ERP: ${updatedBoleta.erp_invoice_number}` : ''}`;
                 
             await createNotification({ userId: creator.id, message: subject, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
-            await sendEmail({ to: [creator.email], subject, html: `<p>${introText}</p>` });
+            
+            // Send the detailed email WITHOUT prices to the creator
+            await sendBoletaEmail({
+                boletaId: updatedBoleta.id,
+                subject,
+                introText,
+                recipientEmails: [creator.email],
+                includePrice: false,
+            });
         }
         
         // 3. Notify agreement-specific users about ANY status change (excluding the creator to avoid double-sends)
@@ -281,9 +289,9 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return updateBoletaServer(boleta, lines, updatedBy);
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[] }> {
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
     const result = await getBoletasByDateRangeServer(agreementId, dateRange, statuses);
-    return { boletas: result };
+    return result.boletas;
 }
 
 
