@@ -23,6 +23,28 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [2.9.2] - Publicado
+
+### Mejoras de Experiencia de Usuario (UX) y Calidad de Vida
+
+-   **[UX Consignación] Visualización de Alias de Cliente.** Para facilitar la identificación de productos según el cliente, el "Alias de Cliente" ahora se muestra en dos lugares clave:
+    -   Se añadió una nueva columna opcional "Alias Cliente" al **Reporte de Cierre de Consignaciones**.
+    -   Al editar una boleta, el alias ahora aparece junto al código de producto del ERP, respetando la configuración de visualización del acuerdo.
+-   **[Notificaciones Consignación] Correos Más Completos y Útiles.** Se ha mejorado la comunicación por correo en el módulo de consignaciones:
+    -   Todos los correos de cambio de estado (Aprobada, Enviada, Facturada) ahora incluyen la **tabla detallada con los productos**, similar al correo de aprobación. Se mantiene la regla de que el usuario que realizó el conteo no ve los precios.
+    -   Se ha añadido un **enlace a la aplicación** en el pie de página de todos los correos del sistema (recuperación de contraseña y notificaciones), utilizando la "URL Pública" configurada en Administración.
+
+### Correcciones y Mejoras de Lógica
+
+-   **[Lógica Consignación] Nuevo Modo de Reposición Manual (Sin Máximos).** Se ha introducido una lógica más flexible para los acuerdos de consignación:
+    -   Si el "Stock Máximo" de un producto en un acuerdo se establece en `0`, el sistema lo interpretará como "sin máximo".
+    -   Al generar una boleta para estos productos, la "Cantidad a Reponer" se establecerá automáticamente en `0`, esperando que un supervisor o vendedor ingrese manualmente la cantidad solicitada por el cliente.
+-   **[Corrección de Notificaciones]** Se solucionó un error que impedía que los correos de notificación se enviaran correctamente para los estados "Aprobada", "Enviada" y "Facturada". Ahora el creador de la boleta y los usuarios interesados son notificados en cada paso del flujo.
+-   **[Corrección Consignación]** Se corrigió un bug crítico que impedía que el campo "Código Cliente (Alias)" de un producto en un acuerdo de consignación se guardara correctamente. El valor ahora se persiste en la base de datos.
+-   **[Corrección Reporte Consignación]** Se solucionó un error de tipo (`is not iterable`) que impedía la generación del "Reporte de Cierre de Consignaciones".
+
+---
+
 ## [2.9.1] - Publicado
 
 ### Mejoras de Experiencia de Usuario (UX) y Calidad de Vida
