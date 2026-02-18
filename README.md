@@ -220,3 +220,4 @@ Actualizar la aplicación a una nueva versión sin perder datos es un proceso cr
 ## 7. Créditos y Licencia
 
 Este proyecto es desarrollado y mantenido por CLIC SOPORTE Y CLIC TIENDA S.R.L. y se distribuye bajo la **Licencia MIT**.
+    
