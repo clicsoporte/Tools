@@ -24,7 +24,7 @@ import {
     getSettings as getConsignmentSettingsServer,
     saveSettings as saveConsignmentSettingsServer,
 } from './db';
-import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentSettings, User } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentSettings, User, Company } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -220,6 +220,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const statusLabel = (statusConfig as any)[payload.status] || payload.status;
         const users: User[] = await getAllUsers();
         const creator = users.find((u: User) => u.name === (updatedBoleta.submitted_by || updatedBoleta.created_by));
+        const updater = users.find(u => u.name === payload.updatedBy);
         const settings = await getConsignmentSettingsServer();
         const agreementDetails = await getAgreementDetailsServer(updatedBoleta.agreement_id);
 
@@ -252,30 +253,23 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             }
         }
         
-        // Logic for milestone status changes
-        const milestoneStatuses: RestockBoletaStatus[] = ['approved', 'sent', 'invoiced', 'canceled'];
+        // Logic for milestone/reversion status changes
+        const milestoneStatuses: RestockBoletaStatus[] = ['review', 'approved', 'sent', 'invoiced', 'canceled'];
         if (milestoneStatuses.includes(payload.status as RestockBoletaStatus)) {
             // Notify creator (no prices)
-            if (creator?.email) {
+            if (creator?.email && creator.name !== payload.updatedBy) {
                 allRecipients.set(creator.email, { includePrice: false });
             }
 
             // Notify agreement-specific users (with prices), overwriting the no-price rule if they are also the creator
             const agreementUserIds = agreementDetails?.agreement.notification_user_ids || [];
             users.forEach(user => {
-                if (agreementUserIds.includes(user.id)) {
+                if (agreementUserIds.includes(user.id) && user.name !== payload.updatedBy) {
                     allRecipients.set(user.email, { includePrice: true });
                 }
             });
 
             for (const [email, config] of allRecipients.entries()) {
-                const userIsUpdater = users.find(u => u.email === email)?.name === payload.updatedBy;
-                
-                // Don't send notification if the user is the one who made the change, UNLESS they are also the creator (self-confirmation)
-                if (userIsUpdater && creator?.email !== email) {
-                    continue;
-                }
-
                 const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.`;
                 await sendBoletaEmail({
                     boletaId: updatedBoleta.id,
@@ -337,4 +331,5 @@ export async function getConsignmentSettings(): Promise<ConsignmentSettings> {
 export async function saveConsignmentSettings(settings: ConsignmentSettings): Promise<void> {
     return saveConsignmentSettingsServer(settings);
 }
+
 
