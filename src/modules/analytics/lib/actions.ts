@@ -397,5 +397,3 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
         throw new Error(`No se pudo generar el reporte de consignaciones: ${error.message}`);
     }
 }
-
-    
