@@ -254,7 +254,7 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
                     product_id: product.product_id,
                     max_stock: product.max_stock,
                     price: product.price,
-                    client_product_code: product.client_product_code || null
+                    client_product_code: product.client_product_code || null,
                 });
             }
         }
@@ -508,7 +508,7 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return transaction();
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[] }> {
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     let query = `
@@ -526,7 +526,7 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
 
     const boletas = db.prepare(query).all(...params) as RestockBoleta[];
     
-    if (boletas.length === 0) return { boletas: [] };
+    if (boletas.length === 0) return [];
 
     const boletaIds = boletas.map(b => b.id);
     const placeholders = boletaIds.map(() => '?').join(',');
@@ -548,7 +548,7 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
         history: historyMap.get(b.id) || []
     }));
 
-    return { boletas: JSON.parse(JSON.stringify(boletasWithDetails)) };
+    return JSON.parse(JSON.stringify(boletasWithDetails));
 }
 
 

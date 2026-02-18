@@ -79,17 +79,12 @@ async function sendBoletaEmail({
                             <th style="text-align: right;">Inv. Físico</th>
                             <th style="text-align: right;">Máximo</th>
                             <th style="text-align: right;">A Reponer</th>
-                            <th style="text-align: right;">Precio</th>
-                            <th style="text-align: right;">Total</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
 
-        let totalValue = 0;
         for (const line of lines) {
-            const lineValue = line.replenish_quantity * line.price;
-            totalValue += lineValue;
             html += `
                 <tr>
                     <td style="font-family: monospace;">${line.product_id}</td>
@@ -97,20 +92,12 @@ async function sendBoletaEmail({
                     <td style="text-align: right;">${line.counted_quantity}</td>
                     <td style="text-align: right;">${line.max_stock}</td>
                     <td style="text-align: right; font-weight: bold; color: #2980b9;">${line.replenish_quantity}</td>
-                    <td style="text-align: right;">${line.price.toLocaleString('es-CR', { style: 'currency', currency: 'CRC' })}</td>
-                    <td style="text-align: right;">${lineValue.toLocaleString('es-CR', { style: 'currency', currency: 'CRC' })}</td>
                 </tr>
             `;
         }
         
         html += `
                 </tbody>
-                <tfoot>
-                    <tr style="background-color: #f2f2f2; font-weight: bold;">
-                        <td colspan="6" style="text-align: right;">Total a Reponer:</td>
-                        <td style="text-align: right;">${totalValue.toLocaleString('es-CR', { style: 'currency', currency: 'CRC' })}</td>
-                    </tr>
-                </tfoot>
             </table>
             <p style="margin-top: 20px; font-size: 12px; color: #7f8c8d;">Este es un correo automático generado por Clic-Tools.</p>
             </div>
@@ -170,10 +157,11 @@ export async function generateBoletaFromSession(sessionId: number, userId: numbe
         const creator = (await getAllUsers()).find(u => u.name === userName);
         if (creator?.email) {
              const agreementDetails = await getAgreementDetailsServer(newBoleta.agreement_id);
-             await sendEmail({
+             await sendBoletaEmail({
                 to: creator.email,
                 subject: `Conteo de Consignación Registrado: ${newBoleta.consecutive}`,
-                html: `<p>Se ha generado la boleta de reposición <strong>${newBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> a partir de tu conteo. Ahora pasará a revisión.</p>`,
+                introText: `Se ha generado la boleta de reposición <strong>${newBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> a partir de tu conteo. Ahora pasará a revisión.`,
+                boletaId: newBoleta.id
             });
         }
     } catch (e: any) {
@@ -190,49 +178,61 @@ export async function getBoletas(filters: { status: string[], dateRange?: { from
 export async function updateBoletaStatus(payload: { boletaId: number, status: string, notes: string, updatedBy: string, erpInvoiceNumber?: string }): Promise<RestockBoleta> {
     const updatedBoleta = await updateBoletaStatusServer(payload);
     
-    // Send email notification outside transaction
     try {
+        const statusConfig = {
+            review: 'En Revisión',
+            pending: 'Pendiente Aprobación',
+            approved: 'Aprobada',
+            sent: 'Enviada',
+            invoiced: 'Facturada',
+            canceled: 'Cancelada',
+        };
+        const statusLabel = (statusConfig as any)[payload.status] || payload.status;
         const users: User[] = await getAllUsers();
         const creator = users.find((u: User) => u.name === (updatedBoleta.submitted_by || updatedBoleta.created_by));
         const settings = await getConsignmentSettings();
+        const agreementDetails = await getAgreementDetailsServer(updatedBoleta.agreement_id);
+        const agreementNotificationUserIds = agreementDetails?.agreement.notification_user_ids || [];
 
-        // Notify approvers when a boleta is submitted for approval
+        // 1. Notify approvers when a boleta is submitted for approval
         if (payload.status === 'pending') {
-             const userIds = settings.notificationUserIds || [];
+             const globalUserIds = settings.notificationUserIds || [];
              const additionalEmails = settings.additionalNotificationEmails?.split(',').map(e => e.trim()).filter(Boolean) || [];
-             const recipientEmails = users.filter(u => userIds.includes(u.id)).map(u => u.email).concat(additionalEmails);
+             const allUserIds = new Set([...globalUserIds, ...agreementNotificationUserIds]);
+             const recipientEmails = users.filter(u => allUserIds.has(u.id)).map(u => u.email).concat(additionalEmails);
              
              if (recipientEmails.length > 0) {
-                 const agreement = await getAgreementDetailsServer(updatedBoleta.agreement_id);
                  await sendBoletaEmail({
                     boletaId: updatedBoleta.id,
                     subject: `Nueva Boleta de Consignación para Aprobación: ${updatedBoleta.consecutive}`,
-                    introText: `Se ha enviado una nueva boleta de reposición para el cliente <strong>${agreement?.agreement.client_name}</strong>, preparada por <strong>${updatedBoleta.created_by}</strong> y enviada a aprobación por <strong>${payload.updatedBy}</strong>.`,
+                    introText: `Se ha enviado una nueva boleta de reposición para el cliente <strong>${agreementDetails?.agreement.client_name}</strong>, preparada por <strong>${updatedBoleta.created_by}</strong> y enviada a aprobación por <strong>${payload.updatedBy}</strong>.`,
                     recipientEmails,
                 });
              }
         }
 
-        // Notify the creator/submitter about status changes
+        // 2. Notify the creator about status changes
         if (creator?.email && creator.name !== payload.updatedBy) {
-            if (payload.status === 'approved') {
-                await createNotification({ userId: creator.id, message: `La boleta ${updatedBoleta.consecutive} ha sido aprobada.`, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
-                await sendBoletaEmail({
-                    boletaId: updatedBoleta.id,
-                    subject: `Boleta de Consignación Aprobada: ${updatedBoleta.consecutive}`,
-                    introText: `La boleta <strong>${updatedBoleta.consecutive}</strong> ha sido aprobada y está lista para despacho.`,
-                    recipientEmails: [creator.email],
-                });
-            } else if (payload.status === 'invoiced') {
-                 await createNotification({ userId: creator.id, message: `La boleta ${updatedBoleta.consecutive} ha sido facturada.`, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
-                await sendBoletaEmail({
-                    boletaId: updatedBoleta.id,
-                    subject: `Boleta de Consignación Facturada: ${updatedBoleta.consecutive}`,
-                    introText: `La boleta <strong>${updatedBoleta.consecutive}</strong> ha sido marcada como facturada.`,
-                    recipientEmails: [creator.email],
-                });
-            }
+            const subject = `Boleta ${updatedBoleta.consecutive} actualizada a: ${statusLabel}`;
+            const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.
+                ${payload.status === 'approved' ? ' Ya está lista para despacho.' : ''}
+                ${payload.status === 'invoiced' ? ` Factura ERP: ${updatedBoleta.erp_invoice_number}` : ''}`;
+                
+            await createNotification({ userId: creator.id, message: subject, href: '/dashboard/consignments/boletas', entityId: updatedBoleta.id, entityType: 'consignment_boleta' });
+            await sendEmail({ to: [creator.email], subject, html: `<p>${introText}</p>` });
         }
+        
+        // 3. Notify agreement-specific users about ANY status change
+        const agreementRecipientEmails = users
+            .filter(u => agreementNotificationUserIds.includes(u.id) && u.id !== creator?.id && u.name !== payload.updatedBy)
+            .map(u => u.email);
+        
+        if (agreementRecipientEmails.length > 0) {
+            const subject = `Actualización de Estado - Boleta ${updatedBoleta.consecutive} (${agreementDetails?.agreement.client_name})`;
+            const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> ha cambiado de estado a <strong>${statusLabel}</strong>.`;
+            await sendEmail({ to: agreementRecipientEmails, subject, html: `<p>${introText}</p>`});
+        }
+
     } catch (e: any) {
         logError('Failed to send boleta status update notification (from actions)', { boletaId: payload.boletaId, error: e.message });
     }
@@ -249,7 +249,8 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
 }
 
 export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<{ boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[] }> {
-    return getBoletasByDateRangeServer(agreementId, dateRange, statuses);
+    const result = await getBoletasByDateRangeServer(agreementId, dateRange, statuses);
+    return { boletas: result };
 }
 
 export async function getActiveConsignmentSessions(): Promise<(CountingSession & { agreement_name: string; user_name: string; })[]> {
@@ -269,4 +270,3 @@ export async function getConsignmentSettings(): Promise<ConsignmentSettings> {
 export async function saveConsignmentSettings(settings: ConsignmentSettings): Promise<void> {
     return saveConsignmentSettingsServer(settings);
 }
-
