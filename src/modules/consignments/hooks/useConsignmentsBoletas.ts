@@ -11,7 +11,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getBoletas, updateBoletaStatus, getBoletaDetails, updateBoleta, getConsignmentAgreements, getAgreementDetails } from '../lib/actions';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { RestockBoleta, BoletaLine, BoletaHistory, ConsignmentSettings, ConsignmentAgreement, Company } from '@/modules/core/types';
+import type { RestockBoleta, BoletaLine, BoletaHistory, ConsignmentSettings, ConsignmentAgreement, Company, RestockBoletaStatus } from '@/modules/core/types';
 import { getConsignmentSettings } from '../lib/actions';
 import { generateDocument } from '@/lib/pdf-generator';
 import { format, parseISO } from 'date-fns';
@@ -107,7 +107,9 @@ export const useConsignmentsBoletas = () => {
             await updateBoletaStatus({
                 boletaId: state.boletaToUpdate.id,
                 updatedBy: user.name,
-                ...state.statusUpdatePayload
+                status: state.statusUpdatePayload.status as RestockBoletaStatus,
+                notes: state.statusUpdatePayload.notes,
+                erpInvoiceNumber: state.statusUpdatePayload.erpInvoiceNumber
             });
             toast({ title: 'Estado Actualizado' });
             updateState({ isStatusModalOpen: false });

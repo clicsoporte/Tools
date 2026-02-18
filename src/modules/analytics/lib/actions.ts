@@ -361,14 +361,14 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
             const consumption = hasFinalCount ? (initialStock + totalReplenished) - finalStock : 0;
             const totalValue = consumption * product.price;
 
-            const relevantBoletas = boletasInPeriod.filter(b => 
-                b.lines.some(l => l.product_id === product.product_id && l.replenish_quantity > 0)
+            const relevantBoletas = boletasInPeriod.filter((b: any) =>
+                b.lines.some((l: any) => l.product_id === product.product_id && l.replenish_quantity > 0)
             );
 
-            const boletaConsecutives = [...new Set(relevantBoletas.map(b => b.consecutive))].join(', ');
-            const creationDates = [...new Set(relevantBoletas.map(b => format(parseISO(b.created_at), 'dd/MM/yy')))].join(', ');
-            const erpInvoices = [...new Set(relevantBoletas.map(b => b.erp_invoice_number).filter(Boolean))].join(', ');
-            const approvers = [...new Set(relevantBoletas.map(b => b.approved_by).filter(Boolean))].join(', ');
+            const boletaConsecutives = [...new Set(relevantBoletas.map((b: any) => b.consecutive))].join(', ');
+            const creationDates = [...new Set(relevantBoletas.map((b: any) => format(parseISO(b.created_at), 'dd/MM/yy')))].join(', ');
+            const erpInvoices = [...new Set(relevantBoletas.map((b: any) => b.erp_invoice_number).filter(Boolean))].join(', ');
+            const approvers = [...new Set(relevantBoletas.map((b: any) => b.approved_by).filter(Boolean))].join(', ');
 
             return {
                 productId: product.product_id,

@@ -468,6 +468,20 @@ export const useCorrectionTool = () => {
             switch (colId) {
                 case 'status': return { type: 'badge', content: statusInfo.label, variant: statusInfo.variant, className: item.status === 'applied' ? 'bg-green-600' : '' };
                 case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono text-xs" };
+                case 'createdAt': return { type: 'string', content: item.createdAt ? format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') : '' };
+                case 'productId': return { type: 'string', content: item.productId };
+                case 'productDescription': return { type: 'multiline', content: [ { text: selectors.getProductName(item.productId) }, { text: item.productId, className: "text-xs text-muted-foreground" } ]};
+                case 'humanReadableId': return { type: 'string', content: item.humanReadableId || 'N/A' };
+                case 'unitCode': return { type: 'string', content: item.unitCode, className: "font-mono text-xs" };
+                case 'documentId': return { type: 'string', content: item.documentId || 'N/A' };
+                case 'erpDocumentId': return { type: 'string', content: item.erpDocumentId || 'N/A' };
+                case 'locationPath': return { type: 'string', content: selectors.getLocationPath(item.locationId), className: "text-xs" };
+                case 'quantity': return { type: 'string', content: item.quantity, className: 'font-bold' };
+                case 'createdBy': return { content: item.createdBy, type: 'string' };
+                case 'annulledBy': return { content: item.annulledBy || '', type: 'string' };
+                case 'annulledAt': return { content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '', type: 'string' };
+                case 'appliedBy': return { content: item.appliedBy || '', type: 'string' };
+                case 'appliedAt': return { content: item.appliedAt ? format(parseISO(item.appliedAt), 'dd/MM/yy HH:mm') : '', type: 'string' };
                 case 'traceability':
                     if (item.correctionConsecutive) {
                         const correctedUnit = state.searchResults.find(u => u.correctedFromUnitId === item.id);
@@ -486,16 +500,7 @@ export const useCorrectionTool = () => {
                             variant: 'outline'
                         };
                     }
-                    return { type: 'string', content: '-', className: "text-muted-foreground" };
-                case 'productDescription': return { type: 'multiline', content: [ { text: selectors.getProductName(item.productId) }, { text: item.productId, className: "text-xs text-muted-foreground" } ]};
-                case 'humanReadableId': return { type: 'string', content: item.humanReadableId || 'N/A' };
-                case 'quantity': return { type: 'string', content: item.quantity, className: 'font-bold' };
-                case 'createdBy': return { content: item.createdBy, type: 'string' };
-                case 'createdAt': return { type: 'string', content: item.createdAt ? format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') : '' };
-                case 'annulledBy': return { type: 'string', content: item.annulledBy || '' };
-                case 'annulledAt': return { type: 'string', content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '' };
-                case 'appliedBy': return { type: 'string', content: item.appliedBy || '' };
-                case 'appliedAt': return { type: 'string', content: item.appliedAt ? format(parseISO(item.appliedAt), 'dd/MM/yy HH:mm') : '' };
+                    return { type: 'string', content: 'N/A' };
                 default: return { content: null, type: 'string' };
             }
         },

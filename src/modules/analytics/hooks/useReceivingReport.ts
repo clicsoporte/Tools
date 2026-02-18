@@ -41,6 +41,8 @@ const availableColumns = [
     { id: 'createdBy', label: 'Usuario' },
     { id: 'annulledBy', label: 'Anulado Por' },
     { id: 'annulledAt', label: 'Fecha Anulación' },
+    { id: 'appliedBy', label: 'Aplicado Por' },
+    { id: 'appliedAt', label: 'Fecha Aplicación' },
 ];
 
 interface State {
@@ -198,7 +200,7 @@ export function useReceivingReport() {
         if (!user) return;
         try {
             await saveUserPreferences(user.id, 'receivingReportPrefs', { visibleColumns: state.visibleColumns });
-            toast({ title: "Preferencias Guardadas" });
+            toast({ title: 'Preferencias Guardadas' });
         } catch (error: any) {
             logError('Failed to save receiving report preferences', { error: error.message });
             toast({ title: 'Error', description: 'No se pudieron guardar las preferencias.', variant: 'destructive' });
@@ -262,7 +264,14 @@ export function useReceivingReport() {
         availableColumns,
         visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as (typeof availableColumns)[0][], [state.visibleColumns]),
         getColumnContent: (item: InventoryUnit, colId: string): { content: any, className?: string, type?: string, variant?: "default" | "secondary" | "destructive" | "outline" | undefined; } => {
+            const statusInfo = {
+                pending: { label: 'Pendiente', variant: 'secondary' },
+                applied: { label: 'Aplicado', variant: 'default' },
+                voided: { label: 'Anulado', variant: 'destructive' },
+            }[item.status] || { label: item.status, variant: 'outline' };
+
             switch (colId) {
+                case 'status': return { type: 'badge', content: statusInfo.label, variant: statusInfo.variant, className: item.status === 'applied' ? 'bg-green-600' : '' };
                 case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A' };
                 case 'createdAt': return { type: 'string', content: item.createdAt ? format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') : '' };
                 case 'productId': return { type: 'string', content: item.productId };
@@ -284,14 +293,16 @@ export function useReceivingReport() {
                         const replacementText = correctedUnit ? `Reemplazado por ${correctedUnit.receptionConsecutive}` : 'Anulado sin reemplazo';
                         return {
                             type: 'badge',
-                            content: { variant: 'destructive', text: `${item.correctionConsecutive} (Anula ${item.receptionConsecutive})` }
+                            content: `${item.correctionConsecutive} (Anula ${item.receptionConsecutive})`,
+                            variant: 'destructive'
                         };
                     }
                     if (item.correctedFromUnitId) {
                         const original = state.data.find(u => u.id === item.correctedFromUnitId);
                         return {
                             type: 'badge',
-                            content: { variant: 'outline', text: `Corrige a ${original?.receptionConsecutive || 'N/A'}` }
+                            content: `Corrige a ${original?.receptionConsecutive || 'N/A'}`,
+                            variant: 'outline'
                         };
                     }
                     return { type: 'string', content: 'N/A' };
@@ -320,7 +331,7 @@ export function useReceivingReport() {
         handleColumnVisibilityChange: (columnId: string, checked: boolean) => {
             updateState({ visibleColumns: checked ? [...state.visibleColumns, columnId] : state.visibleColumns.filter(id => id !== columnId) });
         },
-        handleSavePreferences,
+        handleSavePreferences: savePreferences,
     };
     
     return {
