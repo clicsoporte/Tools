@@ -13,7 +13,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogClose,
@@ -229,7 +228,33 @@ export default function RolesClient() {
         groupPermissions.forEach(p => updatedPermissions.delete(p));
     }
     
-    setCurrentRole({ ...currentRole, permissions: Array.from(updatedPermissions) });
+    // After adding/removing, re-apply the dependency logic to ensure consistency
+    const finalPermissions = new Set<string>();
+    const tempRole = { ...currentRole, permissions: Array.from(updatedPermissions) };
+    
+    // Simulate re-checking all selected permissions to correctly set parents and children
+    updatedPermissions.forEach(p => {
+        handlePermissionChange(p, true, tempRole);
+        // We need to merge the results into a single set
+        tempRole.permissions.forEach(perm => finalPermissions.add(perm));
+    });
+    
+    // If we are unchecking, the logic should remove all children as well
+    if (!check) {
+        groupPermissions.forEach(p => {
+             const updateChildren = (perm: string) => {
+                if (permissionTree[perm]) {
+                    for (const child of permissionTree[perm]) {
+                        finalPermissions.delete(child);
+                        updateChildren(child);
+                    }
+                }
+            };
+            updateChildren(p);
+        });
+    }
+
+    setCurrentRole({ ...currentRole, permissions: Array.from(finalPermissions) });
   };
 
 
@@ -257,30 +282,24 @@ export default function RolesClient() {
           </div>
         </summary>
         <div className="pl-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 border-l-2 ml-2 pl-4">
-          {permissions.map((permission) => {
-            const parents = Object.keys(permissionTree).filter(p => permissionTree[p].includes(permission));
-            const isDisabled =
-              role.id === 'admin' ||
-              (parents.length > 0 && parents.some(p => role.permissions.includes(p)));
-            return (
-              <div key={permission} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`${role.id}-${permission}`}
-                  checked={role.permissions.includes(permission)}
-                  onCheckedChange={(checked) =>
-                    handlePermissionChange(permission, !!checked, role)
-                  }
-                  disabled={isDisabled}
-                />
-                <Label
-                  htmlFor={`${role.id}-${permission}`}
-                  className="font-normal text-sm"
-                >
-                  {(permissionTranslations as any)[permission] || permission}
-                </Label>
-              </div>
-            );
-          })}
+          {permissions.map((permission) => (
+            <div key={permission} className="flex items-center space-x-2">
+              <Checkbox
+                id={`${role.id}-${permission}`}
+                checked={role.permissions.includes(permission)}
+                onCheckedChange={(checked) =>
+                  handlePermissionChange(permission, !!checked, role)
+                }
+                disabled={role.id === 'admin'}
+              />
+              <Label
+                htmlFor={`${role.id}-${permission}`}
+                className="font-normal text-sm"
+              >
+                {(permissionTranslations as any)[permission] || permission}
+              </Label>
+            </div>
+          ))}
         </div>
       </details>
     );

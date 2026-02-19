@@ -103,84 +103,43 @@ export const permissionTranslations: { [key: string]: string } = {
 };
 
 export const permissionTree: Record<string, string[]> = {
-    // --- System Wide ---
-    "admin:access": allAdminPermissions.filter(p => p !== "admin:access"),
+    // Top-level Access
+    "admin:access": allAdminPermissions.filter(p => p !== 'admin:access'),
+    "analytics:read": ["analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read", "analytics:consignments-report:read"],
+    "warehouse:access": ["warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", "warehouse:correction:execute", "warehouse:correction:apply", "warehouse:labels:generate"],
+    "requests:read": ["requests:read:all", "requests:create"],
+    "planner:read": ["planner:read:all", "planner:create"],
+    "consignments:access": ["consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read", "consignments:locks:manage"],
+    "consignments:boletas:read": ["consignments:boletas:read:all"],
+    "operations:access": ["operations:create", "operations:read:all", "operations:approve", "operations:sign"],
+    "it-tools:access": ["it-tools:notes:read"],
+    "quotes:create": ["quotes:generate", "quotes:drafts:create", "quotes:drafts:read", "quotes:drafts:delete"],
 
-    // --- General Access Patterns (Specific actions grant general module access) ---
-    "requests:create": ["requests:read"],
-    "requests:read:all": ["requests:read"],
-    "planner:create": ["planner:read"],
-    "planner:read:all": ["planner:read"],
-    "cost-assistant:drafts:read-write": ["cost-assistant:access"],
-    "it-tools:notes:create": ["it-tools:notes:read"],
-    "it-tools:notes:read": ["it-tools:access"],
-    "consignments:setup": ["consignments:access"],
-    "consignments:count": ["consignments:access"],
-    "consignments:boletas:read": ["consignments:access"],
-    "consignments:reports:read": ["consignments:access"],
-    "consignments:locks:manage": ["consignments:access"],
-    "consignments:boletas:read:all": ["consignments:boletas:read"],
-    "warehouse:search:full": ["warehouse:access"],
-    "warehouse:receiving-wizard:use": ["warehouse:access"],
-    "operations:create": ["operations:access"],
-    "analytics:purchase-suggestions:read": ["analytics:read"],
-    "analytics:purchase-report:read": ["analytics:read"],
-    "analytics:production-report:read": ["analytics:read"],
-    "analytics:transits-report:read": ["analytics:read"],
-    "analytics:user-permissions:read": ["analytics:read"],
-    "analytics:physical-inventory-report:read": ["analytics:read"],
-    "analytics:receiving-report:read": ["analytics:read"],
-    "analytics:item-assignments-report:read": ["analytics:read"],
-    "analytics:occupancy-report:read": ["analytics:read"],
-    "analytics:consignments-report:read": ["analytics:read"],
+    // Second-level dependencies
+    "users:read": ["users:create", "users:update", "users:delete"],
+    "roles:read": ["roles:create", "roles:update", "roles:delete"],
+    "admin:import:run": ["admin:import:files", "admin:import:sql", "admin:import:sql-config"],
+    "admin:logs:read": ["admin:logs:clear"],
+    "admin:maintenance:backup": ["admin:maintenance:restore", "admin:maintenance:reset"],
+    "it-tools:notes:read": ["it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
     
-    // --- Logical Hierarchies (Higher privilege grants lower) ---
-    
+    // --- Specific Hierarchies (Granting X also grants Y) ---
     // Requests
     "requests:edit:approved": ["requests:edit:pending"],
     "requests:view:margin": ["requests:view:cost"],
     "requests:view:cost": ["requests:view:sale-price"],
     "requests:status:approve": ["requests:status:pending-approval"],
     "requests:status:pending-approval": ["requests:status:review"],
-    "requests:status:ordered": ["requests:status:approve"],
-    "requests:status:received-in-warehouse": ["requests:status:ordered"],
-    "requests:status:entered-erp": ["requests:status:received-in-warehouse"],
     "requests:status:unapproval-request:approve": ["requests:status:unapproval-request"],
 
     // Planner
     "planner:edit:approved": ["planner:edit:pending"],
     "planner:status:approve": ["planner:status:review"],
-    "planner:status:in-progress": ["planner:status:approve"],
-    "planner:status:completed": ["planner:status:in-progress", "planner:status:on-hold"],
-    "planner:status:cancel-approved": ["planner:status:cancel"],
     "planner:status:unapprove-request:approve": ["planner:status:unapprove-request"],
 
-    // Consignments (Boletas) - Each flow action requires read access. They are independent of each other.
-    "consignments:boleta:approve": ["consignments:boletas:read"],
-    "consignments:boleta:send": ["consignments:boletas:read"],
-    "consignments:boleta:invoice": ["consignments:boletas:read"],
-    "consignments:boleta:cancel": ["consignments:boletas:read"],
-    "consignments:boleta:revert": ["consignments:boletas:read"],
-    
-    // Admin & User Management
-    "users:create": ["users:read"],
-    "users:update": ["users:read"],
-    "users:delete": ["users:update"],
-    "roles:create": ["roles:read"],
-    "roles:update": ["roles:read"],
-    "roles:delete": ["roles:update"],
-    
-    // Other simple hierarchies
-    "admin:import:sql-config": ["admin:import:sql"],
-    "admin:import:sql": ["admin:import:run"],
-    "admin:import:files": ["admin:import:run"],
-    "admin:logs:clear": ["admin:logs:read"],
-    "admin:maintenance:restore": ["admin:maintenance:backup"],
-    "admin:maintenance:reset": ["admin:maintenance:backup"],
-    "it-tools:notes:update": ["it-tools:notes:create"],
-    "it-tools:notes:delete": ["it-tools:notes:update"],
+    // Warehouse
     "warehouse:locations:update": ["warehouse:locations:create"],
-    "warehouse:locations:delete": ["warehouse:locations:create"],
+    "warehouse:locations:delete": ["warehouse:locations:update"],
+    "warehouse:item-assignment:delete": ["warehouse:item-assignment:create"],
     "warehouse:units:delete": ["warehouse:units:create"],
 };
-
