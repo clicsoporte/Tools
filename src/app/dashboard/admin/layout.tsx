@@ -9,25 +9,7 @@ import type { ReactNode } from "react";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-
-const adminNavLinks = [
-    { href: '/dashboard/admin/general', label: 'General' },
-    { href: '/dashboard/admin/users', label: 'Usuarios' },
-    { href: '/dashboard/admin/roles', label: 'Roles' },
-    { href: '/dashboard/admin/import', label: 'Importación' },
-    { href: '/dashboard/admin/maintenance', label: 'Mantenimiento' },
-    { href: '/dashboard/admin/logs', label: 'Visor de Eventos' },
-    { href: '/dashboard/admin/suggestions', label: 'Buzón de Sugerencias' },
-    { href: '/dashboard/admin/quoter', label: 'Cotizador' },
-    { href: '/dashboard/admin/planner', label: 'Planificador' },
-    { href: '/dashboard/admin/requests', label: 'Compras' },
-    { href: '/dashboard/admin/consignments', label: 'Consignación' },
-    { href: '/dashboard/admin/warehouse', label: 'Almacén' },
-    { href: '/dashboard/admin/cost-assistant', label: 'Asist. Costos' },
-    { href: '/dashboard/admin/api', label: 'API' },
-    { href: '/dashboard/admin/email', label: 'Correo' },
-    { href: '/dashboard/admin/analytics', label: 'Analíticas' },
-];
+import { adminTools } from "@/modules/core/lib/data";
 
 export default function AdminLayout({
   children,
@@ -41,7 +23,7 @@ export default function AdminLayout({
             <div className="border-b">
                 <div className="px-4 md:px-6 lg:px-8">
                      <nav className="flex items-center space-x-4 lg:space-x-6 overflow-x-auto py-2">
-                        {adminNavLinks.sort((a, b) => a.label.localeCompare(b.label)).map(link => (
+                        {adminTools.sort((a,b) => a.name.localeCompare(b.name)).map(link => (
                             <Link 
                                 key={link.href}
                                 href={link.href}
@@ -50,7 +32,7 @@ export default function AdminLayout({
                                     pathname === link.href ? "text-primary" : "text-muted-foreground"
                                 )}
                             >
-                                {link.label}
+                                {link.name}
                             </Link>
                         ))}
                     </nav>

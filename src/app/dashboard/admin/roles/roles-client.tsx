@@ -38,6 +38,7 @@ import {
   permissionGroups,
   permissionTranslations,
   permissionTree,
+  AppPermission,
 } from '@/modules/core/lib/permissions';
 import { getAllRoles, saveAllRoles, resetDefaultRoles } from '@/modules/core/lib/db';
 import type { Role } from '@/modules/core/types';
@@ -180,80 +181,66 @@ export default function RolesClient() {
     await logInfo('Admin role reset to default');
   };
 
-  const handlePermissionChange = (permission: string, isChecked: boolean, role: Role) => {
+  const handlePermissionChange = (permission: AppPermission, isChecked: boolean, role: Role) => {
     if (!currentRole) return;
 
-    let newPermissions = new Set(role.permissions);
+    let newPermissions = new Set(role.permissions as AppPermission[]);
 
-    const updateChildrenRecursive = (perm: string, add: boolean) => {
-        if (add) {
-            newPermissions.add(perm);
-        } else {
-            newPermissions.delete(perm);
-        }
-
-        const children = permissionTree[perm as keyof typeof permissionTree] || [];
-        for (const child of children) {
-            updateChildrenRecursive(child, add);
-        }
-    };
-    
-    const updateParentsRecursive = (perm: string) => {
+    const addWithParents = (perm: AppPermission) => {
+        newPermissions.add(perm);
         for (const parent in permissionTree) {
-            if (permissionTree[parent as keyof typeof permissionTree].includes(perm)) {
-                if (!newPermissions.has(parent)) {
-                    newPermissions.add(parent);
-                    updateParentsRecursive(parent);
-                }
+            const parentPerm = parent as AppPermission;
+            if (permissionTree[parentPerm]?.includes(perm)) {
+                addWithParents(parentPerm);
             }
         }
     };
-
+    
+    const removeWithChildren = (perm: AppPermission) => {
+        newPermissions.delete(perm);
+        const children = permissionTree[perm] || [];
+        for (const child of children) {
+            removeWithChildren(child as AppPermission);
+        }
+    };
+    
     if (isChecked) {
-        newPermissions.add(permission);
-        updateParentsRecursive(permission);
+        addWithParents(permission);
     } else {
-        // When unchecking a permission, we must also uncheck all its children.
-        updateChildrenRecursive(permission, false);
+        removeWithChildren(permission);
     }
     
     setCurrentRole({ ...role, permissions: Array.from(newPermissions) });
   };
   
- const handleGroupPermissionChange = (groupPermissions: string[], check: boolean) => {
+ const handleGroupPermissionChange = (groupPermissions: AppPermission[], check: boolean) => {
     if (!currentRole) return;
-    let newPermissions = new Set(currentRole.permissions);
+    
+    let newPermissions = new Set(currentRole.permissions as AppPermission[]);
 
-    const updateChildrenRecursive = (perm: string, add: boolean) => {
-        if (add) {
-            newPermissions.add(perm);
-        } else {
-            newPermissions.delete(perm);
-        }
-        const children = permissionTree[perm as keyof typeof permissionTree] || [];
-        for (const child of children) {
-            updateChildrenRecursive(child, add);
+    const addWithParents = (perm: AppPermission) => {
+        newPermissions.add(perm);
+        for (const parent in permissionTree) {
+            const parentPerm = parent as AppPermission;
+            if (permissionTree[parentPerm]?.includes(perm)) {
+                addWithParents(parentPerm);
+            }
         }
     };
 
-    const updateParentsRecursive = (perm: string) => {
-        for (const parent in permissionTree) {
-            if (permissionTree[parent as keyof typeof permissionTree].includes(perm)) {
-                if (!newPermissions.has(parent)) {
-                    newPermissions.add(parent);
-                    updateParentsRecursive(parent);
-                }
-            }
+    const removeWithChildren = (perm: AppPermission) => {
+        newPermissions.delete(perm);
+        const children = permissionTree[perm] || [];
+        for (const child of children) {
+            removeWithChildren(child as AppPermission);
         }
     };
 
     groupPermissions.forEach(p => {
         if (check) {
-            newPermissions.add(p);
-            updateParentsRecursive(p);
+            addWithParents(p);
         } else {
-            // When unchecking a whole group, also uncheck all children of those permissions.
-            updateChildrenRecursive(p, false);
+            removeWithChildren(p);
         }
     });
 
@@ -263,7 +250,7 @@ export default function RolesClient() {
 
   const renderPermissionGroup = (
     groupName: string,
-    permissions: string[],
+    permissions: AppPermission[],
     role: Role
   ) => {
     const allSelectedInGroup = permissions.every(p => role.permissions.includes(p));
@@ -436,7 +423,7 @@ export default function RolesClient() {
               <ScrollArea className="h-[50vh] rounded-md border p-4">
                 <div className="space-y-6">
                   {Object.entries(permissionGroups).map(([groupName, perms]) =>
-                    renderPermissionGroup(groupName, perms, currentRole)
+                    renderPermissionGroup(groupName, perms as AppPermission[], currentRole)
                   )}
                 </div>
               </ScrollArea>

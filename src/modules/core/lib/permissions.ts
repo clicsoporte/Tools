@@ -85,7 +85,7 @@ export const permissionTranslations = {
 
 export type AppPermission = keyof typeof permissionTranslations;
 
-export const allAdminPermissions: AppPermission[] = Object.values(permissionGroups).flat();
+export const allAdminPermissions: AppPermission[] = Object.values(permissionGroups).flat() as AppPermission[];
 
 export const analyticsPermissions = permissionGroups["Analíticas y Reportes"];
 
@@ -101,6 +101,8 @@ export const permissionTree: Partial<Record<AppPermission, AppPermission[]>> = {
         "consignments:access", "warehouse:access", "hacienda:query",
         "operations:access", "it-tools:access", "analytics:read", "admin:access"
     ],
+    
+    // --- Admin ---
     "admin:access": [
         "users:read", "roles:read", "admin:settings:general", "admin:settings:api", 
         "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", 
@@ -108,6 +110,13 @@ export const permissionTree: Partial<Record<AppPermission, AppPermission[]>> = {
         "admin:settings:consignments", "admin:suggestions:read", "admin:import:run", 
         "admin:logs:read", "admin:maintenance:backup"
     ],
+    "users:read": ["users:create", "users:update", "users:delete"],
+    "roles:read": ["roles:create", "roles:update", "roles:delete"],
+    "admin:import:run": ["admin:import:files", "admin:import:sql", "admin:import:sql-config"],
+    "admin:logs:read": ["admin:logs:clear"],
+    "admin:maintenance:backup": ["admin:maintenance:restore", "admin:maintenance:reset"],
+
+    // --- Analytics ---
     "analytics:read": [
         "analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", 
         "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", 
@@ -115,50 +124,37 @@ export const permissionTree: Partial<Record<AppPermission, AppPermission[]>> = {
         "analytics:consignments-report:read"
     ],
 
-    // --- Module-Specific Hierarchies ---
-    
-    // Purchase Requests
-    "requests:read": ["requests:create"],
-    "requests:create": ["requests:edit:pending", "requests:create:duplicate", "requests:notes:add"],
+    // --- Purchase Requests ---
+    "requests:read": ["requests:read:all", "requests:create", "requests:notes:add"],
+    "requests:create": ["requests:edit:pending", "requests:create:duplicate"],
     "requests:status:review": ["requests:read"],
     "requests:status:pending-approval": ["requests:status:review"],
-    "requests:status:approve": ["requests:status:pending-approval"],
-    "requests:status:approve": ["requests:edit:approved"],
+    "requests:status:approve": ["requests:status:pending-approval", "requests:edit:approved"],
     "requests:status:ordered": ["requests:status:approve"],
     "requests:status:received-in-warehouse": ["requests:status:ordered"],
     "requests:status:entered-erp": ["requests:status:received-in-warehouse"],
     "requests:view:cost": ["requests:view:sale-price"],
     "requests:view:margin": ["requests:view:cost"],
-    "requests:reopen": ["requests:read"],
-    "requests:status:unapproval-request": ["requests:read"],
-    "requests:status:unapproval-request:approve": ["requests:status:unapproval-request"],
 
-    // Production Planner
-    "planner:read": ["planner:create"],
+    // --- Production Planner ---
+    "planner:read": ["planner:read:all", "planner:create"],
     "planner:create": ["planner:edit:pending"],
     "planner:status:review": ["planner:read"],
     "planner:status:approve": ["planner:status:review", "planner:edit:approved"],
-    "planner:status:in-progress": ["planner:status:approve"],
+    "planner:status:in-progress": ["planner:status:approve", "planner:priority:update", "planner:machine:assign", "planner:schedule"],
     "planner:status:on-hold": ["planner:status:in-progress"],
     "planner:status:completed": ["planner:status:in-progress"],
     "planner:receive": ["planner:status:completed"],
-    
-    // Consignments
-    "consignments:access": ["consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read", "consignments:locks:manage"],
-    "consignments:boletas:read": ["consignments:boletas:read:all"],
-    "consignments:boleta:approve": ["consignments:boletas:read"],
-    "consignments:boleta:send": ["consignments:boletas:read"],
-    "consignments:boleta:invoice": ["consignments:boletas:read"],
-    "consignments:boleta:cancel": ["consignments:boletas:read"],
-    "consignments:boleta:revert": ["consignments:boletas:read"],
 
-    // IT Tools
-    "it-tools:access": ["it-tools:notes:read"],
-    "it-tools:notes:read": ["it-tools:notes:create"],
-    "it-tools:notes:update": ["it-tools:notes:read"],
-    "it-tools:notes:delete": ["it-tools:notes:read"],
+    // --- Consignments ---
+    "consignments:access": ["consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read", "consignments:locks:manage"],
+    "consignments:boletas:read": ["consignments:boletas:read:all", "consignments:boleta:approve", "consignments:boleta:send", "consignments:boleta:invoice", "consignments:boleta:cancel", "consignments:boleta:revert"],
     
-    // Warehouse
+    // --- IT Tools ---
+    "it-tools:access": ["it-tools:notes:read"],
+    "it-tools:notes:read": ["it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
+    
+    // --- Warehouse ---
     "warehouse:access": [
         "warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", 
         "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", 
@@ -170,11 +166,4 @@ export const permissionTree: Partial<Record<AppPermission, AppPermission[]>> = {
     "warehouse:locations:delete": ["warehouse:locations:create"],
     "warehouse:units:delete": ["warehouse:units:create"],
     "warehouse:correction:apply": ["warehouse:correction:execute"],
-
-    // Admin Sub-permissions
-    "users:read": ["users:create", "users:update", "users:delete"],
-    "roles:read": ["roles:create", "roles:update", "roles:delete"],
-    "admin:import:run": ["admin:import:files", "admin:import:sql", "admin:import:sql-config"],
-    "admin:logs:read": ["admin:logs:clear"],
-    "admin:maintenance:backup": ["admin:maintenance:restore", "admin:maintenance:reset"],
 };
