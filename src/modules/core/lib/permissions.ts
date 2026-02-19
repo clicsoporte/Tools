@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file centralizes all permission-related constants and logic.
  * Separating this from data.ts breaks a problematic dependency cycle.
@@ -104,58 +103,84 @@ export const permissionTranslations: { [key: string]: string } = {
 };
 
 export const permissionTree: Record<string, string[]> = {
-    // Top-level Access
-    "admin:access": ["users:read", "roles:read", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics", "admin:settings:consignments", "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:maintenance:backup"],
-    "analytics:read": ["analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read", "analytics:consignments-report:read"],
-    "warehouse:access": ["warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", "warehouse:correction:execute", "warehouse:labels:generate"],
-    "consignments:access": ["consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read", "consignments:locks:manage"],
-    "operations:access": ["operations:create", "operations:read:all", "operations:approve", "operations:sign"],
-    "it-tools:access": ["it-tools:notes:read"],
-    "quotes:create": ["quotes:generate", "quotes:drafts:read"],
+    // --- System Wide ---
+    "admin:access": allAdminPermissions.filter(p => p !== "admin:access"),
 
-    // Second-level dependencies
+    // --- General Access Patterns (Specific actions grant general module access) ---
+    "requests:create": ["requests:read"],
     "requests:read:all": ["requests:read"],
+    "planner:create": ["planner:read"],
     "planner:read:all": ["planner:read"],
+    "cost-assistant:drafts:read-write": ["cost-assistant:access"],
+    "it-tools:notes:create": ["it-tools:notes:read"],
+    "it-tools:notes:read": ["it-tools:access"],
+    "consignments:setup": ["consignments:access"],
+    "consignments:count": ["consignments:access"],
+    "consignments:boletas:read": ["consignments:access"],
+    "consignments:reports:read": ["consignments:access"],
+    "consignments:locks:manage": ["consignments:access"],
     "consignments:boletas:read:all": ["consignments:boletas:read"],
-
-    "users:read": ["users:create", "users:update", "users:delete"],
-    "roles:read": ["roles:create", "roles:update", "roles:delete"],
-    "admin:import:run": ["admin:import:files", "admin:import:sql", "admin:import:sql-config"],
-    "admin:logs:read": ["admin:logs:clear"],
-    "admin:maintenance:backup": ["admin:maintenance:restore", "admin:maintenance:reset"],
-    "it-tools:notes:read": ["it-tools:notes:create"],
-    "it-tools:notes:create": ["it-tools:notes:update"],
-    "it-tools:notes:update": ["it-tools:notes:delete"],
-    "quotes:drafts:read": ["quotes:drafts:create"],
-    "quotes:drafts:create": ["quotes:drafts:delete"],
-    "warehouse:correction:execute": ["warehouse:correction:apply"],
-
-    "requests:create": ["requests:notes:add", "requests:edit:pending", "requests:create:duplicate"],
+    "warehouse:search:full": ["warehouse:access"],
+    "warehouse:receiving-wizard:use": ["warehouse:access"],
+    "operations:create": ["operations:access"],
+    "analytics:purchase-suggestions:read": ["analytics:read"],
+    "analytics:purchase-report:read": ["analytics:read"],
+    "analytics:production-report:read": ["analytics:read"],
+    "analytics:transits-report:read": ["analytics:read"],
+    "analytics:user-permissions:read": ["analytics:read"],
+    "analytics:physical-inventory-report:read": ["analytics:read"],
+    "analytics:receiving-report:read": ["analytics:read"],
+    "analytics:item-assignments-report:read": ["analytics:read"],
+    "analytics:occupancy-report:read": ["analytics:read"],
+    "analytics:consignments-report:read": ["analytics:read"],
+    
+    // --- Logical Hierarchies (Higher privilege grants lower) ---
+    
+    // Requests
     "requests:edit:approved": ["requests:edit:pending"],
-    "requests:status:approve": ["requests:status:review", "requests:status:pending-approval"],
+    "requests:view:margin": ["requests:view:cost"],
+    "requests:view:cost": ["requests:view:sale-price"],
+    "requests:status:approve": ["requests:status:pending-approval"],
+    "requests:status:pending-approval": ["requests:status:review"],
     "requests:status:ordered": ["requests:status:approve"],
     "requests:status:received-in-warehouse": ["requests:status:ordered"],
     "requests:status:entered-erp": ["requests:status:received-in-warehouse"],
     "requests:status:unapproval-request:approve": ["requests:status:unapproval-request"],
 
-    // New granular financial permissions
-    "requests:view:margin": ["requests:view:cost"],
-    "requests:view:cost": ["requests:view:sale-price"],
-    
-    "planner:create": ["planner:edit:pending"],
+    // Planner
     "planner:edit:approved": ["planner:edit:pending"],
     "planner:status:approve": ["planner:status:review"],
     "planner:status:in-progress": ["planner:status:approve"],
+    "planner:status:completed": ["planner:status:in-progress", "planner:status:on-hold"],
+    "planner:status:cancel-approved": ["planner:status:cancel"],
     "planner:status:unapprove-request:approve": ["planner:status:unapprove-request"],
 
-    "warehouse:locations:create": ["warehouse:locations:update", "warehouse:locations:delete"],
-    "warehouse:item-assignment:create": ["warehouse:item-assignment:delete"],
-    "warehouse:units:create": ["warehouse:units:delete"],
-
-    // Consignments Flow - Hierarchical
-    "consignments:boleta:send": ["consignments:boleta:approve"],
-    "consignments:boleta:invoice": ["consignments:boleta:send"],
-    "consignments:boleta:cancel": ["consignments:boleta:approve"],
-    "consignments:boleta:revert": ["consignments:boleta:invoice"],
+    // Consignments (Boletas) - Each flow action requires read access. They are independent of each other.
+    "consignments:boleta:approve": ["consignments:boletas:read"],
+    "consignments:boleta:send": ["consignments:boletas:read"],
+    "consignments:boleta:invoice": ["consignments:boletas:read"],
+    "consignments:boleta:cancel": ["consignments:boletas:read"],
+    "consignments:boleta:revert": ["consignments:boletas:read"],
+    
+    // Admin & User Management
+    "users:create": ["users:read"],
+    "users:update": ["users:read"],
+    "users:delete": ["users:update"],
+    "roles:create": ["roles:read"],
+    "roles:update": ["roles:read"],
+    "roles:delete": ["roles:update"],
+    
+    // Other simple hierarchies
+    "admin:import:sql-config": ["admin:import:sql"],
+    "admin:import:sql": ["admin:import:run"],
+    "admin:import:files": ["admin:import:run"],
+    "admin:logs:clear": ["admin:logs:read"],
+    "admin:maintenance:restore": ["admin:maintenance:backup"],
+    "admin:maintenance:reset": ["admin:maintenance:backup"],
+    "it-tools:notes:update": ["it-tools:notes:create"],
+    "it-tools:notes:delete": ["it-tools:notes:update"],
+    "warehouse:locations:update": ["warehouse:locations:create"],
+    "warehouse:locations:delete": ["warehouse:locations:create"],
+    "warehouse:units:delete": ["warehouse:units:create"],
 };
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -193,7 +192,7 @@ export default function RolesClient() {
         for (const child of permissionTree[perm]) {
           if (add) newPermissions.add(child);
           else newPermissions.delete(child);
-          updateChildren(child, add);
+          updateChildren(child, add); // recursive call
         }
       }
     };
@@ -259,11 +258,10 @@ export default function RolesClient() {
         </summary>
         <div className="pl-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 border-l-2 ml-2 pl-4">
           {permissions.map((permission) => {
-            const parentForThisPermission = Object.keys(permissionTree).find(p => permissionTree[p].includes(permission));
+            const parents = Object.keys(permissionTree).filter(p => permissionTree[p].includes(permission));
             const isDisabled =
               role.id === 'admin' ||
-              (!!parentForThisPermission &&
-                role.permissions.includes(parentForThisPermission));
+              (parents.length > 0 && parents.some(p => role.permissions.includes(p)));
             return (
               <div key={permission} className="flex items-center space-x-2">
                 <Checkbox
