@@ -5,8 +5,7 @@
  */
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import type { AppPermission } from '@/modules/core/lib/permissions';
 
@@ -24,12 +23,8 @@ type UseAuthorizationReturn = {
  * @returns An object containing the authorization status, loading state, and the `hasPermission` function.
  */
 export function useAuthorization(requiredPermissions: AppPermission | AppPermission[] = []): UseAuthorizationReturn {
-    const router = useRouter();
     // Get the centralized permission checker and auth readiness state from useAuth
     const { hasPermission, isAuthReady } = useAuth(); 
-
-    // Memoize the string representation of the permissions to avoid re-renders.
-    const depsString = JSON.stringify(requiredPermissions);
 
     // isAuthorized is now derived directly and memoized from the hasPermission function
     const isAuthorized = useMemo(() => {
@@ -46,7 +41,7 @@ export function useAuthorization(requiredPermissions: AppPermission | AppPermiss
         }
 
         return hasPermission(permissionsToCheck);
-    }, [isAuthReady, depsString, hasPermission]); // Use the stringified dependency
+    }, [isAuthReady, requiredPermissions, hasPermission]); // Correctly list 'requiredPermissions' as a dependency.
 
     return {
         isAuthorized,
