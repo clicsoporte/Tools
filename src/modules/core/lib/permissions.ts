@@ -107,14 +107,16 @@ export const permissionTree: Record<string, string[]> = {
     "admin:access": ["users:read", "roles:read", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics", "admin:settings:consignments", "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:maintenance:backup"],
     "analytics:read": ["analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read", "analytics:consignments-report:read"],
     "warehouse:access": ["warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", "warehouse:correction:execute", "warehouse:labels:generate"],
-    "requests:read": ["requests:read:all", "requests:create"],
-    "planner:read": ["planner:read:all", "planner:create"],
     "consignments:access": ["consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read", "consignments:locks:manage"],
     "operations:access": ["operations:create", "operations:read:all", "operations:approve", "operations:sign"],
     "it-tools:access": ["it-tools:notes:read"],
     "quotes:create": ["quotes:generate", "quotes:drafts:read"],
 
     // Second-level dependencies
+    "requests:read:all": ["requests:read"],
+    "planner:read:all": ["planner:read"],
+    "consignments:boletas:read:all": ["consignments:boletas:read"],
+
     "users:read": ["users:create", "users:update", "users:delete"],
     "roles:read": ["roles:create", "roles:update", "roles:delete"],
     "admin:import:run": ["admin:import:files", "admin:import:sql", "admin:import:sql-config"],
@@ -126,12 +128,6 @@ export const permissionTree: Record<string, string[]> = {
     "quotes:drafts:read": ["quotes:drafts:create"],
     "quotes:drafts:create": ["quotes:drafts:delete"],
     "warehouse:correction:execute": ["warehouse:correction:apply"],
-    "consignments:boletas:read": ["consignments:boletas:read:all"],
-    "consignments:boletas:read:all": ["consignments:boleta:approve"],
-    "consignments:boleta:approve": ["consignments:boleta:send"],
-    "consignments:boleta:send": ["consignments:boleta:invoice"],
-    "consignments:boleta:invoice": ["consignments:boleta:cancel", "consignments:boleta:revert"],
-
 
     "requests:create": ["requests:notes:add", "requests:edit:pending", "requests:create:duplicate"],
     "requests:edit:pending": ["requests:status:review"],
@@ -142,18 +138,16 @@ export const permissionTree: Record<string, string[]> = {
     "requests:status:received-in-warehouse": ["requests:status:entered-erp"],
     "requests:status:unapproval-request": ["requests:status:unapproval-request:approve"],
 
-    // New granular financial permissions
     "requests:view:margin": ["requests:view:cost"],
     "requests:view:cost": ["requests:view:sale-price"],
     
     "planner:create": ["planner:edit:pending", "planner:status:review"],
     "planner:status:review": ["planner:status:approve"],
     "planner:status:approve": ["planner:edit:approved", "planner:status:in-progress", "planner:status:on-hold", "planner:status:completed", "planner:status:cancel-approved", "planner:status:unapprove-request", "planner:priority:update", "planner:machine:assign", "planner:schedule"],
-    "planner:status:on-hold": ["planner:status:in-progress"], // Can resume
+    "planner:status:on-hold": ["planner:status:in-progress"], 
     "planner:status:completed": ["planner:receive", "planner:reopen"],
     "planner:status:cancel-approved": ["planner:reopen"],
     "planner:status:unapprove-request": ["planner:status:unapprove-request:approve"],
-
 
     "warehouse:locations:create": ["warehouse:locations:update", "warehouse:locations:delete"],
     "warehouse:item-assignment:create": ["warehouse:item-assignment:delete"],

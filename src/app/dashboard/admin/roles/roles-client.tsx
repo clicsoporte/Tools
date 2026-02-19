@@ -223,17 +223,16 @@ export default function RolesClient() {
     permissions: string[],
     role: Role
   ) => {
-    const parentPermission = Object.keys(permissionTree).find(p => permissionTree[p].includes(permissions[0]));
-
     return (
-      <details key={groupName} className="space-y-2">
+      <details key={groupName} className="space-y-2" open>
         <summary className="cursor-pointer font-medium">{groupName}</summary>
         <div className="pl-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 border-l-2 ml-2 pl-4">
           {permissions.map((permission) => {
+            const parentForThisPermission = Object.keys(permissionTree).find(p => permissionTree[p].includes(permission));
             const isDisabled =
               role.id === 'admin' ||
-              (!!parentPermission &&
-                role.permissions.includes(parentPermission));
+              (!!parentForThisPermission &&
+                role.permissions.includes(parentForThisPermission));
             return (
               <div key={permission} className="flex items-center space-x-2">
                 <Checkbox
