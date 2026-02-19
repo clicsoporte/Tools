@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -13,6 +14,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogClose,
@@ -179,41 +181,48 @@ export default function RolesClient() {
     await logInfo('Admin role reset to default');
   };
 
-  const handlePermissionChange = (
-    permission: string,
-    isChecked: boolean,
-    role: Role
-  ) => {
+  const handlePermissionChange = (permission: string, isChecked: boolean, role: Role) => {
+    if (!currentRole) return;
     let newPermissions = new Set(role.permissions);
 
+    // Function to recursively handle children
     const updateChildren = (perm: string, add: boolean) => {
-      if (permissionTree[perm]) {
-        for (const child of permissionTree[perm]) {
-          if (add) newPermissions.add(child);
-          else newPermissions.delete(child);
-          updateChildren(child, add); // recursive call
+        if (permissionTree[perm]) {
+            for (const child of permissionTree[perm]) {
+                if (add) {
+                    newPermissions.add(child);
+                } else {
+                    newPermissions.delete(child);
+                }
+                updateChildren(child, add);
+            }
         }
-      }
     };
-
+    
+    // Function to recursively handle parents
     const updateParents = (perm: string) => {
-      for (const parent in permissionTree) {
-        if (permissionTree[parent].includes(perm)) {
-          newPermissions.add(parent);
-          updateParents(parent);
+        for (const parent in permissionTree) {
+            if (permissionTree[parent].includes(perm)) {
+                // If any child is selected, the parent should be selected
+                if (Array.from(newPermissions).some(p => permissionTree[parent].includes(p))) {
+                    if (!newPermissions.has(parent)) {
+                         newPermissions.add(parent);
+                         updateParents(parent);
+                    }
+                }
+            }
         }
-      }
     };
 
     if (isChecked) {
-      newPermissions.add(permission);
-      updateChildren(permission, true);
-      updateParents(permission);
+        newPermissions.add(permission);
+        updateChildren(permission, true);
+        updateParents(permission);
     } else {
-      newPermissions.delete(permission);
-      updateChildren(permission, false);
+        newPermissions.delete(permission);
+        // We don't need to update children on uncheck if we use a different group logic
     }
-
+    
     setCurrentRole({ ...role, permissions: Array.from(newPermissions) });
   };
   
@@ -222,39 +231,22 @@ export default function RolesClient() {
 
     let updatedPermissions = new Set(currentRole.permissions);
 
-    if (check) {
-        groupPermissions.forEach(p => updatedPermissions.add(p));
-    } else {
-        groupPermissions.forEach(p => updatedPermissions.delete(p));
-    }
-    
-    // After adding/removing, re-apply the dependency logic to ensure consistency
-    const finalPermissions = new Set<string>();
-    const tempRole = { ...currentRole, permissions: Array.from(updatedPermissions) };
-    
-    // Simulate re-checking all selected permissions to correctly set parents and children
-    updatedPermissions.forEach(p => {
-        handlePermissionChange(p, true, tempRole);
-        // We need to merge the results into a single set
-        tempRole.permissions.forEach(perm => finalPermissions.add(perm));
-    });
-    
-    // If we are unchecking, the logic should remove all children as well
-    if (!check) {
-        groupPermissions.forEach(p => {
-             const updateChildren = (perm: string) => {
-                if (permissionTree[perm]) {
-                    for (const child of permissionTree[perm]) {
-                        finalPermissions.delete(child);
-                        updateChildren(child);
-                    }
-                }
-            };
-            updateChildren(p);
-        });
-    }
+    const updateChildrenRecursive = (perm: string, add: boolean) => {
+        if (add) updatedPermissions.add(perm);
+        else updatedPermissions.delete(perm);
+        
+        if (permissionTree[perm]) {
+            for (const child of permissionTree[perm]) {
+                updateChildrenRecursive(child, add);
+            }
+        }
+    };
 
-    setCurrentRole({ ...currentRole, permissions: Array.from(finalPermissions) });
+    groupPermissions.forEach(p => {
+        updateChildrenRecursive(p, check);
+    });
+
+    setCurrentRole({ ...currentRole, permissions: Array.from(updatedPermissions) });
   };
 
 
