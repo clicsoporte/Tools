@@ -3,35 +3,6 @@
  * Separating this from data.ts breaks a problematic dependency cycle.
  */
 
-export const allAdminPermissions = [
-    "admin:access",
-    "dashboard:access", "quotes:create", "quotes:generate", "quotes:drafts:create", "quotes:drafts:read", "quotes:drafts:delete",
-    "requests:read", "requests:read:all", "requests:create", "requests:create:duplicate", "requests:edit:pending", "requests:edit:approved", "requests:reopen", "requests:notes:add",
-    "requests:view:sale-price", "requests:view:cost", "requests:view:margin",
-    "requests:status:review", "requests:status:pending-approval", "requests:status:approve", "requests:status:ordered", "requests:status:received-in-warehouse", "requests:status:entered-erp", "requests:status:cancel", "requests:status:unapproval-request", "requests:status:unapproval-request:approve", "requests:status:revert-to-approved",
-    "planner:read", "planner:read:all", "planner:create", "planner:edit:pending", "planner:edit:approved", "planner:reopen", "planner:receive", "planner:status:review", "planner:status:approve", "planner:status:in-progress", "planner:status:on-hold", 
-    "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request", "planner:status:unapprove-request:approve",
-    "planner:priority:update", "planner:machine:assign", "planner:schedule",
-    "cost-assistant:access", "cost-assistant:drafts:read-write",
-    "consignments:access", "consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:boletas:read:all", "consignments:boleta:approve", "consignments:boleta:send", "consignments:boleta:invoice", "consignments:boleta:cancel", "consignments:boleta:revert", "consignments:reports:read", "consignments:locks:manage",
-    "warehouse:access", "warehouse:search:full", "warehouse:search:simple", 
-    "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create",
-    "warehouse:item-assignment:create", "warehouse:item-assignment:delete",
-    "warehouse:locations:create", "warehouse:locations:update", "warehouse:locations:delete",
-    "warehouse:units:create", "warehouse:units:delete", "warehouse:locks:manage",
-    "warehouse:correction:execute", "warehouse:correction:apply", "warehouse:labels:generate",
-    "hacienda:query",
-    "operations:access", "operations:create", "operations:read:all", "operations:approve", "operations:sign",
-    "it-tools:access", "it-tools:notes:read", "it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete",
-    "analytics:read", "analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read", "analytics:consignments-report:read",
-    "users:create", "users:read", "users:update", "users:delete",
-    "roles:create", "roles:read", "roles:update", "roles:delete", "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics", "admin:settings:consignments",
-    "admin:suggestions:read",
-    "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
-    "admin:logs:read", "admin:logs:clear",
-    "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset"
-];
-
 export const permissionGroups = {
     "Acceso General": ["dashboard:access"],
     "Cotizador": ["quotes:create", "quotes:generate", "quotes:drafts:create", "quotes:drafts:read", "quotes:drafts:delete"],
@@ -81,9 +52,7 @@ export const permissionGroups = {
     ],
 };
 
-export const analyticsPermissions = permissionGroups["Analíticas y Reportes"];
-
-export const permissionTranslations: { [key: string]: string } = {
+export const permissionTranslations = {
     "admin:access": "Acceso a Configuración",
     "dashboard:access": "Acceso al Panel", "quotes:create": "Cotizador: Crear", "quotes:generate": "Cotizador: Generar PDF", "quotes:drafts:create": "Borradores: Crear", "quotes:drafts:read": "Borradores: Cargar", "quotes:drafts:delete": "Borradores: Eliminar",
     "requests:read": "Compras: Leer", "requests:read:all": "Compras: Leer Todo", "requests:create": "Compras: Crear", "requests:create:duplicate": "Compras: Crear Duplicados", "requests:notes:add": "Compras: Añadir Notas",
@@ -112,27 +81,25 @@ export const permissionTranslations: { [key: string]: string } = {
     "admin:import:run": "Admin: Ejecutar Sincronización ERP", "admin:import:files": "Admin: Importar (Archivos)", "admin:import:sql": "Admin: Importar (SQL)", "admin:import:sql-config": "Admin: Configurar SQL",
     "admin:logs:read": "Admin: Ver Registros (Logs)", "admin:logs:clear": "Admin: Limpiar Registros (Logs)",
     "admin:maintenance:backup": "Admin: Mantenimiento (Backup)", "admin:maintenance:restore": "Admin: Mantenimiento (Restaurar)", "admin:maintenance:reset": "Admin: Mantenimiento (Resetear)",
-};
+} as const;
+
+export type AppPermission = keyof typeof permissionTranslations;
+
+export const allAdminPermissions: AppPermission[] = Object.values(permissionGroups).flat();
+
+export const analyticsPermissions = permissionGroups["Analíticas y Reportes"];
 
 /**
  * Defines the hierarchical dependencies between permissions.
  * The key is the parent permission, and the value is an array of child permissions it grants.
  * This structure is used to automatically manage permission dependencies in the UI.
  */
-export const permissionTree: Record<string, string[]> = {
+export const permissionTree: Partial<Record<AppPermission, AppPermission[]>> = {
     // --- Top-Level Access ---
     "dashboard:access": [
-        "quotes:create",
-        "requests:read",
-        "planner:read",
-        "cost-assistant:access",
-        "consignments:access",
-        "warehouse:access",
-        "hacienda:query",
-        "operations:access",
-        "it-tools:access",
-        "analytics:read",
-        "admin:access"
+        "quotes:create", "requests:read", "planner:read", "cost-assistant:access",
+        "consignments:access", "warehouse:access", "hacienda:query",
+        "operations:access", "it-tools:access", "analytics:read", "admin:access"
     ],
     "admin:access": [
         "users:read", "roles:read", "admin:settings:general", "admin:settings:api", 
@@ -151,41 +118,45 @@ export const permissionTree: Record<string, string[]> = {
     // --- Module-Specific Hierarchies ---
     
     // Purchase Requests
-    "requests:read": [
-        "requests:read:all", "requests:create", "requests:notes:add", "requests:status:review", 
-        "requests:status:pending-approval", "requests:status:approve", "requests:status:ordered", 
-        "requests:status:received-in-warehouse", "requests:status:entered-erp", "requests:status:cancel", 
-        "requests:reopen", "requests:status:unapproval-request", "requests:status:unapproval-request:approve", 
-        "requests:status:revert-to-approved", "requests:view:sale-price"
-    ],
-    "requests:create": ["requests:edit:pending", "requests:create:duplicate"],
+    "requests:read": ["requests:create"],
+    "requests:create": ["requests:edit:pending", "requests:create:duplicate", "requests:notes:add"],
+    "requests:status:review": ["requests:read"],
+    "requests:status:pending-approval": ["requests:status:review"],
+    "requests:status:approve": ["requests:status:pending-approval"],
     "requests:status:approve": ["requests:edit:approved"],
-    "requests:view:sale-price": ["requests:view:cost"],
-    "requests:view:cost": ["requests:view:margin"],
+    "requests:status:ordered": ["requests:status:approve"],
+    "requests:status:received-in-warehouse": ["requests:status:ordered"],
+    "requests:status:entered-erp": ["requests:status:received-in-warehouse"],
+    "requests:view:cost": ["requests:view:sale-price"],
+    "requests:view:margin": ["requests:view:cost"],
+    "requests:reopen": ["requests:read"],
+    "requests:status:unapproval-request": ["requests:read"],
+    "requests:status:unapproval-request:approve": ["requests:status:unapproval-request"],
 
     // Production Planner
-    "planner:read": [
-        "planner:read:all", "planner:create", "planner:reopen", "planner:receive", "planner:status:review", 
-        "planner:status:approve", "planner:status:in-progress", "planner:status:on-hold", "planner:status:completed", 
-        "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request", 
-        "planner:status:unapprove-request:approve", "planner:priority:update", "planner:machine:assign", "planner:schedule"
-    ],
+    "planner:read": ["planner:create"],
     "planner:create": ["planner:edit:pending"],
-    "planner:status:approve": ["planner:edit:approved"],
-
+    "planner:status:review": ["planner:read"],
+    "planner:status:approve": ["planner:status:review", "planner:edit:approved"],
+    "planner:status:in-progress": ["planner:status:approve"],
+    "planner:status:on-hold": ["planner:status:in-progress"],
+    "planner:status:completed": ["planner:status:in-progress"],
+    "planner:receive": ["planner:status:completed"],
+    
     // Consignments
-    "consignments:access": [
-        "consignments:setup", "consignments:count", "consignments:boletas:read", 
-        "consignments:reports:read", "consignments:locks:manage"
-    ],
-    "consignments:boletas:read": [
-        "consignments:boletas:read:all", "consignments:boleta:approve", "consignments:boleta:send", 
-        "consignments:boleta:invoice", "consignments:boleta:cancel", "consignments:boleta:revert"
-    ],
+    "consignments:access": ["consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read", "consignments:locks:manage"],
+    "consignments:boletas:read": ["consignments:boletas:read:all"],
+    "consignments:boleta:approve": ["consignments:boletas:read"],
+    "consignments:boleta:send": ["consignments:boletas:read"],
+    "consignments:boleta:invoice": ["consignments:boletas:read"],
+    "consignments:boleta:cancel": ["consignments:boletas:read"],
+    "consignments:boleta:revert": ["consignments:boletas:read"],
 
     // IT Tools
     "it-tools:access": ["it-tools:notes:read"],
-    "it-tools:notes:read": ["it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
+    "it-tools:notes:read": ["it-tools:notes:create"],
+    "it-tools:notes:update": ["it-tools:notes:read"],
+    "it-tools:notes:delete": ["it-tools:notes:read"],
     
     // Warehouse
     "warehouse:access": [
@@ -194,10 +165,11 @@ export const permissionTree: Record<string, string[]> = {
         "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", 
         "warehouse:correction:execute", "warehouse:labels:generate"
     ],
-    "warehouse:item-assignment:create": ["warehouse:item-assignment:delete"],
-    "warehouse:locations:create": ["warehouse:locations:update", "warehouse:locations:delete"],
-    "warehouse:units:create": ["warehouse:units:delete"],
-    "warehouse:correction:execute": ["warehouse:correction:apply"],
+    "warehouse:item-assignment:delete": ["warehouse:item-assignment:create"],
+    "warehouse:locations:update": ["warehouse:locations:create"],
+    "warehouse:locations:delete": ["warehouse:locations:create"],
+    "warehouse:units:delete": ["warehouse:units:create"],
+    "warehouse:correction:apply": ["warehouse:correction:execute"],
 
     // Admin Sub-permissions
     "users:read": ["users:create", "users:update", "users:delete"],

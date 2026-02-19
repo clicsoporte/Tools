@@ -8,6 +8,7 @@
 import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/modules/core/hooks/useAuth';
+import type { AppPermission } from '@/modules/core/lib/permissions';
 
 type UseAuthorizationReturn = {
   isAuthorized: boolean;
@@ -20,13 +21,15 @@ type UseAuthorizationReturn = {
  *
  * @param requiredPermissions - A permission string or an array of permission strings.
  * If an array is provided, the user is considered authorized if they have AT LEAST ONE of the permissions.
- * @param redirectTo - Optional path to redirect to if authorization fails.
  * @returns An object containing the authorization status, loading state, and the `hasPermission` function.
  */
-export function useAuthorization(requiredPermissions: string | string[] = []): UseAuthorizationReturn {
+export function useAuthorization(requiredPermissions: AppPermission | AppPermission[] = []): UseAuthorizationReturn {
     const router = useRouter();
     // Get the centralized permission checker and auth readiness state from useAuth
     const { hasPermission, isAuthReady } = useAuth(); 
+
+    // Memoize the string representation of the permissions to avoid re-renders.
+    const depsString = JSON.stringify(requiredPermissions);
 
     // isAuthorized is now derived directly and memoized from the hasPermission function
     const isAuthorized = useMemo(() => {
@@ -43,7 +46,7 @@ export function useAuthorization(requiredPermissions: string | string[] = []): U
         }
 
         return hasPermission(permissionsToCheck);
-    }, [isAuthReady, requiredPermissions, hasPermission]);
+    }, [isAuthReady, depsString, hasPermission]); // Use the stringified dependency
 
     return {
         isAuthorized,

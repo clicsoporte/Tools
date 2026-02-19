@@ -192,17 +192,15 @@ export default function RolesClient() {
             newPermissions.delete(perm);
         }
 
-        const children = permissionTree[perm];
-        if (children) {
-            for (const child of children) {
-                updateChildrenRecursive(child, add);
-            }
+        const children = permissionTree[perm as keyof typeof permissionTree] || [];
+        for (const child of children) {
+            updateChildrenRecursive(child, add);
         }
     };
     
     const updateParentsRecursive = (perm: string) => {
         for (const parent in permissionTree) {
-            if (permissionTree[parent].includes(perm)) {
+            if (permissionTree[parent as keyof typeof permissionTree].includes(perm)) {
                 if (!newPermissions.has(parent)) {
                     newPermissions.add(parent);
                     updateParentsRecursive(parent);
@@ -232,17 +230,15 @@ export default function RolesClient() {
         } else {
             newPermissions.delete(perm);
         }
-        const children = permissionTree[perm];
-        if (children) {
-            for (const child of children) {
-                updateChildrenRecursive(child, add);
-            }
+        const children = permissionTree[perm as keyof typeof permissionTree] || [];
+        for (const child of children) {
+            updateChildrenRecursive(child, add);
         }
     };
 
     const updateParentsRecursive = (perm: string) => {
         for (const parent in permissionTree) {
-            if (permissionTree[parent].includes(perm)) {
+            if (permissionTree[parent as keyof typeof permissionTree].includes(perm)) {
                 if (!newPermissions.has(parent)) {
                     newPermissions.add(parent);
                     updateParentsRecursive(parent);
@@ -273,7 +269,7 @@ export default function RolesClient() {
     const allSelectedInGroup = permissions.every(p => role.permissions.includes(p));
 
     return (
-      <details key={groupName} className="space-y-2" open>
+      <details key={groupName} className="space-y-2">
         <summary className="cursor-pointer font-medium flex justify-between items-center py-2 hover:bg-muted/50 rounded-md -mx-2 px-2">
           <span>{groupName}</span>
           <div className="flex items-center gap-2 mr-4" onClick={(e) => e.preventDefault()}>

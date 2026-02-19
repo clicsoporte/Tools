@@ -11,6 +11,7 @@ import { getCurrentUser, hasPermission as hasPermissionServer } from './auth';
 import { logWarn } from './logger';
 import type { User } from '@/modules/core/types';
 import { AuthError } from '../types';
+import type { AppPermission } from './permissions';
 
 /**
  * Memoized function to get the current user's data from the session.
@@ -34,7 +35,7 @@ const getCachedUser = cache(async () => {
  * @returns {Promise<User>} The full user object if authorized, allowing for reuse in the action.
  * @throws {AuthError} If the user is not authenticated or lacks permission.
  */
-export async function authorizeAction(requiredPermission: string): Promise<User> {
+export async function authorizeAction(requiredPermission: AppPermission): Promise<User> {
     const user = await getCachedUser();
     if (!user) {
         throw new AuthError("No autenticado. Inicia sesión para continuar.");
@@ -58,7 +59,7 @@ export async function authorizeAction(requiredPermission: string): Promise<User>
  *
  * @param requiredPermission The permission string to check for.
  */
-export async function authorizePage(requiredPermission: string): Promise<void> {
+export async function authorizePage(requiredPermission: AppPermission): Promise<void> {
     const user = await getCachedUser();
     if (!user) {
         return redirect('/'); // If no user, redirect to login
