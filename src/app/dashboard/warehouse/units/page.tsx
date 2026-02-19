@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Page for managing individual inventory units (pallets, boxes, etc.).
  * Allows creation of unique trackable units, assignment to products and locations,
@@ -53,7 +52,7 @@ const renderLocationPathAsString = (locationId: number, locations: WarehouseLoca
 };
 
 export default function ManageUnitsPage() {
-    useAuthorization(['warehouse:units:manage']);
+    useAuthorization(['warehouse:units:create', 'warehouse:units:delete']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user, companyData, products: authProducts, allItemLocations } = useAuth();
