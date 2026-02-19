@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file centralizes all permission-related constants and logic.
  * Separating this from data.ts breaks a problematic dependency cycle.
@@ -43,8 +44,8 @@ export const permissionGroups = {
     "Planificador de Producción (Edición y Acciones)": ["planner:edit:pending", "planner:edit:approved", "planner:reopen", "planner:receive", "planner:status:review", "planner:status:approve", "planner:status:in-progress", "planner:status:on-hold", 
     "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request", "planner:status:unapprove-request:approve", "planner:priority:update", "planner:machine:assign", "planner:schedule"],
     "Asistente de Costos": ["cost-assistant:access", "cost-assistant:drafts:read-write"],
-    "Consignación (General)": ["consignments:access", "consignments:setup", "consignments:count", "consignments:reports:read", "consignments:locks:manage"],
-    "Consignación (Flujo de Boletas)": ["consignments:boletas:read", "consignments:boletas:read:all", "consignments:boleta:approve", "consignments:boleta:send", "consignments:boleta:invoice", "consignments:boleta:cancel", "consignments:boleta:revert"],
+    "Consignación (General)": ["consignments:access", "consignments:setup", "consignments:count", "consignments:reports:read", "consignments:locks:manage", "consignments:boletas:read", "consignments:boletas:read:all"],
+    "Consignación (Flujo de Boletas)": ["consignments:boleta:approve", "consignments:boleta:send", "consignments:boleta:invoice", "consignments:boleta:cancel", "consignments:boleta:revert"],
     "Centro de Operaciones y Trazabilidad (Nuevo)": ["operations:access", "operations:create", "operations:read:all", "operations:approve", "operations:sign"],
     "Herramientas de TI (Nuevo)": ["it-tools:access", "it-tools:notes:read", "it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
     "Gestión de Almacenes": [
@@ -130,26 +131,31 @@ export const permissionTree: Record<string, string[]> = {
     "warehouse:correction:execute": ["warehouse:correction:apply"],
 
     "requests:create": ["requests:notes:add", "requests:edit:pending", "requests:create:duplicate"],
-    "requests:edit:pending": ["requests:status:review"],
-    "requests:status:review": ["requests:status:pending-approval"],
-    "requests:status:pending-approval": ["requests:status:approve"],
-    "requests:status:approve": ["requests:edit:approved", "requests:status:ordered", "requests:status:cancel", "requests:status:unapproval-request"],
-    "requests:status:ordered": ["requests:status:received-in-warehouse", "requests:status:revert-to-approved"],
-    "requests:status:received-in-warehouse": ["requests:status:entered-erp"],
-    "requests:status:unapproval-request": ["requests:status:unapproval-request:approve"],
+    "requests:edit:approved": ["requests:edit:pending"],
+    "requests:status:approve": ["requests:status:review", "requests:status:pending-approval"],
+    "requests:status:ordered": ["requests:status:approve"],
+    "requests:status:received-in-warehouse": ["requests:status:ordered"],
+    "requests:status:entered-erp": ["requests:status:received-in-warehouse"],
+    "requests:status:unapproval-request:approve": ["requests:status:unapproval-request"],
 
+    // New granular financial permissions
     "requests:view:margin": ["requests:view:cost"],
     "requests:view:cost": ["requests:view:sale-price"],
     
-    "planner:create": ["planner:edit:pending", "planner:status:review"],
-    "planner:status:review": ["planner:status:approve"],
-    "planner:status:approve": ["planner:edit:approved", "planner:status:in-progress", "planner:status:on-hold", "planner:status:completed", "planner:status:cancel-approved", "planner:status:unapprove-request", "planner:priority:update", "planner:machine:assign", "planner:schedule"],
-    "planner:status:on-hold": ["planner:status:in-progress"], 
-    "planner:status:completed": ["planner:receive", "planner:reopen"],
-    "planner:status:cancel-approved": ["planner:reopen"],
-    "planner:status:unapprove-request": ["planner:status:unapprove-request:approve"],
+    "planner:create": ["planner:edit:pending"],
+    "planner:edit:approved": ["planner:edit:pending"],
+    "planner:status:approve": ["planner:status:review"],
+    "planner:status:in-progress": ["planner:status:approve"],
+    "planner:status:unapprove-request:approve": ["planner:status:unapprove-request"],
 
     "warehouse:locations:create": ["warehouse:locations:update", "warehouse:locations:delete"],
     "warehouse:item-assignment:create": ["warehouse:item-assignment:delete"],
     "warehouse:units:create": ["warehouse:units:delete"],
+
+    // Consignments Flow - Hierarchical
+    "consignments:boleta:send": ["consignments:boleta:approve"],
+    "consignments:boleta:invoice": ["consignments:boleta:send"],
+    "consignments:boleta:cancel": ["consignments:boleta:approve"],
+    "consignments:boleta:revert": ["consignments:boleta:invoice"],
 };
+

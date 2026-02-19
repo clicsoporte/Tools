@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -217,15 +218,45 @@ export default function RolesClient() {
 
     setCurrentRole({ ...role, permissions: Array.from(newPermissions) });
   };
+  
+  const handleGroupPermissionChange = (groupPermissions: string[], check: boolean) => {
+    if (!currentRole) return;
+
+    let updatedPermissions = new Set(currentRole.permissions);
+
+    if (check) {
+        groupPermissions.forEach(p => updatedPermissions.add(p));
+    } else {
+        groupPermissions.forEach(p => updatedPermissions.delete(p));
+    }
+    
+    setCurrentRole({ ...currentRole, permissions: Array.from(updatedPermissions) });
+  };
+
 
   const renderPermissionGroup = (
     groupName: string,
     permissions: string[],
     role: Role
   ) => {
+    const allSelectedInGroup = permissions.every(p => role.permissions.includes(p));
+
     return (
       <details key={groupName} className="space-y-2" open>
-        <summary className="cursor-pointer font-medium">{groupName}</summary>
+        <summary className="cursor-pointer font-medium flex justify-between items-center py-2 hover:bg-muted/50 rounded-md -mx-2 px-2">
+          <span>{groupName}</span>
+          <div className="flex items-center gap-2 mr-4" onClick={(e) => e.preventDefault()}>
+            <Label htmlFor={`select-all-${groupName.replace(/\s+/g, '-')}`} className="text-xs font-normal cursor-pointer">
+              Todos
+            </Label>
+            <Checkbox
+              id={`select-all-${groupName.replace(/\s+/g, '-')}`}
+              checked={allSelectedInGroup}
+              onCheckedChange={(checked) => handleGroupPermissionChange(permissions, !!checked)}
+              disabled={role.id === 'admin'}
+            />
+          </div>
+        </summary>
         <div className="pl-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 border-l-2 ml-2 pl-4">
           {permissions.map((permission) => {
             const parentForThisPermission = Object.keys(permissionTree).find(p => permissionTree[p].includes(permission));
