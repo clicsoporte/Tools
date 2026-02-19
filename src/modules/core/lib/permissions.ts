@@ -102,44 +102,80 @@ export const permissionTranslations: { [key: string]: string } = {
     "admin:maintenance:backup": "Admin: Mantenimiento (Backup)", "admin:maintenance:restore": "Admin: Mantenimiento (Restaurar)", "admin:maintenance:reset": "Admin: Mantenimiento (Resetear)",
 };
 
+/**
+ * Defines the hierarchical dependencies between permissions.
+ * The key is the parent permission, and the value is an array of child permissions it grants.
+ * This structure is used to automatically manage permission dependencies in the UI.
+ */
 export const permissionTree: Record<string, string[]> = {
-    // Top-level Access
-    "admin:access": allAdminPermissions.filter(p => p !== 'admin:access'),
-    "analytics:read": ["analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read", "analytics:consignments-report:read"],
-    "warehouse:access": ["warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", "warehouse:correction:execute", "warehouse:correction:apply", "warehouse:labels:generate"],
-    "requests:read": ["requests:read:all", "requests:create"],
-    "planner:read": ["planner:read:all", "planner:create"],
-    "consignments:access": ["consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read", "consignments:locks:manage"],
-    "consignments:boletas:read": ["consignments:boletas:read:all"],
-    "operations:access": ["operations:create", "operations:read:all", "operations:approve", "operations:sign"],
-    "it-tools:access": ["it-tools:notes:read"],
-    "quotes:create": ["quotes:generate", "quotes:drafts:create", "quotes:drafts:read", "quotes:drafts:delete"],
+    // A user with any specific permission must at least have access to the dashboard.
+    "dashboard:access": [
+        "quotes:create", "requests:read", "planner:read", "cost-assistant:access",
+        "consignments:access", "warehouse:access", "hacienda:query", "operations:access",
+        "it-tools:access", "analytics:read", "admin:access"
+    ],
+    // Admin access grants all other admin sub-permissions
+    "admin:access": [
+        "users:read", "roles:read", "admin:settings:general", "admin:settings:api", 
+        "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", 
+        "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics",
+        "admin:settings:consignments", "admin:suggestions:read", "admin:import:run", 
+        "admin:logs:read", "admin:maintenance:backup"
+    ],
+    // --- Specific Module Hierarchies ---
 
-    // Second-level dependencies
-    "users:read": ["users:create", "users:update", "users:delete"],
-    "roles:read": ["roles:create", "roles:update", "roles:delete"],
-    "admin:import:run": ["admin:import:files", "admin:import:sql", "admin:import:sql-config"],
-    "admin:logs:read": ["admin:logs:clear"],
-    "admin:maintenance:backup": ["admin:maintenance:restore", "admin:maintenance:reset"],
-    "it-tools:notes:read": ["it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
-    
-    // --- Specific Hierarchies (Granting X also grants Y) ---
     // Requests
-    "requests:edit:approved": ["requests:edit:pending"],
-    "requests:view:margin": ["requests:view:cost"],
-    "requests:view:cost": ["requests:view:sale-price"],
-    "requests:status:approve": ["requests:status:pending-approval"],
-    "requests:status:pending-approval": ["requests:status:review"],
-    "requests:status:unapproval-request:approve": ["requests:status:unapproval-request"],
+    "requests:read": [
+        "requests:read:all", "requests:create", "requests:notes:add", "requests:status:review"
+    ],
+    "requests:create": ["requests:create:duplicate", "requests:edit:pending"],
+    "requests:status:review": ["requests:status:pending-approval"],
+    "requests:status:approve": [
+        "requests:edit:approved", "requests:status:ordered", "requests:status:cancel",
+        "requests:status:unapproval-request", "requests:status:unapproval-request:approve",
+        "requests:status:revert-to-approved"
+    ],
+    "requests:status:ordered": ["requests:status:received-in-warehouse"],
+    "requests:status:received-in-warehouse": ["requests:status:entered-erp"],
 
     // Planner
-    "planner:edit:approved": ["planner:edit:pending"],
-    "planner:status:approve": ["planner:status:review"],
-    "planner:status:unapprove-request:approve": ["planner:status:unapprove-request"],
+    "planner:read": [
+        "planner:read:all", "planner:create", "planner:status:review"
+    ],
+    "planner:create": ["planner:edit:pending"],
+    "planner:status:review": ["planner:status:approve"],
+    "planner:status:approve": [
+        "planner:edit:approved", "planner:reopen", "planner:receive", "planner:status:in-progress", 
+        "planner:status:on-hold", "planner:status:completed", "planner:status:cancel-approved",
+        "planner:status:unapprove-request", "planner:status:unapprove-request:approve",
+        "planner:priority:update", "planner:machine:assign", "planner:schedule"
+    ],
+
+    // Consignments
+    "consignments:access": [
+        "consignments:setup", 
+        "consignments:count", 
+        "consignments:reports:read", 
+        "consignments:locks:manage",
+        "consignments:boletas:read"
+    ],
+    "consignments:boletas:read": [
+        "consignments:boletas:read:all",
+        "consignments:boleta:approve",
+        "consignments:boleta:send",
+        "consignments:boleta:invoice",
+        "consignments:boleta:cancel",
+        "consignments:boleta:revert"
+    ],
+
+    // IT Tools
+    "it-tools:notes:read": ["it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
 
     // Warehouse
-    "warehouse:locations:update": ["warehouse:locations:create"],
-    "warehouse:locations:delete": ["warehouse:locations:update"],
-    "warehouse:item-assignment:delete": ["warehouse:item-assignment:create"],
-    "warehouse:units:delete": ["warehouse:units:create"],
+    "warehouse:locations:create": ["warehouse:locations:update", "warehouse:locations:delete"],
+
+    // Admin sub-permissions
+    "admin:logs:read": ["admin:logs:clear"],
+    "admin:maintenance:backup": ["admin:maintenance:restore", "admin:maintenance:reset"],
+    "admin:import:run": ["admin:import:files", "admin:import:sql", "admin:import:sql-config"],
 };
