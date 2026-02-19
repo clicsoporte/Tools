@@ -57,6 +57,7 @@ const navLinks: Tool[] = [
     description: "Crear y gestionar cotizaciones para clientes.",
     href: "/dashboard/quoter",
     icon: Sheet,
+    bgColor: "bg-green-500",
   },
   {
     id: "requests:create",
@@ -64,6 +65,7 @@ const navLinks: Tool[] = [
     description: "Crear y gestionar solicitudes de compra internas.",
     href: "/dashboard/requests",
     icon: ShoppingCart,
+    bgColor: "bg-amber-700",
   },
    {
     id: "planner:create",
@@ -71,6 +73,7 @@ const navLinks: Tool[] = [
     description: "Gestionar y visualizar la carga de producción.",
     href: "/dashboard/planner",
     icon: CalendarCheck,
+    bgColor: "bg-purple-700",
   },
   {
     id: 'cost-assistant:access',
@@ -78,13 +81,7 @@ const navLinks: Tool[] = [
     description: 'Calcular costos y precios a partir de facturas XML.',
     href: '/dashboard/cost-assistant',
     icon: Calculator,
-  },
-  {
-    id: "consignments:access",
-    name: "Gestión de Consignaciones",
-    description: "Administrar productos en consignación en instalaciones de clientes.",
-    href: "/dashboard/consignments",
-    icon: Container,
+    bgColor: 'bg-orange-600',
   },
   {
     id: 'operations:access',
@@ -92,13 +89,23 @@ const navLinks: Tool[] = [
     description: 'Boletas digitales de movimiento, entregas y más.',
     href: '/dashboard/operations',
     icon: FileSignature,
+    bgColor: 'bg-teal-700',
   },
- {
+   {
     id: "it-tools:access",
     name: "Herramientas de TI",
     description: "Gestionar notas técnicas y documentación interna de TI.",
     href: "/dashboard/it-tools",
     icon: Cpu,
+    bgColor: "bg-gray-700",
+  },
+  {
+    id: "consignments:access",
+    name: "Gestión de Consignaciones",
+    description: "Administrar productos en consignación en instalaciones de clientes.",
+    href: "/dashboard/consignments",
+    icon: Container,
+    bgColor: "bg-lime-500",
   },
   {
     id: "warehouse:access",
@@ -106,20 +113,23 @@ const navLinks: Tool[] = [
     description: "Consultar ubicaciones, gestionar unidades y registrar conteos.",
     href: "/dashboard/warehouse",
     icon: Warehouse,
+    bgColor: "bg-cyan-600",
   },
-   {
-    id: "hacienda:query",
-    name: "Consultas Hacienda",
-    description: "Verificar situación tributaria y exoneraciones.",
-    href: "/dashboard/hacienda",
-    icon: Search,
-  },
+     {
+      id: "hacienda:query",
+      name: "Consultas Hacienda",
+      description: "Verificar situación tributaria y exoneraciones.",
+      href: "/dashboard/hacienda",
+      icon: Search,
+      bgColor: "bg-fuchsia-600",
+    },
   {
     id: "help",
     name: "Centro de Ayuda",
     description: "Consultar la documentación y guías de uso del sistema.",
     href: "/dashboard/help",
     icon: LifeBuoy,
+    bgColor: "bg-blue-700",
   },
 ];
 
@@ -267,7 +277,7 @@ export function AppSidebar() {
             </div>
           </div>
            <div className="text-center text-xs text-sidebar-foreground/50 p-2 group-data-[collapsible=icon]:hidden">
-                Clic-Tools v2.0.0 - ClicSoporte
+                {companyData?.systemVersion ? `Clic-Tools v${companyData.systemVersion}` : 'Clic-Tools'} - ClicSoporte
            </div>
         </SidebarFooter>
       </Sidebar>

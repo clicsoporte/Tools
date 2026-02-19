@@ -38,6 +38,7 @@ export type Company = {
     logoUrl?: string;
     systemName?: string;
     publicUrl?: string;
+    systemVersion?: string;
     quotePrefix: string;
     nextQuoteNumber: number;
     decimalPlaces: number;

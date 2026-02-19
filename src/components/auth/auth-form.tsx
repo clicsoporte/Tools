@@ -60,6 +60,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
   // Initial page state
   const [hasUsers, setHasUsers] = useState<boolean | null>(null);
   const [companyName, setCompanyName] = useState<string>("Clic-Tools");
+  const [systemVersion, setSystemVersion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,9 +91,10 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
       // Only run this check if the user is not logged in.
       if (!user) {
         try {
-          const { hasUsers, companyName } = await getInitialPageData();
+          const { hasUsers, companyName, systemVersion } = await getInitialPageData();
           setHasUsers(hasUsers);
           setCompanyName(companyName);
+          setSystemVersion(systemVersion);
         } catch (err: any) {
           console.error("Critical error on initial page data fetch:", err);
           setError("No se pudo conectar con la base de datos. Revisa la consola del servidor.");
@@ -261,6 +263,11 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
         <CardDescription>{getHeaderDescription()}</CardDescription>
       </CardHeader>
       <CardContent>{renderContent()}</CardContent>
+      {systemVersion && (
+        <div className="p-6 pt-0 text-center text-xs text-muted-foreground">
+            Versión {systemVersion}
+        </div>
+      )}
     </>
   );
 }

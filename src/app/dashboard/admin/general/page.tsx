@@ -248,6 +248,17 @@ export default function GeneralSettingsPage() {
                     <CardDescription>Configuración global para la experiencia de usuario y el acceso a la aplicación.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="systemVersion">Versión del Sistema</Label>
+                        <Input 
+                            id="systemVersion"
+                            value={companyData.systemVersion || ''}
+                            onChange={handleChange}
+                        />
+                        <p className="text-xs text-muted-foreground pt-1">
+                            El número de versión que se muestra en la aplicación.
+                        </p>
+                    </div>
                    <div className="space-y-2">
                       <Label htmlFor="searchDebounceTime">Retraso de Búsqueda (ms)</Label>
                       <Input 

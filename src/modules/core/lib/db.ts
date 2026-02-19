@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import { initialCompany, initialRoles } from './data';
 import { DB_MODULES } from './db-modules';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession, AnalyticsSettings, TransitStatusAlias, WarehouseLocation, WarehouseSettings, WarehouseInventoryItem } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession, AnalyticsSettings, TransitStatusAlias, WarehouseLocation, WarehouseInventoryItem } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -65,7 +65,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE IF NOT EXISTS company_settings (
             id INTEGER PRIMARY KEY,
             name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT, logoUrl TEXT,
-            systemName TEXT, publicUrl TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER, quoterShowTaxId BOOLEAN,
+            systemName TEXT, publicUrl TEXT, systemVersion TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER, quoterShowTaxId BOOLEAN,
             searchDebounceTime INTEGER, syncWarningHours REAL, lastSyncTimestamp TEXT,
             importMode TEXT, customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT, stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT, supplierFilePath TEXT,
             erpPurchaseOrderHeaderFilePath TEXT, erpPurchaseOrderLineFilePath TEXT
@@ -107,7 +107,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     const insertRolesTransaction = db.transaction((roles) => { for (const role of roles) insertRole.run({ ...role, permissions: JSON.stringify(role.permissions) }); });
     insertRolesTransaction(initialRoles);
     
-    const insertCompany = db.prepare('INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, publicUrl, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode) VALUES (1, @name, @taxId, @address, @phone, @email, @systemName, @publicUrl, @quotePrefix, @nextQuoteNumber, @decimalPlaces, @quoterShowTaxId, @searchDebounceTime, @syncWarningHours, @importMode)');
+    const insertCompany = db.prepare('INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, publicUrl, systemVersion, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode) VALUES (1, @name, @taxId, @address, @phone, @email, @systemName, @publicUrl, @systemVersion, @quotePrefix, @nextQuoteNumber, @decimalPlaces, @quoterShowTaxId, @searchDebounceTime, @syncWarningHours, @importMode)');
     insertCompany.run({ ...initialCompany, publicUrl: null, quoterShowTaxId: initialCompany.quoterShowTaxId ? 1 : 0 });
     
     db.prepare(`INSERT OR IGNORE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, 'https://api.hacienda.go.cr/indicadores/tc/dolar', 'https://api.hacienda.go.cr/fe/ex?autorizacion=', 'https://api.hacienda.go.cr/fe/ae?identificacion=')`).run();
@@ -357,6 +357,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         if (!companyColumns.has('quoterShowTaxId')) db.exec(`ALTER TABLE company_settings ADD COLUMN quoterShowTaxId BOOLEAN DEFAULT TRUE`);
         if (!companyColumns.has('syncWarningHours')) db.exec(`ALTER TABLE company_settings ADD COLUMN syncWarningHours REAL DEFAULT 12`);
         if (!companyColumns.has('publicUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT`);
+        if (!companyColumns.has('systemVersion')) db.exec(`ALTER TABLE company_settings ADD COLUMN systemVersion TEXT`);
         
         if (companyColumns.has('importPath')) {
             console.log("MIGRATION: Dropping importPath column from company_settings.");
@@ -540,7 +541,7 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
         const stmt = db.prepare(`
             UPDATE company_settings SET 
                 name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email,
-                logoUrl = @logoUrl, systemName = @systemName, publicUrl = @publicUrl, quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber, 
+                logoUrl = @logoUrl, systemName = @systemName, publicUrl = @publicUrl, systemVersion = @systemVersion, quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber, 
                 decimalPlaces = @decimalPlaces, searchDebounceTime = @searchDebounceTime,
                 customerFilePath = @customerFilePath, productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath,
                 stockFilePath = @stockFilePath, locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath,
@@ -560,6 +561,8 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
     }
 }
 
+// ... rest of the file is unchanged, so I will omit it for brevity, but I will include it in the final output.
+// I will just copy the rest of the file from the prompt
 export async function getLogs(filters: {type?: 'operational' | 'system' | 'all'; search?: string; dateRange?: DateRange;} = {}): Promise<LogEntry[]> {
     const db = await connectDb();
     try {
@@ -1785,61 +1788,14 @@ export async function forceWalCheckpoint(): Promise<void> {
 }
 
 /**
- * Retrieves warehouse-specific settings.
- */
-export async function getWarehouseSettings(): Promise<WarehouseSettings> {
-    const db = await connectDb(WAREHOUSE_DB_FILE);
-    const defaults: WarehouseSettings = {
-        locationLevels: [
-            { type: 'building', name: 'Edificio' },
-            { type: 'zone', name: 'Zona' },
-            { type: 'rack', name: 'Rack' },
-            { type: 'shelf', name: 'Estante' },
-            { type: 'bin', name: 'Casilla' }
-        ],
-        unitPrefix: 'U-',
-        nextUnitNumber: 1,
-        receptionPrefix: 'ING-',
-        nextReceptionNumber: 1,
-        correctionPrefix: 'COR-',
-        nextCorrectionNumber: 1,
-        dispatchNotificationEmails: '',
-        populationSupervisorEmails: '',
-        pdfTopLegend: 'Documento de Control Interno',
-        lastLegacyMigration: null,
-        lastPopulationInit: null,
-        lastCleanup: null,
-    };
-    try {
-        const row = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string } | undefined;
-        if (row) {
-            const settings = JSON.parse(row.value);
-            return { ...defaults, ...settings };
-        }
-    } catch (error) {
-        console.error("Error fetching warehouse settings, returning default.", error);
-    }
-    return defaults;
-}
-
-/**
  * Retrieves all warehouse-related data in a single batch.
+ * This function is defined in `core` but fetches from the warehouse DB.
+ * It's a temporary solution to a circular dependency problem and should be refactored.
  */
-export async function getWarehouseData(): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], stock: StockInfo[], itemLocations: ItemLocation[], warehouseSettings: WarehouseSettings, stockSettings: StockSettings }> {
-    const db = await connectDb(WAREHOUSE_DB_FILE);
-    const locations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
-    const inventory = db.prepare('SELECT * FROM inventory').all() as WarehouseInventoryItem[];
-    const itemLocations = db.prepare('SELECT * FROM item_locations').all() as ItemLocation[];
-    const stock = await getAllStock();
-    const warehouseSettings = await getWarehouseSettings();
-    const stockSettings = await getStockSettings();
-
-    return JSON.parse(JSON.stringify({
-        locations: locations || [],
-        inventory: inventory || [],
-        stock: stock || [],
-        itemLocations: itemLocations || [],
-        warehouseSettings: warehouseSettings,
-        stockSettings: stockSettings || { warehouses: [] },
-    }));
+export async function getWarehouseData(): Promise<{ locations: WarehouseLocation[], inventory: WarehouseInventoryItem[], itemLocations: ItemLocation[], warehouseSettings: WarehouseSettings, stockSettings: StockSettings }> {
+    // This is a temporary forwarder to the real function in the warehouse module
+    // to avoid circular dependencies that were breaking the build.
+    // The ideal solution is a more robust service locator or dependency injection pattern.
+    const { getWarehouseData: getWarehouseDataFromModule } = await import('@/modules/warehouse/lib/db');
+    return getWarehouseDataFromModule();
 }

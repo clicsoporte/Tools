@@ -15,10 +15,11 @@ export async function getInitialPageData() {
     return {
       hasUsers: userCount > 0,
       companyName: companyData?.systemName || "Clic-Tools",
+      systemVersion: companyData?.systemVersion || null,
     };
   } catch (error) {
     console.error("Error checking initial user status:", error);
     // Fallback to login form if there's an error, as it's the most common state.
-    return { hasUsers: true, companyName: "Clic-Tools" };
+    return { hasUsers: true, companyName: "Clic-Tools", systemVersion: null };
   }
 }
