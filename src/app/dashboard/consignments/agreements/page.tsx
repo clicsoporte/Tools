@@ -234,11 +234,11 @@ export default function AgreementsPage() {
                                                 </div>
                                                  <div className="space-y-1">
                                                     <Label htmlFor={`max-stock-${index}`} className="text-xs">Stock Máximo</Label>
-                                                    <Input id={`max-stock-${index}`} type="number" value={p.max_stock || ''} onChange={(e) => actions.updateProductField(index, 'max_stock', Number(e.target.value))} className="text-right h-8"/>
+                                                    <Input id={`max-stock-${index}`} type="number" value={p.max_stock || ''} onChange={(e) => actions.updateProductField(index, 'max_stock', Number(e.target.value))} className="text-right h-8 hide-number-arrows"/>
                                                 </div>
                                                 <div className="space-y-1 col-span-2">
                                                     <Label htmlFor={`price-${index}`} className="text-xs">Precio (sin IVA)</Label>
-                                                    <Input id={`price-${index}`} type="number" value={p.price || ''} onChange={(e) => actions.updateProductField(index, 'price', Number(e.target.value))} className="text-right h-8"/>
+                                                    <Input id={`price-${index}`} type="number" value={p.price || ''} onChange={(e) => actions.updateProductField(index, 'price', Number(e.target.value))} className="text-right h-8 hide-number-arrows"/>
                                                 </div>
                                             </CardContent>
                                         </Card>

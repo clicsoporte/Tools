@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview Hook for managing the logic for the Consignments Boletas page.
  */
@@ -13,7 +12,7 @@ import { getBoletas, updateBoletaStatus, getBoletaDetails, updateBoleta, getCons
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import type { RestockBoleta, BoletaLine, BoletaHistory, ConsignmentSettings, ConsignmentAgreement, Company, RestockBoletaStatus } from '@/modules/core/types';
 import { getConsignmentSettings } from '../lib/actions';
-import { generateDocument } from '@/lib/pdf-generator';
+import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -42,7 +41,7 @@ export const useConsignmentsBoletas = () => {
         boletas: [] as RestockBoleta[],
         isStatusModalOpen: false,
         boletaToUpdate: null as RestockBoleta | null,
-        statusUpdatePayload: { status: '' as RestockBoletaStatus, notes: '', erpInvoiceNumber: '' },
+        statusUpdatePayload: { status: '' as RestockBoletaStatus, notes: '', erpInvoiceNumber: '', erpMovementId: '' },
         isDetailsModalOpen: false,
         isDetailsLoading: false,
         detailedBoleta: null as { boleta: RestockBoleta, lines: BoletaLine[], history: BoletaHistory[] } | null,
@@ -91,9 +90,18 @@ export const useConsignmentsBoletas = () => {
     }, [loadData, isAuthorized]);
     
     const openStatusModal = (boleta: RestockBoleta, status: RestockBoletaStatus) => {
+        if (status === 'pending' && (boleta.total_replenish_quantity ?? 0) <= 0) {
+            toast({
+                title: "Acción no permitida",
+                description: "No se puede enviar a aprobación una boleta sin cantidad a reponer.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         updateState({
             boletaToUpdate: boleta,
-            statusUpdatePayload: { status, notes: '', erpInvoiceNumber: '' },
+            statusUpdatePayload: { status, notes: '', erpInvoiceNumber: '', erpMovementId: '' },
             isStatusModalOpen: true,
         });
     };
@@ -111,7 +119,8 @@ export const useConsignmentsBoletas = () => {
                 status: state.statusUpdatePayload.status,
                 notes: state.statusUpdatePayload.notes,
                 updatedBy: user.name,
-                erpInvoiceNumber: state.statusUpdatePayload.erpInvoiceNumber
+                erpInvoiceNumber: state.statusUpdatePayload.erpInvoiceNumber,
+                erpMovementId: state.statusUpdatePayload.erpMovementId,
             });
             toast({ title: 'Estado Actualizado' });
             updateState({ isStatusModalOpen: false });
@@ -175,6 +184,19 @@ export const useConsignmentsBoletas = () => {
         } finally {
             updateState({ isDetailsLoading: false });
         }
+    };
+
+    const handleBoletaHeaderChange = (field: 'delivery_date', value: string) => {
+        if (!state.detailedBoleta) return;
+        updateState({
+            detailedBoleta: {
+                ...state.detailedBoleta,
+                boleta: {
+                    ...state.detailedBoleta.boleta,
+                    [field]: value
+                }
+            }
+        });
     };
     
     const handleDetailedLineChange = (lineId: number, newQuantity: number) => {
@@ -273,6 +295,11 @@ export const useConsignmentsBoletas = () => {
                  blocks.unshift({ title: 'ESTADO:', content: `FACTURADA - FACTURA ERP #${boleta.erp_invoice_number}` });
                 metaInfo.push({ label: 'Factura ERP:', value: boleta.erp_invoice_number });
             }
+
+            if (boleta.erp_movement_id) {
+                metaInfo.push({ label: 'Movimiento ERP:', value: boleta.erp_movement_id });
+            }
+
 
             const doc = generateDocument({
                 docTitle,
@@ -374,6 +401,7 @@ export const useConsignmentsBoletas = () => {
             handleStatusUpdatePayloadChange,
             submitStatusUpdate,
             openBoletaDetails,
+            handleBoletaHeaderChange,
             handleDetailedLineChange,
             handleResetLineQuantity,
             saveBoletaChanges,

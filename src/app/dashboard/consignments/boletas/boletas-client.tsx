@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -52,6 +53,12 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignmentsB
                             <Input id="erp-invoice" value={statusUpdatePayload.erpInvoiceNumber || ''} onChange={(e) => actions.handleStatusUpdatePayloadChange('erpInvoiceNumber', e.target.value)} />
                         </div>
                     )}
+                     {statusUpdatePayload.status === 'sent' && (
+                        <div className="space-y-2">
+                            <Label htmlFor="erp-movement">Número de Movimiento de Inventario ERP</Label>
+                            <Input id="erp-movement" value={statusUpdatePayload.erpMovementId || ''} onChange={(e) => actions.handleStatusUpdatePayloadChange('erpMovementId', e.target.value)} />
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <Label htmlFor="status-notes">Notas (Opcional)</Label>
                         <Textarea id="status-notes" value={statusUpdatePayload.notes} onChange={(e) => actions.handleStatusUpdatePayloadChange('notes', e.target.value)} />
@@ -59,7 +66,7 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignmentsB
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                    <Button onClick={actions.submitStatusUpdate} disabled={isSubmitting || (statusUpdatePayload.status === 'invoiced' && !statusUpdatePayload.erpInvoiceNumber?.trim())}>
+                    <Button onClick={actions.submitStatusUpdate} disabled={isSubmitting || (statusUpdatePayload.status === 'invoiced' && !statusUpdatePayload.erpInvoiceNumber?.trim()) || (statusUpdatePayload.status === 'sent' && !statusUpdatePayload.erpMovementId?.trim())}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Confirmar
                     </Button>
@@ -88,6 +95,15 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                 ) : detailedBoleta ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
                         <div className="md:col-span-2 space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="delivery-date">Fecha de Entrega</Label>
+                                <Input 
+                                    id="delivery-date" 
+                                    type="date"
+                                    value={detailedBoleta.boleta.delivery_date ? format(parseISO(detailedBoleta.boleta.delivery_date), 'yyyy-MM-dd') : ''}
+                                    onChange={e => actions.handleBoletaHeaderChange('delivery_date', e.target.value)}
+                                />
+                            </div>
                              <h4 className="font-semibold">Líneas de Reposición</h4>
                              <ScrollArea className="h-96 border rounded-md p-2">
                                 <div className="space-y-3">
@@ -118,9 +134,9 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                                                     <Input 
                                                         id={`replenish-${line.id}`}
                                                         type="number" 
-                                                        value={line.replenish_quantity}
+                                                        value={line.replenish_quantity || ''}
                                                         onChange={e => actions.handleDetailedLineChange(line.id, Number(e.target.value))}
-                                                        className="text-right h-10 text-lg font-bold"
+                                                        className="text-right h-10 text-lg font-bold hide-number-arrows"
                                                         disabled={!canEditLines}
                                                     />
                                                 </div>
