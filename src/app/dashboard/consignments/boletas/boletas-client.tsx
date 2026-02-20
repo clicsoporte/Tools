@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -54,7 +55,7 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignmentsB
                             <Input id="erp-invoice" value={statusUpdatePayload.erpInvoiceNumber || ''} onChange={(e) => actions.handleStatusUpdatePayloadChange('erpInvoiceNumber', e.target.value)} />
                         </div>
                     )}
-                    {statusUpdatePayload.status === 'pending' && (
+                    {statusUpdatePayload.status === 'sent' && (
                         <div className="space-y-2">
                             <Label htmlFor="erp-movement">Número de Movimiento de Inventario ERP</Label>
                             <Input id="erp-movement" value={statusUpdatePayload.erpMovementId || ''} onChange={(e) => actions.handleStatusUpdatePayloadChange('erpMovementId', e.target.value)} />
@@ -67,7 +68,7 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignmentsB
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                    <Button onClick={actions.submitStatusUpdate} disabled={isSubmitting || (statusUpdatePayload.status === 'invoiced' && !statusUpdatePayload.erpInvoiceNumber?.trim()) || (statusUpdatePayload.status === 'pending' && !statusUpdatePayload.erpMovementId?.trim())}>
+                    <Button onClick={actions.submitStatusUpdate} disabled={isSubmitting || (statusUpdatePayload.status === 'invoiced' && !statusUpdatePayload.erpInvoiceNumber?.trim()) || (statusUpdatePayload.status === 'sent' && !statusUpdatePayload.erpMovementId?.trim())}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Confirmar
                     </Button>
@@ -148,11 +149,12 @@ function BoletaDetailsDialog({ hook }: { hook: ReturnType<typeof useConsignments
                                                             </Button>
                                                         )}
                                                     </div>
-                                                    <Input 
+                                                    <Input
                                                         id={`replenish-${line.id}`}
-                                                        type="number" 
-                                                        value={line.replenish_quantity ?? ''}
+                                                        type="number"
+                                                        value={line.replenish_quantity === 0 && !line.is_manually_edited ? '' : (line.replenish_quantity ?? '')}
                                                         onChange={e => actions.handleDetailedLineChange(line.id, Number(e.target.value))}
+                                                        onWheel={(e) => (e.target as HTMLElement).blur()}
                                                         className="text-right h-10 text-lg font-bold hide-number-arrows"
                                                         disabled={!canEdit}
                                                     />
