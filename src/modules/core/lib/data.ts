@@ -46,13 +46,6 @@ export const initialUsers: User[] = [];
  */
 export const mainTools: Tool[] = [
   {
-    id: "dashboard:access",
-    name: "Panel",
-    description: "Visión general de las herramientas y actividad.",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
     id: "quotes:create",
     name: "Cotizador",
     description: "Crear y gestionar cotizaciones para clientes.",

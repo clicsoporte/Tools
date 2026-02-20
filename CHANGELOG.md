@@ -23,6 +23,25 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [2.9.3] - Publicado
+
+### Mejoras de Rendimiento y Experiencia de Usuario (UX)
+
+-   **[Rendimiento Crítico] Optimización de Carga en Módulos de Almacén.** Se ha refactorizado la forma en que los módulos de almacén cargan datos (productos, clientes, ubicaciones) para solucionar problemas de lentitud y bloqueos en instalaciones con grandes volúmenes de información.
+    -   En lugar de cargar miles de registros en el navegador, ahora las páginas cargan de forma instantánea.
+    -   Se implementó una **búsqueda inteligente del lado del servidor**: a medida que el usuario escribe, el sistema realiza consultas rápidas y ligeras para traer solo los resultados más relevantes.
+    -   Este cambio afecta a: **Asistente de Recepción, Asistente de Poblado, Toma de Inventario Físico, Centro de Etiquetas y Gestión de Lotes/Tarimas**.
+-   **[Rendimiento Catálogo] Paginación del Lado del Servidor.** El módulo **"Catálogo Clientes y Artículos"** ahora utiliza paginación del lado del servidor. En lugar de cargar todas las asignaciones a la vez, carga los datos por páginas, garantizando un rendimiento óptimo sin importar la cantidad de registros.
+-   **[UX Panel Principal]** Se eliminó la tarjeta duplicada de "Panel" del dashboard principal para una interfaz más limpia y lógica.
+
+### Correcciones y Mejoras de Lógica
+
+-   **[Seguridad de Permisos]** Se corrigió un error en el gestor de roles que impedía la correcta asignación de permisos dependientes (ej: no se podía asignar "Aprobar Boleta" sin tener acceso a la lista de boletas). El sistema ahora aplica la jerarquía de permisos correctamente.
+-   **[Estabilidad]** Se solucionó una advertencia de "dependencias faltantes" en el hook `useAuthorization` para mejorar la estabilidad y prevenir bugs de renderizado.
+-   **[Responsivo]** Se corrigieron errores de desbordamiento horizontal en las barras de navegación secundarias de los módulos de "Administración" y "Analíticas" en pantallas pequeñas y grandes, asegurando una visualización correcta en todos los dispositivos.
+
+---
+
 ## [2.9.2] - Publicado
 
 ### Mejoras de Experiencia de Usuario (UX) y Calidad de Vida
