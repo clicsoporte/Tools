@@ -462,16 +462,13 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             const lines = db.prepare('SELECT * FROM boleta_lines WHERE boleta_id = ?').all(boletaId) as BoletaLine[];
             const totalReplenish = lines.reduce((sum, line) => sum + line.replenish_quantity, 0);
 
-            if (totalReplenish <= 0) {
-                const hasUntouchedManualLines = lines.some(line => line.max_stock === 0 && line.is_manually_edited === 0);
-                if (!hasUntouchedManualLines) {
-                    throw new Error("No se puede enviar a aprobación una boleta sin cantidad total a reponer.");
-                }
-            }
-            
             const hasUntouchedManualLines = lines.some(line => line.max_stock === 0 && line.is_manually_edited === 0);
             if (hasUntouchedManualLines) {
                 throw new Error("Hay productos que requieren una cantidad manual. Por favor, edita la boleta y asigna una cantidad (incluso 0) a todas las líneas antes de enviar a aprobación.");
+            }
+
+            if (totalReplenish <= 0) {
+                 throw new Error("No se puede enviar a aprobación una boleta sin cantidad total a reponer.");
             }
         }
         
@@ -503,7 +500,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         let setClauses = [
             'status = @status',
             'approved_by = @approved_by',
-            'submittedBy = @submittedBy',
+            'submitted_by = @submittedBy',
             'previousStatus = @previousStatus',
         ];
 
