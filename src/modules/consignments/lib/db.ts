@@ -452,27 +452,62 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             throw new Error("Boleta no encontrada.");
         }
         
+        if (status === 'pending') {
+            if (!erpMovementId || !erpMovementId.trim()) {
+                throw new Error("El número de movimiento de inventario del ERP es requerido para poder enviar a aprobación.");
+            }
+            const lines = db.prepare('SELECT * FROM boleta_lines WHERE boleta_id = ?').all(boletaId) as BoletaLine[];
+            const totalReplenish = lines.reduce((sum, line) => sum + line.replenish_quantity, 0);
+
+            if (totalReplenish <= 0) {
+                throw new Error("No se puede enviar a aprobación una boleta sin cantidad total a reponer.");
+            }
+            
+            const hasUntouchedManualLines = lines.some(line => line.max_stock === 0 && line.is_manually_edited === 0);
+            if (hasUntouchedManualLines) {
+                throw new Error("Hay productos que requieren una cantidad manual. Por favor, edita la boleta y asigna una cantidad (incluso 0) a todas las líneas antes de enviar a aprobación.");
+            }
+        }
+        
+        let approvedBy = currentBoleta.approvedBy;
+        if (status === 'approved' && !currentBoleta.approvedBy) {
+            approvedBy = updatedBy;
+        }
+
+        let submittedBy = currentBoleta.submitted_by;
+        if (status === 'pending') {
+            submittedBy = updatedBy;
+        }
+
+        let previousStatus = currentBoleta.previousStatus;
+        if (status === 'review') {
+            previousStatus = currentBoleta.status;
+        } else {
+            previousStatus = null; // Clear it for forward movements
+        }
+
         const updateParams: any = {
             status,
             id: boletaId,
+            approvedBy,
+            submittedBy,
+            previousStatus,
         };
 
         let setClauses = [
             'status = @status',
+            'approvedBy = @approvedBy',
+            'submittedBy = @submittedBy',
+            'previousStatus = @previousStatus',
         ];
 
         if (status === 'approved') {
-            setClauses.push('approved_by = @approvedBy', 'approved_at = datetime(\'now\')');
-            updateParams.approvedBy = updatedBy;
+            setClauses.push('approved_at = datetime(\'now\')');
         } else if (status === 'pending') {
-            setClauses.push('submitted_by = @submittedBy');
-            updateParams.submittedBy = updatedBy;
             if (erpMovementId) {
                 setClauses.push('erp_movement_id = @erpMovementId');
                 updateParams.erpMovementId = erpMovementId;
             }
-        } else if (status === 'sent') {
-            // No action needed for erpMovementId here anymore
         } else if (status === 'invoiced') {
             if (!erpInvoiceNumber?.trim()) {
                 throw new Error("El número de factura del ERP es requerido para marcar como facturada.");
@@ -627,3 +662,4 @@ export async function forceReleaseConsignmentSession(sessionId: number, updatedB
     
     logWarn(`Consignment session ${sessionId} was forcibly released by ${updatedBy}.`);
 }
+
