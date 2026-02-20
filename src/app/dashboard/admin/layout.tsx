@@ -22,13 +22,13 @@ export default function AdminLayout({
         <div className="flex flex-col h-full">
             <div className="border-b">
                 <div className="px-4 md:px-6 lg:px-8">
-                     <nav className="flex items-center space-x-4 lg:space-x-6 overflow-x-auto py-2">
+                     <nav className="hidden md:flex flex-wrap items-center gap-x-6 gap-y-2 py-4">
                         {adminTools.sort((a,b) => a.name.localeCompare(b.name)).map(link => (
                             <Link 
                                 key={link.href}
                                 href={link.href}
                                 className={cn(
-                                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
+                                    "text-sm font-medium transition-colors hover:text-primary",
                                     pathname === link.href ? "text-primary" : "text-muted-foreground"
                                 )}
                             >
