@@ -1049,6 +1049,8 @@ export type RestockBoleta = {
     approved_by?: string;
     approved_at?: string;
     erp_invoice_number?: string;
+    erp_movement_id?: string;
+    delivery_date?: string;
     notes?: string;
     total_replenish_quantity?: number;
 };

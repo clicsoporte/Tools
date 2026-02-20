@@ -368,6 +368,8 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
             const boletaConsecutives = [...new Set(relevantBoletas.map((b: any) => b.consecutive))].join(', ');
             const creationDates = [...new Set(relevantBoletas.map((b: any) => format(parseISO(b.created_at), 'dd/MM/yy')))].join(', ');
             const erpInvoices = [...new Set(relevantBoletas.map((b: any) => b.erp_invoice_number).filter(Boolean))].join(', ');
+            const erpMovementIds = [...new Set(relevantBoletas.map((b: any) => b.erp_movement_id).filter(Boolean))].join(', ');
+            const deliveryDates = [...new Set(relevantBoletas.map((b: any) => b.delivery_date ? format(parseISO(b.delivery_date), 'dd/MM/yy') : null).filter(Boolean))].join(', ');
             const approvers = [...new Set(relevantBoletas.map((b: any) => b.approved_by).filter(Boolean))].join(', ');
 
             return {
@@ -384,6 +386,8 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
                 creationDates,
                 erpInvoices,
                 approvers,
+                deliveryDates,
+                erpMovementIds,
             };
         });
 

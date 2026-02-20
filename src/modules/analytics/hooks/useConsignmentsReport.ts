@@ -31,8 +31,11 @@ export interface ConsignmentReportRow {
     totalValue: number;
     boletaConsecutives: string;
     creationDates: string;
+    deliveryDates: string;
     erpInvoices: string;
+    erpMovementIds: string;
     approvers: string;
+    clientProductCode?: string;
 }
 
 interface State {
@@ -114,13 +117,16 @@ export function useConsignmentsReport() {
         if (!state.reportData.length) return;
         const agreement = state.agreements.find(a => String(a.id) === state.selectedAgreementId);
 
-        const headers = ["Código", "Producto", "Boleta(s)", "Fecha(s) Creación", "Factura(s) ERP", "Aprobado Por", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total"];
+        const headers = ["Código", "Producto", "Alias Cliente", "Boleta(s)", "Fecha(s) Creación", "Fecha(s) Entrega", "Movimiento(s) Interno(s)", "Factura(s) ERP", "Aprobado Por", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total"];
         
         const dataToExport = state.reportData.map(row => [
             row.productId,
             row.productDescription,
+            row.clientProductCode,
             row.boletaConsecutives,
             row.creationDates,
+            row.deliveryDates,
+            row.erpMovementIds,
             row.erpInvoices,
             row.approvers,
             row.initialStock,
@@ -144,7 +150,7 @@ export function useConsignmentsReport() {
             meta,
             headers,
             data: dataToExport,
-            columnWidths: [20, 40, 20, 20, 20, 20, 15, 15, 15, 15, 15, 15],
+            columnWidths: [20, 40, 20, 20, 20, 20, 20, 20, 20, 15, 15, 15, 15, 15, 15],
         });
     };
 

@@ -69,9 +69,11 @@ async function sendBoletaEmail({
                 <p>${introText}</p>
                 <h3 style="color: #2c3e50;">Boleta: ${boleta.consecutive}</h3>
                 ${boleta.status === 'invoiced' && boleta.erp_invoice_number ? `<p><strong>Factura ERP: <span style="color: #c0392b;">${boleta.erp_invoice_number}</span></strong></p>` : ''}
+                ${boleta.erp_movement_id ? `<p><strong>Movimiento Interno:</strong> ${boleta.erp_movement_id}</p>` : ''}
                 <p><strong>Cliente:</strong> ${clientName}</p>
                 <p><strong>Bodega ERP:</strong> ${warehouseId}</p>
                 <p><strong>Fecha de Creación:</strong> ${format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</p>
+                ${boleta.delivery_date ? `<p><strong>Fecha de Entrega:</strong> ${format(parseISO(boleta.delivery_date), 'dd/MM/yyyy')}</p>` : ''}
                 ${submittedBy ? `<p><strong>Toma de Inventario por:</strong> ${submittedBy}</p>` : ''}
                 <hr>
                 <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 12px;">
@@ -205,7 +207,7 @@ export async function getBoletas(filters: { status: string[], dateRange?: { from
     return getBoletasServer(filters);
 }
 
-export async function updateBoletaStatus(payload: { boletaId: number, status: RestockBoletaStatus, notes: string, updatedBy: string, erpInvoiceNumber?: string }): Promise<RestockBoleta> {
+export async function updateBoletaStatus(payload: { boletaId: number, status: RestockBoletaStatus, notes: string, updatedBy: string, erpInvoiceNumber?: string, erpMovementId?: string }): Promise<RestockBoleta> {
     const updatedBoleta = await updateBoletaStatusServer(payload);
     
     try {

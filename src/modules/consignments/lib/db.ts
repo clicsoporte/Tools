@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -71,6 +70,8 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             approved_by TEXT,
             approved_at TEXT,
             erp_invoice_number TEXT,
+            erp_movement_id TEXT,
+            delivery_date TEXT,
             notes TEXT,
             FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id) ON DELETE CASCADE
         );
@@ -132,6 +133,13 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
     if (!columns.has('submitted_by')) {
         db.exec('ALTER TABLE restock_boletas ADD COLUMN submitted_by TEXT');
     }
+    if (!columns.has('delivery_date')) {
+        db.exec('ALTER TABLE restock_boletas ADD COLUMN delivery_date TEXT');
+    }
+    if (!columns.has('erp_movement_id')) {
+        db.exec('ALTER TABLE restock_boletas ADD COLUMN erp_movement_id TEXT');
+    }
+
 
     const linesTableInfo = db.prepare(`PRAGMA table_info(boleta_lines)`).all() as { name: string }[];
     const linesColumns = new Set(linesTableInfo.map(c => c.name));
@@ -433,9 +441,9 @@ export async function getBoletas(filters: { status: string[], dateRange?: { from
     return JSON.parse(JSON.stringify(boletas));
 }
 
-export async function updateBoletaStatus(payload: { boletaId: number, status: string, notes: string, updatedBy: string, erpInvoiceNumber?: string }): Promise<RestockBoleta> {
+export async function updateBoletaStatus(payload: { boletaId: number, status: string, notes: string, updatedBy: string, erpInvoiceNumber?: string, erpMovementId?: string }): Promise<RestockBoleta> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const { boletaId, status, notes, updatedBy, erpInvoiceNumber } = payload;
+    const { boletaId, status, notes, updatedBy, erpInvoiceNumber, erpMovementId } = payload;
     
     const transaction = db.transaction(() => {
         const currentBoleta = db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta | undefined;
@@ -458,6 +466,12 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         } else if (status === 'pending') {
             setClauses.push('submitted_by = @submittedBy');
             updateParams.submittedBy = updatedBy;
+        } else if (status === 'sent') {
+            if (!erpMovementId?.trim()) {
+                throw new Error("El número de movimiento de inventario es requerido para marcar como enviada.");
+            }
+            setClauses.push('erp_movement_id = @erpMovementId');
+            updateParams.erpMovementId = erpMovementId;
         } else if (status === 'invoiced') {
             if (!erpInvoiceNumber?.trim()) {
                 throw new Error("El número de factura del ERP es requerido para marcar como facturada.");
@@ -495,7 +509,7 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     const transaction = db.transaction(() => {
-        db.prepare('UPDATE restock_boletas SET notes = ? WHERE id = ?').run(boleta.notes, boleta.id);
+        db.prepare('UPDATE restock_boletas SET notes = ?, delivery_date = ? WHERE id = ?').run(boleta.notes, boleta.delivery_date, boleta.id);
         
         const updateLineStmt = db.prepare('UPDATE boleta_lines SET replenish_quantity = ?, max_stock = ?, price = ?, is_manually_edited = ? WHERE id = ?');
         for (const line of lines) {
@@ -612,5 +626,3 @@ export async function forceReleaseConsignmentSession(sessionId: number, updatedB
     
     logWarn(`Consignment session ${sessionId} was forcibly released by ${updatedBy}.`);
 }
-
-    
