@@ -464,14 +464,14 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             setClauses.push('approved_by = @approvedBy', 'approved_at = datetime(\'now\')');
             updateParams.approvedBy = updatedBy;
         } else if (status === 'pending') {
-            setClauses.push('submitted_by = @submittedBy');
-            updateParams.submittedBy = updatedBy;
-        } else if (status === 'sent') {
             if (!erpMovementId?.trim()) {
-                throw new Error("El número de movimiento de inventario es requerido para marcar como enviada.");
+                throw new Error("El número de movimiento de inventario es requerido para enviar a aprobación.");
             }
-            setClauses.push('erp_movement_id = @erpMovementId');
+            setClauses.push('submitted_by = @submittedBy', 'erp_movement_id = @erpMovementId');
+            updateParams.submittedBy = updatedBy;
             updateParams.erpMovementId = erpMovementId;
+        } else if (status === 'sent') {
+            // No action needed for erpMovementId here anymore
         } else if (status === 'invoiced') {
             if (!erpInvoiceNumber?.trim()) {
                 throw new Error("El número de factura del ERP es requerido para marcar como facturada.");
@@ -509,7 +509,7 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     const transaction = db.transaction(() => {
-        db.prepare('UPDATE restock_boletas SET notes = ?, delivery_date = ? WHERE id = ?').run(boleta.notes, boleta.delivery_date, boleta.id);
+        db.prepare('UPDATE restock_boletas SET notes = ?, delivery_date = ?, erp_movement_id = ? WHERE id = ?').run(boleta.notes, boleta.delivery_date, boleta.erp_movement_id, boleta.id);
         
         const updateLineStmt = db.prepare('UPDATE boleta_lines SET replenish_quantity = ?, max_stock = ?, price = ?, is_manually_edited = ? WHERE id = ?');
         for (const line of lines) {

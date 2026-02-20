@@ -101,7 +101,12 @@ export const useConsignmentsBoletas = () => {
 
         updateState({
             boletaToUpdate: boleta,
-            statusUpdatePayload: { status, notes: '', erpInvoiceNumber: '', erpMovementId: '' },
+            statusUpdatePayload: { 
+                status, 
+                notes: '', 
+                erpInvoiceNumber: '',
+                erpMovementId: boleta.erp_movement_id || '' // Pre-fill if it exists
+            },
             isStatusModalOpen: true,
         });
     };
@@ -186,7 +191,7 @@ export const useConsignmentsBoletas = () => {
         }
     };
 
-    const handleBoletaHeaderChange = (field: 'delivery_date', value: string) => {
+    const handleBoletaHeaderChange = (field: 'delivery_date' | 'erp_movement_id', value: string) => {
         if (!state.detailedBoleta) return;
         updateState({
             detailedBoleta: {
