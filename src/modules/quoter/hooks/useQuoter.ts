@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -695,6 +696,9 @@ export const useQuoter = () => {
         { content: formatCurrency(line.quantity * line.price * (1 + line.tax)), styles: { halign: 'right' } as any },
     ]);
     
+    // Determine the customer details to be printed on the PDF
+    const finalCustomerDetails = customerDetails.trim() || customerSearchTerm.trim() || "Cliente Contado";
+
     const doc = generateDocument({
         docTitle: "COTIZACIÓN",
         docId: quoteNumber,
@@ -712,7 +716,7 @@ export const useQuoter = () => {
             whatsapp: sellerType === 'user' ? currentUser?.whatsapp : undefined
         },
         blocks: [
-            { title: 'Cliente', content: customerDetails },
+            { title: 'Cliente', content: finalCustomerDetails },
             {
                 title: 'Entrega',
                 content: `Dirección: ${deliveryAddress}\nFecha Entrega: ${
