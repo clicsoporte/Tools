@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -464,12 +465,12 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             setClauses.push('approved_by = @approvedBy', 'approved_at = datetime(\'now\')');
             updateParams.approvedBy = updatedBy;
         } else if (status === 'pending') {
-            if (!erpMovementId?.trim()) {
-                throw new Error("El número de movimiento de inventario es requerido para enviar a aprobación.");
-            }
-            setClauses.push('submitted_by = @submittedBy', 'erp_movement_id = @erpMovementId');
+            setClauses.push('submitted_by = @submittedBy');
             updateParams.submittedBy = updatedBy;
-            updateParams.erpMovementId = erpMovementId;
+            if (erpMovementId) {
+                setClauses.push('erp_movement_id = @erpMovementId');
+                updateParams.erpMovementId = erpMovementId;
+            }
         } else if (status === 'sent') {
             // No action needed for erpMovementId here anymore
         } else if (status === 'invoiced') {

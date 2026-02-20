@@ -55,7 +55,7 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignmentsB
                             <Input id="erp-invoice" value={statusUpdatePayload.erpInvoiceNumber || ''} onChange={(e) => actions.handleStatusUpdatePayloadChange('erpInvoiceNumber', e.target.value)} />
                         </div>
                     )}
-                    {statusUpdatePayload.status === 'sent' && (
+                    {statusUpdatePayload.status === 'pending' && (
                         <div className="space-y-2">
                             <Label htmlFor="erp-movement">Número de Movimiento de Inventario ERP</Label>
                             <Input id="erp-movement" value={statusUpdatePayload.erpMovementId || ''} onChange={(e) => actions.handleStatusUpdatePayloadChange('erpMovementId', e.target.value)} />
@@ -68,7 +68,7 @@ function StatusUpdateDialog({ hook }: { hook: ReturnType<typeof useConsignmentsB
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                    <Button onClick={actions.submitStatusUpdate} disabled={isSubmitting || (statusUpdatePayload.status === 'invoiced' && !statusUpdatePayload.erpInvoiceNumber?.trim()) || (statusUpdatePayload.status === 'sent' && !statusUpdatePayload.erpMovementId?.trim())}>
+                    <Button onClick={actions.submitStatusUpdate} disabled={isSubmitting || (statusUpdatePayload.status === 'invoiced' && !statusUpdatePayload.erpInvoiceNumber?.trim()) || (statusUpdatePayload.status === 'pending' && !statusUpdatePayload.erpMovementId?.trim())}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                         Confirmar
                     </Button>

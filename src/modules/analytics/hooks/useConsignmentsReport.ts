@@ -171,13 +171,14 @@ export function useConsignmentsReport() {
             } catch (e) { console.error("Error processing logo for PDF:", e); }
         }
 
-        const tableHeaders = ["Producto", "Boleta(s)", "Fecha(s)", "Factura(s)", "Aprobado", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio", "Total"];
+        const tableHeaders = ["Producto", "Boleta(s)", "F. Creación", "F. Entrega", "Mov. Interno", "Factura(s)", "Inv. Inicial", "Repuesto", "Inv. Final", "Consumo", "Precio", "Total"];
         const tableRows = state.reportData.map(row => [
             `${row.productDescription}\n(${row.productId})`,
             row.boletaConsecutives,
             row.creationDates,
+            row.deliveryDates,
+            row.erpMovementIds,
             row.erpInvoices,
-            row.approvers,
             row.initialStock.toLocaleString(),
             row.totalReplenished.toLocaleString(),
             row.finalStock.toLocaleString(),
@@ -197,8 +198,8 @@ export function useConsignmentsReport() {
                 columns: tableHeaders, 
                 rows: tableRows, 
                 columnStyles: { 
-                    5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 
-                    8: { halign: 'right' }, 9: { halign: 'right' }, 10: { halign: 'right' } 
+                    6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 
+                    9: { halign: 'right' }, 10: { halign: 'right' }, 11: { halign: 'right' } 
                 } 
             },
             totals: [{ label: 'Total a Facturar:', value: `¢${selectors.totalConsumptionValue.toLocaleString('es-CR', { minimumFractionDigits: 2 })}` }],

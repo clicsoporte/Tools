@@ -208,108 +208,104 @@ export async function getBoletas(filters: { status: string[], dateRange?: { from
 }
 
 export async function updateBoletaStatus(payload: { boletaId: number, status: RestockBoletaStatus, notes: string, updatedBy: string, erpInvoiceNumber?: string, erpMovementId?: string }): Promise<RestockBoleta> {
-    const updatedBoleta = await updateBoletaStatusServer(payload);
-    
+    if (payload.status === 'pending' && !payload.erpMovementId?.trim()) {
+        throw new Error("El número de movimiento de inventario del ERP es requerido para poder enviar a aprobación.");
+    }
+
     try {
-        const statusConfig = {
-            review: 'En Revisión',
-            pending: 'Pendiente Aprobación',
-            approved: 'Aprobada',
-            sent: 'Enviada',
-            invoiced: 'Facturada',
-            canceled: 'Cancelada',
-        };
-        const statusLabel = statusConfig[payload.status] || payload.status;
-        const users: User[] = await getAllUsers();
-        const creator = users.find((u: User) => u.name === (updatedBoleta.submitted_by || updatedBoleta.created_by));
-        const settings = await getConsignmentSettingsServer();
-        const agreementDetails = await getAgreementDetailsServer(updatedBoleta.agreement_id);
+        const updatedBoleta = await updateBoletaStatusServer(payload);
         
-        // Recipient list: Map<email, { includePrice: boolean }>
-        const allRecipients = new Map<string, { includePrice: boolean }>();
-        
-        // Define which statuses are important milestones for notification
-        const milestoneStatuses: RestockBoletaStatus[] = ['approved', 'sent', 'invoiced', 'canceled', 'review'];
-        const isImportantUpdate = milestoneStatuses.includes(payload.status);
-        const isApprovalRequest = payload.status === 'pending';
-
-        // --- Determine who to notify ---
-
-        // 1. Notify relevant parties on important milestones/reversions
-        if (isImportantUpdate) {
-            // Notify creator (no price)
-            if (creator?.email) {
-                allRecipients.set(creator.email, { includePrice: false });
-            }
-            // Notify agreement-specific users (with price)
-            const agreementUserIds = agreementDetails?.agreement.notification_user_ids || [];
-            agreementUserIds.forEach(userId => {
-                const user = users.find(u => u.id === userId);
-                if (user?.email) {
-                    // Overwrite creator's setting to include price if they're also an interested party
-                    allRecipients.set(user.email, { includePrice: true });
-                }
-            });
-        }
-        
-        // 2. Notify global approvers when a boleta is submitted for approval
-        if (isApprovalRequest) {
-            const globalUserIds = settings.notificationUserIds || [];
-            users.forEach(user => {
-                if (globalUserIds.includes(user.id)) {
-                    allRecipients.set(user.email, { includePrice: true });
-                }
-            });
-            const additionalEmails = settings.additionalNotificationEmails?.split(',').map(e => e.trim()).filter(Boolean) || [];
-            additionalEmails.forEach(email => allRecipients.set(email, { includePrice: true }));
-        }
-
-        // --- Construct and Send Emails ---
-        if (allRecipients.size > 0) {
-            const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.`;
-            const subject = `Actualización de Boleta: ${updatedBoleta.consecutive} - ${statusLabel}`;
+        try {
+            const statusConfig = {
+                review: 'En Revisión',
+                pending: 'Pendiente Aprobación',
+                approved: 'Aprobada',
+                sent: 'Enviada',
+                invoiced: 'Facturada',
+                canceled: 'Cancelada',
+            };
+            const statusLabel = statusConfig[payload.status] || payload.status;
+            const users: User[] = await getAllUsers();
+            const creator = users.find((u: User) => u.name === (updatedBoleta.submitted_by || updatedBoleta.created_by));
+            const settings = await getConsignmentSettingsServer();
+            const agreementDetails = await getAgreementDetailsServer(updatedBoleta.agreement_id);
             
-            for (const [email, config] of allRecipients.entries()) {
-                await sendBoletaEmail({
-                    boletaId: updatedBoleta.id,
-                    subject,
-                    introText,
-                    recipientEmails: [email],
-                    includePrice: config.includePrice,
+            const allRecipients = new Map<string, { includePrice: boolean }>();
+            
+            const milestoneStatuses: RestockBoletaStatus[] = ['approved', 'sent', 'invoiced', 'canceled', 'review'];
+            const isImportantUpdate = milestoneStatuses.includes(payload.status);
+            const isApprovalRequest = payload.status === 'pending';
+
+            if (isImportantUpdate) {
+                if (creator?.email) {
+                    allRecipients.set(creator.email, { includePrice: false });
+                }
+                const agreementUserIds = agreementDetails?.agreement.notification_user_ids || [];
+                agreementUserIds.forEach(userId => {
+                    const user = users.find(u => u.id === userId);
+                    if (user?.email) {
+                        allRecipients.set(user.email, { includePrice: true });
+                    }
                 });
             }
-        }
-        
-        // --- In-App Notifications ---
-        // Notify creator if someone else acted on a milestone
-        if (creator && creator.name !== payload.updatedBy && isImportantUpdate) {
-             await createNotification({
-                userId: creator.id,
-                message: `La boleta ${updatedBoleta.consecutive} ha sido actualizada a: ${statusLabel}.`,
-                href: '/dashboard/consignments/boletas',
-                entityId: updatedBoleta.id,
-                entityType: 'consignment_boleta',
-                entityStatus: payload.status,
-            });
-        }
-        
-        // Notify global approvers for in-app approval request
-        if (isApprovalRequest) {
-            await createNotificationForPermission(
-                'consignments:boleta:approve',
-                `Nueva boleta de consignación ${updatedBoleta.consecutive} requiere aprobación.`,
-                '/dashboard/consignments/boletas',
-                updatedBoleta.id,
-                'consignment_boleta',
-                'approve'
-            );
-        }
+            
+            if (isApprovalRequest) {
+                const globalUserIds = settings.notificationUserIds || [];
+                users.forEach(user => {
+                    if (globalUserIds.includes(user.id)) {
+                        allRecipients.set(user.email, { includePrice: true });
+                    }
+                });
+                const additionalEmails = settings.additionalNotificationEmails?.split(',').map(e => e.trim()).filter(Boolean) || [];
+                additionalEmails.forEach(email => allRecipients.set(email, { includePrice: true }));
+            }
 
-    } catch (e: any) {
-        logError('Failed to send boleta status update notification (from actions)', { boletaId: payload.boletaId, error: e.message });
+            if (allRecipients.size > 0) {
+                const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.`;
+                const subject = `Actualización de Boleta: ${updatedBoleta.consecutive} - ${statusLabel}`;
+                
+                for (const [email, config] of allRecipients.entries()) {
+                    await sendBoletaEmail({
+                        boletaId: updatedBoleta.id,
+                        subject,
+                        introText,
+                        recipientEmails: [email],
+                        includePrice: config.includePrice,
+                    });
+                }
+            }
+            
+            if (creator && creator.name !== payload.updatedBy && isImportantUpdate) {
+                 await createNotification({
+                    userId: creator.id,
+                    message: `La boleta ${updatedBoleta.consecutive} ha sido actualizada a: ${statusLabel}.`,
+                    href: '/dashboard/consignments/boletas',
+                    entityId: updatedBoleta.id,
+                    entityType: 'consignment_boleta',
+                    entityStatus: payload.status,
+                });
+            }
+            
+            if (isApprovalRequest) {
+                await createNotificationForPermission(
+                    'consignments:boleta:approve',
+                    `Nueva boleta de consignación ${updatedBoleta.consecutive} requiere aprobación.`,
+                    '/dashboard/consignments/boletas',
+                    updatedBoleta.id,
+                    'consignment_boleta',
+                    'approve'
+                );
+            }
+
+        } catch (e: any) {
+            logError('Failed to send boleta status update notification (from actions)', { boletaId: payload.boletaId, error: e.message });
+        }
+        
+        return updatedBoleta;
+    } catch(error: any) {
+        logError('Failed to update boleta status (from actions)', { error: error.message, payload });
+        throw new Error(`${error.message}`);
     }
-    
-    return updatedBoleta;
 }
 
 export async function getBoletaDetails(boletaId: number): Promise<{ boleta: RestockBoleta, lines: BoletaLine[], history: BoletaHistory[] } | null> {
