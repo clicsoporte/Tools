@@ -1053,6 +1053,7 @@ export type RestockBoleta = {
     delivery_date?: string;
     notes?: string;
     total_replenish_quantity?: number;
+    previousStatus?: RestockBoletaStatus | null;
 };
 
 export type BoletaLine = {

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -74,6 +73,7 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             erp_movement_id TEXT,
             delivery_date TEXT,
             notes TEXT,
+            previousStatus TEXT,
             FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id) ON DELETE CASCADE
         );
 
@@ -139,6 +139,9 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
     }
     if (!columns.has('erp_movement_id')) {
         db.exec('ALTER TABLE restock_boletas ADD COLUMN erp_movement_id TEXT');
+    }
+    if (!columns.has('previousStatus')) {
+        db.exec('ALTER TABLE restock_boletas ADD COLUMN previousStatus TEXT');
     }
 
 
@@ -460,7 +463,10 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             const totalReplenish = lines.reduce((sum, line) => sum + line.replenish_quantity, 0);
 
             if (totalReplenish <= 0) {
-                throw new Error("No se puede enviar a aprobación una boleta sin cantidad total a reponer.");
+                const hasUntouchedManualLines = lines.some(line => line.max_stock === 0 && line.is_manually_edited === 0);
+                if (!hasUntouchedManualLines) {
+                    throw new Error("No se puede enviar a aprobación una boleta sin cantidad total a reponer.");
+                }
             }
             
             const hasUntouchedManualLines = lines.some(line => line.max_stock === 0 && line.is_manually_edited === 0);
@@ -469,9 +475,9 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             }
         }
         
-        let approvedBy = currentBoleta.approvedBy;
-        if (status === 'approved' && !currentBoleta.approvedBy) {
-            approvedBy = updatedBy;
+        let approved_by = currentBoleta.approved_by;
+        if (status === 'approved' && !currentBoleta.approved_by) {
+            approved_by = updatedBy;
         }
 
         let submittedBy = currentBoleta.submitted_by;
@@ -489,14 +495,14 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const updateParams: any = {
             status,
             id: boletaId,
-            approvedBy,
+            approved_by,
             submittedBy,
             previousStatus,
         };
 
         let setClauses = [
             'status = @status',
-            'approvedBy = @approvedBy',
+            'approved_by = @approved_by',
             'submittedBy = @submittedBy',
             'previousStatus = @previousStatus',
         ];
@@ -662,4 +668,3 @@ export async function forceReleaseConsignmentSession(sessionId: number, updatedB
     
     logWarn(`Consignment session ${sessionId} was forcibly released by ${updatedBy}.`);
 }
-
