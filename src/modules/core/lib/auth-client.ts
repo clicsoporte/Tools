@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file contains client-side functions for interacting with server-side authentication logic.
  * This abstraction layer prevents direct DB access from the client and ensures that server-side
@@ -25,8 +24,8 @@ import {
  * @param {string} password - The password provided by the user.
  * @returns {Promise<{ user: User | null, forcePasswordChange: boolean }>} A promise that resolves to the login result.
  */
-export async function login(email: string, password: string, clientInfo: { ip: string; host: string; }): Promise<{ user: User | null, forcePasswordChange: boolean }> {
-    return await loginServer(email, password, clientInfo);
+export async function login(email: string, password: string): Promise<{ user: User | null, forcePasswordChange: boolean }> {
+    return await loginServer(email, password);
 }
 
 /**
@@ -82,8 +81,8 @@ export async function saveAllUsers(users: User[]): Promise<void> {
  * @param {object} [clientInfo] - Optional client IP and host for logging.
  * @returns {Promise<boolean>} True if the password matches the hash.
  */
-export async function comparePasswords(userId: number, password: string, clientInfo?: { ip: string, host: string }): Promise<boolean> {
-    return await comparePasswordsServer(userId, password, clientInfo);
+export async function comparePasswords(userId: number, password: string): Promise<boolean> {
+    return await comparePasswordsServer(userId, password);
 }
 
 /**
@@ -98,8 +97,7 @@ export async function getInitialAuthData() {
 /**
  * Triggers the password recovery email process.
  * @param email - The email of the user requesting recovery.
- * @param clientInfo - Information about the client making the request.
  */
-export async function sendRecoveryEmail(email: string, clientInfo: { ip: string, host: string }): Promise<void> {
-    return await sendRecoveryEmailServer(email, clientInfo);
+export async function sendRecoveryEmail(email: string): Promise<void> {
+    return await sendRecoveryEmailServer(email);
 }

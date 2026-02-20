@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client component for the initial setup wizard.
  * This form is displayed only when no users exist in the database, allowing
@@ -17,14 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 
-interface SetupWizardProps {
-  clientInfo: {
-    ip: string;
-    host: string;
-  };
-}
+interface SetupWizardProps {}
 
-export function SetupWizard({ clientInfo }: SetupWizardProps) {
+export function SetupWizard({}: SetupWizardProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -59,7 +53,7 @@ export function SetupWizard({ clientInfo }: SetupWizardProps) {
 
     setIsProcessing(true);
     try {
-        await createFirstUser(formData, clientInfo);
+        await createFirstUser(formData);
         toast({ title: "¡Configuración Completa!", description: "Tu cuenta de administrador ha sido creada. Ahora puedes iniciar sesión." });
         // Use window.location to force a full page reload, ensuring the server re-evaluates user count.
         window.location.href = '/';

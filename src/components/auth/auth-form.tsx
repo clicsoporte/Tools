@@ -41,18 +41,13 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 import { SetupWizard } from "./setup-wizard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-interface AuthFormProps {
-  clientInfo: {
-    ip: string;
-    host: string;
-  };
-}
+interface AuthFormProps {}
 
 /**
  * Renders the login form, setup wizard, or password recovery flow.
  * This component is now the entry point for authentication logic on the client.
  */
-export function AuthForm({ clientInfo }: AuthFormProps) {
+export function AuthForm({}: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { user, isAuthReady, refreshAuth, redirectAfterLogin } = useAuth();
@@ -113,7 +108,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
     e.preventDefault();
     setIsProcessing(true);
     try {
-      const loginResult = await login(email, password, clientInfo);
+      const loginResult = await login(email, password);
 
       if (loginResult.user) {
         if (loginResult.forcePasswordChange) {
@@ -168,7 +163,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
     if (!recoveryEmail) return;
     setIsProcessing(true);
     try {
-      await sendRecoveryEmail(recoveryEmail, clientInfo);
+      await sendRecoveryEmail(recoveryEmail);
       toast({ title: "Correo de Recuperación Enviado", description: "Si el correo existe, recibirás una contraseña temporal." });
       setRecoveryDialogOpen(false);
       setRecoveryEmail("");
@@ -213,7 +208,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
     if (isLoading || (isAuthReady && user)) return <div className="flex justify-center items-center h-48"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
     if (error) return <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><CardTitle>Error Crítico</CardTitle><AlertDescription>{error}</AlertDescription></Alert>;
     
-    if (hasUsers === false) return <SetupWizard clientInfo={clientInfo} />;
+    if (hasUsers === false) return <SetupWizard />;
 
     switch (authStep) {
       case 'force_change':

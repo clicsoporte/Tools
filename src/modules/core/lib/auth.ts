@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side authentication and user management functions.
  * These functions interact directly with the database to handle user data.
@@ -65,7 +64,12 @@ export async function hasPermission(userId: number, permission: string): Promise
  * @param {string} passwordProvided - The password provided by the user.
  * @returns {Promise<{ user: User | null, forcePasswordChange: boolean }>} The user object and a flag indicating if a password change is required.
  */
-export async function login(email: string, passwordProvided: string, clientInfo: { ip: string; host: string; }): Promise<{ user: User | null, forcePasswordChange: boolean }> {
+export async function login(email: string, passwordProvided: string): Promise<{ user: User | null, forcePasswordChange: boolean }> {
+  const headerList = headers();
+  const clientInfo = {
+    ip: headerList.get("x-forwarded-for") || "N/A",
+    host: headerList.get("host") || "N/A",
+  };
   const db = await connectDb();
   const logMeta = { email, ...clientInfo };
   try {
@@ -291,10 +295,14 @@ export async function saveAllUsers(users: User[]): Promise<void> {
  * Securely compares a plaintext password with a user's stored bcrypt hash.
  * @param {number} userId - The ID of the user whose password should be checked.
  * @param {string} password - The plaintext password to check.
- * @param {object} [clientInfo] - Optional client IP and host for logging.
  * @returns {Promise<boolean>} True if the password matches the hash.
  */
-export async function comparePasswords(userId: number, password: string, clientInfo?: { ip: string, host: string }): Promise<boolean> {
+export async function comparePasswords(userId: number, password: string): Promise<boolean> {
+    const headerList = headers();
+    const clientInfo = {
+      ip: headerList.get("x-forwarded-for") || "N/A",
+      host: headerList.get("host") || "N/A",
+    };
     const db = await connectDb();
     const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId) as User | undefined;
     if (!user || !user.password) return false;
@@ -383,7 +391,12 @@ export async function getInitialAuthData() {
 /**
  * Handles the password recovery process.
  */
-export async function sendPasswordRecoveryEmail(email: string, clientInfo: { ip: string; host: string; }): Promise<void> {
+export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
+    const headerList = headers();
+    const clientInfo = {
+      ip: headerList.get("x-forwarded-for") || "N/A",
+      host: headerList.get("host") || "N/A",
+    };
     const db = await connectDb();
     const logMeta = { email, ...clientInfo };
 

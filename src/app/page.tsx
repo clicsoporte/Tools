@@ -9,7 +9,6 @@ import { AuthForm } from "@/components/auth/auth-form";
 import {
   Card,
 } from "@/components/ui/card";
-import { headers } from "next/headers";
 import React from "react";
 
 // This is the critical fix for the production cache issue.
@@ -18,17 +17,11 @@ import React from "react";
 // export const dynamic = 'force-dynamic'; // This was removed as it might cause issues with router cache.
 
 export default function InitialPage() {
-  const headerList = headers();
-  const clientInfo = {
-    ip: headerList.get("x-forwarded-for") || "N/A",
-    host: headerList.get("host") || "N/A",
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm shadow-2xl">
         {/* The AuthForm component will now handle showing the correct title/description and form */}
-        <AuthForm clientInfo={clientInfo} />
+        <AuthForm />
       </Card>
     </div>
   );
