@@ -29,7 +29,7 @@ export default function AnalyticsLayout({
         <div className="flex flex-col h-full">
             <div className="border-b">
                 <div className="px-4 md:px-6 lg:px-8">
-                     <nav className="flex items-center space-x-4 lg:space-x-6 overflow-x-auto py-2">
+                     <nav className="hidden md:flex items-center space-x-4 lg:space-x-6 overflow-x-auto py-2">
                         {visibleLinks.map(link => (
                             <Link 
                                 key={link.href}
