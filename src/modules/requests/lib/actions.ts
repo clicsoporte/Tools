@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for interacting with the request module's server-side DB functions.
  * This abstraction layer ensures components only call client-safe functions.
@@ -21,7 +20,7 @@ import {
     getUserByName as getUserByNameServer,
     getRolesWithPermission as getRolesWithPermissionServer,
     addNote as addNoteServer,
-    updateRequestDetails as updateRequestDetailsServer,
+    updateRequestDetails as updateRequestDetailsServer, 
     saveCostAnalysis as saveCostAnalysisServer,
 } from './db';
 import {

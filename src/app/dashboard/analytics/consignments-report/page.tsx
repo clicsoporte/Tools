@@ -6,7 +6,7 @@ import { useConsignmentsReport } from '@/modules/analytics/hooks/useConsignments
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet } from 'lucide-react';
+import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function ConsignmentsReportPage() {
     const { state, actions, selectors, isAuthorized } = useConsignmentsReport();
@@ -23,11 +24,18 @@ export default function ConsignmentsReportPage() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
+             <Alert variant="default" className="bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300">
+                <AlertTriangle className="h-4 w-4 !text-blue-600" />
+                <AlertTitle>Modo de Análisis Flexible</AlertTitle>
+                <AlertDescription>
+                    Este reporte permite un análisis flexible de las consignaciones por mes. Para la <strong>facturación oficial</strong>, por favor utiliza la herramienta <strong>&quot;Gestión de Cierres&quot;</strong> en el módulo de Consignaciones.
+                </AlertDescription>
+            </Alert>
             <Card>
                 <CardHeader>
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
-                            <CardTitle>Reporte de Cierre de Consignaciones</CardTitle>
+                            <CardTitle>Reporte de Cierre de Consignaciones (Analítico)</CardTitle>
                             <CardDescription>Genera el reporte de consumo mensual para un cliente de consignación específico.</CardDescription>
                         </div>
                         <Button onClick={actions.handleGenerateReport} disabled={isLoading}>

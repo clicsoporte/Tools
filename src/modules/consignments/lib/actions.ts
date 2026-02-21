@@ -210,6 +210,11 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
                 </div>
             `;
             
+            const companySettings = await getCompanySettings();
+            if (companySettings?.publicUrl) {
+                html += `<p style="margin-top: 20px; font-size: 12px; color: #7f8c8d;">Accede al sistema en: <a href="${companySettings.publicUrl}">${companySettings.publicUrl}</a></p>`;
+            }
+            
             await sendEmail({
                 to: Array.from(allRecipients),
                 subject,
