@@ -1,5 +1,3 @@
-// This is a new file
-
 /**
  * @fileoverview New page for consignment replenishment requests.
  * Allows warehouse staff to quickly create a replenishment order based on customer request.
@@ -104,7 +102,7 @@ export default function ReplenishmentRequestPage() {
                         <CheckCircle className="mx-auto h-16 w-16 text-green-500"/>
                         <CardTitle className="mt-4 text-2xl">¡Solicitud Generada!</CardTitle>
                         <CardDescription>
-                            Se ha creado la boleta de reposición y está pendiente de aprobación.
+                            Se ha creado la boleta de reposición y está pendiente de revisión.
                         </CardDescription>
                     </CardHeader>
                     <CardFooter className="justify-center">

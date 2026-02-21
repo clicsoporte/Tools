@@ -1,4 +1,3 @@
-// This is a new file
 /**
  * @fileoverview Hook for managing the logic for the new Consignments Replenishment Request page.
  */

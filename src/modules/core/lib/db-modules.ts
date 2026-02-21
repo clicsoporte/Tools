@@ -70,5 +70,3 @@ export const DB_MODULES: Omit<DatabaseModule, 'initFn' | 'migrationFn'>[] = [
         schema: consignmentsSchema,
     }
 ];
-
-    
