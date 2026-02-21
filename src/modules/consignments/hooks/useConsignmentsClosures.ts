@@ -67,7 +67,7 @@ export const useConsignmentsClosures = () => {
         } else {
             updateState({ isInitialLoading: false });
         }
-    }, [isAuthorized, loadData]);
+    }, [isAuthorized, loadData, updateState]);
 
     const handleViewClosure = async (closureId: number) => {
         const closure = state.closures.find(c => c.id === closureId);

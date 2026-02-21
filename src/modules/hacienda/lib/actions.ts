@@ -130,8 +130,10 @@ export async function getEnrichedExemptionStatus(authNumber: string): Promise<En
         };
     });
 
-    return {
+    const result: EnrichedExemptionInfo = {
         ...exemptionResult,
         enrichedCabys,
     };
+
+    return result;
 }

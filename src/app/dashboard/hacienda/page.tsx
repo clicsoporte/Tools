@@ -135,7 +135,7 @@ const HaciendaExemptionCard = ({ data, products }: { data: EnrichedExemptionInfo
 
     const filteredCabys: (EnrichedCabysItem & { localMatches: Product[] })[] = useMemo(() => {
         if (!data || !data.enrichedCabys) return [];
-        const enrichedWithLocalMatches = data.enrichedCabys.map(item => {
+        const enrichedWithLocalMatches = data.enrichedCabys.map((item: EnrichedCabysItem) => {
             const localMatches = products.filter(p => p.cabys === item.code);
             return { ...item, localMatches };
         });
@@ -143,7 +143,7 @@ const HaciendaExemptionCard = ({ data, products }: { data: EnrichedExemptionInfo
         if (!cabysFilter) return enrichedWithLocalMatches;
         
         const lowerFilter = cabysFilter.toLowerCase();
-        return enrichedWithLocalMatches.filter(item => 
+        return enrichedWithLocalMatches.filter((item: (EnrichedCabysItem & { localMatches: Product[] })) => 
             item.code.toLowerCase().includes(lowerFilter) || 
             item.description.toLowerCase().includes(lowerFilter) ||
             item.localMatches.some(p => p.id.toLowerCase().includes(lowerFilter) || p.description.toLowerCase().includes(lowerFilter))
@@ -207,7 +207,7 @@ const HaciendaExemptionCard = ({ data, products }: { data: EnrichedExemptionInfo
                         />
                     </div>
                     <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                        {filteredCabys.map((item, index) => (
+                        {filteredCabys.map((item: (EnrichedCabysItem & { localMatches: Product[] }), index) => (
                             <div key={`${item.code}-${index}`} className="p-2 bg-muted/50 rounded-md text-xs">
                                <div className="flex justify-between items-center">
                                     <div>
