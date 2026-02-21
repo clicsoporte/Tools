@@ -24,7 +24,7 @@ export const permissionGroups = {
     "Asistente de Costos": ["cost-assistant:access", "cost-assistant:drafts:read-write"],
     "Consignación": [
         "consignments:access", "consignments:setup", "consignments:count", "consignments:reports:read", 
-        "consignments:locks:manage", "consignments:boletas:read", "consignments:boletas:read:all", 
+        "consignments:boletas:read", "consignments:boletas:read:all", 
         "consignments:boleta:approve", "consignments:boleta:send", "consignments:boleta:invoice", 
         "consignments:boleta:cancel", "consignments:boleta:revert"
     ],
@@ -63,7 +63,7 @@ export const permissionTranslations = {
     "planner:status:completed": "Plan.: Cambiar a Completada", "planner:status:cancel": "Plan.: Cancelar (Pendientes)", "planner:status:cancel-approved": "Plan.: Cancelar (Aprobadas)", "planner:priority:update": "Plan.: Cambiar Prioridad", "planner:machine:assign": "Plan.: Asignar Máquina", "planner:status:unapprove-request": "Plan.: Solicitar Desaprobación", "planner:status:unapprove-request:approve": "Plan.: Aprobar Desaprobación", "planner:schedule": "Plan.: Programar Fechas",
     "cost-assistant:access": "Asist. Costos: Acceso", "cost-assistant:drafts:read-write": "Asist. Costos: Guardar Borradores",
     "consignments:access": "Consignación: Acceso General", "consignments:setup": "Consignación: Configurar Acuerdos", "consignments:count": "Consignación: Realizar Conteos", "consignments:reports:read": "Consignación: Ver Reportes", 
-    "consignments:locks:manage": "Consignación: Gestionar Bloqueos", "consignments:boletas:read": "Consignación: Ver Lista de Boletas", "consignments:boletas:read:all": "Consignación: Ver Todas las Boletas", 
+    "consignments:boletas:read": "Consignación: Ver Lista de Boletas", "consignments:boletas:read:all": "Consignación: Ver Todas las Boletas", 
     "consignments:boleta:approve": "Consignación: Aprobar Boletas", "consignments:boleta:send": "Consignación: Marcar como Enviada", "consignments:boleta:invoice": "Consignación: Marcar como Facturada", 
     "consignments:boleta:cancel": "Consignación: Cancelar Boletas", "consignments:boleta:revert": "Consignación: Revertir Estados de Boleta",
     "operations:access": "Operaciones: Acceso General", "operations:create": "Operaciones: Crear Documentos", "operations:read:all": "Operaciones: Ver Todos", "operations:approve": "Operaciones: Aprobar Documentos", "operations:sign": "Operaciones: Firmar Entregas/Recibos",
@@ -149,7 +149,7 @@ export const permissionTree: Partial<Record<AppPermission, AppPermission[]>> = {
     "planner:receive": ["planner:status:completed"],
 
     // --- Consignments ---
-    "consignments:access": ["consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read", "consignments:locks:manage"],
+    "consignments:access": ["consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read"],
     "consignments:boletas:read": ["consignments:boletas:read:all", "consignments:boleta:approve", "consignments:boleta:send", "consignments:boleta:invoice", "consignments:boleta:cancel", "consignments:boleta:revert"],
     
     // --- IT Tools ---

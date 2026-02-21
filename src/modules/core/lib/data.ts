@@ -253,21 +253,13 @@ export const consignmentsTools: Tool[] = [
         bgColor: "bg-orange-600",
     },
     {
-        id: "consignments:boletas:read",
+        id: "consignments:boleta:approve",
         name: "Gestión de Cierres",
         description: "Administrar y facturar los cierres de período de consignación.",
         href: "/dashboard/consignments/cierres",
         icon: FileSignature,
         bgColor: "bg-indigo-600",
     },
-    {
-        id: "consignments:locks:manage",
-        name: "Bloqueos de Conteo",
-        description: "Ver y liberar sesiones de conteo de consignación activas.",
-        href: "/dashboard/consignments/locks",
-        icon: Lock,
-        bgColor: "bg-slate-500",
-    }
 ];
 
 export const itTools: Tool[] = [
