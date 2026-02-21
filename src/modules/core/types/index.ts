@@ -849,6 +849,24 @@ export type AnalyticsSettings = {
     transitStatusAliases: TransitStatusAlias[];
 };
 
+export interface ConsignmentReportRow {
+    productId: string;
+    productDescription: string;
+    initialStock: number;
+    totalReplenished: number;
+    finalStock: number;
+    consumption: number;
+    price: number;
+    totalValue: number;
+    boletaConsecutives: string;
+    creationDates: string;
+    deliveryDates: string;
+    erpInvoices: string;
+    erpMovementIds: string;
+    approvers: string;
+    clientProductCode?: string;
+}
+
 
 // --- User Preferences ---
 export interface UserPreferences {
@@ -1125,3 +1143,5 @@ export class AuthError extends Error {
     this.name = "AuthError";
   }
 }
+
+    

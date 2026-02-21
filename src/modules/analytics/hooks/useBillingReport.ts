@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook to manage the logic for the new official Consignments Billing Report.
  */
@@ -41,7 +42,7 @@ export function useBillingReport() {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
 
-    const closureId = searchParams.get('closureId');
+    const closureId = searchParams?.get('closureId');
     
     useEffect(() => {
         setTitle("Reporte de Facturación");
@@ -112,3 +113,5 @@ export function useBillingReport() {
         isAuthorized,
     };
 }
+
+    
