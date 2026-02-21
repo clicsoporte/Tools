@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
  * This hook encapsulates all state and actions for the module, keeping the UI component clean.
@@ -20,7 +19,7 @@ import {
     saveCostAnalysis as saveCostAnalysisAction
 } from '@/modules/requests/lib/actions';
 import { getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
-import type { DateRange, UserPreferences, PurchaseSuggestion, PurchaseRequestPriority, ErpOrderHeader, ErpOrderLine, User, RequestNotePayload, PurchaseRequest, PurchaseRequestHistoryEntry, RequestSettings, Company, AdministrativeAction, AdministrativeActionPayload, StockInfo, Product, ErpPurchaseOrderHeader as ErpPOHeader, ErpPurchaseOrderLine } from '../../core/types';
+import type { DateRange, UserPreferences, PurchaseSuggestion, PurchaseRequestPriority, ErpOrderHeader, ErpOrderLine, User, RequestNotePayload, PurchaseRequest, PurchaseRequestHistoryEntry, RequestSettings, Company, AdministrativeAction, AdministrativeActionPayload, StockInfo, Product, ErpPurchaseOrderHeader as ErpPOHeader, ErpPurchaseOrderLine, PurchaseRequestStatus } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -825,6 +824,48 @@ export const useRequests = () => {
             });
         
             doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);
+        },
+        handleExportSingleRequestPDF: async (request: PurchaseRequest) => {
+            if (!authCompanyData || !state.requestSettings) return;
+
+            let logoDataUrl: string | null = null;
+            if (authCompanyData.logoUrl) {
+                 try {
+                    const response = await fetch(authCompanyData.logoUrl);
+                    const blob = await response.blob();
+                    logoDataUrl = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.readAsDataURL(blob);
+                    });
+                } catch(e) { console.error("Error adding logo to PDF:", e) }
+            }
+            
+            const doc = generateDocument({
+                docTitle: "Solicitud de Compra",
+                docId: request.consecutive,
+                companyData: authCompanyData,
+                logoDataUrl,
+                meta: [
+                    { label: 'Fecha Solicitud', value: format(parseISO(request.requestDate), 'dd/MM/yyyy HH:mm') },
+                    { label: 'Fecha Requerida', value: format(parseISO(request.requiredDate), 'dd/MM/yyyy') },
+                    { label: 'Estado', value: statusConfig[request.status]?.label || request.status },
+                ],
+                blocks: [
+                    { title: 'Cliente', content: `${request.clientName}\nCédula: ${request.clientTaxId}` },
+                    { title: 'Solicitado Por', content: request.requestedBy },
+                ],
+                table: {
+                    columns: ["Código", "Descripción", "Cantidad"],
+                    rows: [[request.itemId, request.itemDescription, request.quantity.toLocaleString('es-CR')]],
+                    columnStyles: { 2: { halign: 'right' } }
+                },
+                notes: request.notes,
+                totals: [],
+                topLegend: state.requestSettings.pdfTopLegend
+            });
+        
+            doc.save(`sc_${request.consecutive}.pdf`);
         },
         openAddNoteDialog: (request: PurchaseRequest) => {
             if (!currentUser) return;

@@ -17,8 +17,8 @@ import {
     saveSettings,
     updatePendingAction as updatePendingActionServer,
     getErpOrderData as getErpOrderDataServer,
-    getUserByName,
-    getRolesWithPermission,
+    getUserByName as getUserByNameServer,
+    getRolesWithPermission as getRolesWithPermissionServer,
     addNote as addNoteServer,
     updateRequestDetails as updateRequestDetailsServer,
     saveCostAnalysis as saveCostAnalysisServer,
@@ -328,4 +328,12 @@ export async function saveCostAnalysis(requestId: number, cost: number, salePric
     const updatedRequest = await saveCostAnalysisServer(requestId, cost, salePrice);
     await logInfo(`Cost analysis saved for request ${updatedRequest.consecutive}`, { requestId, cost, salePrice });
     return updatedRequest;
+}
+
+export async function getUserByName(name: string): Promise<User | null> {
+    return getUserByNameServer(name);
+}
+
+export async function getRolesWithPermission(permission: string): Promise<string[]> {
+    return getRolesWithPermissionServer(permission);
 }

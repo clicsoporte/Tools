@@ -13,8 +13,6 @@ import {
     getBoletaDetails as getBoletaDetailsServer,
     updateBoleta as updateBoletaServer,
     getBoletasByDateRange as getBoletasByDateRangeServer,
-    getActiveConsignmentSessions as getActiveConsignmentSessionsServer,
-    forceReleaseConsignmentSession as forceReleaseConsignmentSessionServer,
     getSettings as getConsignmentSettingsServer,
     saveSettings as saveConsignmentSettingsServer,
     savePhysicalCount as savePhysicalCountServer,
@@ -353,10 +351,6 @@ export async function getBoletasByDateRange(agreementId: string, dateRange: { fr
     const result = await getBoletasByDateRangeServer(agreementId, dateRange, statuses);
     return result;
 }
-
-
-export async function getActiveConsignmentSessions(): Promise<(any & { agreement_name: string; user_name: string; })[]> {return []}
-export async function forceReleaseConsignmentSession(sessionId: number, updatedBy: string): Promise<void> {}
 
 export async function getConsignmentSettings(): Promise<ConsignmentSettings> {
     return getConsignmentSettingsServer();
