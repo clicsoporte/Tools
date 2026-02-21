@@ -23,6 +23,30 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ---
 
+## [3.0.0] - En Desarrollo
+
+### Funcionalidades y Mejoras Principales
+
+-   **[NUEVO FLUJO] Ciclo de Facturación de Consignaciones:** Se ha rediseñado por completo el módulo de consignaciones para soportar diferentes escenarios operativos y un proceso de facturación más robusto.
+    -   **Flujos de Trabajo Separados:**
+        -   **Nueva Herramienta "Solicitud de Reposición":** Interfaz rápida para que el bodeguero en campo registre únicamente las cantidades que el cliente solicita reponer, generando una `Boleta de Reposición` para el despacho.
+        -   **Herramienta Mejorada "Conteo Físico":** Ahora tiene dos propósitos. Durante el mes, sirve para hacer **conteos informativos** que no afectan la facturación. Al final del período, se usa para generar un **"Cierre de Periodo"** oficial.
+    -   **Nuevo Módulo "Gestión de Cierres de Periodo":**
+        -   Permite crear, aprobar y gestionar "Cierres" con su propio consecutivo (ej: `CIERRE-0001`). Cada cierre marca el fin de un período de facturación.
+        -   Un cierre puede ser iniciado por el bodeguero desde el campo (con doble confirmación) o por el personal de oficina.
+        -   **Flujo de Aprobación:** Los cierres entran en estado "Pendiente" y deben ser aprobados en la oficina. Al aprobar, el sistema inteligentemente sugiere vincularlo con el cierre anterior para una trazabilidad perfecta del inventario inicial.
+    -   **Nuevo "Reporte de Facturación" por Cierre:**
+        -   Se accede desde la "Gestión de Cierres".
+        -   Calcula el consumo a facturar de forma precisa: `(Inventario Inicial del Cierre Anterior + Entregas del Periodo) - Inventario Final del Cierre Actual`.
+        -   Presenta un resumen consolidado listo para ser ingresado en el ERP.
+
+### Mejoras Internas y de Calidad
+
+-   **[Estabilidad]** Se corrigió un error `ChunkLoadError` que ocurría en producción al navegar entre páginas. Se eliminaron archivos `layout.tsx` redundantes y se ajustó la configuración de compilación de Next.js (`dynamic = 'force-dynamic'`) en las páginas afectadas para asegurar que siempre se cargue la versión más reciente del código.
+-   **[Base de Datos]** Se implementaron nuevas tablas (`period_closures`, `physical_counts`) y se actualizaron las existentes para soportar el nuevo ciclo de consignaciones.
+
+---
+
 ## [2.9.3] - Publicado
 
 ### Mejoras de Rendimiento y Experiencia de Usuario (UX)

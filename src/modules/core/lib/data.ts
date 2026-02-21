@@ -12,7 +12,7 @@ import {
   Lightbulb, FileText, Calculator, PanelLeft, Mail, KeyRound, BellRing,
   Palette, UserCheck, ShoppingBag, QrCode, HelpCircle, ClipboardCheck,
   ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, LayoutGrid,
-  FileSignature, Cpu, BookCopy, Container, Tags, Truck, Settings, ListChecks
+  FileSignature, Cpu, BookCopy, Container, Tags, Truck, Settings, ListChecks, FileInput
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -223,15 +223,23 @@ export const consignmentsTools: Tool[] = [
     {
         id: "consignments:setup",
         name: "Acuerdos de Consignación",
-        description: "Crear y gestionar los acuerdos de productos en consignación por cliente.",
+        description: "Definir clientes, productos y precios para la consignación.",
         href: "/dashboard/consignments/agreements",
         icon: ListChecks,
         bgColor: "bg-teal-600",
     },
     {
         id: "consignments:count",
-        name: "Toma de Inventario",
-        description: "Realizar el conteo físico de productos en las instalaciones del cliente.",
+        name: "Solicitud de Reposición",
+        description: "Registrar las cantidades a reponer solicitadas por el cliente.",
+        href: "/dashboard/consignments/reposicion",
+        icon: FileInput,
+        bgColor: "bg-sky-600",
+    },
+    {
+        id: "consignments:count",
+        name: "Conteo Físico",
+        description: "Registrar el inventario físico en sitio o generar un cierre de período.",
         href: "/dashboard/consignments/inventory-count",
         icon: ClipboardCheck,
         bgColor: "bg-blue-600",
@@ -239,10 +247,18 @@ export const consignmentsTools: Tool[] = [
     {
         id: "consignments:boletas:read",
         name: "Gestión de Boletas",
-        description: "Aprobar, imprimir y dar seguimiento a las boletas de reposición.",
+        description: "Aprobar y gestionar las boletas de reposición.",
         href: "/dashboard/consignments/boletas",
         icon: FileText,
         bgColor: "bg-orange-600",
+    },
+    {
+        id: "consignments:boletas:read",
+        name: "Gestión de Cierres",
+        description: "Administrar y facturar los cierres de período de consignación.",
+        href: "/dashboard/consignments/cierres",
+        icon: FileSignature,
+        bgColor: "bg-indigo-600",
     },
     {
         id: "consignments:locks:manage",

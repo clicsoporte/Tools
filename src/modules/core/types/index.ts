@@ -624,7 +624,7 @@ export type EnrichedCabysItem = {
 };
 
 export type EnrichedExemptionInfo = HaciendaExemptionApiResponse & {
-    enrichedCabys: EnrichedCabysItem[];
+    enrichedCabys: EnrichedExemptionInfo[];
 };
 
 // Legacy type for migration, can be removed later.
@@ -1037,12 +1037,14 @@ export type CountingSessionLine = {
 };
 
 export type RestockBoletaStatus = 'review' | 'pending' | 'approved' | 'sent' | 'invoiced' | 'canceled';
+export type BoletaType = 'REPOSITION' | 'INVENTORY_COUNT';
 
 export type RestockBoleta = {
     id: number;
     consecutive: string;
     agreement_id: number;
     status: RestockBoletaStatus;
+    type: BoletaType;
     created_by: string;
     submitted_by?: string;
     created_at: string;
@@ -1083,7 +1085,33 @@ export type ConsignmentSettings = {
     pdfExportColumns?: string[];
     notificationUserIds?: number[];
     additionalNotificationEmails?: string;
+    next_closure_number?: number;
 };
+
+export type PhysicalCount = {
+    id: number;
+    agreement_id: number;
+    product_id: string;
+    quantity: number;
+    counted_at: string;
+    counted_by: string;
+};
+
+export type PeriodClosureStatus = 'pending' | 'approved' | 'rejected' | 'invoiced';
+export type PeriodClosure = {
+    id: number;
+    consecutive: string;
+    agreement_id: number;
+    status: PeriodClosureStatus;
+    closure_boleta_id: number;
+    previous_closure_id?: number;
+    created_at: string;
+    created_by: string;
+    approved_at?: string;
+    approved_by?: string;
+    notes?: string;
+};
+
 
 /**
  * Custom error class for authorization failures.
