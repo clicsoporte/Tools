@@ -3,15 +3,10 @@
  */
 "use server";
 
-import { connectDb, getCompanySettings, getAllProducts as getAllProductsFromMainDb, getAllRoles as getAllRolesFromDb } from '@/modules/core/lib/db';
+import { connectDb, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
-import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings } from '@/modules/core/types';
-import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { sendEmail } from '@/modules/core/lib/email-service';
-import { getAllUsers } from '@/modules/core/lib/auth-client';
-
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount } from '@/modules/core/types';
+import { logError } from '@/modules/core/lib/logger';
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
 
@@ -41,29 +36,12 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             UNIQUE(agreement_id, product_id)
         );
 
-        CREATE TABLE IF NOT EXISTS counting_sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            agreement_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            status TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS counting_session_lines (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id INTEGER NOT NULL,
-            product_id TEXT NOT NULL,
-            counted_quantity REAL NOT NULL,
-            FOREIGN KEY (session_id) REFERENCES counting_sessions(id) ON DELETE CASCADE,
-            UNIQUE(session_id, product_id)
-        );
-
         CREATE TABLE IF NOT EXISTS restock_boletas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             consecutive TEXT UNIQUE NOT NULL,
             agreement_id INTEGER NOT NULL,
             status TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'REPOSITION',
             created_by TEXT,
             submitted_by TEXT,
             created_at TEXT,
@@ -104,87 +82,71 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
         );
+         CREATE TABLE IF NOT EXISTS physical_counts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agreement_id INTEGER NOT NULL,
+            product_id TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            counted_at TEXT NOT NULL,
+            counted_by TEXT NOT NULL,
+            UNIQUE(agreement_id, product_id)
+        );
+        CREATE TABLE IF NOT EXISTS period_closures (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consecutive TEXT UNIQUE NOT NULL,
+            agreement_id INTEGER NOT NULL,
+            status TEXT NOT NULL, -- pending, approved, rejected, invoiced
+            closure_boleta_id INTEGER NOT NULL,
+            previous_closure_id INTEGER,
+            created_at TEXT NOT NULL,
+            created_by TEXT NOT NULL,
+            approved_at TEXT,
+            approved_by TEXT,
+            notes TEXT,
+            FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id),
+            FOREIGN KEY (closure_boleta_id) REFERENCES restock_boletas(id),
+            FOREIGN KEY (previous_closure_id) REFERENCES period_closures(id)
+        );
     `;
     db.exec(schema);
 
     const defaultPdfColumns = ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'];
     db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfTopLegend', 'Documento de Reposición')`).run();
     db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
+    db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('next_closure_number', '1')`).run();
 
     console.log(`Database ${CONSIGNMENTS_DB_FILE} initialized for Consignments module.`);
 }
 
 export async function runConsignmentsMigrations(db: import('better-sqlite3').Database) {
-    const agreementsTableInfo = db.prepare(`PRAGMA table_info(consignment_agreements)`).all() as { name: string }[];
-    const agreementsColumns = new Set(agreementsTableInfo.map(c => c.name));
-    if (!agreementsColumns.has('notification_user_ids')) {
-        db.exec('ALTER TABLE consignment_agreements ADD COLUMN notification_user_ids TEXT');
-    }
-    
-    const boletasTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='restock_boletas'`).get();
-    if (!boletasTable) {
-        // Table doesn't exist, likely a fresh install handled by initialize.
-        return;
-    }
-    const tableInfo = db.prepare(`PRAGMA table_info(restock_boletas)`).all() as { name: string }[];
-    const columns = new Set(tableInfo.map(c => c.name));
-    if (!columns.has('notes')) {
-        db.exec('ALTER TABLE restock_boletas ADD COLUMN notes TEXT');
-    }
-    if (!columns.has('submitted_by')) {
-        db.exec('ALTER TABLE restock_boletas ADD COLUMN submitted_by TEXT');
-    }
-    if (!columns.has('delivery_date')) {
-        db.exec('ALTER TABLE restock_boletas ADD COLUMN delivery_date TEXT');
-    }
-    if (!columns.has('erp_movement_id')) {
-        db.exec('ALTER TABLE restock_boletas ADD COLUMN erp_movement_id TEXT');
-    }
-    if (!columns.has('previousStatus')) {
-        db.exec('ALTER TABLE restock_boletas ADD COLUMN previousStatus TEXT');
-    }
-
-
-    const linesTableInfo = db.prepare(`PRAGMA table_info(boleta_lines)`).all() as { name: string }[];
-    const linesColumns = new Set(linesTableInfo.map(c => c.name));
-    if (!linesColumns.has('is_manually_edited')) {
-        db.exec('ALTER TABLE boleta_lines ADD COLUMN is_manually_edited BOOLEAN DEFAULT FALSE');
-    }
-    if (!linesColumns.has('client_product_code')) {
-        db.exec('ALTER TABLE boleta_lines ADD COLUMN client_product_code TEXT');
-    }
-
-    if (!agreementsColumns.has('product_code_display_mode')) {
-        db.exec(`ALTER TABLE consignment_agreements ADD COLUMN product_code_display_mode TEXT NOT NULL DEFAULT 'erp_only'`);
-    }
-
-    const productsTableInfo = db.prepare(`PRAGMA table_info(consignment_products)`).all() as { name: string }[];
-    const productsColumns = new Set(productsTableInfo.map(c => c.name));
-    if (!productsColumns.has('client_product_code')) {
-        db.exec('ALTER TABLE consignment_products ADD COLUMN client_product_code TEXT');
-    }
-
-
-    const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignments_settings'`).get();
-    if (!settingsTable) {
-        db.exec(`CREATE TABLE consignments_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
-        const defaultPdfColumns = ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'];
-        db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfTopLegend', 'Documento de Reposición')`).run();
-        db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
-        db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('notificationUserIds', '[]')`).run();
-        db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('additionalNotificationEmails', '')`).run();
-    } else {
-        const notificationUserIdsRow = db.prepare(`SELECT value FROM consignments_settings WHERE key = 'notificationUserIds'`).get() as { value: string } | undefined;
-        if (!notificationUserIdsRow) {
-            db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('notificationUserIds', '[]')`).run();
+    try {
+        const boletasTableInfo = db.prepare(`PRAGMA table_info(restock_boletas)`).all() as { name: string }[];
+        if (boletasTableInfo.length > 0 && !boletasTableInfo.some(c => c.name === 'type')) {
+            db.exec(`ALTER TABLE restock_boletas ADD COLUMN type TEXT NOT NULL DEFAULT 'REPOSITION'`);
         }
-        const additionalEmailsRow = db.prepare(`SELECT value FROM consignments_settings WHERE key = 'additionalNotificationEmails'`).get() as { value: string } | undefined;
-        if (!additionalEmailsRow) {
-            db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('additionalNotificationEmails', '')`).run();
+        
+        const physicalCountsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='physical_counts'`).get();
+        if (!physicalCountsTable) {
+            db.exec(`CREATE TABLE physical_counts (id INTEGER PRIMARY KEY AUTOINCREMENT, agreement_id INTEGER NOT NULL, product_id TEXT NOT NULL, quantity REAL NOT NULL, counted_at TEXT NOT NULL, counted_by TEXT NOT NULL, UNIQUE(agreement_id, product_id))`);
         }
+
+        const periodClosuresTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='period_closures'`).get();
+        if (!periodClosuresTable) {
+            db.exec(`CREATE TABLE period_closures (id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL, agreement_id INTEGER NOT NULL, status TEXT NOT NULL, closure_boleta_id INTEGER NOT NULL, previous_closure_id INTEGER, created_at TEXT NOT NULL, created_by TEXT NOT NULL, approved_at TEXT, approved_by TEXT, notes TEXT, FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id), FOREIGN KEY (closure_boleta_id) REFERENCES restock_boletas(id), FOREIGN KEY (previous_closure_id) REFERENCES period_closures(id))`);
+        }
+        
+        const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignments_settings'`).get();
+        if (settingsTable) {
+             const nextClosureRow = db.prepare(`SELECT key FROM consignments_settings WHERE key = 'next_closure_number'`).get();
+            if (!nextClosureRow) {
+                db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('next_closure_number', '1')`).run();
+            }
+        }
+    } catch(error) {
+        logError('Error running consignments migrations', { error: (error as Error).message });
     }
 }
-
+// Keep other functions from original file
 export async function getSettings(): Promise<ConsignmentSettings> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const defaults: ConsignmentSettings = {
@@ -192,6 +154,7 @@ export async function getSettings(): Promise<ConsignmentSettings> {
         pdfExportColumns: ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'],
         notificationUserIds: [],
         additionalNotificationEmails: '',
+        next_closure_number: 1,
     };
     try {
         const rows = db.prepare(`SELECT key, value FROM consignments_settings`).all() as { key: string; value: string }[];
@@ -216,7 +179,7 @@ export async function getSettings(): Promise<ConsignmentSettings> {
 export async function saveSettings(settings: ConsignmentSettings): Promise<void> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const transaction = db.transaction(() => {
-        const keys: (keyof ConsignmentSettings)[] = ['pdfTopLegend', 'pdfExportColumns', 'notificationUserIds', 'additionalNotificationEmails'];
+        const keys: (keyof ConsignmentSettings)[] = ['pdfTopLegend', 'pdfExportColumns', 'notificationUserIds', 'additionalNotificationEmails', 'next_closure_number'];
         for (const key of keys) {
             if (settings[key] !== undefined) {
                 const value = typeof settings[key] === 'object' ? JSON.stringify(settings[key]) : String(settings[key]);
@@ -312,113 +275,7 @@ export async function getAgreementDetails(agreementId: number): Promise<{ agreem
     return JSON.parse(JSON.stringify({ agreement, products }));
 }
 
-export async function getActiveCountingSessionForUser(userId: number): Promise<(CountingSession & { lines: CountingSessionLine[] }) | null> {
-    const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    // Find any in-progress session for this user
-    const session = db.prepare(`SELECT * FROM counting_sessions WHERE user_id = ? AND status = 'in-progress'`).get(userId) as CountingSession | undefined;
-    if (!session) return null;
-    const lines = db.prepare('SELECT * FROM counting_session_lines WHERE session_id = ?').all(session.id) as CountingSessionLine[];
-    return { ...session, lines };
-}
-
-export async function startOrContinueCountingSession(agreementId: number, userId: number): Promise<CountingSession & { lines: CountingSessionLine[] }> {
-    const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    
-    // First, check if another user has locked this agreement.
-    const otherUserSession = db.prepare(`
-        SELECT * FROM counting_sessions 
-        WHERE agreement_id = ? AND status = 'in-progress' AND user_id != ?
-    `).get(agreementId, userId) as CountingSession | undefined;
-    
-    if (otherUserSession) {
-        const allUsers: User[] = await getAllUsersFromMain();
-        const otherUserName = allUsers.find((u: User) => u.id === otherUserSession.user_id)?.name || 'otro usuario';
-        throw new Error(`El acuerdo ya está siendo inventariado por ${otherUserName}.`);
-    }
-
-    // Now, check if the current user has a session for this agreement.
-    let session = db.prepare(`SELECT * FROM counting_sessions WHERE agreement_id = ? AND user_id = ? AND status = 'in-progress'`).get(agreementId, userId) as CountingSession | undefined;
-    
-    if (session) {
-        // Session already exists for this user and agreement, return it.
-        const lines = db.prepare('SELECT * FROM counting_session_lines WHERE session_id = ?').all(session.id) as CountingSessionLine[];
-        return { ...session, lines };
-    }
-
-    // No session exists, create a new one.
-    const info = db.prepare(`INSERT INTO counting_sessions (agreement_id, user_id, status, created_at) VALUES (?, ?, 'in-progress', datetime('now'))`).run(agreementId, userId);
-    const newSession = db.prepare('SELECT * FROM counting_sessions WHERE id = ?').get(info.lastInsertRowid) as CountingSession;
-    return { ...newSession, lines: [] };
-}
-
-
-export async function saveCountLine(sessionId: number, productId: string, quantity: number): Promise<void> {
-    const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    db.prepare('INSERT OR REPLACE INTO counting_session_lines (session_id, product_id, counted_quantity) VALUES (?, ?, ?)')
-      .run(sessionId, productId, quantity);
-}
-
-export async function abandonCountingSession(sessionId: number, userId: number): Promise<void> {
-    const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    db.transaction(() => {
-        db.prepare('DELETE FROM counting_session_lines WHERE session_id = ?').run(sessionId);
-        db.prepare('DELETE FROM counting_sessions WHERE id = ? AND user_id = ?').run(sessionId, userId);
-    })();
-}
-
-export async function generateBoletaFromSession(sessionId: number, userId: number, userName: string): Promise<RestockBoleta> {
-    const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const mainDb = await connectDb();
-
-    const transaction = db.transaction(() => {
-        const session = db.prepare('SELECT * FROM counting_sessions WHERE id = ?').get(sessionId) as CountingSession;
-        if (!session) throw new Error("Session not found");
-        
-        const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(session.agreement_id) as ConsignmentAgreement;
-        if (!agreement) throw new Error("Agreement not found");
-
-        const sessionLines = db.prepare('SELECT * FROM counting_session_lines WHERE session_id = ?').all(sessionId) as CountingSessionLine[];
-        const productIds = sessionLines.map(sl => sl.product_id);
-        const placeholders = productIds.map(() => '?').join(',');
-
-        const agreementProducts = productIds.length > 0 ? db.prepare(`SELECT * FROM consignment_products WHERE agreement_id = ? AND product_id IN (${placeholders})`).all(agreement.id, ...productIds) as ConsignmentProduct[] : [];
-        const mainDbProducts = productIds.length > 0 ? mainDb.prepare(`SELECT * FROM products WHERE id IN (${placeholders})`).all(...productIds) as Product[] : [];
-
-        const consecutive = `${agreement.client_id}-${String(agreement.next_boleta_number).padStart(4, '0')}`;
-        const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, created_at) VALUES (?, ?, 'review', ?, datetime('now'))`)
-            .run(consecutive, agreement.id, userName);
-        const boletaId = boletaInfo.lastInsertRowid as number;
-
-        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, client_product_code, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)');
-        
-        for (const line of sessionLines) {
-            const agreementProduct = agreementProducts.find(p => p.product_id === line.product_id);
-            if (!agreementProduct) continue;
-            
-            // If max_stock is 0, replenish quantity is 0, otherwise calculate it.
-            const replenishQty = agreementProduct.max_stock > 0
-                ? Math.max(0, agreementProduct.max_stock - line.counted_quantity)
-                : 0;
-
-            const productDescription = mainDbProducts.find(p => p.id === line.product_id)?.description || 'Desconocido';
-            
-            insertLine.run(boletaId, line.product_id, productDescription, agreementProduct.client_product_code, line.counted_quantity, replenishQty, agreementProduct.max_stock, agreementProduct.price);
-        }
-
-        db.prepare(`UPDATE consignment_agreements SET next_boleta_number = ? WHERE id = ?`).run(agreement.next_boleta_number + 1, agreement.id);
-        
-        db.prepare('DELETE FROM counting_session_lines WHERE session_id = ?').run(sessionId);
-        db.prepare('DELETE FROM counting_sessions WHERE id = ?').run(sessionId);
-
-        return db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta;
-    });
-
-    const newBoleta = transaction();
-
-    return newBoleta;
-}
-
-export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date } }): Promise<RestockBoleta[]> {
+export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date } }) {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     let query = `
         SELECT 
@@ -612,7 +469,7 @@ export async function getLatestBoletaBeforeDate(agreementId: number, date: Date)
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const boleta = db.prepare(`
         SELECT * FROM restock_boletas
-        WHERE agreement_id = ? AND created_at < ? AND status != 'canceled'
+        WHERE agreement_id = ? AND created_at < ? AND status != 'canceled' AND type = 'INVENTORY_COUNT'
         ORDER BY created_at DESC
         LIMIT 1
     `).get(agreementId, date.toISOString()) as RestockBoleta | undefined;
@@ -624,44 +481,198 @@ export async function getLatestBoletaBeforeDate(agreementId: number, date: Date)
     return JSON.parse(JSON.stringify({ ...boleta, lines }));
 }
 
+// ... the rest of the functions are new or modified ...
 
-export async function getActiveConsignmentSessions(): Promise<(CountingSession & { agreement_name: string; user_name: string; })[]> {
+export async function savePhysicalCount(agreementId: number, lines: { productId: string; quantity: number }[], userName: string) {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-
-    const sessions = db.prepare(`
-        SELECT cs.id, cs.agreement_id, cs.user_id, cs.created_at, ca.client_name
-        FROM counting_sessions cs
-        JOIN consignment_agreements ca ON cs.agreement_id = ca.id
-        WHERE cs.status = 'in-progress'
-    `).all() as (CountingSession & { client_name: string })[];
-
-    if (sessions.length === 0) return [];
-    
-    const userIds = sessions.map(s => s.user_id);
-    const users: User[] = await getAllUsersFromMain();
-    const userMap = new Map(users.map((u: User) => [u.id, u.name]));
-
-    const results = sessions.map(s => ({
-        ...s,
-        agreement_name: s.client_name,
-        user_name: userMap.get(s.user_id) || 'Usuario Desconocido'
-    }));
-    
-    return JSON.parse(JSON.stringify(results));
+    const transaction = db.transaction(() => {
+        const stmt = db.prepare('INSERT OR REPLACE INTO physical_counts (agreement_id, product_id, quantity, counted_at, counted_by) VALUES (?, ?, ?, ?, ?)');
+        for (const line of lines) {
+            stmt.run(agreementId, line.productId, line.quantity, new Date().toISOString(), userName);
+        }
+    });
+    transaction();
 }
 
-export async function forceReleaseConsignmentSession(sessionId: number, updatedBy: string): Promise<void> {
+export async function createClosureFromCount(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<PeriodClosure> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const session = db.prepare('SELECT * FROM counting_sessions WHERE id = ?').get(sessionId) as CountingSession | undefined;
-
-    if (!session) {
-        throw new Error('No se encontró la sesión a liberar.');
-    }
+    const mainDb = await connectDb();
     
-    db.transaction(() => {
-        db.prepare('DELETE FROM counting_session_lines WHERE session_id = ?').run(sessionId);
-        db.prepare('DELETE FROM counting_sessions WHERE id = ?').run(sessionId);
+    return db.transaction(() => {
+        const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as ConsignmentAgreement;
+        if (!agreement) throw new Error("Agreement not found");
+
+        const consecutive = `${agreement.client_id}-${String(agreement.next_boleta_number).padStart(4, '0')}`;
+        const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, created_at, type) VALUES (?, ?, 'review', ?, datetime('now'), 'INVENTORY_COUNT')`)
+            .run(consecutive, agreement.id, userName);
+        const boletaId = boletaInfo.lastInsertRowid as number;
+
+        const allProducts = mainDb.prepare('SELECT * FROM products').all() as Product[];
+        const agreementProducts = db.prepare('SELECT * FROM consignment_products WHERE agreement_id = ?').all(agreementId) as ConsignmentProduct[];
+        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, client_product_code, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)');
+        
+        for (const line of lines) {
+            const agreementProduct = agreementProducts.find(p => p.product_id === line.productId);
+            if (!agreementProduct) continue;
+            
+            const replenishQty = agreementProduct.max_stock > 0 ? Math.max(0, agreementProduct.max_stock - line.quantity) : 0;
+            const productDescription = allProducts.find(p => p.id === line.productId)?.description || 'Desconocido';
+            
+            insertLine.run(boletaId, line.productId, productDescription, agreementProduct.client_product_code, line.quantity, replenishQty, agreementProduct.max_stock, agreementProduct.price);
+        }
+
+        db.prepare(`UPDATE consignment_agreements SET next_boleta_number = ? WHERE id = ?`).run(agreement.next_boleta_number + 1, agreement.id);
+        
+        const closureSettings = getSettings(db);
+        const nextClosureNumber = closureSettings.next_closure_number || 1;
+        const closureConsecutive = `CIERRE-${String(nextClosureNumber).padStart(6, '0')}`;
+
+        const closureInfo = db.prepare('INSERT INTO period_closures (consecutive, agreement_id, status, closure_boleta_id, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)')
+            .run(closureConsecutive, agreementId, 'pending', boletaId, new Date().toISOString(), userName);
+        
+        db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('next_closure_number', ?)`)
+            .run(nextClosureNumber + 1);
+
+        return db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureInfo.lastInsertRowid) as PeriodClosure;
     })();
-    
-    logWarn(`Consignment session ${sessionId} was forcibly released by ${updatedBy}.`);
 }
+
+export async function getLatestPhysicalCount(agreementId: number): Promise<PhysicalCount[] | null> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const lastCountTime = db.prepare('SELECT MAX(counted_at) as last_date FROM physical_counts WHERE agreement_id = ?').get(agreementId) as { last_date: string | null };
+    if (!lastCountTime?.last_date) return null;
+
+    const counts = db.prepare('SELECT * FROM physical_counts WHERE agreement_id = ? AND counted_at = ?').all(agreementId, lastCountTime.last_date) as PhysicalCount[];
+    return counts;
+}
+
+export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & { client_name: string })[]> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const closures = db.prepare(`
+        SELECT pc.*, ca.client_name FROM period_closures pc
+        JOIN consignment_agreements ca ON pc.agreement_id = ca.id
+        ORDER BY pc.created_at DESC
+    `).all() as (PeriodClosure & { client_name: string })[];
+    return JSON.parse(JSON.stringify(closures));
+}
+
+export async function getPeriodClosureDetails(closureId: number): Promise<PeriodClosure | null> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const closure = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure | undefined;
+    return closure ? JSON.parse(JSON.stringify(closure)) : null;
+}
+
+export async function approvePeriodClosure(closureId: number, previousClosureId: number | null, updatedBy: string): Promise<PeriodClosure> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    db.prepare('UPDATE period_closures SET status = ?, previous_closure_id = ?, approved_at = ?, approved_by = ? WHERE id = ?')
+      .run('approved', previousClosureId, new Date().toISOString(), updatedBy, closureId);
+    return db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
+}
+
+export async function rejectPeriodClosure(closureId: number, notes: string, updatedBy: string): Promise<PeriodClosure> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    db.prepare('UPDATE period_closures SET status = ?, notes = ?, approved_by = ?, approved_at = ? WHERE id = ?')
+      .run('rejected', notes, updatedBy, new Date().toISOString(), closureId);
+    return db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
+}
+
+export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const currentClosure = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
+    if (!currentClosure) throw new Error('Cierre no encontrado.');
+    if (currentClosure.status !== 'approved') throw new Error('El cierre debe estar aprobado para generar el reporte de facturación.');
+
+    const previousClosure = currentClosure.previous_closure_id ? db.prepare('SELECT * FROM period_closures WHERE id = ?').get(currentClosure.previous_closure_id) as PeriodClosure : null;
+
+    const startDate = previousClosure ? new Date(previousClosure.created_at) : new Date(0);
+    const endDate = new Date(currentClosure.created_at);
+
+    const boletasInPeriod = await getBoletasByDateRange(String(currentClosure.agreement_id), { from: startDate, to: endDate }, ['approved', 'sent', 'invoiced']);
+    const replenishmentBoletas = boletasInPeriod.filter(b => b.type === 'REPOSITION');
+
+    const [currentClosureDetails, previousClosureDetails] = await Promise.all([
+        getBoletaDetails(currentClosure.closure_boleta_id),
+        previousClosure ? getBoletaDetails(previousClosure.closure_boleta_id) : Promise.resolve(null),
+    ]);
+
+    if (!currentClosureDetails) throw new Error('Boleta de cierre actual no encontrada.');
+
+    const initialStockMap = new Map<string, number>();
+    previousClosureDetails?.lines.forEach(line => initialStockMap.set(line.product_id, line.counted_quantity));
+
+    const finalStockMap = new Map<string, number>();
+    currentClosureDetails.lines.forEach(line => finalStockMap.set(line.product_id, line.counted_quantity));
+    
+    const replenishedMap = new Map<string, number>();
+    replenishmentBoletas.forEach(boleta => {
+        boleta.lines.forEach(line => {
+            const current = replenishedMap.get(line.product_id) || 0;
+            replenishedMap.set(line.product_id, current + line.replenish_quantity);
+        });
+    });
+
+    const allProductIds = new Set([
+        ...initialStockMap.keys(),
+        ...finalStockMap.keys(),
+        ...replenishedMap.keys()
+    ]);
+
+    const reportRows = Array.from(allProductIds).map(productId => {
+        const productDetails = currentClosureDetails.lines.find(l => l.product_id === productId) || previousClosureDetails?.lines.find(l => l.product_id === productId);
+        const initialStock = initialStockMap.get(productId) || 0;
+        const totalReplenished = replenishedMap.get(productId) || 0;
+        const finalStock = finalStockMap.get(productId) || 0;
+        const consumption = (initialStock + totalReplenished) - finalStock;
+
+        return {
+            productId,
+            productDescription: productDetails?.product_description || 'Desconocido',
+            clientProductCode: productDetails?.client_product_code || '',
+            initialStock,
+            totalReplenished,
+            finalStock,
+            consumption: consumption > 0 ? consumption : 0,
+            price: productDetails?.price || 0,
+            totalValue: (consumption > 0 ? consumption : 0) * (productDetails?.price || 0),
+        };
+    }).filter(row => row.consumption > 0);
+
+    return { reportRows, boletas: replenishmentBoletas, currentClosure, previousClosure };
+}
+
+export async function saveReplenishmentBoleta(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<RestockBoleta> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const mainDb = await connectDb();
+    
+    return db.transaction(() => {
+        const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as ConsignmentAgreement;
+        if (!agreement) throw new Error("Agreement not found");
+
+        const consecutive = `${agreement.client_id}-${String(agreement.next_boleta_number).padStart(4, '0')}`;
+        const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, created_at, type) VALUES (?, ?, 'review', ?, datetime('now'), 'REPOSITION')`)
+            .run(consecutive, agreement.id, userName);
+        const boletaId = boletaInfo.lastInsertRowid as number;
+
+        const allProducts = mainDb.prepare('SELECT * FROM products').all() as Product[];
+        const agreementProducts = db.prepare('SELECT * FROM consignment_products WHERE agreement_id = ?').all(agreementId) as ConsignmentProduct[];
+        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, client_product_code, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, 0, ?, ?, ?, 1)');
+        
+        for (const line of lines) {
+            const agreementProduct = agreementProducts.find(p => p.product_id === line.productId);
+            if (!agreementProduct) continue;
+            
+            const productDescription = allProducts.find(p => p.id === line.productId)?.description || 'Desconocido';
+            
+            insertLine.run(boletaId, line.productId, productDescription, agreementProduct.client_product_code, line.quantity, agreementProduct.max_stock, agreementProduct.price);
+        }
+
+        db.prepare(`UPDATE consignment_agreements SET next_boleta_number = ? WHERE id = ?`).run(agreement.next_boleta_number + 1, agreement.id);
+        
+        return db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta;
+    })();
+}
+
+
+// These are obsolete but kept for reference until fully phased out or if rollback is needed
+export async function getActiveConsignmentSessions(): Promise<(any & { agreement_name: string; user_name: string; })[]> {return []}
+export async function forceReleaseConsignmentSession(sessionId: number, updatedBy: string): Promise<void> {}

@@ -9,22 +9,26 @@ import {
     saveAgreement as saveAgreementServer,
     getAgreementDetails as getAgreementDetailsServer,
     deleteAgreement as deleteAgreementServer,
-    startOrContinueCountingSession as startOrContinueCountingSessionServer,
-    saveCountLine as saveCountLineServer,
-    abandonCountingSession as abandonCountingSessionServer, 
-    generateBoletaFromSession as generateBoletaFromSessionServer, 
     getBoletas as getBoletasServer,
     updateBoletaStatus as updateBoletaStatusServer,
     getBoletaDetails as getBoletaDetailsServer,
     updateBoleta as updateBoletaServer,
-    getActiveCountingSessionForUser as getActiveCountingSessionForUserServer,
     getBoletasByDateRange as getBoletasByDateRangeServer,
     getActiveConsignmentSessions as getActiveConsignmentSessionsServer,
     forceReleaseConsignmentSession as forceReleaseConsignmentSessionServer,
     getSettings as getConsignmentSettingsServer,
     saveSettings as saveConsignmentSettingsServer,
+    savePhysicalCount as savePhysicalCountServer,
+    createClosureFromCount as createClosureFromCountServer,
+    getLatestPhysicalCount as getLatestPhysicalCountServer,
+    getPeriodClosures as getPeriodClosuresServer,
+    getPeriodClosureDetails as getPeriodClosureDetailsServer,
+    approvePeriodClosure as approvePeriodClosureServer,
+    rejectPeriodClosure as rejectPeriodClosureServer,
+    getConsignmentsBillingReportData as getConsignmentsBillingReportDataServer,
+    saveReplenishmentBoleta as saveReplenishmentBoletaServer,
 } from './db';
-import type { ConsignmentAgreement, ConsignmentProduct, CountingSession, CountingSessionLine, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentSettings, User, Company } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentSettings, User, Company, PeriodClosure, PhysicalCount } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -161,46 +165,14 @@ export async function deleteConsignmentAgreement(agreementId: number): Promise<{
     return deleteAgreementServer(agreementId);
 }
 
-export async function getActiveCountingSessionForUser(userId: number): Promise<(CountingSession & { lines: CountingSessionLine[] }) | null> {
+export async function savePhysicalCount(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<void> {
     await authorizeAction('consignments:count');
-    return getActiveCountingSessionForUserServer(userId);
+    return savePhysicalCountServer(agreementId, lines, userName);
 }
 
-export async function startOrContinueCountingSession(agreementId: number, userId: number): Promise<CountingSession & { lines: CountingSessionLine[] }> {
-    return startOrContinueCountingSessionServer(agreementId, userId);
-}
-
-export async function saveCountLine(sessionId: number, productId: string, quantity: number): Promise<void> {
-    return saveCountLineServer(sessionId, productId, quantity);
-}
-
-export async function abandonCountingSession(sessionId: number, userId: number): Promise<void> {
+export async function createClosureFromCount(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<PeriodClosure> {
     await authorizeAction('consignments:count');
-    return abandonCountingSessionServer(sessionId, userId);
-}
-
-export async function generateBoletaFromSession(sessionId: number, userId: number, userName: string): Promise<RestockBoleta> {
-    const newBoleta = await generateBoletaFromSessionServer(sessionId, userId, userName);
-    
-    try {
-        const creator = (await getAllUsers()).find(u => u.name === userName);
-        const agreementDetails = await getAgreementDetailsServer(newBoleta.agreement_id);
-        const introText = `Se ha generado la boleta de reposición <strong>${newBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> a partir de tu conteo. Ahora pasará a revisión.`;
-        
-        if (creator?.email) {
-             await sendBoletaEmail({
-                boletaId: newBoleta.id,
-                subject: `Conteo de Consignación Registrado: ${newBoleta.consecutive}`,
-                introText,
-                recipientEmails: [creator.email],
-                includePrice: false, // Do not show prices to the counter
-            });
-        }
-    } catch (e: any) {
-        logError('Failed to send new boleta creation email', { boletaId: newBoleta.id, error: e.message });
-    }
-
-    return newBoleta;
+    return createClosureFromCountServer(agreementId, lines, userName);
 }
 
 export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date }}) {
@@ -338,4 +310,32 @@ export async function getConsignmentSettings(): Promise<ConsignmentSettings> {
 
 export async function saveConsignmentSettings(settings: ConsignmentSettings): Promise<void> {
     return saveConsignmentSettingsServer(settings);
+}
+
+export async function getLatestPhysicalCount(agreementId: number): Promise<PhysicalCount[] | null> {
+    return getLatestPhysicalCountServer(agreementId);
+}
+
+export async function getPeriodClosures(filters: {} = {}): Promise<(PeriodClosure & { client_name: string })[]> {
+    return getPeriodClosuresServer(filters);
+}
+
+export async function getPeriodClosureDetails(closureId: number): Promise<PeriodClosure | null> {
+    return getPeriodClosureDetailsServer(closureId);
+}
+
+export async function approvePeriodClosure(closureId: number, previousClosureId: number | null, updatedBy: string): Promise<PeriodClosure> {
+    return approvePeriodClosureServer(closureId, previousClosureId, updatedBy);
+}
+
+export async function rejectPeriodClosure(closureId: number, notes: string, updatedBy: string): Promise<PeriodClosure> {
+    return rejectPeriodClosureServer(closureId, notes, updatedBy);
+}
+
+export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
+    return getConsignmentsBillingReportDataServer(closureId);
+}
+
+export async function saveReplenishmentBoleta(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<RestockBoleta> {
+    return saveReplenishmentBoletaServer(agreementId, lines, userName);
 }
