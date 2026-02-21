@@ -88,15 +88,15 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             product_id TEXT NOT NULL,
             quantity REAL NOT NULL,
             counted_at TEXT NOT NULL,
-            counted_by TEXT NOT NULL,
-            UNIQUE(agreement_id, product_id)
+            counted_by TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS period_closures (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             consecutive TEXT UNIQUE NOT NULL,
             agreement_id INTEGER NOT NULL,
             status TEXT NOT NULL, -- pending, approved, rejected, invoiced
-            closure_boleta_id INTEGER NOT NULL,
+            closure_boleta_id INTEGER,
+            physical_count_ref TEXT,
             previous_closure_id INTEGER,
             created_at TEXT NOT NULL,
             created_by TEXT NOT NULL,
@@ -127,12 +127,20 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
         
         const physicalCountsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='physical_counts'`).get();
         if (!physicalCountsTable) {
-            db.exec(`CREATE TABLE physical_counts (id INTEGER PRIMARY KEY AUTOINCREMENT, agreement_id INTEGER NOT NULL, product_id TEXT NOT NULL, quantity REAL NOT NULL, counted_at TEXT NOT NULL, counted_by TEXT NOT NULL, UNIQUE(agreement_id, product_id))`);
+            db.exec(`CREATE TABLE physical_counts (id INTEGER PRIMARY KEY AUTOINCREMENT, agreement_id INTEGER NOT NULL, product_id TEXT NOT NULL, quantity REAL NOT NULL, counted_at TEXT NOT NULL, counted_by TEXT NOT NULL)`);
         }
 
         const periodClosuresTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='period_closures'`).get();
         if (!periodClosuresTable) {
-            db.exec(`CREATE TABLE period_closures (id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL, agreement_id INTEGER NOT NULL, status TEXT NOT NULL, closure_boleta_id INTEGER NOT NULL, previous_closure_id INTEGER, created_at TEXT NOT NULL, created_by TEXT NOT NULL, approved_at TEXT, approved_by TEXT, notes TEXT, FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id), FOREIGN KEY (closure_boleta_id) REFERENCES restock_boletas(id), FOREIGN KEY (previous_closure_id) REFERENCES period_closures(id))`);
+            db.exec(`CREATE TABLE period_closures (id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL, agreement_id INTEGER NOT NULL, status TEXT NOT NULL, closure_boleta_id INTEGER, physical_count_ref TEXT, previous_closure_id INTEGER, created_at TEXT NOT NULL, created_by TEXT NOT NULL, approved_at TEXT, approved_by TEXT, notes TEXT, FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id), FOREIGN KEY (closure_boleta_id) REFERENCES restock_boletas(id), FOREIGN KEY (previous_closure_id) REFERENCES period_closures(id))`);
+        } else {
+             const closureTableInfo = db.prepare(`PRAGMA table_info(period_closures)`).all() as { name: string }[];
+             if (!closureTableInfo.some(c => c.name === 'closure_boleta_id')) {
+                 db.exec(`ALTER TABLE period_closures ADD COLUMN closure_boleta_id INTEGER REFERENCES restock_boletas(id)`);
+             }
+             if (!closureTableInfo.some(c => c.name === 'physical_count_ref')) {
+                 db.exec(`ALTER TABLE period_closures ADD COLUMN physical_count_ref TEXT`);
+             }
         }
         
         const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignments_settings'`).get();
@@ -469,7 +477,7 @@ export async function getLatestBoletaBeforeDate(agreementId: number, date: Date)
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const boleta = db.prepare(`
         SELECT * FROM restock_boletas
-        WHERE agreement_id = ? AND created_at < ? AND status != 'canceled' AND type = 'INVENTORY_COUNT'
+        WHERE agreement_id = ? AND created_at < ? AND type = 'INVENTORY_COUNT'
         ORDER BY created_at DESC
         LIMIT 1
     `).get(agreementId, date.toISOString()) as RestockBoleta | undefined;
@@ -481,14 +489,17 @@ export async function getLatestBoletaBeforeDate(agreementId: number, date: Date)
     return JSON.parse(JSON.stringify({ ...boleta, lines }));
 }
 
-// ... the rest of the functions are new or modified ...
 
 export async function savePhysicalCount(agreementId: number, lines: { productId: string; quantity: number }[], userName: string) {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const transaction = db.transaction(() => {
-        const stmt = db.prepare('INSERT OR REPLACE INTO physical_counts (agreement_id, product_id, quantity, counted_at, counted_by) VALUES (?, ?, ?, ?, ?)');
+        const deleteStmt = db.prepare('DELETE FROM physical_counts WHERE agreement_id = ?');
+        deleteStmt.run(agreementId);
+        
+        const stmt = db.prepare('INSERT INTO physical_counts (agreement_id, product_id, quantity, counted_at, counted_by) VALUES (?, ?, ?, ?, ?)');
+        const now = new Date().toISOString();
         for (const line of lines) {
-            stmt.run(agreementId, line.productId, line.quantity, new Date().toISOString(), userName);
+            stmt.run(agreementId, line.productId, line.quantity, now, userName);
         }
     });
     transaction();
@@ -496,39 +507,22 @@ export async function savePhysicalCount(agreementId: number, lines: { productId:
 
 export async function createClosureFromCount(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<PeriodClosure> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const mainDb = await connectDb();
     
     return db.transaction(() => {
-        const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as ConsignmentAgreement;
-        if (!agreement) throw new Error("Agreement not found");
-
-        const consecutive = `${agreement.client_id}-${String(agreement.next_boleta_number).padStart(4, '0')}`;
-        const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, created_at, type) VALUES (?, ?, 'review', ?, datetime('now'), 'INVENTORY_COUNT')`)
-            .run(consecutive, agreement.id, userName);
-        const boletaId = boletaInfo.lastInsertRowid as number;
-
-        const allProducts = mainDb.prepare('SELECT * FROM products').all() as Product[];
-        const agreementProducts = db.prepare('SELECT * FROM consignment_products WHERE agreement_id = ?').all(agreementId) as ConsignmentProduct[];
-        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, client_product_code, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)');
+        const settings = getSettings(db);
+        const nextClosureNumber = settings.next_closure_number || 1;
+        const closureConsecutive = `CIERRE-${String(nextClosureNumber).padStart(6, '0')}`;
         
+        const countRef = new Date().toISOString();
+
+        // Save this count to physical_counts table, which will be used if approved
+        const stmt = db.prepare('INSERT INTO physical_counts (agreement_id, product_id, quantity, counted_at, counted_by) VALUES (?, ?, ?, ?, ?)');
         for (const line of lines) {
-            const agreementProduct = agreementProducts.find(p => p.product_id === line.productId);
-            if (!agreementProduct) continue;
-            
-            const replenishQty = agreementProduct.max_stock > 0 ? Math.max(0, agreementProduct.max_stock - line.quantity) : 0;
-            const productDescription = allProducts.find(p => p.id === line.productId)?.description || 'Desconocido';
-            
-            insertLine.run(boletaId, line.productId, productDescription, agreementProduct.client_product_code, line.quantity, replenishQty, agreementProduct.max_stock, agreementProduct.price);
+            stmt.run(agreementId, line.productId, line.quantity, countRef, userName);
         }
 
-        db.prepare(`UPDATE consignment_agreements SET next_boleta_number = ? WHERE id = ?`).run(agreement.next_boleta_number + 1, agreement.id);
-        
-        const closureSettings = getSettings(db);
-        const nextClosureNumber = closureSettings.next_closure_number || 1;
-        const closureConsecutive = `CIERRE-${String(nextClosureNumber).padStart(6, '0')}`;
-
-        const closureInfo = db.prepare('INSERT INTO period_closures (consecutive, agreement_id, status, closure_boleta_id, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)')
-            .run(closureConsecutive, agreementId, 'pending', boletaId, new Date().toISOString(), userName);
+        const closureInfo = db.prepare('INSERT INTO period_closures (consecutive, agreement_id, status, physical_count_ref, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)')
+            .run(closureConsecutive, agreementId, 'pending', countRef, new Date().toISOString(), userName);
         
         db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('next_closure_number', ?)`)
             .run(nextClosureNumber + 1);
@@ -539,11 +533,8 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
 
 export async function getLatestPhysicalCount(agreementId: number): Promise<PhysicalCount[] | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const lastCountTime = db.prepare('SELECT MAX(counted_at) as last_date FROM physical_counts WHERE agreement_id = ?').get(agreementId) as { last_date: string | null };
-    if (!lastCountTime?.last_date) return null;
-
-    const counts = db.prepare('SELECT * FROM physical_counts WHERE agreement_id = ? AND counted_at = ?').all(agreementId, lastCountTime.last_date) as PhysicalCount[];
-    return counts;
+    const counts = db.prepare('SELECT * FROM physical_counts WHERE agreement_id = ?').all(agreementId) as PhysicalCount[];
+    return counts.length > 0 ? counts : null;
 }
 
 export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & { client_name: string })[]> {
@@ -564,9 +555,41 @@ export async function getPeriodClosureDetails(closureId: number): Promise<Period
 
 export async function approvePeriodClosure(closureId: number, previousClosureId: number | null, updatedBy: string): Promise<PeriodClosure> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    db.prepare('UPDATE period_closures SET status = ?, previous_closure_id = ?, approved_at = ?, approved_by = ? WHERE id = ?')
-      .run('approved', previousClosureId, new Date().toISOString(), updatedBy, closureId);
-    return db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
+    const mainDb = await connectDb();
+
+    return db.transaction(() => {
+        const closure = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
+        if (!closure || !closure.physical_count_ref) throw new Error("Cierre inválido o sin conteo físico asociado.");
+        
+        const counts = db.prepare('SELECT * FROM physical_counts WHERE agreement_id = ? AND counted_at = ?').all(closure.agreement_id, closure.physical_count_ref) as PhysicalCount[];
+        if (counts.length === 0) throw new Error("No se encontraron los datos del conteo físico para este cierre.");
+        
+        const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(closure.agreement_id) as ConsignmentAgreement;
+
+        // Create the official boleta from the physical counts
+        const boletaConsecutive = `CIERRE-B-${closure.consecutive}`;
+        const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, created_at, type) VALUES (?, ?, 'approved', ?, ?, 'INVENTORY_COUNT')`)
+            .run(boletaConsecutive, closure.agreement_id, updatedBy, closure.created_at);
+        const boletaId = boletaInfo.lastInsertRowid as number;
+
+        const allProducts = mainDb.prepare('SELECT * FROM products').all() as Product[];
+        const agreementProducts = db.prepare('SELECT * FROM consignment_products WHERE agreement_id = ?').all(closure.agreement_id) as ConsignmentProduct[];
+        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, client_product_code, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)');
+        
+        for (const count of counts) {
+            const agreementProduct = agreementProducts.find(p => p.product_id === count.product_id);
+            if (!agreementProduct) continue;
+            
+            const productDescription = allProducts.find(p => p.id === count.product_id)?.description || 'Desconocido';
+            insertLine.run(boletaId, count.product_id, productDescription, agreementProduct.client_product_code, count.quantity, 0, agreementProduct.max_stock, agreementProduct.price);
+        }
+        
+        // Update the closure to link it to the newly created boleta
+        db.prepare('UPDATE period_closures SET status = ?, previous_closure_id = ?, approved_at = ?, approved_by = ?, closure_boleta_id = ? WHERE id = ?')
+          .run('approved', previousClosureId, new Date().toISOString(), updatedBy, boletaId, closureId);
+
+        return db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
+    })();
 }
 
 export async function rejectPeriodClosure(closureId: number, notes: string, updatedBy: string): Promise<PeriodClosure> {
@@ -591,8 +614,8 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     const replenishmentBoletas = boletasInPeriod.filter(b => b.type === 'REPOSITION');
 
     const [currentClosureDetails, previousClosureDetails] = await Promise.all([
-        getBoletaDetails(currentClosure.closure_boleta_id),
-        previousClosure ? getBoletaDetails(previousClosure.closure_boleta_id) : Promise.resolve(null),
+        currentClosure.closure_boleta_id ? getBoletaDetails(currentClosure.closure_boleta_id) : Promise.resolve(null),
+        previousClosure && previousClosure.closure_boleta_id ? getBoletaDetails(previousClosure.closure_boleta_id) : Promise.resolve(null),
     ]);
 
     if (!currentClosureDetails) throw new Error('Boleta de cierre actual no encontrada.');
