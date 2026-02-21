@@ -12,9 +12,7 @@ import {
 import React from "react";
 
 // This is the critical fix for the production cache issue.
-// By not specifying a dynamic flag, Next.js can infer dynamism from the usage
-// of headers() and cookies() in child components/actions, which is more robust.
-// export const dynamic = 'force-dynamic'; // This was removed as it might cause issues with router cache.
+export const dynamic = 'force-dynamic';
 
 export default function InitialPage() {
   return (
