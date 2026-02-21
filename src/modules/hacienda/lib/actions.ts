@@ -8,7 +8,7 @@
 
 import { logError } from '@/modules/core/lib/logger';
 import { getApiSettings, getCabysCatalog } from '@/modules/core/lib/db';
-import type { HaciendaContributorInfo, HaciendaExemptionApiResponse, EnrichedExemptionInfo } from '@/modules/core/types';
+import type { HaciendaContributorInfo, HaciendaExemptionApiResponse, EnrichedExemptionInfo, EnrichedCabysItem } from '@/modules/core/types';
 
 // In-memory cache for CABYS data to avoid repeated DB queries.
 let cabysCache: Map<string, { description: string, taxRate: number }> | null = null;
@@ -120,15 +120,13 @@ export async function getEnrichedExemptionStatus(authNumber: string): Promise<En
 
     const cabysMap = await loadCabysData();
 
-    const enrichedCabys = exemptionResult.cabys.map((code) => {
+    const enrichedCabys: EnrichedCabysItem[] = exemptionResult.cabys.map((code) => {
         const cabysEntry = cabysMap.get(code);
-        const productMatches = []; // This part is now handled in the page component directly
         
         return {
             code,
             description: cabysEntry?.description || 'Descripción no encontrada',
             taxRate: cabysEntry?.taxRate ?? 0,
-            // productMatches: productMatches // This will be handled client-side
         };
     });
 

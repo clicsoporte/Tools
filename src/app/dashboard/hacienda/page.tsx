@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,7 +10,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { getContributorInfo, getEnrichedExemptionStatus } from '@/modules/hacienda/lib/actions';
 import { getAllExemptions } from '@/modules/core/lib/db';
-import type { Customer, Exemption, HaciendaContributorInfo, EnrichedExemptionInfo, Product } from '@/modules/core/types';
+import type { Customer, Exemption, HaciendaContributorInfo, EnrichedExemptionInfo, Product, EnrichedCabysItem } from '@/modules/core/types';
 import { Loader2, Search, ShieldCheck, ShieldX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isValid } from 'date-fns';
@@ -132,7 +133,7 @@ const ErpExemptionCard = ({ erpData }: { erpData: Exemption | null }) => {
 const HaciendaExemptionCard = ({ data, products }: { data: EnrichedExemptionInfo | null, products: Product[] }) => {
     const [cabysFilter, setCabysFilter] = useState('');
 
-    const filteredCabys = useMemo(() => {
+    const filteredCabys: (EnrichedCabysItem & { localMatches: Product[] })[] = useMemo(() => {
         if (!data || !data.enrichedCabys) return [];
         const enrichedWithLocalMatches = data.enrichedCabys.map(item => {
             const localMatches = products.filter(p => p.cabys === item.code);

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `useRequests` for managing the state and logic of the Purchase Request page.
  * This hook encapsulates all state and actions for the module, keeping the UI component clean.
@@ -14,15 +15,12 @@ import { logError, logInfo } from '@/modules/core/lib/logger';
 import { 
     getPurchaseRequests, savePurchaseRequest, updatePurchaseRequest, 
     updatePurchaseRequestStatus, getRequestHistory, getRequestSettings, 
-    updatePendingAction, getErpOrderData, addNoteToRequest, updateRequestDetails as updateRequestDetailsServer, 
+    updatePendingAction, getErpOrderData, getUserByName, 
+    getRolesWithPermission, addNoteToRequest, updateRequestDetails as updateRequestDetailsServer, 
     saveCostAnalysis as saveCostAnalysisAction
 } from '@/modules/requests/lib/actions';
 import { getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
-import type { 
-    PurchaseRequest, PurchaseRequestStatus, PurchaseRequestPriority, 
-    PurchaseRequestHistoryEntry, RequestSettings, Company, DateRange, 
-    AdministrativeAction, AdministrativeActionPayload, StockInfo, ErpOrderHeader, ErpOrderLine, User, RequestNotePayload, UserPreferences, PurchaseSuggestion, Product, ErpPurchaseOrderHeader as ErpPOHeader, ErpPurchaseOrderLine
-} from '../../core/types';
+import type { DateRange, UserPreferences, PurchaseSuggestion, PurchaseRequestPriority, ErpOrderHeader, ErpOrderLine, User, RequestNotePayload, PurchaseRequest, PurchaseRequestHistoryEntry, RequestSettings, Company, AdministrativeAction, AdministrativeActionPayload, StockInfo, Product, ErpPurchaseOrderHeader as ErpPOHeader, ErpPurchaseOrderLine } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -783,9 +781,9 @@ export const useRequests = () => {
                 columnWidths: [12, 40, 25, 8, 12, 15, 15, 15, 20],
             });
         },
-        handleExportSingleRequestPDF: async (request: PurchaseRequest) => {
+        handleExportPDF: async (orientation: 'portrait' | 'landscape' = 'portrait') => {
             if (!authCompanyData || !state.requestSettings) return;
-
+        
             let logoDataUrl: string | null = null;
             if (authCompanyData.logoUrl) {
                  try {
@@ -798,38 +796,35 @@ export const useRequests = () => {
                     });
                 } catch(e) { console.error("Error adding logo to PDF:", e) }
             }
-
-            const requestHistory = await getRequestHistory(request.id);
             
+            const tableHeaders = ['Solicitud', 'Artículo', 'Cliente', 'Cant.', 'Fecha Req.', 'Estado'];
+            const tableRows: RowInput[] = selectors.filteredRequests.map(request => [
+                request.consecutive,
+                `[${request.itemId}] ${request.itemDescription}`,
+                request.clientName,
+                request.quantity.toLocaleString('es-CR'),
+                format(parseISO(request.requiredDate), 'dd/MM/yy'),
+                statusConfig[request.status]?.label || request.status,
+            ]);
+
             const doc = generateDocument({
-                docTitle: 'Solicitud de Compra',
-                docId: request.consecutive,
+                docTitle: `Solicitudes de Compra (${state.viewingArchived ? 'Archivadas' : 'Activas'})`,
+                docId: '',
                 companyData: authCompanyData,
                 logoDataUrl,
                 meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
-                blocks: [
-                    { title: 'Cliente', content: `${request.clientName} (${request.clientTaxId})` },
-                    { title: 'Artículo', content: `[${request.itemId}] ${request.itemDescription}` },
-                    { title: 'Cantidad', content: request.quantity.toLocaleString('es-CR') },
-                    { title: 'Fecha Requerida', content: format(parseISO(request.requiredDate), 'dd/MM/yyyy') },
-                    { title: 'Estado Actual', content: statusConfig[request.status]?.label || request.status },
-                    { title: 'Solicitado por', content: request.requestedBy },
-                    { title: 'Notas', content: request.notes || 'N/A' },
-                ],
+                blocks: [],
                 table: {
-                    columns: ["Fecha", "Estado", "Usuario", "Notas"],
-                    rows: requestHistory.map(entry => [
-                        format(parseISO(entry.timestamp), 'dd/MM/yy HH:mm'),
-                        statusConfig[entry.status]?.label || entry.status,
-                        entry.updatedBy,
-                        entry.notes || ''
-                    ]),
-                    columnStyles: {},
+                    columns: tableHeaders,
+                    rows: tableRows,
+                    columnStyles: { 3: { halign: 'right' } }
                 },
-                totals: []
+                totals: [],
+                orientation: orientation,
+                topLegend: state.requestSettings.pdfTopLegend
             });
         
-            doc.save(`sc_${request.consecutive}.pdf`);
+            doc.save(`solicitudes_compra_${new Date().getTime()}.pdf`);
         },
         openAddNoteDialog: (request: PurchaseRequest) => {
             if (!currentUser) return;

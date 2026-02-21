@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
@@ -624,7 +625,7 @@ export type EnrichedCabysItem = {
 };
 
 export type EnrichedExemptionInfo = HaciendaExemptionApiResponse & {
-    enrichedCabys: EnrichedExemptionInfo[];
+    enrichedCabys: EnrichedCabysItem[];
 };
 
 // Legacy type for migration, can be removed later.
@@ -1104,6 +1105,7 @@ export type PeriodClosure = {
     agreement_id: number;
     status: PeriodClosureStatus;
     closure_boleta_id: number;
+    physical_count_ref?: string;
     previous_closure_id?: number;
     created_at: string;
     created_by: string;

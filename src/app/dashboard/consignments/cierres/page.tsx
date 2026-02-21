@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -9,6 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle, FileSignature, Loader2, RefreshCw } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import type { PeriodClosure } from '@/modules/core/types';
 
 export default function ClosuresPage() {
     const { state, actions, selectors } = useConsignmentsClosures();
@@ -51,10 +57,10 @@ export default function ClosuresPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {state.closures.map(closure => (
+                            {state.closures.map((closure: PeriodClosure & { client_name: string }) => (
                                 <TableRow key={closure.id}>
                                     <TableCell className="font-mono font-bold text-primary">{closure.consecutive}</TableCell>
-                                    <TableCell>{selectors.getAgreementName(closure.agreement_id)}</TableCell>
+                                    <TableCell>{closure.client_name}</TableCell>
                                     <TableCell>{format(parseISO(closure.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</TableCell>
                                     <TableCell>
                                         <Badge variant={closure.status === 'approved' ? 'default' : (closure.status === 'rejected' ? 'destructive' : 'secondary')}>
@@ -67,7 +73,7 @@ export default function ClosuresPage() {
                                             size="sm"
                                             onClick={() => actions.handleViewClosure(closure.id)}
                                         >
-                                            Ver Detalles
+                                            {closure.status === 'pending' ? 'Revisar y Aprobar' : 'Ver Detalles'}
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -76,6 +82,54 @@ export default function ClosuresPage() {
                     </Table>
                 </CardContent>
             </Card>
+
+            <Dialog open={state.isDetailsModalOpen} onOpenChange={actions.setDetailsModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Aprobar Cierre de Periodo: {state.selectedClosure?.consecutive}</DialogTitle>
+                        <DialogDescription>
+                            Verifica la información y aprueba el cierre para habilitar la facturación.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                         <div className="space-y-2">
+                            <Label>Vincular con Cierre Anterior</Label>
+                             <Select value={state.previousClosureId?.toString() || 'none'} onValueChange={(val) => actions.setPreviousClosureId(val === 'none' ? null : Number(val))}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccionar cierre anterior..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">No vincular (Inventario Inicial será 0)</SelectItem>
+                                    {state.availablePreviousClosures.map(pc => (
+                                        <SelectItem key={pc.id} value={String(pc.id)}>
+                                            {pc.consecutive} - {format(parseISO(pc.created_at), 'dd/MM/yy')}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                                El inventario final de este cierre se usará como inventario inicial para el nuevo período.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                             <Label htmlFor="rejection-notes">Notas para Rechazo (Opcional)</Label>
+                            <Textarea id="rejection-notes" value={state.notes} onChange={(e) => actions.setNotes(e.target.value)} placeholder="Indica por qué se rechaza el cierre..." />
+                        </div>
+                    </div>
+                    <DialogFooter className="justify-between">
+                        <Button variant="destructive" onClick={() => actions.handleReject(state.notes)} disabled={state.isSubmitting}>
+                            Rechazar Cierre
+                        </Button>
+                        <div className="flex gap-2">
+                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                            <Button onClick={actions.handleApprove} disabled={state.isSubmitting}>
+                                {state.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Aprobar Cierre
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </main>
     );
 }

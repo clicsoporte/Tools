@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -6,7 +7,7 @@
 import { connectDb, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
 import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount } from '@/modules/core/types';
-import { logError } from '@/modules/core/lib/logger';
+import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
 
@@ -493,9 +494,7 @@ export async function getLatestBoletaBeforeDate(agreementId: number, date: Date)
 export async function savePhysicalCount(agreementId: number, lines: { productId: string; quantity: number }[], userName: string) {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const transaction = db.transaction(() => {
-        const deleteStmt = db.prepare('DELETE FROM physical_counts WHERE agreement_id = ?');
-        deleteStmt.run(agreementId);
-        
+        // Here we just save, we don't delete. The "last" is determined by timestamp.
         const stmt = db.prepare('INSERT INTO physical_counts (agreement_id, product_id, quantity, counted_at, counted_by) VALUES (?, ?, ?, ?, ?)');
         const now = new Date().toISOString();
         for (const line of lines) {
@@ -505,11 +504,39 @@ export async function savePhysicalCount(agreementId: number, lines: { productId:
     transaction();
 }
 
+function getSettingsTx(db: import('better-sqlite3').Database): ConsignmentSettings {
+     const defaults: ConsignmentSettings = {
+        pdfTopLegend: 'Documento de Reposición',
+        pdfExportColumns: ['product_id', 'product_description', 'counted_quantity', 'max_stock', 'replenish_quantity'],
+        notificationUserIds: [],
+        additionalNotificationEmails: '',
+        next_closure_number: 1,
+    };
+    try {
+        const rows = db.prepare(`SELECT key, value FROM consignments_settings`).all() as { key: string; value: string }[];
+        if (rows.length === 0) return defaults;
+        
+        const settings: Partial<ConsignmentSettings> = {};
+        for (const row of rows) {
+            const key = row.key as keyof ConsignmentSettings;
+            try {
+                (settings as any)[key] = JSON.parse(row.value);
+            } catch {
+                (settings as any)[key] = row.value;
+            }
+        }
+        return { ...defaults, ...settings };
+    } catch (error) {
+        console.error("Error fetching consignment settings in TX, returning default.", error);
+        return defaults;
+    }
+}
+
 export async function createClosureFromCount(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<PeriodClosure> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     return db.transaction(() => {
-        const settings = getSettings(db);
+        const settings = getSettingsTx(db);
         const nextClosureNumber = settings.next_closure_number || 1;
         const closureConsecutive = `CIERRE-${String(nextClosureNumber).padStart(6, '0')}`;
         
@@ -524,8 +551,7 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
         const closureInfo = db.prepare('INSERT INTO period_closures (consecutive, agreement_id, status, physical_count_ref, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)')
             .run(closureConsecutive, agreementId, 'pending', countRef, new Date().toISOString(), userName);
         
-        db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('next_closure_number', ?)`)
-            .run(nextClosureNumber + 1);
+        db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('next_closure_number', ?)`).run(nextClosureNumber + 1);
 
         return db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureInfo.lastInsertRowid) as PeriodClosure;
     })();
@@ -694,8 +720,3 @@ export async function saveReplenishmentBoleta(agreementId: number, lines: { prod
         return db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta;
     })();
 }
-
-
-// These are obsolete but kept for reference until fully phased out or if rollback is needed
-export async function getActiveConsignmentSessions(): Promise<(any & { agreement_name: string; user_name: string; })[]> {return []}
-export async function forceReleaseConsignmentSession(sessionId: number, updatedBy: string): Promise<void> {}
