@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for interacting with the Consignments module's server-side DB functions.
  */
@@ -31,7 +30,7 @@ import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLin
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
-import { getCompanySettings } from '@/modules/core/lib/db';
+import { getCompanySettings, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
 import { sendEmail } from '@/modules/core/lib/email-service';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -147,7 +146,71 @@ async function sendBoletaEmail({
     }
 }
 
-export async function getConsignmentAgreements(): Promise<(ConsignmentAgreement & { product_count?: number })[]> {
+async function sendClosurePendingEmail({
+    closure,
+    agreementDetails,
+    physicalCount,
+    recipientEmails,
+}: {
+    closure: PeriodClosure;
+    agreementDetails: { agreement: ConsignmentAgreement; products: ConsignmentProduct[] };
+    physicalCount: { productId: string; quantity: number }[];
+    recipientEmails: string[];
+}) {
+    if (recipientEmails.length === 0) return;
+
+    try {
+        const companySettings = await getCompanySettings();
+        const allProducts = await getAllProductsFromMainDb();
+        const productMap = new Map(allProducts.map(p => [p.id, p.description]));
+
+        const subject = `Nuevo Cierre de Periodo Pendiente: ${closure.consecutive}`;
+        let html = `
+            <div style="font-family: sans-serif; font-size: 14px; color: #333;">
+                <p>El usuario <strong>${closure.created_by}</strong> ha generado un nuevo cierre de periodo para el cliente <strong>${agreementDetails.agreement.client_name}</strong>.</p>
+                <p>El cierre <strong>${closure.consecutive}</strong> está pendiente de aprobación. A continuación se muestra el detalle del conteo físico registrado:</p>
+                <hr>
+                <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 12px;">
+                    <thead style="background-color: #f2f2f2;">
+                        <tr>
+                            <th style="text-align: left;">Código</th>
+                            <th style="text-align: left;">Descripción</th>
+                            <th style="text-align: right;">Cantidad Contada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        for (const line of physicalCount) {
+            html += `
+                <tr>
+                    <td style="font-family: monospace;">${line.productId}</td>
+                    <td>${productMap.get(line.productId) || 'Producto Desconocido'}</td>
+                    <td style="text-align: right; font-weight: bold;">${line.quantity}</td>
+                </tr>
+            `;
+        }
+
+        html += `</tbody></table>
+            <p style="margin-top: 20px;">Por favor, ingrese a Clic-Tools en la sección de "Gestión de Cierres" para revisar, vincular con el período anterior y aprobar.</p>
+            ${companySettings?.publicUrl ? `<p style="font-size: 12px; color: #7f8c8d;">Accede al sistema en: <a href="${companySettings.publicUrl}">${companySettings.publicUrl}</a></p>` : ''}
+            </div>
+        `;
+        
+        await sendEmail({
+            to: recipientEmails,
+            subject,
+            html,
+        });
+        logInfo(`Closure pending email sent for #${closure.consecutive} to ${recipientEmails.length} recipient(s).`);
+
+    } catch (error: any) {
+        logError('Failed to send closure pending HTML email', { error: error.message, closureId: closure.id });
+    }
+}
+
+
+export async function getConsignmentAgreements(): Promise<(ConsignmentAgreement & { product_count?: number; boleta_count?: number })[]> {
     return getAgreementsServer();
 }
 
@@ -181,10 +244,14 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
             getConsignmentSettingsServer(),
         ]);
 
+        if (!agreementDetails) {
+            throw new Error('Agreement details not found for notification.');
+        }
+
         const allRecipients = new Set<string>();
 
         // 1. Get recipients from the specific agreement
-        const agreementUserIds = agreementDetails?.agreement.notification_user_ids || [];
+        const agreementUserIds = agreementDetails.agreement.notification_user_ids || [];
         agreementUserIds.forEach(userId => {
             const user = users.find(u => u.id === userId);
             if (user?.email) allRecipients.add(user.email);
@@ -201,26 +268,11 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
         additionalEmails.forEach(email => allRecipients.add(email));
 
         if (allRecipients.size > 0) {
-            const subject = `Nuevo Cierre de Periodo Pendiente: ${closure.consecutive}`;
-            const introText = `El usuario ${userName} ha generado un nuevo cierre de periodo para el cliente <strong>${agreementDetails?.agreement.client_name || 'N/A'}</strong>. El cierre <strong>${closure.consecutive}</strong> está pendiente de aprobación.`;
-            
-            // For closures, we don't send the table. It's just a notification to go approve it.
-            let html = `
-                <div style="font-family: sans-serif; font-size: 14px; color: #333;">
-                    <p>${introText}</p>
-                    <p>Por favor, ingrese a Clic-Tools en la sección de "Gestión de Cierres" para revisar y aprobar.</p>
-                </div>
-            `;
-            
-            const companySettings = await getCompanySettings();
-            if (companySettings?.publicUrl) {
-                html += `<p style="margin-top: 20px; font-size: 12px; color: #7f8c8d;">Accede al sistema en: <a href="${companySettings.publicUrl}">${companySettings.publicUrl}</a></p>`;
-            }
-            
-            await sendEmail({
-                to: Array.from(allRecipients),
-                subject,
-                html,
+            await sendClosurePendingEmail({
+                closure,
+                agreementDetails,
+                physicalCount: lines,
+                recipientEmails: Array.from(allRecipients),
             });
         }
 

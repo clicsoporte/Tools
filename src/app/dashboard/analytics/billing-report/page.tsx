@@ -9,10 +9,9 @@ import { useBillingReport } from '@/modules/analytics/hooks/useBillingReport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, FileDown, FileSpreadsheet, ArrowLeft } from 'lucide-react';
+import { Loader2, FileDown, FileSpreadsheet, ArrowLeft, Info } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -69,6 +68,7 @@ export default function BillingReportPage() {
                                 <Link href="/dashboard/consignments/cierres"><ArrowLeft className="mr-2 h-4 w-4" />Volver</Link>
                             </Button>
                             <Button variant="outline" onClick={actions.handleExportExcel} disabled={reportData.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
+                            <Button onClick={actions.handleExportPDF} disabled={reportData.length === 0}><FileDown className="mr-2"/>Exportar PDF</Button>
                         </div>
                     </div>
                 </CardHeader>

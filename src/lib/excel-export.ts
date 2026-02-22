@@ -32,64 +32,53 @@ export const exportToExcel = ({
     data,
     columnWidths,
 }: ExportToExcelOptions) => {
-    const dataForSheet: any[][] = [];
-    let headerRowIndex = 0;
+    
+    // Create worksheet from the array of arrays
+    const worksheet = XLSX.utils.aoa_to_sheet([]);
+    let currentRow = 0;
 
     // Add title row if provided
     if (title) {
-        dataForSheet.push([title]);
-        headerRowIndex++;
-    }
-
-    // Add metadata rows if provided
-    if (meta && meta.length > 0) {
-        meta.forEach(item => dataForSheet.push([item.label, item.value]));
-        headerRowIndex += meta.length;
-    }
-
-    // Add a spacer row if there was a title or meta
-    if (title || (meta && meta.length > 0)) {
-        dataForSheet.push([]); 
-        headerRowIndex++;
-    }
-
-    // Add table headers and data
-    dataForSheet.push(headers);
-    data.forEach(row => dataForSheet.push(row));
-
-    const worksheet = XLSX.utils.aoa_to_sheet(dataForSheet);
-
-    // --- Apply Styles and Merges ---
-    const headerStyle = { font: { bold: true } };
-    const titleStyle = { font: { bold: true, sz: 16 } };
-
-    // Style and merge title row
-    if (title) {
-        const titleCellAddress = XLSX.utils.encode_cell({ r: 0, c: 0 });
+        XLSX.utils.sheet_add_aoa(worksheet, [[title]], { origin: `A${currentRow + 1}` });
+        const titleCellAddress = XLSX.utils.encode_cell({ r: currentRow, c: 0 });
         if (worksheet[titleCellAddress]) {
-            worksheet[titleCellAddress].s = titleStyle;
+            worksheet[titleCellAddress].s = { font: { bold: true, sz: 16 } };
         }
-        
-        const merge = { s: { r: 0, c: 0 }, e: { r: 0, c: Math.max(0, headers.length - 1) } };
+        const merge = { s: { r: currentRow, c: 0 }, e: { r: currentRow, c: Math.max(0, (headers.length > 0 ? headers.length : data[0]?.length || 1) - 1) } };
         if (!worksheet['!merges']) worksheet['!merges'] = [];
         worksheet['!merges'].push(merge);
+        currentRow++;
     }
     
-    // Style meta labels
+    // Add metadata rows if provided
     if (meta && meta.length > 0) {
-        for (let i = 0; i < meta.length; i++) {
-            const metaCellAddress = XLSX.utils.encode_cell({ r: (title ? 1 : 0) + i, c: 0 });
+        meta.forEach(item => {
+            XLSX.utils.sheet_add_aoa(worksheet, [[item.label, item.value]], { origin: `A${currentRow + 1}` });
+            const metaCellAddress = XLSX.utils.encode_cell({ r: currentRow, c: 0 });
             if (worksheet[metaCellAddress]) {
-                worksheet[metaCellAddress].s = headerStyle;
+                worksheet[metaCellAddress].s = { font: { bold: true } };
             }
-        }
+            currentRow++;
+        });
     }
+    
+    // Add a spacer row if there was a title or meta
+    if (title || (meta && meta.length > 0)) {
+        currentRow++;
+    }
+    
+    // Add table headers and data
+    const dataForSheet = headers.length > 0 ? [headers, ...data] : data;
+    XLSX.utils.sheet_add_aoa(worksheet, dataForSheet, { origin: `A${currentRow + 1}` });
 
-    // Style table headers
-    for (let C = 0; C < headers.length; ++C) {
-        const address = XLSX.utils.encode_cell({ r: headerRowIndex, c: C });
-        if (!worksheet[address]) continue;
-        worksheet[address].s = headerStyle;
+    // Style table headers if they were provided
+    if (headers.length > 0) {
+        const headerStyle = { font: { bold: true } };
+        for (let C = 0; C < headers.length; ++C) {
+            const address = XLSX.utils.encode_cell({ r: currentRow, c: C });
+            if (!worksheet[address]) continue;
+            worksheet[address].s = headerStyle;
+        }
     }
     
     if (columnWidths) {
