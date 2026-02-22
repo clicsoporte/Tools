@@ -16,9 +16,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { PeriodClosure } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAuth } from '@/modules/core/hooks/useAuth';
 
 
 export default function ClosuresPage() {
+    const { products } = useAuth();
     const { state, actions, selectors } = useConsignmentsClosures();
 
     if (state.isInitialLoading) {
@@ -55,7 +58,7 @@ export default function ClosuresPage() {
                                 <TableHead>Cliente</TableHead>
                                 <TableHead>Fecha Creación</TableHead>
                                 <TableHead>Estado</TableHead>
-                                <TableHead>Acciones</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -69,11 +72,11 @@ export default function ClosuresPage() {
                                             {selectors.getStatusLabel(closure.status)}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="text-right">
                                         <Button 
                                             variant="outline" 
                                             size="sm"
-                                            onClick={() => actions.handleViewClosure(closure.id)}
+                                            onClick={() => actions.handleViewClosure(closure)}
                                         >
                                             {closure.status === 'pending' ? 'Revisar y Aprobar' : 'Ver Detalles'}
                                         </Button>
@@ -86,57 +89,122 @@ export default function ClosuresPage() {
             </Card>
 
             <Dialog open={state.isDetailsModalOpen} onOpenChange={actions.setDetailsModalOpen}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-4xl">
                     <DialogHeader>
-                        <DialogTitle>Aprobar Cierre de Periodo: {state.selectedClosure?.consecutive}</DialogTitle>
+                        <DialogTitle>{state.selectedClosure?.status === 'pending' ? 'Revisar y Aprobar Cierre' : 'Detalles del Cierre'}: {state.selectedClosure?.consecutive}</DialogTitle>
                         <DialogDescription>
-                            Verifica la información y aprueba el cierre para habilitar la facturación.
+                             {state.selectedClosure?.status === 'pending' ? 'Verifica el conteo y aprueba el cierre para habilitar la facturación.' : 'Detalles del cierre y su estado actual.'}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4 space-y-4">
-                         <div className="space-y-2">
-                            <Label>Vincular con Cierre Anterior</Label>
-                             <Select value={state.previousClosureId?.toString() || 'none'} onValueChange={(val) => actions.setPreviousClosureId(val === 'none' ? null : Number(val))}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccionar cierre anterior..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">No vincular (Inventario Inicial será 0)</SelectItem>
-                                    {state.availablePreviousClosures.map(pc => (
-                                        <SelectItem key={pc.id} value={String(pc.id)}>
-                                            {pc.consecutive} - {format(parseISO(pc.created_at), 'dd/MM/yy')}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-xs text-muted-foreground">
-                                El inventario final de este cierre se usará como inventario inicial para el nuevo período.
-                            </p>
+                    {state.isDetailsLoading ? (
+                        <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin" /></div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                            <div className="space-y-4">
+                                <h4 className="font-semibold text-lg">Conteo Físico Registrado</h4>
+                                <ScrollArea className="h-72 border rounded-md p-2">
+                                    {state.physicalCountLines.length > 0 ? (
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Producto</TableHead>
+                                                    <TableHead className="text-right">Cantidad</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {state.physicalCountLines.map(line => {
+                                                    const product = products.find(p => p.id === line.product_id);
+                                                    return (
+                                                        <TableRow key={line.id}>
+                                                            <TableCell>
+                                                                <p className="font-medium">{product?.description || 'Desconocido'}</p>
+                                                                <p className="text-xs text-muted-foreground font-mono">{line.product_id}</p>
+                                                            </TableCell>
+                                                            <TableCell className="text-right font-bold">{line.quantity}</TableCell>
+                                                        </TableRow>
+                                                    )
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                                            <p>No se encontraron datos de conteo.</p>
+                                        </div>
+                                    )}
+                                </ScrollArea>
+                            </div>
+                            <div className="space-y-4">
+                                {state.selectedClosure?.status === 'pending' && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label>Vincular con Cierre Anterior</Label>
+                                            <Select value={state.previousClosureId?.toString() || 'none'} onValueChange={(val) => actions.setPreviousClosureId(val === 'none' ? null : Number(val))}>
+                                                <SelectTrigger><SelectValue placeholder="Seleccionar cierre anterior..." /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">No vincular (Inventario Inicial será 0)</SelectItem>
+                                                    {state.availablePreviousClosures.map(pc => (
+                                                        <SelectItem key={pc.id} value={String(pc.id)}>
+                                                            {pc.consecutive} - {format(parseISO(pc.created_at), 'dd/MM/yy')}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <p className="text-xs text-muted-foreground">
+                                                El inventario final de este cierre se usará como inventario inicial para el nuevo período.
+                                            </p>
+                                        </div>
+                                        {state.previousClosureId === null && (
+                                            <Alert>
+                                                <Info className="h-4 w-4" />
+                                                <AlertTitle>Estableciendo Inventario Inicial</AlertTitle>
+                                                <AlertDescription>
+                                                    Al no vincular un cierre anterior, estás estableciendo el <strong>inventario inicial oficial</strong>. Asegúrate de que esto sea correcto.
+                                                </AlertDescription>
+                                            </Alert>
+                                        )}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="rejection-notes">Notas para Rechazo (Opcional)</Label>
+                                            <Textarea id="rejection-notes" value={state.notes} onChange={(e) => actions.setNotes(e.target.value)} placeholder="Indica por qué se rechaza el cierre..." />
+                                        </div>
+                                    </>
+                                )}
+                                {state.selectedClosure?.status === 'rejected' && (
+                                    <Alert variant="destructive">
+                                        <AlertTitle>Cierre Rechazado</AlertTitle>
+                                        <AlertDescription>
+                                            <p className="mb-2"><strong>Rechazado por:</strong> {state.selectedClosure.approved_by}</p>
+                                            <p><strong>Motivo:</strong> {state.selectedClosure.notes || 'No se especificó un motivo.'}</p>
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+                                {state.selectedClosure?.status === 'approved' && (
+                                    <Alert variant="default" className="bg-green-50 border-green-200">
+                                        <AlertTitle>Cierre Aprobado</AlertTitle>
+                                        <AlertDescription>
+                                            <p className="mb-2"><strong>Aprobado por:</strong> {state.selectedClosure.approved_by}</p>
+                                            <p>Ya puedes generar el reporte de facturación para este período.</p>
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+                            </div>
                         </div>
-                        {state.previousClosureId === null && (
-                            <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertTitle>Primer Cierre de Periodo</AlertTitle>
-                                <AlertDescription>
-                                    Al no vincular un cierre anterior, estás estableciendo el <strong>inventario inicial oficial</strong> para este cliente. Asegúrate de que esto es correcto.
-                                </AlertDescription>
-                            </Alert>
-                        )}
-                        <div className="space-y-2">
-                             <Label htmlFor="rejection-notes">Notas para Rechazo (Opcional)</Label>
-                            <Textarea id="rejection-notes" value={state.notes} onChange={(e) => actions.setNotes(e.target.value)} placeholder="Indica por qué se rechaza el cierre..." />
+                    )}
+                    <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between sm:items-center">
+                        <div className="flex-1 sm:flex-grow-0">
+                           {state.selectedClosure?.status === 'pending' && (
+                                <Button variant="destructive" onClick={() => actions.handleReject(state.notes)} disabled={state.isSubmitting}>
+                                    Rechazar Cierre
+                                </Button>
+                           )}
                         </div>
-                    </div>
-                    <DialogFooter className="justify-between">
-                        <Button variant="destructive" onClick={() => actions.handleReject(state.notes)} disabled={state.isSubmitting}>
-                            Rechazar Cierre
-                        </Button>
                         <div className="flex gap-2">
-                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                            <Button onClick={actions.handleApprove} disabled={state.isSubmitting}>
-                                {state.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                Aprobar Cierre
-                            </Button>
+                            <DialogClose asChild><Button variant="ghost">Cerrar</Button></DialogClose>
+                            {state.selectedClosure?.status === 'pending' && (
+                                <Button onClick={actions.handleApprove} disabled={state.isSubmitting}>
+                                    {state.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                    Aprobar Cierre
+                                </Button>
+                            )}
                         </div>
                     </DialogFooter>
                 </DialogContent>

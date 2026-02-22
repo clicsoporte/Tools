@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -195,7 +196,7 @@ export async function saveSettings(settings: ConsignmentSettings): Promise<void>
             }
         }
     });
-    transaction();
+    transaction(settings);
 }
 
 export async function getAgreements(): Promise<(ConsignmentAgreement & { product_count?: number; boleta_count?: number })[]> {
@@ -260,7 +261,7 @@ export async function deleteAgreement(agreementId: number): Promise<{ success: b
             return { success: false, message: 'No se encontró el acuerdo a eliminar.' };
         }
 
-        await logInfo(`Consignment agreement with ID ${agreementId} was deleted.`);
+        logInfo(`Consignment agreement with ID ${agreementId} was deleted.`);
         return { success: true, message: 'Acuerdo eliminado con éxito.' };
 
     } catch (error: any) {
@@ -560,6 +561,12 @@ export async function getLatestPhysicalCount(agreementId: number): Promise<Physi
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const counts = db.prepare('SELECT * FROM physical_counts WHERE agreement_id = ?').all(agreementId) as PhysicalCount[];
     return counts.length > 0 ? counts : null;
+}
+
+export async function getPhysicalCountByRef(agreementId: number, countedAt: string): Promise<PhysicalCount[]> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const counts = db.prepare('SELECT * FROM physical_counts WHERE agreement_id = ? AND counted_at = ?').all(agreementId, countedAt) as PhysicalCount[];
+    return JSON.parse(JSON.stringify(counts));
 }
 
 export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & { client_name: string })[]> {

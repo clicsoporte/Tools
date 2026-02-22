@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client-side functions for interacting with the Consignments module's server-side DB functions.
  */
@@ -24,6 +25,7 @@ import {
     rejectPeriodClosure as rejectPeriodClosureServer,
     getConsignmentsBillingReportData as getConsignmentsBillingReportDataServer,
     saveReplenishmentBoleta as saveReplenishmentBoletaServer,
+    getPhysicalCountByRef as getPhysicalCountByRefServer,
 } from './db';
 import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentSettings, User, Company, PeriodClosure, PhysicalCount } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
@@ -391,4 +393,8 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
 
 export async function saveReplenishmentBoleta(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<RestockBoleta> {
     return saveReplenishmentBoletaServer(agreementId, lines, userName);
+}
+
+export async function getPhysicalCountDetails(agreementId: number, countedAt: string): Promise<PhysicalCount[]> {
+    return getPhysicalCountByRefServer(agreementId, countedAt);
 }

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the logic for the Consignments Closures page.
  */
@@ -7,8 +8,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getPeriodClosures, approvePeriodClosure, rejectPeriodClosure } from '../lib/actions';
-import type { PeriodClosure } from '@/modules/core/types';
+import { getPeriodClosures, approvePeriodClosure, rejectPeriodClosure, getPhysicalCountDetails } from '../lib/actions';
+import type { PeriodClosure, PhysicalCount } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 
@@ -18,10 +19,12 @@ interface State {
     isSubmitting: boolean;
     closures: (PeriodClosure & { client_name: string })[];
     isDetailsModalOpen: boolean;
+    isDetailsLoading: boolean;
     selectedClosure: PeriodClosure | null;
     previousClosureId: number | null;
     notes: string;
     availablePreviousClosures: PeriodClosure[];
+    physicalCountLines: PhysicalCount[];
 }
 
 export const useConsignmentsClosures = () => {
@@ -36,10 +39,12 @@ export const useConsignmentsClosures = () => {
         isSubmitting: false,
         closures: [],
         isDetailsModalOpen: false,
+        isDetailsLoading: false,
         selectedClosure: null,
         previousClosureId: null,
         notes: '',
         availablePreviousClosures: [],
+        physicalCountLines: [],
     });
 
     const updateState = useCallback((newState: Partial<State>) => {
@@ -68,26 +73,37 @@ export const useConsignmentsClosures = () => {
         }
     }, [isAuthorized, loadData, updateState]);
 
-    const handleViewClosure = async (closureId: number) => {
-        const closure = state.closures.find(c => c.id === closureId);
-        if (!closure) return;
-        
+    const handleViewClosure = async (closure: PeriodClosure & { client_name: string }) => {
         if (closure.status === 'approved') {
-            router.push(`/dashboard/analytics/billing-report?closureId=${closureId}`);
+            router.push(`/dashboard/analytics/billing-report?closureId=${closure.id}`);
             return;
         }
 
-        if (closure.status === 'pending') {
-            const previousClosures = state.closures
-                .filter(c => c.agreement_id === closure.agreement_id && c.status === 'approved')
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            
-            updateState({ 
-                selectedClosure: closure, 
-                availablePreviousClosures: previousClosures,
-                previousClosureId: previousClosures.length > 0 ? previousClosures[0].id : null,
-                isDetailsModalOpen: true 
-            });
+        updateState({ isDetailsLoading: true, selectedClosure: closure, physicalCountLines: [] });
+
+        try {
+            if (closure.physical_count_ref) {
+                const counts = await getPhysicalCountDetails(closure.agreement_id, closure.physical_count_ref);
+                updateState({ physicalCountLines: counts });
+            }
+
+            if (closure.status === 'pending') {
+                const previousClosures = state.closures
+                    .filter(c => c.agreement_id === closure.agreement_id && c.status === 'approved')
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                
+                updateState({ 
+                    availablePreviousClosures: previousClosures,
+                    previousClosureId: previousClosures.length > 0 ? previousClosures[0].id : null,
+                });
+            }
+
+            updateState({ isDetailsModalOpen: true });
+        } catch (error: any) {
+            logError('Failed to get closure details', { error: error.message, closureId: closure.id });
+            toast({ title: 'Error', description: `No se pudieron cargar los detalles del cierre: ${error.message}`, variant: 'destructive' });
+        } finally {
+            updateState({ isDetailsLoading: false });
         }
     };
     
