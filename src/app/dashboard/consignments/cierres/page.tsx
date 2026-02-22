@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, FileSignature, Loader2, RefreshCw } from 'lucide-react';
+import { PlusCircle, FileSignature, Loader2, RefreshCw, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { PeriodClosure } from '@/modules/core/types';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
 
 export default function ClosuresPage() {
     const { state, actions, selectors } = useConsignmentsClosures();
@@ -111,6 +113,15 @@ export default function ClosuresPage() {
                                 El inventario final de este cierre se usará como inventario inicial para el nuevo período.
                             </p>
                         </div>
+                        {state.previousClosureId === null && (
+                            <Alert>
+                                <Info className="h-4 w-4" />
+                                <AlertTitle>Primer Cierre de Periodo</AlertTitle>
+                                <AlertDescription>
+                                    Al no vincular un cierre anterior, estás estableciendo el <strong>inventario inicial oficial</strong> para este cliente. Asegúrate de que esto es correcto.
+                                </AlertDescription>
+                            </Alert>
+                        )}
                         <div className="space-y-2">
                              <Label htmlFor="rejection-notes">Notas para Rechazo (Opcional)</Label>
                             <Textarea id="rejection-notes" value={state.notes} onChange={(e) => actions.setNotes(e.target.value)} placeholder="Indica por qué se rechaza el cierre..." />
