@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -22,7 +23,11 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             notes TEXT,
             is_active BOOLEAN NOT NULL DEFAULT 1,
             product_code_display_mode TEXT NOT NULL DEFAULT 'erp_only',
-            notification_user_ids TEXT
+            notification_user_ids TEXT,
+            operation_mode TEXT NOT NULL DEFAULT 'auto',
+            locked_by TEXT,
+            locked_by_user_id INTEGER,
+            locked_at TEXT
         );
 
         CREATE TABLE IF NOT EXISTS consignment_products (
@@ -120,6 +125,15 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
 
 export async function runConsignmentsMigrations(db: import('better-sqlite3').Database) {
     try {
+        const agreementsTableInfo = db.prepare(`PRAGMA table_info(consignment_agreements)`).all() as { name: string }[];
+        if (agreementsTableInfo.length > 0) {
+            const agreementColumns = new Set(agreementsTableInfo.map(c => c.name));
+            if (!agreementColumns.has('operation_mode')) db.exec(`ALTER TABLE consignment_agreements ADD COLUMN operation_mode TEXT NOT NULL DEFAULT 'auto'`);
+            if (!agreementColumns.has('locked_by')) db.exec(`ALTER TABLE consignment_agreements ADD COLUMN locked_by TEXT`);
+            if (!agreementColumns.has('locked_by_user_id')) db.exec(`ALTER TABLE consignment_agreements ADD COLUMN locked_by_user_id INTEGER`);
+            if (!agreementColumns.has('locked_at')) db.exec(`ALTER TABLE consignment_agreements ADD COLUMN locked_at TEXT`);
+        }
+
         const boletasTableInfo = db.prepare(`PRAGMA table_info(restock_boletas)`).all() as { name: string }[];
         if (boletasTableInfo.length > 0 && !boletasTableInfo.some(c => c.name === 'type')) {
             db.exec(`ALTER TABLE restock_boletas ADD COLUMN type TEXT NOT NULL DEFAULT 'REPOSITION'`);
@@ -220,11 +234,11 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
         let agreementId = agreement.id;
         const notificationUserIdsJson = JSON.stringify(agreement.notification_user_ids || []);
         if (agreementId) { // Update
-            db.prepare('UPDATE consignment_agreements SET client_id = ?, client_name = ?, erp_warehouse_id = ?, notes = ?, is_active = ?, product_code_display_mode = ?, notification_user_ids = ? WHERE id = ?')
-              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode, notificationUserIdsJson, agreementId);
+            db.prepare('UPDATE consignment_agreements SET client_id = ?, client_name = ?, erp_warehouse_id = ?, notes = ?, is_active = ?, product_code_display_mode = ?, notification_user_ids = ?, operation_mode = ? WHERE id = ?')
+              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode, notificationUserIdsJson, agreement.operation_mode || 'auto', agreementId);
         } else { // Create
-            const info = db.prepare('INSERT INTO consignment_agreements (client_id, client_name, erp_warehouse_id, notes, is_active, product_code_display_mode, notification_user_ids) VALUES (?, ?, ?, ?, ?, ?, ?)')
-              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode, notificationUserIdsJson);
+            const info = db.prepare('INSERT INTO consignment_agreements (client_id, client_name, erp_warehouse_id, notes, is_active, product_code_display_mode, notification_user_ids, operation_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+              .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode, notificationUserIdsJson, agreement.operation_mode || 'auto');
             agreementId = info.lastInsertRowid as number;
         }
 
@@ -741,3 +755,30 @@ export async function saveReplenishmentBoleta(agreementId: number, lines: { prod
         return db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta;
     })();
 }
+
+export async function lockAgreement(agreementId: number, userId: number, userName: string): Promise<{ success: boolean, locked: boolean, message: string }> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as (ConsignmentAgreement & { locked_by?: string });
+    if (!agreement) {
+        return { success: false, locked: false, message: 'Acuerdo no encontrado.' };
+    }
+    if (agreement.locked_by && agreement.locked_by !== userName) {
+        return { success: false, locked: true, message: `El acuerdo está siendo usado por ${agreement.locked_by}.` };
+    }
+    db.prepare('UPDATE consignment_agreements SET locked_by = ?, locked_by_user_id = ?, locked_at = datetime(\'now\') WHERE id = ?').run(userName, userId, agreementId);
+    return { success: true, locked: false, message: 'Acuerdo bloqueado para ti.' };
+}
+
+export async function forceRelayLock(agreementId: number, userId: number, userName: string): Promise<void> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    logWarn(`Lock for agreement ${agreementId} was force-relayed to ${userName}.`);
+    db.prepare('UPDATE consignment_agreements SET locked_by = ?, locked_by_user_id = ?, locked_at = datetime(\'now\') WHERE id = ?').run(userName, userId, agreementId);
+}
+
+export async function releaseAgreementLock(agreementId: number, userId: number): Promise<void> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    // Only release the lock if the current user is the one who holds it.
+    db.prepare('UPDATE consignment_agreements SET locked_by = NULL, locked_by_user_id = NULL, locked_at = NULL WHERE id = ? AND locked_by_user_id = ?').run(agreementId, userId);
+}
+
+    

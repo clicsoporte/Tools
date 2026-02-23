@@ -1029,6 +1029,10 @@ export type ConsignmentAgreement = {
     is_active: 0 | 1;
     product_code_display_mode: 'erp_only' | 'alias_only' | 'both';
     notification_user_ids?: number[];
+    operation_mode: 'manual' | 'auto';
+    locked_by?: string | null;
+    locked_by_user_id?: number | null;
+    locked_at?: string | null;
 };
 
 export type ConsignmentProduct = {

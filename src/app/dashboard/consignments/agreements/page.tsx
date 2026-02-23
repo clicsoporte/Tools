@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { PlusCircle, Edit2, Loader2, Trash2, Settings2 } from 'lucide-react';
+import { PlusCircle, Edit2, Loader2, Trash2, Settings2, Users } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SearchInput } from '@/components/ui/search-input';
 import { ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
@@ -154,9 +154,28 @@ export default function AgreementsPage() {
                                     value={state.warehouseSearchTerm}
                                     onValueChange={actions.setWarehouseSearchTerm}
                                     open={state.isWarehouseSearchOpen}
-                                    onOpenChange={actions.setIsWarehouseSearchOpen}
                                     placeholder="Buscar bodega virtual..."
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Modo de Operación</Label>
+                                <RadioGroup
+                                    value={state.agreementFormData.operation_mode}
+                                    onValueChange={(value: 'manual' | 'auto') => actions.handleFieldChange('operation_mode', value)}
+                                    className="flex space-x-4"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="auto" id="mode_auto" />
+                                        <Label htmlFor="mode_auto">Automático (por máximos)</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="manual" id="mode_manual" />
+                                        <Label htmlFor="mode_manual">Manual (a petición)</Label>
+                                    </div>
+                                </RadioGroup>
+                                <p className="text-sm text-muted-foreground">
+                                    Define si las reposiciones se calculan por stock máximo o si son ingresadas manualmente.
+                                </p>
                             </div>
                              <div className="space-y-2">
                                 <Label>Modo de Visualización de Código</Label>

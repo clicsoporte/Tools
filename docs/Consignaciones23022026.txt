@@ -1,0 +1,148 @@
+======================================================================
+     PLAN DE DISEÑO INTEGRAL: MÓDULO DE CONSIGNACIONES (v3)
+======================================================================
+Este documento consolida la visión final y el plan de acción para la
+refactorización del módulo de consignaciones, basado en la lluvia de
+ideas.
+
+--- ÍNDICE ---
+1. Pilar A: El "Asistente de Campo" Unificado (Wizard para Bodeguero)
+   1.1. Flujo de Trabajo Guiado
+   1.2. Autoguardado Universal y Seguro
+   1.3. Sistema de Bloqueo Inteligente con Relevo
+
+2. Pilar B: Herramientas de Oficina Centralizadas
+   2.1. Gestión de Acuerdos (con Modo de Operación)
+   2.2. Gestión de Boletas (sin cambios, para aprobaciones)
+   2.3. Gestión de Cierres (con "Visión 360" de alto rendimiento)
+
+3. Pilar C: Visibilidad, Auditoría y Reorganización Estructural
+   3.1. Reorganización del Módulo de Analíticas
+   3.2. Nuevo "Monitor de Inventario en Consignación"
+   3.3. Historial de Conteos Preliminares
+
+======================================================================
+ 1. PILAR A: EL "ASISTENTE DE CAMPO" UNIFICADO
+======================================================================
+El objetivo es simplificar drásticamente la experiencia del bodeguero,
+que a menudo trabaja con conexiones inestables (VPN, datos móviles). Se
+unifican todas sus tareas en una sola herramienta inteligente.
+
+- **Nombre de la Herramienta:** `Herramientas de Campo` (reemplaza a las
+  herramientas anteriores).
+
+----------------------------------------------------------------------
+ 1.1. Flujo de Trabajo Guiado (Wizard)
+----------------------------------------------------------------------
+1.  **Inicio:** El bodeguero toca la tarjeta "Herramientas de Campo".
+2.  **Paso 1: Seleccionar Cliente.** Una pantalla simple para buscar y
+    seleccionar el cliente.
+3.  **Paso 2: El Menú Inteligente.** El sistema lee el "Modo de Operación"
+    del acuerdo y muestra SOLO las opciones relevantes:
+    - **Si es "Manual"**:
+        - `Solicitud de Reposición Rápida` (para que el bodeguero anote lo que el cliente le pide).
+        - `Iniciar Conteo para Cierre de Periodo` (para el conteo oficial de facturación).
+    - **Si es "Automático"**:
+        - `Generar Boleta por Conteo` (para reposiciones de rutina basadas en máximos).
+        - `Iniciar Conteo para Cierre de Periodo` (para el conteo oficial).
+
+----------------------------------------------------------------------
+ 1.2. Autoguardado Universal y Seguro
+----------------------------------------------------------------------
+- **Regla de Oro:** Para CUALQUIER opción que implique un conteo
+  (Boleta por Conteo, Cierre de Periodo), la pantalla de ingreso de
+  cantidades tendrá el **autoguardado siempre activo**.
+- **Mecanismo:** Cada vez que el bodeguero ingresa una cantidad, el
+  sistema la guarda en un borrador temporal ("Conteo Preliminar")
+  asociado a su usuario y al cliente.
+- **Resultado:** Se elimina por completo el riesgo de perder horas de
+  trabajo por una desconexión de VPN o por quedarse sin batería.
+
+----------------------------------------------------------------------
+ 1.3. Sistema de Bloqueo Inteligente con Relevo
+----------------------------------------------------------------------
+- **Bloqueo por Sesión:** Al iniciar un conteo, el sistema "bloquea" el
+  acuerdo para ese usuario, registrando quién y cuándo lo bloqueó.
+- **Detección de Conflicto:** Si un segundo bodeguero intenta acceder al
+  mismo cliente, el sistema lo detecta y le muestra el aviso:
+  *"'Usuario A' ya tiene una sesión activa. Puedes esperar o..."*
+- **Opción de Relevo:** En lugar de un bloqueo total, el segundo usuario
+  tendrá el botón **"Forzar y Tomar Control"**. Esto es ideal para casos
+  donde el primer usuario abandonó la sesión (ej. celular apagado).
+- **Seguridad:** La acción de forzar el relevo queda registrada para
+  auditoría. El primer usuario pierde, como mucho, los últimos segundos
+  de trabajo no guardado.
+- **Liberación Automática:** Al finalizar o cancelar una sesión, el
+  bloqueo se libera automáticamente.
+
+======================================================================
+ 2. PILAR B: HERRAMIENTAS DE OFICINA CENTRALIZADAS
+======================================================================
+Las herramientas para el personal administrativo se mantienen separadas y
+se potencian para una gestión eficiente.
+
+----------------------------------------------------------------------
+ 2.1. Gestión de Acuerdos (con Modo de Operación)
+----------------------------------------------------------------------
+- Se añade un interruptor **"Modo de Operación"** al crear/editar un
+  acuerdo, con las opciones "Manual" y "Automático". Este ajuste
+  controlará la lógica que ve el bodeguero en el Asistente de Campo.
+
+----------------------------------------------------------------------
+ 2.3. Gestión de Cierres (con "Visión 360" de alto rendimiento)
+----------------------------------------------------------------------
+- **Problema a Resolver:** Aprobar un cierre con cientos de productos y
+  múltiples entregas puede ser lento y riesgoso si se procesa en el
+  navegador.
+- **Solución:** La pantalla de "Revisar y Aprobar Cierre" se convierte en un
+  dashboard de aprobación que muestra:
+    1.  **Cálculo en el Servidor:** Todo el trabajo pesado (buscar cierre
+        anterior, consolidar las 30 entregas, etc.) se hace en el servidor.
+    2.  **Dashboard de Aprobación:** La interfaz solo renderiza el resultado
+        final, mostrando:
+        - El **Inventario Inicial** del período.
+        - Un resumen simple de las **Entregas Totales**.
+        - El **Conteo Final** enviado por el bodeguero.
+        - Una **Vista Previa de Facturación** consolidada, mostrando el
+          cálculo `(Inicial + Entregado - Final)` para cada producto y el
+          total a facturar.
+- **Resultado:** Una pantalla rapidísima y un proceso de aprobación
+  informado y seguro, sin importar el volumen de datos.
+
+======================================================================
+ 3. PILAR C: VISIBILIDAD, AUDITORÍA Y REORGANIZACIÓN ESTRUCTURAL
+======================================================================
+
+----------------------------------------------------------------------
+ 3.1. Reorganización del Módulo de Analíticas
+----------------------------------------------------------------------
+- **Problema:** La sección de Analíticas es una lista plana de reportes
+  que crecerá y se volverá desordenada.
+- **Solución:** Se reestructura la página de Analíticas para que funcione
+  como un **sub-dashboard de categorías**:
+    - La página principal mostrará tarjetas para `Consignaciones`, `Compras`,
+      `Almacén`, etc.
+    - Al hacer clic en `Consignaciones`, se navegará a una nueva página que
+      contendrá exclusivamente los reportes de ese módulo.
+- **Resultado:** Un sistema de reportes limpio, organizado y escalable a
+  largo plazo.
+
+----------------------------------------------------------------------
+ 3.2. Nuevo "Monitor de Inventario en Consignación"
+----------------------------------------------------------------------
+- **Objetivo:** Responder a la pregunta "¿Cuánto inventario tenemos hoy en
+  el cliente X?".
+- **Funcionamiento:**
+    - Se selecciona un cliente dentro de la nueva categoría "Analíticas de Consignación".
+    - El sistema muestra dos métricas clave:
+        1.  **Inventario Teórico:** Calculado como `(Último Cierre Oficial) + (Entregas posteriores)`.
+        2.  **Inventario Físico Real:** La "foto" más reciente, tomada del **último conteo preliminar guardado**, indicando fecha y usuario.
+
+----------------------------------------------------------------------
+ 3.3. Historial de Conteos Preliminares
+----------------------------------------------------------------------
+- Dentro del mismo "Monitor de Inventario", habrá una tabla que lista
+  todos los conteos preliminares guardados.
+- Cada conteo tendrá un **consecutivo único** (ej: `CONTEO-001`), fecha y
+  usuario, permitiendo una auditoría completa de cómo ha fluctuado el
+  inventario físico a lo largo del tiempo.

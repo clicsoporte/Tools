@@ -20,6 +20,7 @@ const emptyAgreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> = 
   is_active: 1,
   product_code_display_mode: 'erp_only',
   notification_user_ids: [],
+  operation_mode: 'auto',
 };
 
 type AgreementWithCounts = ConsignmentAgreement & { product_count?: number; boleta_count?: number; };
@@ -80,7 +81,7 @@ export const useConsignmentsAgreements = () => {
             if (details) {
                 updateState({
                     editingAgreement: agreement,
-                    agreementFormData: { ...details.agreement, notification_user_ids: details.agreement.notification_user_ids || [] },
+                    agreementFormData: { ...details.agreement, notification_user_ids: details.agreement.notification_user_ids || [], operation_mode: details.agreement.operation_mode || 'auto' },
                     agreementProducts: details.products,
                     clientSearchTerm: details.agreement.client_name,
                     warehouseSearchTerm: details.agreement.erp_warehouse_id || '',
@@ -229,3 +230,5 @@ export const useConsignmentsAgreements = () => {
         selectors
     };
 };
+
+    
