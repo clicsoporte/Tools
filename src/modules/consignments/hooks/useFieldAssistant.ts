@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the logic for the new unified Consignment Field Assistant.
  */
@@ -66,7 +67,7 @@ export const useFieldAssistant = () => {
             await releaseAgreementLock(state.selectedAgreement.id, user.id);
             updateState({ lockStatus: 'unlocked' });
         }
-    }, [state.selectedAgreement, user, state.lockStatus]);
+    }, [state.selectedAgreement, user, state.lockStatus, updateState]);
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -82,7 +83,6 @@ export const useFieldAssistant = () => {
         };
         if (user) loadInitialData();
         
-        // Add event listener for when user tries to leave the page
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             if (state.lockStatus === 'locked-by-me') {
                 releaseMyLock();
@@ -91,7 +91,7 @@ export const useFieldAssistant = () => {
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
-            // Cleanup on unmount
+            
             releaseMyLock();
         };
     }, [user, updateState, releaseMyLock, state.lockStatus]);
@@ -145,8 +145,8 @@ export const useFieldAssistant = () => {
     const handleForceRelayLock = async () => {
         if (!state.selectedAgreement || !user) return;
         await forceRelayLock(state.selectedAgreement.id, user.id, user.name);
-        updateState({ lockStatus: 'unlocked' }); // Reset lock status
-        await handleSelectAction(state.selectedAction!); // Re-try the action
+        updateState({ lockStatus: 'unlocked' }); 
+        await handleSelectAction(state.selectedAction!); 
     };
 
     const handleQuantityChange = useCallback((productId: string, value: string) => {

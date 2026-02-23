@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -19,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 
+export const dynamic = 'force-dynamic';
 
 export default function ClosuresPage() {
     const { products } = useAuth();

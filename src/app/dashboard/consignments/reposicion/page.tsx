@@ -16,6 +16,8 @@ import { SearchInput } from '@/components/ui/search-input';
 import { ConsignmentProduct } from '@/modules/core/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+export const dynamic = 'force-dynamic';
+
 export default function ReplenishmentRequestPage() {
     const { state, actions, selectors } = useConsignmentsReplenishment();
     const { isLoading, step, agreements, selectedAgreementId, products, quantities } = state;
