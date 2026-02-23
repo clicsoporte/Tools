@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
@@ -1027,6 +1026,7 @@ export type ConsignmentAgreement = {
     next_boleta_number: number;
     notes?: string;
     is_active: 0 | 1;
+    has_initial_inventory: 0 | 1;
     product_code_display_mode: 'erp_only' | 'alias_only' | 'both';
     notification_user_ids?: number[];
     operation_mode: 'manual' | 'auto';
