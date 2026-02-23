@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
 
 export default function BillingReportPage() {
     const { state, actions, selectors, isAuthorized } = useBillingReport();
@@ -57,7 +58,14 @@ export default function BillingReportPage() {
                 <CardHeader>
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
-                            <CardTitle className="text-2xl">Reporte de Facturación: {closureInfo?.consecutive}</CardTitle>
+                            <div className="flex items-center gap-4">
+                                <CardTitle className="text-2xl">Reporte de Facturación: {closureInfo?.consecutive}</CardTitle>
+                                {!state.previousClosure && (
+                                    <Badge variant="outline" className="border-green-600 text-green-700 font-bold text-base py-1 px-3">
+                                        INVENTARIO INICIAL
+                                    </Badge>
+                                )}
+                            </div>
                             <CardDescription>
                                 Consolidado de consumo para el cliente <strong>{closureInfo?.client_name}</strong> entre el 
                                 {previousClosure ? ` ${format(parseISO(previousClosure.created_at), 'dd/MM/yy HH:mm')}` : ' inicio'} y el {format(parseISO(closureInfo!.created_at), 'dd/MM/yy HH:mm')}.

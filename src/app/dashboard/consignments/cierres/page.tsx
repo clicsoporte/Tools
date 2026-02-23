@@ -58,11 +58,12 @@ export default function ClosuresPage() {
                                 <TableHead>Cliente</TableHead>
                                 <TableHead>Fecha Creación</TableHead>
                                 <TableHead>Estado</TableHead>
+                                <TableHead>Tipo</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {state.closures.map((closure: PeriodClosure & { client_name: string }) => (
+                            {state.closures.map((closure: PeriodClosure & { client_name: string; is_initial_inventory: boolean; }) => (
                                 <TableRow key={closure.id}>
                                     <TableCell className="font-mono font-bold text-primary">{closure.consecutive}</TableCell>
                                     <TableCell>{closure.client_name}</TableCell>
@@ -71,6 +72,13 @@ export default function ClosuresPage() {
                                         <Badge variant={closure.status === 'approved' ? 'default' : (closure.status === 'rejected' ? 'destructive' : 'secondary')}>
                                             {selectors.getStatusLabel(closure.status)}
                                         </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        {closure.is_initial_inventory && (
+                                            <Badge variant="outline" className="border-green-600 text-green-700">
+                                                Inventario Inicial
+                                            </Badge>
+                                        )}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button 
@@ -141,7 +149,7 @@ export default function ClosuresPage() {
                                             <Select value={state.previousClosureId?.toString() || 'none'} onValueChange={(val) => actions.setPreviousClosureId(val === 'none' ? null : Number(val))}>
                                                 <SelectTrigger><SelectValue placeholder="Seleccionar cierre anterior..." /></SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="none">No vincular (Inventario Inicial será 0)</SelectItem>
+                                                    <SelectItem value="none">No vincular (Esto establecerá el Inventario Inicial)</SelectItem>
                                                     {state.availablePreviousClosures.map(pc => (
                                                         <SelectItem key={pc.id} value={String(pc.id)}>
                                                             {pc.consecutive} - {format(parseISO(pc.created_at), 'dd/MM/yy')}
@@ -154,11 +162,11 @@ export default function ClosuresPage() {
                                             </p>
                                         </div>
                                         {state.previousClosureId === null && (
-                                            <Alert>
+                                            <Alert variant="default" className="bg-green-50 border-green-200">
                                                 <Info className="h-4 w-4" />
                                                 <AlertTitle>Estableciendo Inventario Inicial</AlertTitle>
                                                 <AlertDescription>
-                                                    Al no vincular un cierre anterior, estás estableciendo el <strong>inventario inicial oficial</strong>. Asegúrate de que esto sea correcto.
+                                                    Al no vincular un cierre anterior, estás estableciendo el <strong>inventario inicial oficial</strong> para este cliente. Asegúrate de que esto sea correcto.
                                                 </AlertDescription>
                                             </Alert>
                                         )}

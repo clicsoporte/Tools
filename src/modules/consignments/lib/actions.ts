@@ -26,7 +26,7 @@ import {
     saveReplenishmentBoleta as saveReplenishmentBoletaServer,
     getPhysicalCountByRef as getPhysicalCountByRefServer,
 } from './db';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentSettings, User, Company, PeriodClosure, PhysicalCount } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentSettings, User, Company, PeriodClosure, PhysicalCount, BoletaType } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -293,7 +293,7 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
 }
 
 
-export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date } }) {
+export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date }, type?: BoletaType }) {
     return getBoletasServer(filters);
 }
 
@@ -423,7 +423,7 @@ export async function getLatestPhysicalCount(agreementId: number): Promise<Physi
     return getLatestPhysicalCountServer(agreementId);
 }
 
-export async function getPeriodClosures(filters: {} = {}): Promise<(PeriodClosure & { client_name: string })[]> {
+export async function getPeriodClosures(filters: {} = {}): Promise<(PeriodClosure & { client_name: string, is_initial_inventory: boolean })[]> {
     return getPeriodClosuresServer(filters);
 }
 

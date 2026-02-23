@@ -574,15 +574,26 @@ export async function getPhysicalCountByRef(agreementId: number, countedAt: stri
     return JSON.parse(JSON.stringify(counts));
 }
 
-export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & { client_name: string })[]> {
+export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const closures = db.prepare(`
-        SELECT pc.*, ca.client_name FROM period_closures pc
+        SELECT 
+            pc.*, 
+            ca.client_name,
+            CASE WHEN pc.previous_closure_id IS NULL THEN 1 ELSE 0 END as is_initial_inventory
+        FROM period_closures pc
         JOIN consignment_agreements ca ON pc.agreement_id = ca.id
         ORDER BY pc.created_at DESC
-    `).all() as (PeriodClosure & { client_name: string })[];
-    return JSON.parse(JSON.stringify(closures));
+    `).all() as (PeriodClosure & { client_name: string; is_initial_inventory: 0 | 1 })[];
+    
+    const result = closures.map(c => ({
+        ...c,
+        is_initial_inventory: c.is_initial_inventory === 1
+    }));
+    
+    return JSON.parse(JSON.stringify(result));
 }
+
 
 export async function getPeriodClosureDetails(closureId: number): Promise<PeriodClosure | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);

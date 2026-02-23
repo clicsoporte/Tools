@@ -17,10 +17,10 @@ interface State {
     isInitialLoading: boolean;
     isRefreshing: boolean;
     isSubmitting: boolean;
-    closures: (PeriodClosure & { client_name: string })[];
+    closures: (PeriodClosure & { client_name: string; is_initial_inventory: boolean })[];
     isDetailsModalOpen: boolean;
     isDetailsLoading: boolean;
-    selectedClosure: PeriodClosure | null;
+    selectedClosure: (PeriodClosure & { is_initial_inventory: boolean }) | null;
     previousClosureId: number | null;
     notes: string;
     availablePreviousClosures: PeriodClosure[];
@@ -73,7 +73,7 @@ export const useConsignmentsClosures = () => {
         }
     }, [isAuthorized, loadData, updateState]);
 
-    const handleViewClosure = async (closure: PeriodClosure & { client_name: string }) => {
+    const handleViewClosure = async (closure: PeriodClosure & { client_name: string, is_initial_inventory: boolean }) => {
         if (closure.status === 'approved') {
             router.push(`/dashboard/analytics/billing-report?closureId=${closure.id}`);
             return;
