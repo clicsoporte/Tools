@@ -19,7 +19,8 @@ import { useFieldAssistant } from '@/modules/consignments/hooks/useFieldAssistan
 
 export default function FieldAssistantPage() {
     const { state, actions, selectors } = useFieldAssistant();
-    const { step, isLoading, isSubmitting, agreementOptions, clientSearchTerm, isClientSearchOpen, selectedAgreement, productsToCount, counts } = state;
+    const { step, isLoading, isSubmitting, clientSearchTerm, isClientSearchOpen, selectedAgreement, productsToCount, counts } = state;
+    const { agreementOptions } = selectors;
 
     if (isLoading && step === 'select_client') {
         return (

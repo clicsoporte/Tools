@@ -375,14 +375,14 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const updateParams: any = {
             status,
             id: boletaId,
-            approved_by,
+            approvedBy,
             submittedBy,
             previousStatus,
         };
 
         let setClauses = [
             'status = @status',
-            'approved_by = @approved_by',
+            'approved_by = @approvedBy',
             'submitted_by = @submittedBy',
             'previousStatus = @previousStatus',
         ];
