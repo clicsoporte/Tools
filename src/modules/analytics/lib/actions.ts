@@ -1,19 +1,18 @@
-
 /**
  * @fileoverview Server Actions for the Analytics module.
  */
 'use server';
 
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
-import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb, getAllProducts } from '@/modules/core/lib/db';
+import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb, getAllProducts, connectDb } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentProduct, ConsignmentReportRow } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentProduct, ConsignmentReportRow, PeriodClosure } from '@/modules/core/types';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
 import { getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
 import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits, getWarehouseSettings as getWHSettings } from '@/modules/warehouse/lib/db';
-import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData as getConsignmentsBillingReportDataServer } from '@/modules/consignments/lib/db';
+import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData as getConsignmentsBillingReportDataServer, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails } from '@/modules/consignments/lib/db';
 import type { TransitReportItem } from '../hooks/useTransitsReport';
 import type { OccupancyReportRow } from '../hooks/useOccupancyReport';
 
@@ -406,4 +405,62 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     return getConsignmentsBillingReportDataServer(closureId);
 }
 
+export async function getInventoryMonitorData(agreementId: number): Promise<any> {
+    const mainDb = await connectDb();
+    const productMap = new Map((await mainDb.prepare('SELECT id, description FROM products').all() as Product[]).map(p => [p.id, p.description]));
+
+    const lastClosure = await getLatestApprovedClosure(agreementId);
+    const startDate = lastClosure ? new Date(lastClosure.created_at) : new Date(0); // From beginning of time if no closure
+    const endDate = new Date(); // To now
+
+    const [boletasInPeriod, lastPhysicalCount, countHistory] = await Promise.all([
+        getBoletasByDateRange(String(agreementId), { from: startDate, to: endDate }),
+        getLatestPhysicalCount(agreementId),
+        getPhysicalCountHistory(agreementId),
+    ]);
+
+    const theoreticalInventory = new Map<string, { description: string, quantity: number }>();
     
+    // Set initial inventory from last closure
+    if (lastClosure && lastClosure.closure_boleta_id) {
+        const lastClosureDetails = await getBoletaDetails(lastClosure.closure_boleta_id);
+        lastClosureDetails?.lines.forEach(line => {
+            theoreticalInventory.set(line.product_id, {
+                description: productMap.get(line.product_id) || 'Desconocido',
+                quantity: line.counted_quantity
+            });
+        });
+    }
+
+    // Add all deliveries
+    boletasInPeriod.forEach(boleta => {
+        if (boleta.type === 'REPOSITION') {
+            boleta.lines.forEach(line => {
+                const current = theoreticalInventory.get(line.product_id) || { description: productMap.get(line.product_id) || 'Desconocido', quantity: 0 };
+                current.quantity += line.replenish_quantity;
+                theoreticalInventory.set(line.product_id, current);
+            });
+        }
+    });
+
+    let lastPhysicalCountEnriched: any = null;
+    if (lastPhysicalCount) {
+        const latestTimestamp = lastPhysicalCount[0].counted_at;
+        const latestCountLines = lastPhysicalCount.filter(c => c.counted_at === latestTimestamp);
+
+        lastPhysicalCountEnriched = {
+            counted_at: latestTimestamp,
+            counted_by: latestCountLines[0].counted_by,
+            lines: latestCountLines.map(line => ({
+                ...line,
+                productDescription: productMap.get(line.product_id) || 'Desconocido',
+            }))
+        };
+    }
+    
+    return JSON.parse(JSON.stringify({
+        theoreticalInventory: Object.fromEntries(theoreticalInventory.entries()),
+        lastPhysicalCount: lastPhysicalCountEnriched,
+        countHistory,
+    }));
+}

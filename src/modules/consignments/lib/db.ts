@@ -576,7 +576,10 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
 
 export async function getLatestPhysicalCount(agreementId: number): Promise<PhysicalCount[] | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const counts = db.prepare('SELECT * FROM physical_counts WHERE agreement_id = ?').all(agreementId) as PhysicalCount[];
+    const latestTimestamp = db.prepare('SELECT MAX(counted_at) as last_date FROM physical_counts WHERE agreement_id = ?').get(agreementId) as { last_date: string | null };
+    if (!latestTimestamp.last_date) return null;
+    
+    const counts = db.prepare('SELECT * FROM physical_counts WHERE agreement_id = ? AND counted_at = ?').all(agreementId, latestTimestamp.last_date) as PhysicalCount[];
     return counts.length > 0 ? counts : null;
 }
 
@@ -753,6 +756,30 @@ export async function saveReplenishmentBoleta(agreementId: number, lines: { prod
         
         return db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta;
     })();
+}
+
+export async function getLatestApprovedClosure(agreementId: number): Promise<PeriodClosure | null> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const closure = db.prepare(`
+        SELECT * FROM period_closures
+        WHERE agreement_id = ? AND status = 'approved'
+        ORDER BY created_at DESC
+        LIMIT 1
+    `).get(agreementId) as PeriodClosure | undefined;
+    return closure ? JSON.parse(JSON.stringify(closure)) : null;
+}
+
+export async function getPhysicalCountHistory(agreementId: number): Promise<{ counted_at: string, counted_by: string }[]> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const history = db.prepare(`
+        SELECT counted_at, counted_by
+        FROM physical_counts
+        WHERE agreement_id = ?
+        GROUP BY counted_at, counted_by
+        ORDER BY counted_at DESC
+        LIMIT 10
+    `).all(agreementId) as { counted_at: string, counted_by: string }[];
+    return JSON.parse(JSON.stringify(history));
 }
 
 export async function lockAgreement(agreementId: number, userId: number, userName: string): Promise<{ success: boolean, locked: boolean, message: string }> {

@@ -12,7 +12,7 @@ import {
   Lightbulb, FileText, Calculator, PanelLeft, Mail, KeyRound, BellRing,
   Palette, UserCheck, ShoppingBag, QrCode, HelpCircle, ClipboardCheck,
   ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, LayoutGrid,
-  FileSignature, Cpu, BookCopy, Container, Tags, Truck, Settings, ListChecks, FileInput
+  FileSignature, Cpu, BookCopy, Container, Tags, Truck, Settings, ListChecks, FileInput, Box
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -412,24 +412,35 @@ export const adminTools: Tool[] = [
       }
 ];
 
-export const analyticsTools: Tool[] = [
+export const consignmentsReportTools: Tool[] = [
+    {
+        id: 'analytics:consignments-report:read', // Re-use the same permission
+        name: 'Reporte de Facturación de Cierres',
+        description: 'Generar el reporte mensual de consumo a partir de un Cierre de Periodo aprobado.',
+        href: '/dashboard/consignments/cierres', // Link to the closures management page
+        icon: Container,
+        bgColor: 'bg-lime-500'
+    },
+    {
+        id: 'analytics:consignments-report:read', // Re-use permission
+        name: 'Monitor de Inventario',
+        description: 'Ver inventario teórico vs. último conteo físico para un cliente.',
+        href: '/dashboard/analytics/inventory-monitor',
+        icon: Box,
+        bgColor: 'bg-lime-600',
+    }
+];
+
+export const purchasingReportTools: Tool[] = [
     {
         id: "analytics:purchase-suggestions:read",
-        name: "Sugerencias de Compra",
-        description: "Analizar pedidos y stock para sugerir compras proactivas.",
+        name: "Sugerencias de Compra Proactivas",
+        description: "Analizar pedidos y stock para sugerir compras.",
         href: "/dashboard/analytics/purchase-suggestions",
         icon: Lightbulb,
         bgColor: "bg-blue-600",
     },
     {
-        id: "analytics:purchase-report:read",
-        name: "Reporte de Compras",
-        description: "Visualizar y exportar un reporte histórico de compras.",
-        href: "/dashboard/analytics/purchase-report",
-        icon: FileText,
-        bgColor: "bg-green-600",
-    },
-     {
         id: "analytics:transits-report:read",
         name: "Reporte de Tránsitos",
         description: "Monitorear órdenes de compra del ERP activas y en tránsito.",
@@ -437,18 +448,13 @@ export const analyticsTools: Tool[] = [
         icon: Truck,
         bgColor: "bg-orange-500",
     },
-    {
-        id: "analytics:production-report:read",
-        name: "Reporte de Producción",
-        description: "Analizar rendimiento y desperdicio de órdenes completadas.",
-        href: "/dashboard/analytics/production-report",
-        icon: BarChartBig,
-        bgColor: "bg-purple-600",
-    },
+];
+
+export const inventoryReportTools: Tool[] = [
     {
         id: "analytics:physical-inventory-report:read",
         name: "Reporte de Inventario Físico",
-        description: "Comparar conteos físicos con el stock del ERP para encontrar diferencias.",
+        description: "Comparar conteos físicos con el stock del ERP.",
         href: "/dashboard/analytics/physical-inventory-report",
         icon: ClipboardCheck,
         bgColor: "bg-cyan-600",
@@ -456,7 +462,7 @@ export const analyticsTools: Tool[] = [
     {
         id: "analytics:receiving-report:read",
         name: "Reporte de Recepciones",
-        description: "Auditar las recepciones de mercadería registradas en el sistema.",
+        description: "Auditar las recepciones de mercadería.",
         href: "/dashboard/analytics/receiving-report",
         icon: ClipboardList,
         bgColor: "bg-teal-600",
@@ -472,19 +478,25 @@ export const analyticsTools: Tool[] = [
     {
         id: 'analytics:occupancy-report:read',
         name: 'Reporte de Ocupación',
-        description: 'Visualizar el estado (Libre, Ocupado, Mixto) de las ubicaciones del almacén.',
+        description: 'Visualizar el estado de las ubicaciones del almacén.',
         href: '/dashboard/analytics/occupancy-report',
         icon: LayoutGrid,
         bgColor: 'bg-sky-700'
     },
-     {
-        id: 'analytics:consignments-report:read',
-        name: 'Reporte de Cierre de Consignaciones',
-        description: 'Generar el reporte mensual de consumo para la facturación de consignaciones.',
-        href: '/dashboard/analytics/billing-report',
-        icon: Container,
-        bgColor: 'bg-lime-500'
+];
+
+export const productionReportTools: Tool[] = [
+    {
+        id: "analytics:production-report:read",
+        name: "Reporte de Producción",
+        description: "Analizar rendimiento y desperdicio de órdenes completadas.",
+        href: "/dashboard/analytics/production-report",
+        icon: BarChartBig,
+        bgColor: "bg-purple-600",
     },
+];
+
+export const analyticsTools: Tool[] = [
     {
         id: "analytics:user-permissions:read",
         name: "Reporte de Permisos",
@@ -499,4 +511,15 @@ export const analyticsTools: Tool[] = [
 /**
  * A combined list of all tools for easy access.
  */
-export const allTools: Tool[] = [...mainTools, ...adminTools, ...analyticsTools, ...warehouseTools, ...itTools];
+export const allTools: Tool[] = [
+    ...mainTools, 
+    ...adminTools, 
+    ...analyticsTools, 
+    ...warehouseTools, 
+    ...consignmentsTools, 
+    ...itTools,
+    ...consignmentsReportTools,
+    ...purchasingReportTools,
+    ...inventoryReportTools,
+    ...productionReportTools
+];

@@ -13,9 +13,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import type { ConsignmentAgreement, PhysicalCount } from '@/modules/core/types';
+
+interface TheoreticalData {
+    description: string;
+    quantity: number;
+}
+
+interface PhysicalCountLine {
+    productId: string;
+    productDescription: string;
+    quantity: number;
+}
+
+interface HistoryEntry {
+    counted_at: string;
+    counted_by: string;
+}
 
 export default function InventoryMonitorPage() {
-    const { state, actions, selectors, isAuthorized } = useInventoryMonitor();
+    const { state, actions, isAuthorized } = useInventoryMonitor();
     const { isLoading, agreements, selectedAgreementId, monitorData } = state;
 
     if (!isAuthorized) return null;
@@ -31,7 +48,7 @@ export default function InventoryMonitorPage() {
                     <Select value={selectedAgreementId || ''} onValueChange={actions.setSelectedAgreementId}>
                         <SelectTrigger className="w-full sm:w-[300px]"><SelectValue placeholder="Selecciona un cliente..." /></SelectTrigger>
                         <SelectContent>
-                            {agreements.map((agreement) => (
+                            {agreements.map((agreement: ConsignmentAgreement) => (
                                 <SelectItem key={agreement.id} value={String(agreement.id)}>
                                     {agreement.client_name}
                                 </SelectItem>
@@ -62,7 +79,7 @@ export default function InventoryMonitorPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {Object.entries(monitorData.theoreticalInventory).map(([productId, data]) => (
+                                        {Object.entries(monitorData.theoreticalInventory).map(([productId, data]: [string, TheoreticalData]) => (
                                             <TableRow key={productId}>
                                                 <TableCell>
                                                     <p className="font-medium">{data.description}</p>
@@ -94,7 +111,7 @@ export default function InventoryMonitorPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                    {monitorData.lastPhysicalCount?.lines.map((line) => (
+                                    {monitorData.lastPhysicalCount?.lines.map((line: PhysicalCountLine) => (
                                         <TableRow key={line.productId}>
                                             <TableCell>
                                                 <p className="font-medium">{line.productDescription}</p>
@@ -124,7 +141,7 @@ export default function InventoryMonitorPage() {
                                 </TableRow>
                             </TableHeader>
                              <TableBody>
-                                {monitorData.countHistory.map(hist => (
+                                {monitorData.countHistory.map((hist: HistoryEntry) => (
                                     <TableRow key={hist.counted_at}>
                                         <TableCell>{format(parseISO(hist.counted_at), 'dd/MM/yyyy HH:mm:ss', { locale: es })}</TableCell>
                                         <TableCell>{hist.counted_by}</TableCell>

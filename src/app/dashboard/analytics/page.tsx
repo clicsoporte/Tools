@@ -11,6 +11,7 @@ import { analyticsTools, consignmentsReportTools, inventoryReportTools, producti
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useMemo } from "react";
 import { useAuth } from "@/modules/core/hooks/useAuth";
+import type { Tool } from "@/modules/core/types";
 
 const Section = ({ title, tools }: { title: string, tools: any[] }) => {
     if (tools.length === 0) return null;
@@ -39,11 +40,11 @@ export default function AnalyticsDashboardPage() {
         if (!isAuthReady || !isAuthorized) return [];
         
         const sections = [
-            { title: "Reportes de Consignaciones", tools: consignmentsReportTools.filter(tool => hasPermission(tool.id)) },
-            { title: "Reportes de Compras y Tránsitos", tools: purchasingReportTools.filter(tool => hasPermission(tool.id)) },
-            { title: "Reportes de Inventario y Almacén", tools: inventoryReportTools.filter(tool => hasPermission(tool.id)) },
-            { title: "Reportes de Producción y Calidad", tools: productionReportTools.filter(tool => hasPermission(tool.id)) },
-            { title: "Reportes Administrativos", tools: analyticsTools.filter(tool => hasPermission(tool.id)) },
+            { title: "Reportes de Consignaciones", tools: consignmentsReportTools.filter((tool: Tool) => hasPermission(tool.id)) },
+            { title: "Reportes de Compras y Tránsitos", tools: purchasingReportTools.filter((tool: Tool) => hasPermission(tool.id)) },
+            { title: "Reportes de Inventario y Almacén", tools: inventoryReportTools.filter((tool: Tool) => hasPermission(tool.id)) },
+            { title: "Reportes de Producción y Calidad", tools: productionReportTools.filter((tool: Tool) => hasPermission(tool.id)) },
+            { title: "Reportes Administrativos", tools: analyticsTools.filter((tool: Tool) => hasPermission(tool.id)) },
         ];
 
         return sections.filter(section => section.tools.length > 0);
@@ -90,4 +91,3 @@ export default function AnalyticsDashboardPage() {
         </main>
     );
 }
-    
