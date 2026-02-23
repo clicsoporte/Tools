@@ -12,11 +12,39 @@ import { getInventoryMonitorData } from '@/modules/analytics/lib/actions';
 import { getConsignmentAgreements } from '@/modules/consignments/lib/actions';
 import type { ConsignmentAgreement } from '@/modules/core/types';
 
+// Define the detailed types for the monitor data
+interface TheoreticalInventoryItem {
+    description: string;
+    quantity: number;
+}
+
+interface PhysicalCountLine {
+    productId: string;
+    productDescription: string;
+    quantity: number;
+}
+
+interface CountHistoryEntry {
+    counted_at: string;
+    counted_by: string;
+}
+
+interface MonitorData {
+    theoreticalInventory: Record<string, TheoreticalInventoryItem>;
+    lastPhysicalCount: {
+        counted_at: string;
+        counted_by: string;
+        lines: PhysicalCountLine[];
+    } | null;
+    countHistory: CountHistoryEntry[];
+}
+
+
 interface State {
     isLoading: boolean;
     agreements: ConsignmentAgreement[];
     selectedAgreementId: string | null;
-    monitorData: any | null; // Define a proper type later
+    monitorData: MonitorData | null;
 }
 
 export function useInventoryMonitor() {
