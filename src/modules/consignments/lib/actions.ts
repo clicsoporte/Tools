@@ -31,7 +31,7 @@ import {
     getLatestApprovedClosure,
     getPhysicalCountHistory
 } from './db';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentSettings, User, Company, PeriodClosure, PhysicalCount, BoletaType } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -456,7 +456,7 @@ export async function getPhysicalCountDetails(agreementId: number, countedAt: st
     return getPhysicalCountByRefServer(agreementId, countedAt);
 }
 
-export async function lockAgreement(agreementId: number, userId: number, userName: string): Promise<{ success: boolean; locked: boolean; message: string; }> {
+export async function lockAgreement(agreementId: number, userId: number, userName: string): Promise<{ success: boolean, locked: boolean, message: string }> {
     return lockAgreementServer(agreementId, userId, userName);
 }
 

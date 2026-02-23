@@ -382,8 +382,8 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
 
         let setClauses = [
             'status = @status',
-            'approved_by = @approvedBy',
-            'submitted_by = @submittedBy',
+            'approvedBy = @approvedBy',
+            'submittedBy = @submittedBy',
             'previousStatus = @previousStatus',
         ];
 
@@ -553,6 +553,11 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     return db.transaction(() => {
+        const existingPending = db.prepare(`SELECT id FROM period_closures WHERE agreement_id = ? AND status = 'pending'`).get(agreementId);
+        if (existingPending) {
+            throw new Error(`Ya existe un cierre pendiente para este cliente.`);
+        }
+
         const settings = getSettingsTx(db);
         const nextClosureNumber = settings.next_closure_number || 1;
         const closureConsecutive = `CIERRE-${String(nextClosureNumber).padStart(6, '0')}`;
