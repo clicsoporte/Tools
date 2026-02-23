@@ -21,6 +21,7 @@ const emptyAgreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> = 
   product_code_display_mode: 'erp_only',
   notification_user_ids: [],
   operation_mode: 'auto',
+  has_initial_inventory: 0,
 };
 
 type AgreementWithCounts = ConsignmentAgreement & { product_count?: number; boleta_count?: number; };
@@ -230,5 +231,3 @@ export const useConsignmentsAgreements = () => {
         selectors
     };
 };
-
-    
