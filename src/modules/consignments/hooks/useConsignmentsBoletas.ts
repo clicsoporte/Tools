@@ -70,7 +70,7 @@ export const useConsignmentsBoletas = () => {
         }
         try {
             const [boletasData, settingsData, agreementsData] = await Promise.all([
-                getBoletas({ status: [] }),
+                getBoletas({ status: [], type: 'REPOSITION' }),
                 getConsignmentSettings(),
                 getConsignmentAgreements(),
             ]);

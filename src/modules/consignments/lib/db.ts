@@ -6,7 +6,7 @@
 
 import { connectDb, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
@@ -284,7 +284,7 @@ export async function getAgreementDetails(agreementId: number): Promise<{ agreem
     return JSON.parse(JSON.stringify({ agreement, products }));
 }
 
-export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date } }) {
+export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date }, type?: BoletaType }) {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     let query = `
         SELECT 
@@ -299,6 +299,11 @@ export async function getBoletas(filters: { status: string[], dateRange?: { from
     if (filters.status && filters.status.length > 0) {
         whereClauses.push(`rb.status IN (${filters.status.map(() => '?').join(',')})`);
         params.push(...filters.status);
+    }
+    
+    if (filters.type) {
+        whereClauses.push(`rb.type = ?`);
+        params.push(filters.type);
     }
 
     if (whereClauses.length > 0) {
@@ -633,7 +638,7 @@ export async function rejectPeriodClosure(closureId: number, notes: string, upda
 
 export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const currentClosure = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
+    const currentClosure = db.prepare('SELECT ca.client_name, pc.* FROM period_closures pc JOIN consignment_agreements ca ON pc.agreement_id = ca.id WHERE pc.id = ?').get(closureId) as (PeriodClosure & { client_name: string });
     if (!currentClosure) throw new Error('Cierre no encontrado.');
     if (currentClosure.status !== 'approved') throw new Error('El cierre debe estar aprobado para generar el reporte de facturación.');
 
