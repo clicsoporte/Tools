@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -356,9 +355,9 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             }
         }
         
-        let approved_by = currentBoleta.approved_by;
+        let approvedBy = currentBoleta.approved_by;
         if (status === 'approved' && !currentBoleta.approved_by) {
-            approved_by = updatedBy;
+            approvedBy = updatedBy;
         }
 
         let submittedBy = currentBoleta.submitted_by;
@@ -780,5 +779,3 @@ export async function releaseAgreementLock(agreementId: number, userId: number):
     // Only release the lock if the current user is the one who holds it.
     db.prepare('UPDATE consignment_agreements SET locked_by = NULL, locked_by_user_id = NULL, locked_at = NULL WHERE id = ? AND locked_by_user_id = ?').run(agreementId, userId);
 }
-
-    

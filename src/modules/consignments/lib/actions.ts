@@ -25,6 +25,9 @@ import {
     getConsignmentsBillingReportData as getConsignmentsBillingReportDataServer,
     saveReplenishmentBoleta as saveReplenishmentBoletaServer,
     getPhysicalCountByRef as getPhysicalCountByRefServer,
+    lockAgreement as lockAgreementServer,
+    forceRelayLock as forceRelayLockServer,
+    releaseAgreementLock as releaseAgreementLockServer,
 } from './db';
 import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentSettings, User, Company, PeriodClosure, PhysicalCount, BoletaType } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
@@ -449,4 +452,16 @@ export async function saveReplenishmentBoleta(agreementId: number, lines: { prod
 
 export async function getPhysicalCountDetails(agreementId: number, countedAt: string): Promise<PhysicalCount[]> {
     return getPhysicalCountByRefServer(agreementId, countedAt);
+}
+
+export async function lockAgreement(agreementId: number, userId: number, userName: string): Promise<{ success: boolean; locked: boolean; message: string; }> {
+    return lockAgreementServer(agreementId, userId, userName);
+}
+
+export async function forceRelayLock(agreementId: number, userId: number, userName: string): Promise<void> {
+    return forceRelayLockServer(agreementId, userId, userName);
+}
+
+export async function releaseAgreementLock(agreementId: number, userId: number): Promise<void> {
+    return releaseAgreementLockServer(agreementId, userId);
 }

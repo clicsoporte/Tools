@@ -1,0 +1,170 @@
+/**
+ * @fileoverview Page component for the new unified Consignment Field Assistant.
+ * This component guides the user through client selection, action selection, and counting.
+ */
+'use client';
+
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Loader2, CheckCircle, Play, Save, FileSignature, AlertTriangle, Wand2, FileInput, ClipboardCheck } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import type { ConsignmentProduct } from '@/modules/core/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { SearchInput } from '@/components/ui/search-input';
+import { useFieldAssistant } from '@/modules/consignments/hooks/useFieldAssistant';
+
+export default function FieldAssistantPage() {
+    const { state, actions, selectors } = useFieldAssistant();
+    const { step, isLoading, isSubmitting, agreementOptions, clientSearchTerm, isClientSearchOpen, selectedAgreement, productsToCount, counts } = state;
+
+    if (isLoading && step === 'select_client') {
+        return (
+             <main className="flex-1 p-4 md:p-6 lg:p-8 flex items-center justify-center">
+                <Skeleton className="h-64 w-full max-w-xl" />
+            </main>
+        )
+    }
+
+    return (
+        <main className="flex-1 p-4 md:p-6 lg:p-8 flex items-center justify-center">
+            {step === 'select_client' && (
+                <Card className="w-full max-w-md">
+                     <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Wand2 /> Asistente de Campo</CardTitle>
+                        <CardDescription>
+                            Selecciona un cliente para iniciar una tarea de consignación.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-4 items-center w-full max-w-sm mx-auto">
+                        <SearchInput
+                            options={agreementOptions}
+                            onSelect={actions.handleSelectClient}
+                            value={clientSearchTerm}
+                            onValueChange={actions.setClientSearchTerm}
+                            open={isClientSearchOpen}
+                            onOpenChange={actions.setIsClientSearchOpen}
+                            placeholder="Buscar cliente..."
+                        />
+                    </CardContent>
+                </Card>
+            )}
+
+            {step === 'select_action' && selectedAgreement && (
+                <Card className="w-full max-w-md">
+                    <CardHeader>
+                        <CardTitle>{selectedAgreement.client_name}</CardTitle>
+                        <CardDescription>Selecciona la tarea que deseas realizar.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                         {selectedAgreement.operation_mode === 'manual' && (
+                            <Button className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('REPOSITION_REQUEST')}>
+                                <FileInput className="mr-4" /> Solicitar Reposición
+                            </Button>
+                        )}
+                        {selectedAgreement.operation_mode === 'auto' && (
+                            <Button className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('REPOSITION_BOLETA')}>
+                                <ClipboardCheck className="mr-4" /> Generar Boleta por Conteo
+                            </Button>
+                        )}
+                        <Button variant="secondary" className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('INFORMATIONAL_COUNT')}>
+                            <Save className="mr-4" /> Realizar Conteo Preliminar
+                        </Button>
+                         <Button variant="destructive" className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('CLOSURE_REQUEST')}>
+                            <FileSignature className="mr-4" /> Iniciar Conteo para Cierre
+                        </Button>
+                    </CardContent>
+                    <CardFooter>
+                        <Button variant="ghost" onClick={actions.reset}>Cancelar</Button>
+                    </CardFooter>
+                </Card>
+            )}
+            
+            {step === 'counting' && (
+                <Card className="w-full max-w-xl">
+                    <CardHeader>
+                        <CardTitle>Contando en: {selectedAgreement?.client_name}</CardTitle>
+                        <CardDescription>
+                            Ingresa las cantidades físicas para cada producto. Tu progreso se guarda automáticamente.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ScrollArea className="h-[60vh] p-1">
+                            <div className="space-y-4">
+                                {productsToCount.length > 0 ? (
+                                    productsToCount.map((p: ConsignmentProduct) => (
+                                        <Card key={p.product_id}>
+                                            <CardContent className="p-4 grid grid-cols-3 sm:grid-cols-4 gap-4 items-center">
+                                                <div className="col-span-2 sm:col-span-3">
+                                                    <p className="font-medium leading-snug">{selectors.getProductName(p.product_id)}</p>
+                                                    <p className="text-sm text-muted-foreground font-mono">{p.product_id}</p>
+                                                </div>
+                                                <div className="col-span-1">
+                                                    <Label htmlFor={`count-${p.product_id}`} className="sr-only">Cantidad</Label>
+                                                    <Input
+                                                        id={`count-${p.product_id}`}
+                                                        type="number"
+                                                        placeholder="Cant."
+                                                        value={counts[p.product_id] || ''}
+                                                        onChange={(e) => actions.handleQuantityChange(p.product_id, e.target.value)}
+                                                        className="text-right text-2xl h-14 font-bold hide-number-arrows"
+                                                    />
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-10 text-muted-foreground">
+                                        <p className="font-semibold">Este acuerdo no tiene productos autorizados.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
+                    <CardFooter className="justify-between">
+                         <Button variant="outline" onClick={actions.cancelAndReleaseLock}>Cancelar y Salir</Button>
+                         <Button onClick={actions.handleFinishCount} disabled={isSubmitting || !selectors.hasCounts}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Finalizar y Revisar
+                        </Button>
+                    </CardFooter>
+                </Card>
+            )}
+
+            {step === 'finished' && (
+                <Card className="w-full max-w-md text-center">
+                    <CardHeader>
+                        <CheckCircle className="mx-auto h-16 w-16 text-green-500"/>
+                        <CardTitle className="mt-4 text-2xl">¡Tarea Completada!</CardTitle>
+                        <CardDescription>
+                           La acción se ha registrado correctamente y el acuerdo ha sido liberado.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardFooter className="justify-center">
+                        <Button onClick={actions.reset}>Iniciar Nueva Tarea</Button>
+                    </CardFooter>
+                </Card>
+            )}
+
+             <AlertDialog open={state.lockStatus === 'locked-by-other'}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="text-orange-500"/>Acuerdo en Uso</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            El acuerdo para <strong>{state.selectedAgreement?.client_name}</strong> está siendo usado por <strong>{state.lockConflictUser}</strong>.
+                            <br/><br/>
+                            Si estás seguro que el otro usuario abandonó la sesión (ej. se quedó sin batería), puedes forzar el relevo. De lo contrario, contacta al usuario o espera.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={actions.reset}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={actions.handleForceRelayLock}>Forzar y Tomar Control</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </main>
+    );
+}

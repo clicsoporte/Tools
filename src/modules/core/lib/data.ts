@@ -229,20 +229,12 @@ export const consignmentsTools: Tool[] = [
         bgColor: "bg-teal-600",
     },
     {
-        id: "consignments:count",
-        name: "Solicitud de Reposición",
-        description: "Registrar las cantidades a reponer solicitadas por el cliente.",
-        href: "/dashboard/consignments/reposicion",
-        icon: FileInput,
+        id: "consignments:count", // Re-using this permission
+        name: "Asistente de Campo",
+        description: "Realizar conteos, solicitar reposiciones y generar cierres de período.",
+        href: "/dashboard/consignments/field-assistant",
+        icon: Wand2,
         bgColor: "bg-sky-600",
-    },
-    {
-        id: "consignments:count",
-        name: "Conteo Físico",
-        description: "Registrar el inventario físico en sitio o generar un cierre de período.",
-        href: "/dashboard/consignments/inventory-count",
-        icon: ClipboardCheck,
-        bgColor: "bg-blue-600",
     },
     {
         id: "consignments:boletas:read",
@@ -489,7 +481,7 @@ export const analyticsTools: Tool[] = [
         id: 'analytics:consignments-report:read',
         name: 'Reporte de Cierre de Consignaciones',
         description: 'Generar el reporte mensual de consumo para la facturación de consignaciones.',
-        href: '/dashboard/analytics/consignments-report',
+        href: '/dashboard/analytics/billing-report',
         icon: Container,
         bgColor: 'bg-lime-500'
     },
