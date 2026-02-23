@@ -154,6 +154,7 @@ export default function AgreementsPage() {
                                     value={state.warehouseSearchTerm}
                                     onValueChange={actions.setWarehouseSearchTerm}
                                     open={state.isWarehouseSearchOpen}
+                                    onOpenChange={actions.setIsWarehouseSearchOpen}
                                     placeholder="Buscar bodega virtual..."
                                 />
                             </div>
