@@ -61,22 +61,30 @@ export default function FieldAssistantPage() {
                         <CardDescription>Selecciona la tarea que deseas realizar.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                         {selectedAgreement.operation_mode === 'manual' && (
-                            <Button className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('REPOSITION_REQUEST')}>
-                                <FileInput className="mr-4" /> Solicitar Reposición
+                         {selectedAgreement.has_initial_inventory === 1 ? (
+                            <>
+                                {selectedAgreement.operation_mode === 'manual' && (
+                                    <Button className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('REPOSITION_REQUEST')}>
+                                        <FileInput className="mr-4" /> Solicitar Reposición
+                                    </Button>
+                                )}
+                                {selectedAgreement.operation_mode === 'auto' && (
+                                    <Button className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('REPOSITION_BOLETA')}>
+                                        <ClipboardCheck className="mr-4" /> Generar Boleta por Conteo
+                                    </Button>
+                                )}
+                                <Button variant="secondary" className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('INFORMATIONAL_COUNT')}>
+                                    <Save className="mr-4" /> Realizar Conteo Preliminar
+                                </Button>
+                                <Button variant="destructive" className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('CLOSURE_REQUEST')}>
+                                    <FileSignature className="mr-4" /> Iniciar Conteo para Cierre
+                                </Button>
+                            </>
+                         ) : (
+                            <Button variant="destructive" className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('CLOSURE_REQUEST')}>
+                                <FileSignature className="mr-4" /> Establecer Inventario Inicial
                             </Button>
-                        )}
-                        {selectedAgreement.operation_mode === 'auto' && (
-                            <Button className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('REPOSITION_BOLETA')}>
-                                <ClipboardCheck className="mr-4" /> Generar Boleta por Conteo
-                            </Button>
-                        )}
-                        <Button variant="secondary" className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('INFORMATIONAL_COUNT')}>
-                            <Save className="mr-4" /> Realizar Conteo Preliminar
-                        </Button>
-                         <Button variant="destructive" className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('CLOSURE_REQUEST')}>
-                            <FileSignature className="mr-4" /> Iniciar Conteo para Cierre
-                        </Button>
+                         )}
                     </CardContent>
                     <CardFooter>
                         <Button variant="ghost" onClick={actions.reset}>Cancelar</Button>

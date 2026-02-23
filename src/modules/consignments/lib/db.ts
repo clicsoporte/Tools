@@ -21,6 +21,7 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             next_boleta_number INTEGER NOT NULL DEFAULT 1,
             notes TEXT,
             is_active BOOLEAN NOT NULL DEFAULT 1,
+            has_initial_inventory BOOLEAN NOT NULL DEFAULT 0,
             product_code_display_mode TEXT NOT NULL DEFAULT 'erp_only',
             notification_user_ids TEXT,
             operation_mode TEXT NOT NULL DEFAULT 'auto',
@@ -131,6 +132,7 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
             if (!agreementColumns.has('locked_by')) db.exec(`ALTER TABLE consignment_agreements ADD COLUMN locked_by TEXT`);
             if (!agreementColumns.has('locked_by_user_id')) db.exec(`ALTER TABLE consignment_agreements ADD COLUMN locked_by_user_id INTEGER`);
             if (!agreementColumns.has('locked_at')) db.exec(`ALTER TABLE consignment_agreements ADD COLUMN locked_at TEXT`);
+            if (!agreementColumns.has('has_initial_inventory')) db.exec(`ALTER TABLE consignment_agreements ADD COLUMN has_initial_inventory BOOLEAN NOT NULL DEFAULT 0`);
         }
 
         const boletasTableInfo = db.prepare(`PRAGMA table_info(restock_boletas)`).all() as { name: string }[];
@@ -236,7 +238,7 @@ export async function saveAgreement(agreement: Omit<ConsignmentAgreement, 'id' |
             db.prepare('UPDATE consignment_agreements SET client_id = ?, client_name = ?, erp_warehouse_id = ?, notes = ?, is_active = ?, product_code_display_mode = ?, notification_user_ids = ?, operation_mode = ? WHERE id = ?')
               .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode, notificationUserIdsJson, agreement.operation_mode || 'auto', agreementId);
         } else { // Create
-            const info = db.prepare('INSERT INTO consignment_agreements (client_id, client_name, erp_warehouse_id, notes, is_active, product_code_display_mode, notification_user_ids, operation_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+            const info = db.prepare('INSERT INTO consignment_agreements (client_id, client_name, erp_warehouse_id, notes, is_active, product_code_display_mode, notification_user_ids, operation_mode, has_initial_inventory) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)')
               .run(agreement.client_id, agreement.client_name, agreement.erp_warehouse_id, agreement.notes, agreement.is_active, agreement.product_code_display_mode, notificationUserIdsJson, agreement.operation_mode || 'auto');
             agreementId = info.lastInsertRowid as number;
         }
@@ -656,6 +658,11 @@ export async function approvePeriodClosure(closureId: number, previousClosureId:
         db.prepare('UPDATE period_closures SET status = ?, previous_closure_id = ?, approved_at = ?, approved_by = ?, closure_boleta_id = ? WHERE id = ?')
           .run('approved', previousClosureId, new Date().toISOString(), updatedBy, boletaId, closureId);
 
+        // **CRITICAL LOGIC**: If this is the first closure, update the agreement flag.
+        if (previousClosureId === null) {
+            db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 1 WHERE id = ?').run(closure.agreement_id);
+        }
+
         return db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
     })();
 }
@@ -754,7 +761,7 @@ export async function saveReplenishmentBoleta(agreementId: number, lines: { prod
             
             const productDescription = allProducts.find(p => p.id === line.productId)?.description || 'Desconocido';
             
-            insertLine.run(boletaId, line.productId, productDescription, agreementProduct.client_product_code, line.quantity, agreementProduct.max_stock, agreementProduct.price);
+            insertLine.run(boletaId, line.productId, productDescription, agreementProduct.client_product_code, 0, line.quantity, agreementProduct.max_stock, agreementProduct.price);
         }
 
         db.prepare(`UPDATE consignment_agreements SET next_boleta_number = ? WHERE id = ?`).run(agreement.next_boleta_number + 1, agreement.id);

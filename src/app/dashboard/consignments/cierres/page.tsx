@@ -146,24 +146,7 @@ export default function ClosuresPage() {
                             <div className="space-y-4">
                                 {state.selectedClosure?.status === 'pending' && (
                                     <>
-                                        <div className="space-y-2">
-                                            <Label>Vincular con Cierre Anterior</Label>
-                                            <Select value={state.previousClosureId?.toString() || 'none'} onValueChange={(val) => actions.setPreviousClosureId(val === 'none' ? null : Number(val))}>
-                                                <SelectTrigger><SelectValue placeholder="Seleccionar cierre anterior..." /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="none">No vincular (Esto establecerá el Inventario Inicial)</SelectItem>
-                                                    {state.availablePreviousClosures.map(pc => (
-                                                        <SelectItem key={pc.id} value={String(pc.id)}>
-                                                            {pc.consecutive} - {format(parseISO(pc.created_at), 'dd/MM/yy')}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <p className="text-xs text-muted-foreground">
-                                                El inventario final de este cierre se usará como inventario inicial para el nuevo período.
-                                            </p>
-                                        </div>
-                                        {state.previousClosureId === null && (
+                                        {state.selectedClosure?.is_initial_inventory ? (
                                             <Alert variant="default" className="bg-green-50 border-green-200">
                                                 <Info className="h-4 w-4" />
                                                 <AlertTitle>Estableciendo Inventario Inicial</AlertTitle>
@@ -171,7 +154,26 @@ export default function ClosuresPage() {
                                                     Al no vincular un cierre anterior, estás estableciendo el <strong>inventario inicial oficial</strong> para este cliente. Asegúrate de que esto sea correcto.
                                                 </AlertDescription>
                                             </Alert>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                <Label>Vincular con Cierre Anterior</Label>
+                                                <Select value={state.previousClosureId?.toString() || 'none'} onValueChange={(val) => actions.setPreviousClosureId(val === 'none' ? null : Number(val))}>
+                                                    <SelectTrigger><SelectValue placeholder="Seleccionar cierre anterior..." /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">No vincular (Esto establecerá el Inventario Inicial)</SelectItem>
+                                                        {state.availablePreviousClosures.map(pc => (
+                                                            <SelectItem key={pc.id} value={String(pc.id)}>
+                                                                {pc.consecutive} - {format(parseISO(pc.created_at), 'dd/MM/yy')}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <p className="text-xs text-muted-foreground">
+                                                    El inventario final de este cierre se usará como inventario inicial para el nuevo período.
+                                                </p>
+                                            </div>
                                         )}
+                                        
                                         <div className="space-y-2">
                                             <Label htmlFor="rejection-notes">Notas para Rechazo (Opcional)</Label>
                                             <Textarea id="rejection-notes" value={state.notes} onChange={(e) => actions.setNotes(e.target.value)} placeholder="Indica por qué se rechaza el cierre..." />
