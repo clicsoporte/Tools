@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -187,11 +186,11 @@ export async function getSettings(): Promise<ConsignmentSettings> {
 
 export async function saveSettings(settings: ConsignmentSettings): Promise<void> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const transaction = db.transaction(() => {
+    const transaction = db.transaction((settingsToUpdate: ConsignmentSettings) => {
         const keys: (keyof ConsignmentSettings)[] = ['pdfTopLegend', 'pdfExportColumns', 'notificationUserIds', 'additionalNotificationEmails', 'next_closure_number'];
         for (const key of keys) {
-            if (settings[key] !== undefined) {
-                const value = typeof settings[key] === 'object' ? JSON.stringify(settings[key]) : String(settings[key]);
+            if (settingsToUpdate[key] !== undefined) {
+                const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
                 db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES (?, ?)`).run(key, value);
             }
         }
