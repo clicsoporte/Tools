@@ -28,25 +28,25 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 ### Funcionalidades y Mejoras Principales
 
 -   **[NUEVO FLUJO] Ciclo de Facturación de Consignaciones:** Se ha rediseñado por completo el módulo de consignaciones para soportar diferentes escenarios operativos y un proceso de facturación más robusto.
-    -   **Flujos de Trabajo Separados:**
-        -   **Nueva Herramienta "Solicitud de Reposición":** Interfaz rápida para que el bodeguero en campo registre únicamente las cantidades que el cliente solicita reponer, generando una `Boleta de Reposición` para el despacho.
-        -   **Herramienta Mejorada "Conteo Físico":** Ahora tiene dos propósitos. Durante el mes, sirve para hacer **conteos informativos** que no afectan la facturación. Al final del período, se usa para generar un **"Cierre de Periodo"** oficial.
-    -   **Nuevo Módulo "Gestión de Cierres de Periodo":**
-        -   Permite crear, aprobar y gestionar "Cierres" con su propio consecutivo (ej: `CIERRE-0001`). Cada cierre marca el fin de un período de facturación.
-        -   Un cierre puede ser iniciado por el bodeguero desde el campo (con doble confirmación) o por el personal de oficina.
-        -   **Flujo de Aprobación:** Los cierres entran en estado "Pendiente" y deben ser aprobados en la oficina. Al aprobar, el sistema inteligentemente sugiere vincularlo con el cierre anterior para una trazabilidad perfecta del inventario inicial.
-        -   **[NUEVO] Anulación de Cierres:** Los supervisores con permisos pueden anular un cierre ya aprobado, una acción de seguridad que revierte el estado del acuerdo si el inventario inicial fue incorrecto.
+    -   **Asistente de Campo Unificado:** Las herramientas de "Toma de Inventario" y "Solicitud de Reposición" se han fusionado en un único y potente **"Asistente de Campo"**. Este asistente guía al bodeguero, mostrando solo las acciones relevantes según el estado del acuerdo con el cliente.
+    -   **Flujo de Cierre de Periodo Formalizado:**
+        -   **Nuevo Módulo "Gestión de Cierres de Periodo":** Herramienta central para que el personal de oficina cree, apruebe y gestione los cierres de facturación.
+        -   **Lógica de Inventario Inicial Obligatoria:** El sistema ahora fuerza a que el **primer cierre** de un acuerdo nuevo sea para **"Establecer Inventario Inicial"**. Es imposible crear reposiciones o cierres de consumo sin este paso inicial aprobado, garantizando la integridad de los datos desde el principio.
+        -   **Promoción de Conteos Informativos:** El personal de oficina ahora puede generar un cierre de período oficial utilizando los "conteos preliminares" que el bodeguero ha guardado desde el campo, haciendo el proceso más eficiente.
     -   **Nuevo "Reporte de Facturación" por Cierre:**
-        -   Se accede desde la "Gestión de Cierres".
-        -   Calcula el consumo a facturar de forma precisa: `(Inventario Inicial + Entregas + Ajustes) - Inventario Final`.
+        -   Se accede desde la "Gestión de Cierres" al ver los detalles de un cierre **aprobado**.
+        -   Calcula el consumo a facturar de forma precisa con la fórmula: `Consumo = (Inventario Inicial + Entregas + Ajustes) - Inventario Final`.
         -   Presenta un resumen consolidado listo para ser ingresado en el ERP.
     -   **[NUEVO] Herramienta de "Ajustes de Inventario":**
-        -   Permite registrar cambios en el inventario de consignación que no son ventas (ej: productos dañados, vencidos o encontrados).
+        -   Permite a los supervisores registrar cambios en el inventario que no son ventas (ej: productos dañados, vencidos, encontrados).
         -   Estos ajustes se descuentan o suman automáticamente en el Reporte de Facturación para garantizar que solo se facture el consumo real.
+    -   **[NUEVO] Anulación de Cierres Aprobados:**
+        -   Los supervisores con el permiso `consignments:closures:annul` ahora pueden anular un cierre ya aprobado.
+        -   Esta es una acción de seguridad crítica que permite corregir errores graves. Si se anula un cierre que era un "Inventario Inicial", el sistema inteligentemente revierte el estado del acuerdo para forzar un nuevo conteo inicial.
 
 ### Mejoras Internas y de Calidad
 
--   **[Estabilidad]** Se corrigió un error `ChunkLoadError` que ocurría en producción al navegar entre páginas. Se eliminaron archivos `layout.tsx` redundantes y se ajustó la configuración de compilación de Next.js (`dynamic = 'force-dynamic'`) en las páginas afectadas para asegurar que siempre se cargue la versión más reciente del código.
+-   **[Refactorización]** Se creó un componente reutilizable `InventoryCountForm` para el ingreso de cantidades, eliminando código duplicado entre el "Asistente de Campo" y la "Gestión de Cierres".
 -   **[Base de Datos]** Se implementaron nuevas tablas (`period_closures`, `physical_counts`, `consignment_adjustments`) y se actualizaron las existentes para soportar el nuevo ciclo de consignaciones.
 
 ---
@@ -379,4 +379,3 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 -   Incluye los módulos de Cotizador, Planificador OP, Solicitudes de Compra, Asistente de Costos, Almacenes, Consultas Hacienda y el panel de Administración completo.
 -   Arquitectura basada en Next.js App Router, componentes de servidor y bases de datos modulares SQLite.
     
-
