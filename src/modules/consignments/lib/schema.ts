@@ -14,4 +14,5 @@ export const consignmentsSchema: ExpectedSchema = {
     'consignments_settings': ['key', 'value'],
     'physical_counts': ['id', 'agreement_id', 'product_id', 'quantity', 'counted_at', 'counted_by'],
     'period_closures': ['id', 'consecutive', 'agreement_id', 'status', 'closure_boleta_id', 'previous_closure_id', 'created_at', 'created_by', 'approved_at', 'approved_by', 'notes', 'physical_count_ref'],
+    'consignment_adjustments': ['id', 'agreement_id', 'product_id', 'quantity', 'reason', 'notes', 'created_at', 'created_by'],
 };

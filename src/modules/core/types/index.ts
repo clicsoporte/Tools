@@ -1110,6 +1110,7 @@ export type ConsignmentSettings = {
     notificationUserIds?: number[];
     additionalNotificationEmails?: string;
     next_closure_number?: number;
+    next_adjustment_number?: number;
 };
 
 export type PhysicalCount = {

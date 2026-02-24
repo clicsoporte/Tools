@@ -31,8 +31,10 @@ import {
     getLatestApprovedClosure,
     getPhysicalCountHistory,
     getRecentPhysicalCounts as getRecentPhysicalCountsServer,
+    saveAdjustment as saveAdjustmentServer,
+    annulPeriodClosure as annulPeriodClosureServer,
 } from './db';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustmentReason } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -471,4 +473,12 @@ export async function releaseAgreementLock(agreementId: number, userId: number):
 
 export async function getRecentPhysicalCounts(agreementId: number): Promise<{ counted_at: string; counted_by: string }[]> {
     return getRecentPhysicalCountsServer(agreementId);
+}
+
+export async function saveAdjustment(payload: { agreementId: number; productId: string; quantity: number; reason: ConsignmentAdjustmentReason; notes?: string; userName: string; }): Promise<void> {
+    await saveAdjustmentServer(payload);
+}
+
+export async function annulPeriodClosure(closureId: number, updatedBy: string): Promise<PeriodClosure> {
+    return await annulPeriodClosureServer(closureId, updatedBy);
 }
