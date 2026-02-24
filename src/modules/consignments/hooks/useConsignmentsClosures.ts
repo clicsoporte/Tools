@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Hook for managing the logic for the Consignments Closures page.
  */
@@ -9,7 +7,16 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getPeriodClosures, approvePeriodClosure, rejectPeriodClosure, getPhysicalCountDetails, getAgreementDetails, getRecentPhysicalCounts, createClosureFromCount } from '../lib/actions';
+import { 
+    getPeriodClosures, 
+    approvePeriodClosure, 
+    rejectPeriodClosure, 
+    getPhysicalCountDetails, 
+    getAgreementDetails, 
+    getRecentPhysicalCounts, 
+    createClosureFromCount,
+    annulPeriodClosure, // New import
+} from '../lib/actions';
 import type { PeriodClosure, PhysicalCount, ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -37,10 +44,14 @@ interface State {
     selectedPhysicalCountRef: string | null;
     initialInventoryData: Record<string, string>;
     initialInventoryProducts: ConsignmentProduct[];
+    // Annul state
+    isAnnulConfirmOpen: boolean;
+    annulConfirmationText: string;
+    closureToAnnul: PeriodClosure | null;
 }
 
 export const useConsignmentsClosures = () => {
-    const { isAuthorized } = useAuthorization(['consignments:boleta:approve']);
+    const { isAuthorized, hasPermission } = useAuthorization(['consignments:boleta:approve', 'consignments:closures:create', 'consignments:closures:annul']);
     const { toast } = useToast();
     const { user, products } = useAuth();
     const router = useRouter();
@@ -67,6 +78,9 @@ export const useConsignmentsClosures = () => {
         selectedPhysicalCountRef: null,
         initialInventoryData: {},
         initialInventoryProducts: [],
+        isAnnulConfirmOpen: false,
+        annulConfirmationText: '',
+        closureToAnnul: null,
     });
 
     const updateState = useCallback((newState: Partial<State>) => {
@@ -263,6 +277,22 @@ export const useConsignmentsClosures = () => {
         }
     };
 
+    const handleAnnul = async () => {
+        if (!user || !state.closureToAnnul || state.annulConfirmationText !== 'ANULAR') return;
+        updateState({ isSubmitting: true });
+        try {
+            await annulPeriodClosure(state.closureToAnnul.id, user.name);
+            toast({ title: 'Cierre Anulado', description: 'El cierre ha sido anulado y el acuerdo podría necesitar una reinicialización.'});
+            updateState({ isAnnulConfirmOpen: false, closureToAnnul: null, annulConfirmationText: '' });
+            await loadData(true);
+        } catch(error: any) {
+            logError('Failed to annul period closure', { error: error.message });
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } finally {
+            updateState({ isSubmitting: false });
+        }
+    }
+
     const selectors = {
         getStatusLabel: (status: string) => {
             switch (status) {
@@ -270,6 +300,7 @@ export const useConsignmentsClosures = () => {
                 case 'approved': return 'Aprobado';
                 case 'rejected': return 'Rechazado';
                 case 'invoiced': return 'Facturado';
+                case 'annulled': return 'Anulado';
                 default: return 'Desconocido';
             }
         },
@@ -277,6 +308,7 @@ export const useConsignmentsClosures = () => {
             state.agreements.map(a => ({ value: String(a.id), label: a.client_name })),
         [state.agreements]),
         getProductName: (id: string) => products.find(p => p.id === id)?.description || 'Desconocido',
+        hasPermission,
     };
 
     return {
@@ -297,6 +329,10 @@ export const useConsignmentsClosures = () => {
             handleCreateClosureFromCount,
             handleInitialInventoryDataChange,
             handleCreateInitialInventoryClosure,
+            setAnnulConfirmOpen: (open: boolean) => updateState({ isAnnulConfirmOpen: open }),
+            setAnnulConfirmationText: (text: string) => updateState({ annulConfirmationText: text }),
+            setClosureToAnnul: (closure: PeriodClosure | null) => updateState({ closureToAnnul: closure }),
+            handleAnnul,
         },
         selectors
     };

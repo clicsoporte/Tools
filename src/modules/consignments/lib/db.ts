@@ -7,6 +7,7 @@ import { connectDb, getAllProducts as getAllProductsFromMainDb } from '@/modules
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
 import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
+import { authorizeAction } from '@/modules/core/lib/auth-guard';
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
 
@@ -99,7 +100,7 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             consecutive TEXT UNIQUE NOT NULL,
             agreement_id INTEGER NOT NULL,
-            status TEXT NOT NULL, -- pending, approved, rejected, invoiced
+            status TEXT NOT NULL, -- pending, approved, rejected, invoiced, annulled
             closure_boleta_id INTEGER,
             physical_count_ref TEXT,
             previous_closure_id INTEGER,
@@ -130,6 +131,7 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
     db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfTopLegend', 'Documento de Reposición')`).run();
     db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
     db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('next_closure_number', '1')`).run();
+    db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('next_adjustment_number', '1')`).run();
 
     console.log(`Database ${CONSIGNMENTS_DB_FILE} initialized for Consignments module.`);
 }
@@ -175,7 +177,15 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
             if (!nextClosureRow) {
                 db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('next_closure_number', '1')`).run();
             }
+             if (!db.prepare(`SELECT key FROM consignments_settings WHERE key = 'next_adjustment_number'`).get()) {
+                db.prepare(`INSERT OR IGNORE INTO consignments_settings (key, value) VALUES ('next_adjustment_number', '1')`).run();
+            }
         }
+
+        if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignment_adjustments'`).get()) {
+            db.exec(`CREATE TABLE consignment_adjustments (id INTEGER PRIMARY KEY AUTOINCREMENT, agreement_id INTEGER NOT NULL, product_id TEXT NOT NULL, quantity INTEGER NOT NULL, reason TEXT NOT NULL, notes TEXT, created_at TEXT NOT NULL, created_by TEXT NOT NULL, FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id));`);
+        }
+
     } catch(error) {
         logError('Error running consignments migrations', { error: (error as Error).message });
     }
@@ -189,6 +199,7 @@ export async function getSettings(): Promise<ConsignmentSettings> {
         notificationUserIds: [],
         additionalNotificationEmails: '',
         next_closure_number: 1,
+        next_adjustment_number: 1,
     };
     try {
         const rows = db.prepare(`SELECT key, value FROM consignments_settings`).all() as { key: string; value: string }[];
@@ -213,7 +224,7 @@ export async function getSettings(): Promise<ConsignmentSettings> {
 export async function saveSettings(settings: ConsignmentSettings): Promise<void> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const transaction = db.transaction((settingsToUpdate: ConsignmentSettings) => {
-        const keys: (keyof ConsignmentSettings)[] = ['pdfTopLegend', 'pdfExportColumns', 'notificationUserIds', 'additionalNotificationEmails', 'next_closure_number'];
+        const keys: (keyof ConsignmentSettings)[] = ['pdfTopLegend', 'pdfExportColumns', 'notificationUserIds', 'additionalNotificationEmails', 'next_closure_number', 'next_adjustment_number'];
         for (const key of keys) {
             if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -429,6 +440,8 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
     return transaction();
 }
 
+// ... the rest of the file remains unchanged. I'll include it in the final output.
+
 export async function getBoletaDetails(boletaId: number): Promise<{ boleta: RestockBoleta, lines: BoletaLine[], history: BoletaHistory[] } | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const boleta = db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta | undefined;
@@ -541,6 +554,7 @@ function getSettingsTx(db: import('better-sqlite3').Database): ConsignmentSettin
         notificationUserIds: [],
         additionalNotificationEmails: '',
         next_closure_number: 1,
+        next_adjustment_number: 1,
     };
     try {
         const rows = db.prepare(`SELECT key, value FROM consignments_settings`).all() as { key: string; value: string }[];
@@ -685,6 +699,51 @@ export async function rejectPeriodClosure(closureId: number, notes: string, upda
     return db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
 }
 
+export async function annulPeriodClosure(closureId: number, updatedBy: string): Promise<PeriodClosure> {
+    await authorizeAction('consignments:closures:annul');
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+
+    return db.transaction(() => {
+        const closureToAnnul = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure | undefined;
+        if (!closureToAnnul) {
+            throw new Error("El cierre a anular no fue encontrado.");
+        }
+        if (closureToAnnul.status !== 'approved') {
+            throw new Error("Solo se pueden anular cierres que hayan sido aprobados.");
+        }
+
+        const isUsed = db.prepare('SELECT id FROM period_closures WHERE previous_closure_id = ?').get(closureId);
+        if (isUsed) {
+            throw new Error("Este cierre no se puede anular porque ya está siendo usado como el inicio de otro período.");
+        }
+        
+        db.prepare(`UPDATE period_closures SET status = 'annulled', notes = 'Anulado por ${updatedBy} el ${new Date().toISOString()}' WHERE id = ?`).run(closureId);
+
+        // If this was an initial inventory closure, we must reset the flag on the agreement
+        if (!closureToAnnul.previous_closure_id) {
+            db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 0 WHERE id = ?').run(closureToAnnul.agreement_id);
+            logWarn(`Initial inventory flag reset for agreement ${closureToAnnul.agreement_id} due to closure annulment.`);
+        }
+
+        return db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
+    })();
+}
+
+
+export async function saveAdjustment(payload: { agreementId: number; productId: string; quantity: number; reason: string; notes?: string; userName: string; }): Promise<ConsignmentAdjustment> {
+    await authorizeAction('consignments:adjustments:create');
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const { agreementId, productId, quantity, reason, notes, userName } = payload;
+    const now = new Date().toISOString();
+
+    const info = db.prepare('INSERT INTO consignment_adjustments (agreement_id, product_id, quantity, reason, notes, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(agreementId, productId, quantity, reason, notes, now, userName);
+
+    logInfo(`Consignment adjustment created by ${userName}`, { ...payload });
+    
+    return db.prepare('SELECT * FROM consignment_adjustments WHERE id = ?').get(info.lastInsertRowid) as ConsignmentAdjustment;
+}
+
 export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const currentClosure = db.prepare('SELECT ca.client_name, pc.* FROM period_closures pc JOIN consignment_agreements ca ON pc.agreement_id = ca.id WHERE pc.id = ?').get(closureId) as (PeriodClosure & { client_name: string });
@@ -740,7 +799,7 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
         const totalReplenished = replenishedMap.get(productId) || 0;
         const totalAdjustments = adjustmentsMap.get(productId) || 0;
         const finalStock = finalStockMap.get(productId) || 0;
-        const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
+        const consumption = (initialStock + totalReplenished) - finalStock - totalAdjustments;
 
         return {
             productId,

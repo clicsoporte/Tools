@@ -26,7 +26,8 @@ export const permissionGroups = {
         "consignments:access", "consignments:setup", "consignments:count", "consignments:reports:read", 
         "consignments:boletas:read", "consignments:boletas:read:all", 
         "consignments:boleta:approve", "consignments:boleta:send", "consignments:boleta:invoice", 
-        "consignments:boleta:cancel", "consignments:boleta:revert"
+        "consignments:boleta:cancel", "consignments:boleta:revert",
+        "consignments:adjustments:create", "consignments:closures:create", "consignments:closures:annul"
     ],
     "Centro de Operaciones y Trazabilidad (Nuevo)": ["operations:access", "operations:create", "operations:read:all", "operations:approve", "operations:sign"],
     "Herramientas de TI (Nuevo)": ["it-tools:access", "it-tools:notes:read", "it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
@@ -66,6 +67,9 @@ export const permissionTranslations = {
     "consignments:boletas:read": "Consignación: Ver Lista de Boletas", "consignments:boletas:read:all": "Consignación: Ver Todas las Boletas", 
     "consignments:boleta:approve": "Consignación: Aprobar Boletas", "consignments:boleta:send": "Consignación: Marcar como Enviada", "consignments:boleta:invoice": "Consignación: Marcar como Facturada", 
     "consignments:boleta:cancel": "Consignación: Cancelar Boletas", "consignments:boleta:revert": "Consignación: Revertir Estados de Boleta",
+    "consignments:adjustments:create": "Consignación: Crear Ajustes",
+    "consignments:closures:create": "Consignación: Crear Cierres",
+    "consignments:closures:annul": "Consignación: Anular Cierres",
     "operations:access": "Operaciones: Acceso General", "operations:create": "Operaciones: Crear Documentos", "operations:read:all": "Operaciones: Ver Todos", "operations:approve": "Operaciones: Aprobar Documentos", "operations:sign": "Operaciones: Firmar Entregas/Recibos",
     "it-tools:access": "TI: Acceso General", "it-tools:notes:read": "TI: Ver Notas", "it-tools:notes:create": "TI: Crear Notas", "it-tools:notes:update": "TI: Editar Notas", "it-tools:notes:delete": "TI: Eliminar Notas",
     "warehouse:access": "Almacén: Acceso General", "warehouse:search:full": "Almacén: Consulta Completa", "warehouse:search:simple": "Almacén: Búsqueda Rápida", 
@@ -149,8 +153,15 @@ export const permissionTree: Partial<Record<AppPermission, AppPermission[]>> = {
     "planner:receive": ["planner:status:completed"],
 
     // --- Consignments ---
-    "consignments:access": ["consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read"],
-    "consignments:boletas:read": ["consignments:boletas:read:all", "consignments:boleta:approve", "consignments:boleta:send", "consignments:boleta:invoice", "consignments:boleta:cancel", "consignments:boleta:revert"],
+    "consignments:access": [
+        "consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read",
+        "consignments:adjustments:create", "consignments:closures:create"
+    ],
+    "consignments:boletas:read": [
+        "consignments:boletas:read:all", "consignments:boleta:approve", "consignments:boleta:send", 
+        "consignments:boleta:invoice", "consignments:boleta:cancel", "consignments:boleta:revert"
+    ],
+    "consignments:boleta:approve": ["consignments:closures:annul"], // Annul permission depends on approval permission
     
     // --- IT Tools ---
     "it-tools:access": ["it-tools:notes:read"],
