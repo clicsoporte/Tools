@@ -6,7 +6,7 @@
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
 import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb, getAllProducts, connectDb } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentProduct, ConsignmentReportRow, PeriodClosure, ConsignmentAdjustment } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentProduct, ConsignmentReportRow, PeriodClosure, ConsignmentAdjustment, PhysicalCount } from '@/modules/core/types';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
@@ -387,7 +387,7 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
                 approvers,
                 deliveryDates,
                 erpMovementIds,
-                adjustments: 0, // Placeholder for legacy report
+                adjustments: 0,
             };
         });
 
@@ -440,9 +440,9 @@ export async function getInventoryMonitorData(agreementId: number): Promise<any>
     }
 
     // Add all deliveries
-    boletasInPeriod.forEach(boleta => {
+    boletasInPeriod.forEach((boleta: RestockBoleta & { lines: BoletaLine[] }) => {
         if (boleta.type === 'REPOSITION') {
-            boleta.lines.forEach(line => {
+            boleta.lines.forEach((line: BoletaLine) => {
                 const current = theoreticalInventory.get(line.product_id) || { description: productMap.get(line.product_id) || 'Desconocido', quantity: 0 };
                 current.quantity += line.replenish_quantity;
                 theoreticalInventory.set(line.product_id, current);
@@ -451,7 +451,7 @@ export async function getInventoryMonitorData(agreementId: number): Promise<any>
     });
 
     // Apply adjustments
-    adjustmentsInPeriod.forEach(adjustment => {
+    adjustmentsInPeriod.forEach((adjustment: ConsignmentAdjustment) => {
         const current = theoreticalInventory.get(adjustment.product_id) || { description: productMap.get(adjustment.product_id) || 'Desconocido', quantity: 0 };
         current.quantity += adjustment.quantity;
         theoreticalInventory.set(adjustment.product_id, current);
@@ -460,12 +460,12 @@ export async function getInventoryMonitorData(agreementId: number): Promise<any>
     let lastPhysicalCountEnriched: any = null;
     if (lastPhysicalCount) {
         const latestTimestamp = lastPhysicalCount[0].counted_at;
-        const latestCountLines = lastPhysicalCount.filter(c => c.counted_at === latestTimestamp);
+        const latestCountLines = lastPhysicalCount.filter((c: PhysicalCount) => c.counted_at === latestTimestamp);
 
         lastPhysicalCountEnriched = {
             counted_at: latestTimestamp,
             counted_by: latestCountLines[0].counted_by,
-            lines: latestCountLines.map(line => ({
+            lines: latestCountLines.map((line: PhysicalCount) => ({
                 ...line,
                 productDescription: productMap.get(line.product_id) || 'Desconocido',
             }))

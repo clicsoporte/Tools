@@ -5,7 +5,7 @@
 
 import { connectDb, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
@@ -111,6 +111,17 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id),
             FOREIGN KEY (closure_boleta_id) REFERENCES restock_boletas(id),
             FOREIGN KEY (previous_closure_id) REFERENCES period_closures(id)
+        );
+        CREATE TABLE IF NOT EXISTS consignment_adjustments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agreement_id INTEGER NOT NULL,
+            product_id TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            notes TEXT,
+            created_at TEXT NOT NULL,
+            created_by TEXT NOT NULL,
+            FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id)
         );
     `;
     db.exec(schema);
@@ -688,9 +699,10 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     const boletasInPeriod = await getBoletasByDateRange(String(currentClosure.agreement_id), { from: startDate, to: endDate }, ['approved', 'sent', 'invoiced']);
     const replenishmentBoletas = boletasInPeriod.filter(b => b.type === 'REPOSITION');
 
-    const [currentClosureDetails, previousClosureDetails] = await Promise.all([
+    const [currentClosureDetails, previousClosureDetails, adjustmentsInPeriod] = await Promise.all([
         currentClosure.closure_boleta_id ? getBoletaDetails(currentClosure.closure_boleta_id) : Promise.resolve(null),
         previousClosure && previousClosure.closure_boleta_id ? getBoletaDetails(previousClosure.closure_boleta_id) : Promise.resolve(null),
+        getAdjustmentsInPeriod(currentClosure.agreement_id, { from: startDate, to: endDate }),
     ]);
 
     if (!currentClosureDetails) throw new Error('Boleta de cierre actual no encontrada.');
@@ -709,18 +721,26 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
         });
     });
 
+    const adjustmentsMap = new Map<string, number>();
+    adjustmentsInPeriod.forEach(adj => {
+        const current = adjustmentsMap.get(adj.product_id) || 0;
+        adjustmentsMap.set(adj.product_id, current + adj.quantity);
+    });
+
     const allProductIds = new Set([
         ...initialStockMap.keys(),
         ...finalStockMap.keys(),
-        ...replenishedMap.keys()
+        ...replenishedMap.keys(),
+        ...adjustmentsMap.keys(),
     ]);
 
     const reportRows = Array.from(allProductIds).map(productId => {
         const productDetails = currentClosureDetails.lines.find(l => l.product_id === productId) || previousClosureDetails?.lines.find(l => l.product_id === productId);
         const initialStock = initialStockMap.get(productId) || 0;
         const totalReplenished = replenishedMap.get(productId) || 0;
+        const totalAdjustments = adjustmentsMap.get(productId) || 0;
         const finalStock = finalStockMap.get(productId) || 0;
-        const consumption = (initialStock + totalReplenished) - finalStock;
+        const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
 
         return {
             productId,
@@ -728,14 +748,15 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
             clientProductCode: productDetails?.client_product_code || '',
             initialStock,
             totalReplenished,
+            adjustments: totalAdjustments,
             finalStock,
             consumption: consumption > 0 ? consumption : 0,
             price: productDetails?.price || 0,
             totalValue: (consumption > 0 ? consumption : 0) * (productDetails?.price || 0),
         };
-    }).filter(row => row.consumption > 0);
+    }).filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.consumption > 0 || row.adjustments !== 0);
 
-    return { reportRows, boletas: replenishmentBoletas, currentClosure, previousClosure };
+    return { reportRows, boletas: replenishmentBoletas, currentClosure, previousClosure, adjustments: adjustmentsInPeriod };
 }
 
 export async function saveReplenishmentBoleta(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<RestockBoleta> {
@@ -780,6 +801,17 @@ export async function getLatestApprovedClosure(agreementId: number): Promise<Per
     `).get(agreementId) as PeriodClosure | undefined;
     return closure ? JSON.parse(JSON.stringify(closure)) : null;
 }
+
+export async function getAdjustmentsInPeriod(agreementId: number, dateRange: { from: Date; to: Date }): Promise<ConsignmentAdjustment[]> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const adjustments = db.prepare(`
+        SELECT * FROM consignment_adjustments 
+        WHERE agreement_id = ? AND created_at BETWEEN ? AND ?
+        ORDER BY created_at ASC
+    `).all(agreementId, dateRange.from.toISOString(), dateRange.to.toISOString()) as ConsignmentAdjustment[];
+    return JSON.parse(JSON.stringify(adjustments));
+}
+
 
 export async function getPhysicalCountHistory(agreementId: number): Promise<{ counted_at: string, counted_by: string }[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
