@@ -6,13 +6,13 @@
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
 import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb, getAllProducts, connectDb } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentProduct, ConsignmentReportRow, PeriodClosure } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentProduct, ConsignmentReportRow, PeriodClosure, ConsignmentAdjustment } from '@/modules/core/types';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
 import { getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
 import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits, getWarehouseSettings as getWHSettings } from '@/modules/warehouse/lib/db';
-import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData as getConsignmentsBillingReportDataServer, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails } from '@/modules/consignments/lib/db';
+import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData as getConsignmentsBillingReportDataServer, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails, getAdjustmentsInPeriod } from '@/modules/consignments/lib/db';
 import type { TransitReportItem } from '../hooks/useTransitsReport';
 import type { OccupancyReportRow } from '../hooks/useOccupancyReport';
 
@@ -387,6 +387,7 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
                 approvers,
                 deliveryDates,
                 erpMovementIds,
+                adjustments: 0, // Placeholder for legacy report
             };
         });
 
@@ -401,7 +402,12 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
     }
 }
 
-export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
+export async function getConsignmentsBillingReportData(closureId: number): Promise<{
+    reportRows: ConsignmentReportRow[];
+    boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[];
+    currentClosure: PeriodClosure & { client_name: string };
+    previousClosure: PeriodClosure | null;
+}> {
     return getConsignmentsBillingReportDataServer(closureId);
 }
 
@@ -413,10 +419,11 @@ export async function getInventoryMonitorData(agreementId: number): Promise<any>
     const startDate = lastClosure ? new Date(lastClosure.created_at) : new Date(0); // From beginning of time if no closure
     const endDate = new Date(); // To now
 
-    const [boletasInPeriod, lastPhysicalCount, countHistory] = await Promise.all([
+    const [boletasInPeriod, lastPhysicalCount, countHistory, adjustmentsInPeriod] = await Promise.all([
         getBoletasByDateRange(String(agreementId), { from: startDate, to: endDate }),
         getLatestPhysicalCount(agreementId),
         getPhysicalCountHistory(agreementId),
+        getAdjustmentsInPeriod(agreementId, { from: startDate, to: endDate })
     ]);
 
     const theoreticalInventory = new Map<string, { description: string, quantity: number }>();
@@ -441,6 +448,13 @@ export async function getInventoryMonitorData(agreementId: number): Promise<any>
                 theoreticalInventory.set(line.product_id, current);
             });
         }
+    });
+
+    // Apply adjustments
+    adjustmentsInPeriod.forEach(adjustment => {
+        const current = theoreticalInventory.get(adjustment.product_id) || { description: productMap.get(adjustment.product_id) || 'Desconocido', quantity: 0 };
+        current.quantity += adjustment.quantity;
+        theoreticalInventory.set(adjustment.product_id, current);
     });
 
     let lastPhysicalCountEnriched: any = null;

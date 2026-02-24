@@ -12,7 +12,8 @@ import {
   Lightbulb, FileText, Calculator, PanelLeft, Mail, KeyRound, BellRing,
   Palette, UserCheck, ShoppingBag, QrCode, HelpCircle, ClipboardCheck,
   ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, GitBranch,
-  Construction, BookCopy, Cpu, FileSignature, Settings, ListChecks, FileInput, Box, SlidersHorizontal
+  Construction, BookCopy, Cpu, FileSignature, Settings, ListChecks, FileInput, Box, SlidersHorizontal,
+  Container, Tags, Truck, LayoutGrid
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
