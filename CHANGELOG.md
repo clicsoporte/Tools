@@ -35,15 +35,19 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
         -   Permite crear, aprobar y gestionar "Cierres" con su propio consecutivo (ej: `CIERRE-0001`). Cada cierre marca el fin de un período de facturación.
         -   Un cierre puede ser iniciado por el bodeguero desde el campo (con doble confirmación) o por el personal de oficina.
         -   **Flujo de Aprobación:** Los cierres entran en estado "Pendiente" y deben ser aprobados en la oficina. Al aprobar, el sistema inteligentemente sugiere vincularlo con el cierre anterior para una trazabilidad perfecta del inventario inicial.
+        -   **[NUEVO] Anulación de Cierres:** Los supervisores con permisos pueden anular un cierre ya aprobado, una acción de seguridad que revierte el estado del acuerdo si el inventario inicial fue incorrecto.
     -   **Nuevo "Reporte de Facturación" por Cierre:**
         -   Se accede desde la "Gestión de Cierres".
-        -   Calcula el consumo a facturar de forma precisa: `(Inventario Inicial del Cierre Anterior + Entregas del Periodo) - Inventario Final del Cierre Actual`.
+        -   Calcula el consumo a facturar de forma precisa: `(Inventario Inicial + Entregas + Ajustes) - Inventario Final`.
         -   Presenta un resumen consolidado listo para ser ingresado en el ERP.
+    -   **[NUEVO] Herramienta de "Ajustes de Inventario":**
+        -   Permite registrar cambios en el inventario de consignación que no son ventas (ej: productos dañados, vencidos o encontrados).
+        -   Estos ajustes se descuentan o suman automáticamente en el Reporte de Facturación para garantizar que solo se facture el consumo real.
 
 ### Mejoras Internas y de Calidad
 
 -   **[Estabilidad]** Se corrigió un error `ChunkLoadError` que ocurría en producción al navegar entre páginas. Se eliminaron archivos `layout.tsx` redundantes y se ajustó la configuración de compilación de Next.js (`dynamic = 'force-dynamic'`) en las páginas afectadas para asegurar que siempre se cargue la versión más reciente del código.
--   **[Base de Datos]** Se implementaron nuevas tablas (`period_closures`, `physical_counts`) y se actualizaron las existentes para soportar el nuevo ciclo de consignaciones.
+-   **[Base de Datos]** Se implementaron nuevas tablas (`period_closures`, `physical_counts`, `consignment_adjustments`) y se actualizaron las existentes para soportar el nuevo ciclo de consignaciones.
 
 ---
 
@@ -375,3 +379,4 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 -   Incluye los módulos de Cotizador, Planificador OP, Solicitudes de Compra, Asistente de Costos, Almacenes, Consultas Hacienda y el panel de Administración completo.
 -   Arquitectura basada en Next.js App Router, componentes de servidor y bases de datos modulares SQLite.
     
+

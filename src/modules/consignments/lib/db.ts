@@ -773,17 +773,17 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     currentClosureDetails.lines.forEach(line => finalStockMap.set(line.product_id, line.counted_quantity));
     
     const replenishedMap = new Map<string, number>();
-    replenishmentBoletas.forEach(boleta => {
-        boleta.lines.forEach(line => {
+    replenishmentBoletas.forEach((boleta: RestockBoleta & { lines: BoletaLine[] }) => {
+        boleta.lines.forEach((line: BoletaLine) => {
             const current = replenishedMap.get(line.product_id) || 0;
             replenishedMap.set(line.product_id, current + line.replenish_quantity);
         });
     });
 
     const adjustmentsMap = new Map<string, number>();
-    adjustmentsInPeriod.forEach(adj => {
-        const current = adjustmentsMap.get(adj.product_id) || 0;
-        adjustmentsMap.set(adj.product_id, current + adj.quantity);
+    adjustmentsInPeriod.forEach((adjustment: ConsignmentAdjustment) => {
+        const current = adjustmentsMap.get(adjustment.product_id) || 0;
+        adjustmentsMap.set(adjustment.product_id, current + adjustment.quantity);
     });
 
     const allProductIds = new Set([
@@ -799,7 +799,7 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
         const totalReplenished = replenishedMap.get(productId) || 0;
         const totalAdjustments = adjustmentsMap.get(productId) || 0;
         const finalStock = finalStockMap.get(productId) || 0;
-        const consumption = (initialStock + totalReplenished) - finalStock - totalAdjustments;
+        const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
 
         return {
             productId,
