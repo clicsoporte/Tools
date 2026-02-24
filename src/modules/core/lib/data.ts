@@ -11,8 +11,8 @@ import {
   Wrench, LayoutDashboard, Map, PackagePlus, MessageSquare, BarChartBig,
   Lightbulb, FileText, Calculator, PanelLeft, Mail, KeyRound, BellRing,
   Palette, UserCheck, ShoppingBag, QrCode, HelpCircle, ClipboardCheck,
-  ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, LayoutGrid,
-  FileSignature, Cpu, BookCopy, Container, Tags, Truck, Settings, ListChecks, FileInput, Box
+  ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, GitBranch,
+  Construction, BookCopy, Cpu, FileSignature, Settings, ListChecks, FileInput, Box, SlidersHorizontal
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -251,6 +251,14 @@ export const consignmentsTools: Tool[] = [
         href: "/dashboard/consignments/cierres",
         icon: FileSignature,
         bgColor: "bg-indigo-600",
+    },
+    {
+        id: "consignments:adjustments:create",
+        name: "Ajustes de Inventario",
+        description: "Registrar mermas o ganancias de inventario que no son ventas.",
+        href: "/dashboard/consignments/adjustments",
+        icon: SlidersHorizontal,
+        bgColor: "bg-rose-500",
     },
 ];
 

@@ -853,6 +853,7 @@ export interface ConsignmentReportRow {
     productDescription: string;
     initialStock: number;
     totalReplenished: number;
+    adjustments: number; // Sum of non-billable losses (e.g. -5 for damaged goods becomes 5)
     finalStock: number;
     consumption: number;
     price: number;
@@ -1120,7 +1121,7 @@ export type PhysicalCount = {
     counted_by: string;
 };
 
-export type PeriodClosureStatus = 'pending' | 'approved' | 'rejected' | 'invoiced';
+export type PeriodClosureStatus = 'pending' | 'approved' | 'rejected' | 'annulled' | 'invoiced';
 export type PeriodClosure = {
     id: number;
     consecutive: string;
@@ -1136,6 +1137,19 @@ export type PeriodClosure = {
     notes?: string;
 };
 
+export type ConsignmentAdjustmentReason = 'Dañado' | 'Vencido' | 'Pérdida' | 'Corrección de Conteo';
+
+export type ConsignmentAdjustment = {
+    id: number;
+    agreement_id: number;
+    product_id: string;
+    quantity: number; // Negative for loss, positive for gain
+    reason: ConsignmentAdjustmentReason;
+    notes?: string;
+    created_at: string;
+    created_by: string;
+};
+
 
 /**
  * Custom error class for authorization failures.
@@ -1147,5 +1161,3 @@ export class AuthError extends Error {
     this.name = "AuthError";
   }
 }
-
-    
