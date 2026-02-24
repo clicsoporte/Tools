@@ -29,7 +29,8 @@ import {
     forceRelayLock as forceRelayLockServer,
     releaseAgreementLock as releaseAgreementLockServer,
     getLatestApprovedClosure,
-    getPhysicalCountHistory
+    getPhysicalCountHistory,
+    getRecentPhysicalCounts as getRecentPhysicalCountsServer,
 } from './db';
 import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
@@ -466,4 +467,8 @@ export async function forceRelayLock(agreementId: number, userId: number, userNa
 
 export async function releaseAgreementLock(agreementId: number, userId: number): Promise<void> {
     return releaseAgreementLockServer(agreementId, userId);
+}
+
+export async function getRecentPhysicalCounts(agreementId: number): Promise<{ counted_at: string; counted_by: string }[]> {
+    return getRecentPhysicalCountsServer(agreementId);
 }

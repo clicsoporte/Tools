@@ -357,8 +357,8 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             }
         }
         
-        let approvedBy = currentBoleta.approved_by;
-        if (status === 'approved' && !currentBoleta.approved_by) {
+        let approvedBy = currentBoleta.approvedBy;
+        if (status === 'approved' && !currentBoleta.approvedBy) {
             approvedBy = updatedBy;
         }
 
@@ -792,6 +792,19 @@ export async function getPhysicalCountHistory(agreementId: number): Promise<{ co
         LIMIT 10
     `).all(agreementId) as { counted_at: string, counted_by: string }[];
     return JSON.parse(JSON.stringify(history));
+}
+
+export async function getRecentPhysicalCounts(agreementId: number): Promise<{ counted_at: string; counted_by: string }[]> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const counts = db.prepare(`
+        SELECT counted_at, counted_by 
+        FROM physical_counts 
+        WHERE agreement_id = ? 
+        GROUP BY counted_at, counted_by
+        ORDER BY counted_at DESC 
+        LIMIT 5
+    `).all(agreementId) as { counted_at: string; counted_by: string }[];
+    return JSON.parse(JSON.stringify(counts));
 }
 
 export async function lockAgreement(agreementId: number, userId: number, userName: string): Promise<{ success: boolean, locked: boolean, message: string }> {

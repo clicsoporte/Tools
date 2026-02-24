@@ -7,20 +7,16 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Loader2, CheckCircle, Play, Save, FileSignature, AlertTriangle, Wand2, FileInput, ClipboardCheck } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import type { ConsignmentProduct } from '@/modules/core/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { SearchInput } from '@/components/ui/search-input';
 import { useFieldAssistant } from '@/modules/consignments/hooks/useFieldAssistant';
+import { InventoryCountForm } from '@/components/consignments/inventory-count-form';
 
 export default function FieldAssistantPage() {
     const { state, actions, selectors } = useFieldAssistant();
     const { step, isLoading, isSubmitting, clientSearchTerm, isClientSearchOpen, selectedAgreement, productsToCount, counts } = state;
-    const { agreementOptions } = selectors;
 
     if (isLoading && step === 'select_client') {
         return (
@@ -42,7 +38,7 @@ export default function FieldAssistantPage() {
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4 items-center w-full max-w-sm mx-auto">
                         <SearchInput
-                            options={agreementOptions}
+                            options={selectors.agreementOptions}
                             onSelect={actions.handleSelectClient}
                             value={clientSearchTerm}
                             onValueChange={actions.setClientSearchTerm}
@@ -101,37 +97,12 @@ export default function FieldAssistantPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ScrollArea className="h-[60vh] p-1">
-                            <div className="space-y-4">
-                                {productsToCount.length > 0 ? (
-                                    productsToCount.map((p: ConsignmentProduct) => (
-                                        <Card key={p.product_id}>
-                                            <CardContent className="p-4 grid grid-cols-3 sm:grid-cols-4 gap-4 items-center">
-                                                <div className="col-span-2 sm:col-span-3">
-                                                    <p className="font-medium leading-snug">{selectors.getProductName(p.product_id)}</p>
-                                                    <p className="text-sm text-muted-foreground font-mono">{p.product_id}</p>
-                                                </div>
-                                                <div className="col-span-1">
-                                                    <Label htmlFor={`count-${p.product_id}`} className="sr-only">Cantidad</Label>
-                                                    <Input
-                                                        id={`count-${p.product_id}`}
-                                                        type="number"
-                                                        placeholder="Cant."
-                                                        value={counts[p.product_id] || ''}
-                                                        onChange={(e) => actions.handleQuantityChange(p.product_id, e.target.value)}
-                                                        className="text-right text-2xl h-14 font-bold hide-number-arrows"
-                                                    />
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))
-                                ) : (
-                                    <div className="text-center py-10 text-muted-foreground">
-                                        <p className="font-semibold">Este acuerdo no tiene productos autorizados.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </ScrollArea>
+                        <InventoryCountForm
+                            products={productsToCount}
+                            counts={counts}
+                            onQuantityChange={actions.handleQuantityChange}
+                            getProductName={selectors.getProductName}
+                        />
                     </CardContent>
                     <CardFooter className="justify-between">
                          <Button variant="outline" onClick={actions.cancelAndReleaseLock}>Cancelar y Salir</Button>

@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Hook for managing the logic for the Consignments Closures page.
  */
@@ -8,8 +9,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getPeriodClosures, approvePeriodClosure, rejectPeriodClosure, getPhysicalCountDetails } from '../lib/actions';
-import type { PeriodClosure, PhysicalCount } from '@/modules/core/types';
+import { getPeriodClosures, approvePeriodClosure, rejectPeriodClosure, getPhysicalCountDetails, getAgreementDetails, getRecentPhysicalCounts, createClosureFromCount } from '../lib/actions';
+import type { PeriodClosure, PhysicalCount, ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 
@@ -17,7 +18,7 @@ interface State {
     isInitialLoading: boolean;
     isRefreshing: boolean;
     isSubmitting: boolean;
-    closures: (PeriodClosure & { client_name: string; is_initial_inventory: boolean })[];
+    closures: (PeriodClosure & { client_name: string; is_initial_inventory: boolean; })[];
     isDetailsModalOpen: boolean;
     isDetailsLoading: boolean;
     selectedClosure: (PeriodClosure & { is_initial_inventory: boolean }) | null;
@@ -25,12 +26,23 @@ interface State {
     notes: string;
     availablePreviousClosures: PeriodClosure[];
     physicalCountLines: PhysicalCount[];
+    // New state for the "New Closure" wizard
+    isNewClosureModalOpen: boolean;
+    newClosureStep: 'select_client' | 'select_action';
+    agreements: ConsignmentAgreement[];
+    selectedAgreementForClosure: ConsignmentAgreement | null;
+    newClosureClientSearch: string;
+    isNewClosureClientSearchOpen: boolean;
+    availablePhysicalCounts: { counted_at: string; counted_by: string; }[];
+    selectedPhysicalCountRef: string | null;
+    initialInventoryData: Record<string, string>;
+    initialInventoryProducts: ConsignmentProduct[];
 }
 
 export const useConsignmentsClosures = () => {
     const { isAuthorized } = useAuthorization(['consignments:boleta:approve']);
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user, products } = useAuth();
     const router = useRouter();
 
     const [state, setState] = useState<State>({
@@ -45,6 +57,16 @@ export const useConsignmentsClosures = () => {
         notes: '',
         availablePreviousClosures: [],
         physicalCountLines: [],
+        isNewClosureModalOpen: false,
+        newClosureStep: 'select_client',
+        agreements: [],
+        selectedAgreementForClosure: null,
+        newClosureClientSearch: '',
+        isNewClosureClientSearchOpen: false,
+        availablePhysicalCounts: [],
+        selectedPhysicalCountRef: null,
+        initialInventoryData: {},
+        initialInventoryProducts: [],
     });
 
     const updateState = useCallback((newState: Partial<State>) => {
@@ -72,6 +94,100 @@ export const useConsignmentsClosures = () => {
             updateState({ isInitialLoading: false });
         }
     }, [isAuthorized, loadData, updateState]);
+    
+     const resetNewClosureModal = () => {
+        updateState({
+            isNewClosureModalOpen: false,
+            newClosureStep: 'select_client',
+            selectedAgreementForClosure: null,
+            newClosureClientSearch: '',
+            availablePhysicalCounts: [],
+            selectedPhysicalCountRef: null,
+            initialInventoryData: {},
+            initialInventoryProducts: [],
+        });
+    };
+
+    const handleNewClosureModalOpenChange = (open: boolean) => {
+        if (!open) {
+            resetNewClosureModal();
+        } else {
+            updateState({ isNewClosureModalOpen: true });
+        }
+    };
+
+    const handleSelectAgreementForClosure = async (agreementId: string) => {
+        const id = Number(agreementId);
+        const agreement = state.agreements.find(a => a.id === id);
+        if (!agreement) return;
+
+        updateState({ isDetailsLoading: true, selectedAgreementForClosure: agreement, newClosureClientSearch: agreement.client_name, isNewClosureClientSearchOpen: false });
+
+        try {
+            if (agreement.has_initial_inventory === 1) {
+                const physicalCounts = await getRecentPhysicalCounts(id);
+                updateState({ availablePhysicalCounts: physicalCounts, newClosureStep: 'select_action' });
+            } else {
+                const details = await getAgreementDetails(id);
+                updateState({ initialInventoryProducts: details?.products || [], newClosureStep: 'select_action' });
+            }
+        } catch (error: any) {
+             toast({ title: 'Error', description: 'No se pudieron cargar los detalles del acuerdo.', variant: 'destructive'});
+        } finally {
+            updateState({ isDetailsLoading: false });
+        }
+    };
+    
+    const handleCreateClosureFromCount = async (physicalCountRef: string) => {
+        if (!user || !state.selectedAgreementForClosure) return;
+        updateState({ isSubmitting: true, selectedPhysicalCountRef: physicalCountRef });
+        
+        try {
+            const counts = await getPhysicalCountDetails(state.selectedAgreementForClosure.id, physicalCountRef);
+            const linesToSubmit = counts.map(c => ({ productId: c.product_id, quantity: c.quantity }));
+
+            const closure = await createClosureFromCount(state.selectedAgreementForClosure.id, linesToSubmit, user.name);
+            toast({ title: 'Solicitud de Cierre Generada', description: `Se creó el Cierre ${closure.consecutive} y está pendiente de aprobación.` });
+            resetNewClosureModal();
+            await loadData(true);
+        } catch (error: any) {
+            logError('Failed to create closure from count', { error: error.message });
+            toast({ title: 'Error', description: `No se pudo generar el cierre: ${error.message}`, variant: 'destructive' });
+        } finally {
+            updateState({ isSubmitting: false, selectedPhysicalCountRef: null });
+        }
+    };
+
+    const handleInitialInventoryDataChange = (productId: string, value: string) => {
+        updateState({ initialInventoryData: { ...state.initialInventoryData, [productId]: value } });
+    };
+
+    const handleCreateInitialInventoryClosure = async () => {
+        if (!user || !state.selectedAgreementForClosure) return;
+        
+        const linesToSubmit = Object.entries(state.initialInventoryData)
+            .map(([productId, qtyStr]) => ({ productId, quantity: Number(qtyStr) || 0 }))
+            .filter(line => line.quantity >= 0);
+
+        if (linesToSubmit.length === 0) {
+            toast({ title: 'Datos requeridos', description: 'Debe ingresar la cantidad para al menos un producto.', variant: 'destructive' });
+            return;
+        }
+
+        updateState({ isSubmitting: true });
+        try {
+            const closure = await createClosureFromCount(state.selectedAgreementForClosure.id, linesToSubmit, user.name);
+            toast({ title: 'Inventario Inicial Registrado', description: `Se creó el Cierre ${closure.consecutive} y está pendiente de aprobación.` });
+            resetNewClosureModal();
+            await loadData(true);
+        } catch (error: any) {
+            logError('Failed to create initial inventory closure from office', { error: error.message });
+            toast({ title: 'Error', description: `No se pudo generar el cierre: ${error.message}`, variant: 'destructive' });
+        } finally {
+            updateState({ isSubmitting: false });
+        }
+    };
+
 
     const handleViewClosure = async (closure: PeriodClosure & { client_name: string, is_initial_inventory: boolean }) => {
         if (closure.status === 'approved') {
@@ -108,7 +224,7 @@ export const useConsignmentsClosures = () => {
     };
     
     const handleInitiateClosure = () => {
-        router.push('/dashboard/consignments/inventory-count');
+        updateState({ isNewClosureModalOpen: true });
     }
 
     const handleApprove = async () => {
@@ -157,6 +273,10 @@ export const useConsignmentsClosures = () => {
                 default: return 'Desconocido';
             }
         },
+        agreementOptions: useMemo(() => 
+            state.agreements.map(a => ({ value: String(a.id), label: a.client_name })),
+        [state.agreements]),
+        getProductName: (id: string) => products.find(p => p.id === id)?.description || 'Desconocido',
     };
 
     return {
@@ -165,11 +285,18 @@ export const useConsignmentsClosures = () => {
             loadData,
             handleViewClosure,
             handleInitiateClosure,
+            handleNewClosureModalOpenChange,
+            handleSelectAgreementForClosure,
             setDetailsModalOpen: (open: boolean) => updateState({ isDetailsModalOpen: open }),
             setPreviousClosureId: (id: number | null) => updateState({ previousClosureId: id }),
             setNotes: (notes: string) => updateState({ notes }),
             handleApprove,
             handleReject,
+            setNewClosureClientSearch: (term: string) => updateState({ newClosureClientSearch: term }),
+            setIsNewClosureClientSearchOpen: (open: boolean) => updateState({ isNewClosureClientSearchOpen: open }),
+            handleCreateClosureFromCount,
+            handleInitialInventoryDataChange,
+            handleCreateInitialInventoryClosure,
         },
         selectors
     };

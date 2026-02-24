@@ -19,6 +19,8 @@ import type { PeriodClosure } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/modules/core/hooks/useAuth';
+import { SearchInput } from '@/components/ui/search-input';
+import { InventoryCountForm } from '@/components/consignments/inventory-count-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -219,6 +221,84 @@ export default function ClosuresPage() {
                             )}
                         </div>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={state.isNewClosureModalOpen} onOpenChange={actions.handleNewClosureModalOpenChange}>
+                <DialogContent className="sm:max-w-4xl">
+                     <DialogHeader>
+                        <DialogTitle>Asistente para Nuevo Cierre</DialogTitle>
+                    </DialogHeader>
+                    {state.newClosureStep === 'select_client' && (
+                        <div className="py-4 space-y-4">
+                            <Label>Paso 1: Selecciona un Cliente</Label>
+                            <SearchInput
+                                options={selectors.agreementOptions}
+                                onSelect={actions.handleSelectAgreementForClosure}
+                                value={state.newClosureClientSearch}
+                                onValueChange={actions.setNewClosureClientSearch}
+                                open={state.isNewClosureClientSearchOpen}
+                                onOpenChange={actions.setIsNewClosureClientSearchOpen}
+                                placeholder="Buscar cliente de consignación..."
+                            />
+                        </div>
+                    )}
+                    {state.newClosureStep === 'select_action' && state.selectedAgreementForClosure && (
+                        <div className="py-4 space-y-4">
+                           {state.selectedAgreementForClosure.has_initial_inventory === 0 ? (
+                            <>
+                                <Alert variant="destructive">
+                                    <Info className="h-4 w-4" />
+                                    <AlertTitle>Acción Requerida: Establecer Inventario Inicial</AlertTitle>
+                                    <AlertDescription>
+                                        Este acuerdo no tiene un inventario inicial aprobado. Debes ingresar las cantidades físicas actuales para poder continuar.
+                                    </AlertDescription>
+                                </Alert>
+                                <InventoryCountForm
+                                    products={state.initialInventoryProducts}
+                                    counts={state.initialInventoryData}
+                                    onQuantityChange={actions.handleInitialInventoryDataChange}
+                                    getProductName={selectors.getProductName}
+                                    height="h-[40vh]"
+                                />
+                                <DialogFooter>
+                                     <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                                    <Button variant="destructive" onClick={actions.handleCreateInitialInventoryClosure} disabled={state.isSubmitting}>
+                                        {state.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Establecer Inventario y Crear Cierre
+                                    </Button>
+                                </DialogFooter>
+                            </>
+                           ) : (
+                            <>
+                                <Label>Paso 2: Usa un Conteo Informativo para Generar el Cierre</Label>
+                                <p className="text-sm text-muted-foreground">Selecciona uno de los conteos preliminares guardados por el equipo de campo.</p>
+                                <ScrollArea className="h-64 border rounded-md p-2">
+                                    {state.availablePhysicalCounts.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {state.availablePhysicalCounts.map(pc => (
+                                                <div key={pc.counted_at} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                                    <div>
+                                                        <p className="font-semibold">Conteo del {format(parseISO(pc.counted_at), 'dd/MM/yyyy HH:mm:ss', { locale: es })}</p>
+                                                        <p className="text-xs text-muted-foreground">Realizado por: {pc.counted_by}</p>
+                                                    </div>
+                                                    <Button size="sm" onClick={() => actions.handleCreateClosureFromCount(pc.counted_at)} disabled={state.isSubmitting}>
+                                                        {state.isSubmitting && state.selectedPhysicalCountRef === pc.counted_at ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                        Usar este conteo
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                                            <p>No se encontraron conteos informativos recientes para este cliente.</p>
+                                        </div>
+                                    )}
+                                </ScrollArea>
+                            </>
+                           )}
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
         </main>
