@@ -170,7 +170,7 @@ export function useConsignmentsReport() {
         const agreement = state.agreements.find(a => String(a.id) === state.selectedAgreementId);
 
         const flatData = state.reportData.flatMap(productRow =>
-            productRow.transactions.map(tx => ({
+            productRow.transactions.map((tx: any) => ({
                 'Producto ID': productRow.productId,
                 'Producto Descripción': productRow.productDescription,
                 'Alias Cliente': productRow.clientProductCode,
@@ -199,8 +199,8 @@ export function useConsignmentsReport() {
                 { label: "Cliente:", value: agreement?.client_name || 'N/A' },
                 { label: "Período:", value: `${state.dateRange.from ? format(state.dateRange.from, 'dd/MM/yyyy', { locale: es }) : ''} al ${state.dateRange.to ? format(state.dateRange.to, 'dd/MM/yyyy', { locale: es }) : ''}` }
             ],
-            headers,
-            data: dataToExport,
+            data: [headers, ...dataToExport],
+            headers: [],
             columnWidths: [20, 40, 20, 20, 25, 25, 15, 20, 30],
         });
     };
@@ -264,6 +264,30 @@ export function useConsignmentsReport() {
         { id: 'details', label: 'Desglose' },
     ];
     
+    const actions = {
+        setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined }, closureFilter: null }),
+        setSelectedAgreementId: (id: string) => updateState({ 
+            selectedAgreementId: id, 
+            reportData: [], 
+            hasRun: false,
+            allBoletasForClient: [],
+            allClosuresForClient: [],
+            boletaFilter: [],
+            closureFilter: null,
+        }),
+        setBoletaFilter: (ids: string[]) => updateState({ boletaFilter: ids }),
+        setClosureFilter: (id: string | null) => updateState({ closureFilter: id, dateRange: { from: undefined, to: undefined } }),
+        handleClearFilters: () => updateState({ boletaFilter: [], closureFilter: null, dateRange: { from: startOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), to: new Date() } }),
+        handleGenerateReport,
+        handleExportExcel,
+        handleExportPDF,
+        handleSort,
+        handleColumnVisibilityChange,
+        savePreferences,
+        openDetailsModal: (row: ConsignmentReportRow) => updateState({ detailsForProduct: row, isDetailsOpen: true }),
+        setIsDetailsOpen: (open: boolean) => updateState({ isDetailsOpen: open }),
+    };
+
     const selectors = {
         agreementOptions: useMemo(() => 
             state.agreements.map(a => ({ value: String(a.id), label: a.client_name }))
@@ -298,29 +322,7 @@ export function useConsignmentsReport() {
 
     return {
         state: { ...state, reportData: sortedReportData },
-        actions: {
-            setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined }, closureFilter: null }),
-            setSelectedAgreementId: (id: string) => updateState({ 
-                selectedAgreementId: id, 
-                reportData: [], 
-                hasRun: false,
-                allBoletasForClient: [],
-                allClosuresForClient: [],
-                boletaFilter: [],
-                closureFilter: null,
-            }),
-            setBoletaFilter: (ids: string[]) => updateState({ boletaFilter: ids }),
-            setClosureFilter: (id: string | null) => updateState({ closureFilter: id, dateRange: { from: undefined, to: undefined } }),
-            handleClearFilters: () => updateState({ boletaFilter: [], closureFilter: null, dateRange: { from: startOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), to: new Date() } }),
-            handleGenerateReport,
-            handleExportExcel,
-            handleExportPDF,
-            handleSort,
-            handleColumnVisibilityChange,
-            savePreferences,
-            openDetailsModal: (row: ConsignmentReportRow) => updateState({ detailsForProduct: row, isDetailsOpen: true }),
-            setIsDetailsOpen: (open: boolean) => updateState({ isDetailsOpen: open }),
-        },
+        actions,
         selectors,
         isAuthorized,
     };

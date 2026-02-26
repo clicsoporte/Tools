@@ -376,21 +376,18 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             throw new Error("Boleta no encontrada.");
         }
         
-        if (status === 'pending') {
-            if (!erpMovementId || !erpMovementId.trim()) {
-                throw new Error("El número de movimiento de inventario del ERP es requerido para poder enviar a aprobación.");
-            }
-            const lines = db.prepare('SELECT * FROM boleta_lines WHERE boleta_id = ?').all(boletaId) as BoletaLine[];
-            const totalReplenish = lines.reduce((sum, line) => sum + line.replenish_quantity, 0);
+        if (status === 'pending' && (!erpMovementId || !erpMovementId.trim())) {
+            throw new Error("El número de movimiento de inventario del ERP es requerido para poder enviar a aprobación.");
+        }
+        const lines = db.prepare('SELECT * FROM boleta_lines WHERE boleta_id = ?').all(boletaId) as BoletaLine[];
+        const totalReplenish = lines.reduce((sum, line) => sum + line.replenish_quantity, 0);
 
-            const hasUntouchedManualLines = lines.some(line => line.max_stock === 0 && line.is_manually_edited === 0);
-            if (hasUntouchedManualLines) {
-                throw new Error("Hay productos que requieren una cantidad manual. Por favor, edita la boleta y asigna una cantidad (incluso 0) a todas las líneas antes de enviar a aprobación.");
-            }
-
-            if (totalReplenish <= 0) {
-                 throw new Error("No se puede enviar a aprobación una boleta sin cantidad total a reponer.");
-            }
+        if (status === 'pending' && totalReplenish <= 0) {
+             throw new Error("No se puede enviar a aprobación una boleta sin cantidad total a reponer.");
+        }
+        const hasUntouchedManualLines = lines.some(line => line.max_stock === 0 && line.is_manually_edited === 0);
+        if (status === 'pending' && hasUntouchedManualLines) {
+            throw new Error("Hay productos que requieren una cantidad manual. Por favor, edita la boleta y asigna una cantidad (incluso 0) a todas las líneas antes de enviar a aprobación.");
         }
         
         let approvedBy = currentBoleta.approved_by;
@@ -413,14 +410,14 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const updateParams: any = {
             status,
             id: boletaId,
-            approved_by: approvedBy,
+            approvedBy: approvedBy,
             submittedBy,
             previousStatus,
         };
 
         let setClauses = [
             'status = @status',
-            'approved_by = @approved_by',
+            'approved_by = @approvedBy',
             'submittedBy = @submittedBy',
             'previousStatus = @previousStatus',
         ];
@@ -644,14 +641,16 @@ export async function getPhysicalCountByRef(agreementId: number, countedAt: stri
     return JSON.parse(JSON.stringify(counts));
 }
 
-export async function getPeriodClosures(filters: { agreementId?: number } = {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; })[]> {
+export async function getPeriodClosures(filters: { agreementId?: number } = {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     let query = `
         SELECT 
             pc.*, 
-            ca.client_name
+            ca.client_name,
+            prev_pc.consecutive as previous_closure_consecutive
         FROM period_closures pc
         JOIN consignment_agreements ca ON pc.agreement_id = ca.id
+        LEFT JOIN period_closures prev_pc ON pc.previous_closure_id = prev_pc.id
     `;
     const params: any[] = [];
     if (filters.agreementId) {
@@ -661,7 +660,7 @@ export async function getPeriodClosures(filters: { agreementId?: number } = {}):
     
     query += ' ORDER BY pc.created_at DESC';
     
-    const closures = db.prepare(query).all(...params) as (PeriodClosure & { client_name: string; is_initial_inventory: 0 | 1; })[];
+    const closures = db.prepare(query).all(...params) as any[];
     
     const result = closures.map(c => ({
         ...c,
