@@ -2,11 +2,11 @@
 'use client';
 
 import React from 'react';
-import { useConsignmentsReport } from '@/modules/analytics/hooks/useConsignmentsReport';
+import { useConsignmentsReport, type ConsignmentsReportSortKey } from '@/modules/analytics/hooks/useConsignmentsReport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet, AlertTriangle } from 'lucide-react';
+import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet, AlertTriangle, ArrowUp, ArrowDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -15,12 +15,18 @@ import { es } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
 
 export default function ConsignmentsReportPage() {
     const { state, actions, selectors, isAuthorized } = useConsignmentsReport();
-    const { isLoading, hasRun, dateRange, agreements, selectedAgreementId, reportData, processedBoletas } = state;
+    const { isLoading, hasRun, dateRange, agreements, selectedAgreementId, reportData, processedBoletas, sortKey, sortDirection, visibleColumns } = state;
 
     if (!isAuthorized) return null;
+
+    const renderSortIcon = (key: ConsignmentsReportSortKey) => {
+        if (sortKey !== key) return null;
+        return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
+    };
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
@@ -72,6 +78,12 @@ export default function ConsignmentsReportPage() {
                     <div className="flex justify-between items-center">
                         <CardTitle>Resultados del Cierre</CardTitle>
                          <div className="flex items-center gap-2">
+                            <DialogColumnSelector
+                                allColumns={selectors.availableColumns}
+                                visibleColumns={visibleColumns}
+                                onColumnChange={actions.handleColumnVisibilityChange}
+                                onSave={actions.savePreferences}
+                            />
                             <Button variant="outline" onClick={actions.handleExportPDF} disabled={isLoading || reportData.length === 0}><FileDown className="mr-2"/>Exportar PDF</Button>
                             <Button variant="outline" onClick={actions.handleExportExcel} disabled={isLoading || reportData.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
                         </div>
@@ -96,45 +108,35 @@ export default function ConsignmentsReportPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Producto</TableHead>
-                                    <TableHead>Boleta(s)</TableHead>
-                                    <TableHead>Fecha(s)</TableHead>
-                                    <TableHead>Factura(s) ERP</TableHead>
-                                    <TableHead>Aprobado Por</TableHead>
-                                    <TableHead className="text-right">Inv. Inicial</TableHead>
-                                    <TableHead className="text-right">Total Repuesto</TableHead>
-                                    <TableHead className="text-right">Inv. Final</TableHead>
-                                    <TableHead className="text-right font-bold">Consumo</TableHead>
-                                    <TableHead className="text-right">Precio Unit.</TableHead>
-                                    <TableHead className="text-right font-bold">Valor Total</TableHead>
+                                    {selectors.visibleColumnsData.map(col => (
+                                        <TableHead 
+                                            key={col.id} 
+                                            className={cn(col.sortable && "cursor-pointer hover:bg-muted", col.align === 'right' && 'text-right')}
+                                            onClick={() => col.sortable && actions.handleSort(col.id as ConsignmentsReportSortKey)}
+                                        >
+                                            <div className={cn("flex items-center", col.align === 'right' && 'justify-end')}>
+                                                {col.label} {col.sortable && renderSortIcon(col.id as ConsignmentsReportSortKey)}
+                                            </div>
+                                        </TableHead>
+                                    ))}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
-                                     <TableRow><TableCell colSpan={11} className="h-32 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+                                     <TableRow><TableCell colSpan={selectors.availableColumns.length} className="h-32 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
                                 ) : !hasRun ? (
-                                    <TableRow><TableCell colSpan={11} className="h-32 text-center text-muted-foreground">Selecciona un cliente y un rango de fechas y haz clic en &quot;Generar Reporte&quot;.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={selectors.availableColumns.length} className="h-32 text-center text-muted-foreground">Selecciona un cliente y un rango de fechas y haz clic en &quot;Generar Reporte&quot;.</TableCell></TableRow>
                                 ) : reportData.length > 0 ? (
                                     reportData.map(row => (
                                         <TableRow key={row.productId}>
-                                            <TableCell>
-                                                <p className="font-medium">{row.productDescription}</p>
-                                                <p className="text-xs text-muted-foreground">{row.productId}</p>
-                                            </TableCell>
-                                            <TableCell>{row.boletaConsecutives}</TableCell>
-                                            <TableCell>{row.creationDates}</TableCell>
-                                            <TableCell>{row.erpInvoices}</TableCell>
-                                            <TableCell>{row.approvers}</TableCell>
-                                            <TableCell className="text-right">{row.initialStock.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right text-blue-600">{row.totalReplenished.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right">{row.finalStock.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right font-bold text-lg">{row.consumption.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right">{row.price.toLocaleString('es-CR', { style: 'currency', currency: 'CRC' })}</TableCell>
-                                            <TableCell className="text-right font-bold text-primary text-lg">{row.totalValue.toLocaleString('es-CR', { style: 'currency', currency: 'CRC' })}</TableCell>
+                                            {selectors.visibleColumnsData.map(col => {
+                                                const content = selectors.getColumnContent(row, col.id);
+                                                return <TableCell key={col.id} className={cn(col.align === 'right' && 'text-right', content.className)}>{content.content}</TableCell>
+                                            })}
                                         </TableRow>
                                     ))
                                 ) : (
-                                     <TableRow><TableCell colSpan={11} className="h-32 text-center text-muted-foreground">No se encontraron datos de consumo para el período seleccionado.</TableCell></TableRow>
+                                     <TableRow><TableCell colSpan={selectors.availableColumns.length} className="h-32 text-center text-muted-foreground">No se encontraron datos de consumo para el período seleccionado.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>
