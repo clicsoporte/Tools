@@ -15,6 +15,7 @@ import {
     getAgreementDetails, 
     getRecentPhysicalCounts, 
     createClosureFromCount,
+    getConsignmentAgreements, // Import missing function
     annulPeriodClosure,
 } from '../lib/actions';
 import type { PeriodClosure, PhysicalCount, ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
@@ -93,11 +94,14 @@ export const useConsignmentsClosures = () => {
     const loadData = useCallback(async (isRefresh = false) => {
         if (isRefresh) updateState({ isRefreshing: true });
         try {
-            const closuresData = await getPeriodClosures({});
-            updateState({ closures: closuresData });
+            const [closuresData, agreementsData] = await Promise.all([
+                getPeriodClosures({}),
+                getConsignmentAgreements(),
+            ]);
+            updateState({ closures: closuresData, agreements: agreementsData.filter(a => a.is_active) });
         } catch (error: any) {
             logError('Failed to load period closures', { error: error.message });
-            toast({ title: "Error", description: "No se pudieron cargar los cierres.", variant: "destructive" });
+            toast({ title: "Error", description: "No se pudieron cargar los cierres o acuerdos.", variant: "destructive" });
         } finally {
             if (isRefresh) updateState({ isRefreshing: false });
             if (state.isInitialLoading) updateState({ isInitialLoading: false });
@@ -308,7 +312,9 @@ export const useConsignmentsClosures = () => {
             }
         },
         agreementOptions: useMemo(() => {
-            if (debouncedNewClosureClientSearch.length < 2) return [];
+            if (!debouncedNewClosureClientSearch) {
+                return state.agreements.map(a => ({ value: String(a.id), label: a.client_name }));
+            }
             return state.agreements
                 .filter(a => a.client_name.toLowerCase().includes(debouncedNewClosureClientSearch.toLowerCase()))
                 .map(a => ({ value: String(a.id), label: a.client_name }));
