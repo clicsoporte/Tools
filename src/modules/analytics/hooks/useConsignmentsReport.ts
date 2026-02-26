@@ -23,21 +23,21 @@ import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 export interface ConsignmentReportRow {
     productId: string;
     productDescription: string;
+    clientProductCode?: string;
     initialStock: number;
     totalReplenished: number;
-    adjustments: number;
+    totalAdjustments: number;
     finalStock: number;
     consumption: number;
     price: number;
     totalValue: number;
-    boletaConsecutives: string;
-    creationDates: string;
-    deliveryDates: string;
-    erpInvoices: string;
-    erpMovementIds: string;
-    approvers: string;
-    clientProductCode?: string;
+    // For UI Details
+    boletaDetails: { consecutive: string; date: string; quantity: number; user: string }[];
+    adjustmentDetails: { date: string; reason: string; quantity: number; notes: string | null; user: string }[];
+    initialStockDoc?: { consecutive: string; date: string };
+    finalStockDoc?: { consecutive: string; date: string };
 }
+
 
 export type ConsignmentsReportSortKey = 'productId' | 'productDescription' | 'consumption' | 'totalValue';
 export type SortDirection = 'asc' | 'desc';
@@ -57,6 +57,8 @@ interface State {
     sortKey: ConsignmentsReportSortKey;
     sortDirection: SortDirection;
     visibleColumns: string[];
+    detailsForProduct: ConsignmentReportRow | null; // For the details modal
+    isDetailsOpen: boolean;
 }
 
 export function useConsignmentsReport() {
@@ -79,7 +81,9 @@ export function useConsignmentsReport() {
         closureFilter: null,
         sortKey: 'consumption',
         sortDirection: 'desc',
-        visibleColumns: ['productId', 'productDescription', 'boletaConsecutives', 'consumption', 'price', 'totalValue'],
+        visibleColumns: ['productId', 'productDescription', 'consumption', 'price', 'totalValue'],
+        detailsForProduct: null,
+        isDetailsOpen: false,
     });
 
     const updateState = useCallback((newState: Partial<State>) => {
@@ -94,7 +98,7 @@ export function useConsignmentsReport() {
     }, [updateState]);
 
     useEffect(() => {
-        setTitle("Reporte de Cierre de Consignaciones");
+        setTitle("Reporte Analítico de Consignaciones");
         const fetchInitialData = async () => {
             if (isAuthorized) {
                 try {
@@ -181,41 +185,39 @@ export function useConsignmentsReport() {
         if (!state.reportData.length) return;
         const agreement = state.agreements.find(a => String(a.id) === state.selectedAgreementId);
 
-        const headers = ["Código", "Producto", "Alias Cliente", "Boleta(s)", "Fecha(s) Creación", "Fecha(s) Entrega", "Movimiento(s) Interno(s)", "Factura(s) ERP", "Aprobado Por", "Inv. Inicial", "Total Repuesto", "Total Ajustado", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total"];
-        
-        const dataToExport = sortedReportData.map(row => [
-            row.productId,
-            row.productDescription,
-            row.clientProductCode,
-            row.boletaConsecutives,
-            row.creationDates,
-            row.deliveryDates,
-            row.erpMovementIds,
-            row.erpInvoices,
-            row.approvers,
-            row.initialStock,
-            row.totalReplenished,
-            row.adjustments,
-            row.finalStock,
-            row.consumption,
-            row.price,
-            row.totalValue,
-        ]);
-        
-        const title = "Reporte de Cierre de Consignación";
-        const meta = [
-            { label: "Cliente:", value: agreement?.client_name || 'N/A' },
-            { label: "Período:", value: `${state.dateRange.from ? format(state.dateRange.from, 'dd/MM/yyyy', { locale: es }) : ''} al ${state.dateRange.to ? format(state.dateRange.to, 'dd/MM/yyyy', { locale: es }) : ''}` }
-        ];
+        const flatData = state.reportData.flatMap(productRow => 
+            productRow.transactions.map(tx => ({
+                'Producto ID': productRow.productId,
+                'Producto Descripción': productRow.productDescription,
+                'Alias Cliente': productRow.clientProductCode,
+                'Fecha': format(parseISO(tx.date), 'dd/MM/yyyy HH:mm'),
+                'Tipo': tx.type,
+                'Documento/Motivo': tx.document,
+                'Cantidad': tx.quantity,
+                'Usuario': tx.user,
+                'Notas': tx.notes || '',
+            }))
+        );
+
+        if (flatData.length === 0) {
+            toast({ title: "Sin transacciones", description: "No hay entregas o ajustes que exportar en el período seleccionado.", variant: "default" });
+            return;
+        }
+
+        const headers = Object.keys(flatData[0]);
+        const dataToExport = flatData.map(row => Object.values(row));
 
         exportToExcel({
-            fileName: `cierre_consignacion_${agreement?.client_name.replace(/\s+/g, '_') || ''}`,
-            sheetName: 'Cierre',
-            title,
-            meta,
-            headers,
-            data: dataToExport,
-            columnWidths: [20, 40, 20, 20, 20, 20, 20, 20, 20, 15, 15, 15, 15, 15, 15, 15],
+            fileName: `reporte_analitico_consignacion_${agreement?.client_name.replace(/\s+/g, '_') || ''}`,
+            sheetName: 'Transacciones',
+            title: `Reporte Analítico de Consignación: Transacciones`,
+            meta: [
+                { label: "Cliente:", value: agreement?.client_name || 'N/A' },
+                { label: "Período:", value: `${state.dateRange.from ? format(state.dateRange.from, 'dd/MM/yyyy', { locale: es }) : ''} al ${state.dateRange.to ? format(state.dateRange.to, 'dd/MM/yyyy', { locale: es }) : ''}` }
+            ],
+            data: [headers, ...dataToExport],
+            headers: [],
+            columnWidths: [20, 40, 20, 20, 25, 25, 15, 20, 30],
         });
     };
 
@@ -226,7 +228,7 @@ export function useConsignmentsReport() {
         const totalToBill = selectors.totalConsumptionValue;
 
         const doc = generateDocument({
-            docTitle: "Reporte de Cierre de Consignación",
+            docTitle: "Reporte Analítico de Consignación",
             docId: '',
             companyData: companyData as Company,
             logoDataUrl: companyData.logoUrl,
@@ -271,12 +273,10 @@ export function useConsignmentsReport() {
     const availableColumns = [
         { id: 'productId', label: 'Código Artículo', sortable: true },
         { id: 'productDescription', label: 'Producto', sortable: true },
-        { id: 'boletaConsecutives', label: 'Boleta(s)' },
-        { id: 'creationDates', label: 'Fecha(s)' },
-        { id: 'erpInvoices', label: 'Factura(s) ERP' },
-        { id: 'approvers', label: 'Aprobado Por' },
+        { id: 'clientProductCode', label: 'Alias Cliente' },
         { id: 'initialStock', label: 'Inv. Inicial', align: 'right' },
         { id: 'totalReplenished', label: 'Total Repuesto', align: 'right' },
+        { id: 'totalAdjustments', label: 'Total Ajustado', align: 'right' },
         { id: 'finalStock', label: 'Inv. Final', align: 'right' },
         { id: 'consumption', label: 'Consumo', sortable: true, align: 'right' },
         { id: 'price', label: 'Precio Unit.', align: 'right' },
@@ -305,12 +305,10 @@ export function useConsignmentsReport() {
             switch(colId) {
                 case 'productId': return { content: row.productId, className: 'font-mono' };
                 case 'productDescription': return { content: row.productDescription };
-                case 'boletaConsecutives': return { content: row.boletaConsecutives };
-                case 'creationDates': return { content: row.creationDates };
-                case 'erpInvoices': return { content: row.erpInvoices };
-                case 'approvers': return { content: row.approvers };
+                case 'clientProductCode': return { content: row.clientProductCode || '-', className: 'text-muted-foreground' };
                 case 'initialStock': return { content: row.initialStock.toLocaleString() };
                 case 'totalReplenished': return { content: row.totalReplenished.toLocaleString(), className: 'text-blue-600' };
+                case 'totalAdjustments': return { content: row.totalAdjustments.toLocaleString(), className: row.totalAdjustments !== 0 ? 'text-orange-600' : '' };
                 case 'finalStock': return { content: row.finalStock.toLocaleString() };
                 case 'consumption': return { content: row.consumption.toLocaleString(), className: 'font-bold text-lg' };
                 case 'price': return { content: `¢${row.price.toLocaleString('es-CR')}` };
@@ -342,8 +340,12 @@ export function useConsignmentsReport() {
             handleSort,
             handleColumnVisibilityChange,
             savePreferences,
+            openDetailsModal: (row: ConsignmentReportRow) => updateState({ detailsForProduct: row, isDetailsOpen: true }),
+            setIsDetailsOpen: (open: boolean) => updateState({ isDetailsOpen: open }),
         },
         selectors,
         isAuthorized,
     };
 }
+```
+
