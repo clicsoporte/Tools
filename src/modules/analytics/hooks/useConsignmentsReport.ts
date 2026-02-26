@@ -43,6 +43,16 @@ interface State {
     isDetailsOpen: boolean;
 }
 
+const availableColumns = [
+    { id: 'productId', label: 'Código Artículo', sortable: true },
+    { id: 'productDescription', label: 'Producto', sortable: true },
+    { id: 'clientProductCode', label: 'Alias Cliente' },
+    { id: 'consumption', label: 'Consumo', sortable: true, align: 'right' },
+    { id: 'price', label: 'Precio Unit.', align: 'right' },
+    { id: 'totalValue', label: 'Valor Total', sortable: true, align: 'right' },
+    { id: 'details', label: 'Desglose' },
+];
+
 export function useConsignmentsReport() {
     const { isAuthorized } = useAuthorization(['analytics:consignments-report:read']);
     const { setTitle } = usePageTitle();
@@ -65,7 +75,7 @@ export function useConsignmentsReport() {
         closureFilter: null,
         sortKey: 'consumption',
         sortDirection: 'desc',
-        visibleColumns: ['productId', 'productDescription', 'clientProductCode', 'consumption', 'price', 'totalValue', 'details'],
+        visibleColumns: availableColumns.map(c => c.id),
         detailsForProduct: null,
         isDetailsOpen: false,
     });
@@ -189,7 +199,7 @@ export function useConsignmentsReport() {
         }
 
         const headers = Object.keys(flatData[0]);
-        const dataToExport = flatData.map(row => Object.values(row));
+        const dataToExport = flatData.map(row => Object.values(row) as (string | number | null | undefined)[]);
 
         exportToExcel({
             fileName: `reporte_analitico_consignacion_${agreement?.client_name.replace(/\s+/g, '_') || ''}`,
@@ -254,16 +264,6 @@ export function useConsignmentsReport() {
         });
     }, [state.reportData, state.sortKey, state.sortDirection]);
     
-    const availableColumns = [
-        { id: 'productId', label: 'Código Artículo', sortable: true },
-        { id: 'productDescription', label: 'Producto', sortable: true },
-        { id: 'clientProductCode', label: 'Alias Cliente' },
-        { id: 'consumption', label: 'Consumo', sortable: true, align: 'right' },
-        { id: 'price', label: 'Precio Unit.', align: 'right' },
-        { id: 'totalValue', label: 'Valor Total', sortable: true, align: 'right' },
-        { id: 'details', label: 'Desglose' },
-    ];
-    
     const actions = {
         setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined }, closureFilter: null }),
         setSelectedAgreementId: (id: string) => updateState({ 
@@ -305,7 +305,7 @@ export function useConsignmentsReport() {
         availableColumns,
         visibleColumnsData: useMemo(() => 
             state.visibleColumns.map(id => availableColumns.find(c => c.id === id)).filter(Boolean) as (typeof availableColumns)[0][]
-        , [state.visibleColumns]),
+        , [state.visibleColumns, availableColumns]),
         getColumnContent: (row: ConsignmentReportRow, colId: string): { content: React.ReactNode, className?: string } => {
             switch(colId) {
                 case 'productId': return { content: row.productId, className: 'font-mono' };

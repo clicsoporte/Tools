@@ -16,7 +16,7 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '50mb',
-      // Esto permite que las Server Actions funcionen detrás del proxy de IDX
+      // Esto es específico para Server Actions
       allowedOrigins: [
           'localhost:3000', 
           '*.cloudworkstations.dev', 

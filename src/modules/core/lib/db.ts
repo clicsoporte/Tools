@@ -1174,6 +1174,8 @@ export async function importAllData(): Promise<{ results: { type: string; count:
     db.prepare('UPDATE company_settings SET lastSyncTimestamp = ? WHERE id = 1')
       .run(new Date().toISOString());
     
+    revalidatePath('/', 'layout'); // Revalidate all data
+    
     return { results, totalTasks: importTasks.length };
 }
 

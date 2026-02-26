@@ -14,9 +14,6 @@ const nextConfig = {
     ],
   },
   experimental: {
-    // Esto permite solicitudes de origen cruzado al servidor de desarrollo de Next.js,
-    // necesario para entornos como Firebase Studio.
-    allowedDevOrigins: ['*.cloudworkstations.dev', '*.googleusercontent.com', '*.idx.dev'],
     serverActions: {
       bodySizeLimit: '50mb',
       // Esto es específico para Server Actions
