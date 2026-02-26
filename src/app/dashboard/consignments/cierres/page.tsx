@@ -8,12 +8,14 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, FileSignature, Loader2, RefreshCw, Info } from 'lucide-react';
+import { PlusCircle, FileSignature, Loader2, RefreshCw, Info, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { PeriodClosure } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -48,9 +50,11 @@ export default function ClosuresPage() {
                                 {state.isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                                 Refrescar
                             </Button>
-                            <Button onClick={actions.handleInitiateClosure}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Nuevo Cierre
-                            </Button>
+                            {selectors.hasPermission('consignments:closures:create') && (
+                                <Button onClick={actions.handleInitiateClosure}>
+                                    <PlusCircle className="mr-2 h-4 w-4" /> Nuevo Cierre
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </CardHeader>
@@ -62,29 +66,36 @@ export default function ClosuresPage() {
                                 <TableHead>Cliente</TableHead>
                                 <TableHead>Fecha Creación</TableHead>
                                 <TableHead>Estado</TableHead>
-                                <TableHead>Tipo</TableHead>
+                                <TableHead>Tipo / Vínculo</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {state.closures.map((closure: PeriodClosure & { client_name: string; is_initial_inventory: boolean; }) => (
+                            {state.closures.map((closure: PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; }) => (
                                 <TableRow key={closure.id}>
                                     <TableCell className="font-mono font-bold text-primary">{closure.consecutive}</TableCell>
                                     <TableCell>{closure.client_name}</TableCell>
                                     <TableCell>{format(parseISO(closure.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</TableCell>
                                     <TableCell>
-                                        <Badge variant={closure.status === 'approved' ? 'default' : (closure.status === 'rejected' ? 'destructive' : 'secondary')}>
+                                        <Badge variant={closure.status === 'approved' ? 'default' : (closure.status === 'rejected' || closure.status === 'annulled' ? 'destructive' : 'secondary')}>
                                             {selectors.getStatusLabel(closure.status)}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        {closure.is_initial_inventory && (
+                                        {closure.is_initial_inventory ? (
                                             <Badge variant="outline" className="border-green-600 text-green-700">
                                                 Inventario Inicial
                                             </Badge>
+                                        ) : closure.previous_closure_consecutive ? (
+                                            <div className="text-xs text-muted-foreground">
+                                                <span>Inicia desde:</span><br/>
+                                                <span className="font-mono">{closure.previous_closure_consecutive}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground italic">No vinculado</span>
                                         )}
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right space-x-1">
                                         <Button 
                                             variant="outline" 
                                             size="sm"
@@ -92,6 +103,41 @@ export default function ClosuresPage() {
                                         >
                                             {closure.status === 'pending' ? 'Revisar y Aprobar' : 'Ver Detalles'}
                                         </Button>
+                                         {closure.status === 'approved' && selectors.hasPermission('consignments:closures:annul') && (
+                                            <AlertDialog open={state.closureToAnnul?.id === closure.id} onOpenChange={(open) => !open && actions.setClosureToAnnul(null)}>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="destructive" size="sm" onClick={() => actions.setClosureToAnnul(closure)}>Anular</Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>¿Anular Cierre Aprobado?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Estás a punto de anular el cierre <strong>{closure.consecutive}</strong>. Esta acción es irreversible y solo debe realizarse para corregir un error grave (ej. un conteo inicial incorrecto).
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                     <div className="py-4 space-y-4">
+                                                        <div className="flex items-center space-x-2">
+                                                            <Input
+                                                                id="annul-confirmation-text"
+                                                                value={state.annulConfirmationText}
+                                                                onChange={(e) => actions.setAnnulConfirmationText(e.target.value.toUpperCase())}
+                                                                placeholder='Escribe "ANULAR" para confirmar'
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                            onClick={actions.handleAnnul}
+                                                            disabled={state.isSubmitting || state.annulConfirmationText !== 'ANULAR'}
+                                                        >
+                                                            {state.isSubmitting ? <Loader2 className="mr-2 animate-spin"/> : <Trash2 className="mr-2 h-4 w-4"/>}
+                                                            Sí, Anular
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))}

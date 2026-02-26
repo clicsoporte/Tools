@@ -637,16 +637,18 @@ export async function getPhysicalCountByRef(agreementId: number, countedAt: stri
     return JSON.parse(JSON.stringify(counts));
 }
 
-export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; })[]> {
+export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const closures = db.prepare(`
         SELECT 
             pc.*, 
-            ca.client_name
+            ca.client_name,
+            prev_pc.consecutive as previous_closure_consecutive
         FROM period_closures pc
         JOIN consignment_agreements ca ON pc.agreement_id = ca.id
+        LEFT JOIN period_closures prev_pc ON pc.previous_closure_id = prev_pc.id
         ORDER BY pc.created_at DESC
-    `).all() as (PeriodClosure & { client_name: string; is_initial_inventory: 0 | 1 })[];
+    `).all() as (PeriodClosure & { client_name: string; is_initial_inventory: 0 | 1; previous_closure_consecutive?: string; })[];
     
     const result = closures.map(c => ({
         ...c,

@@ -27,7 +27,7 @@ interface State {
     isInitialLoading: boolean;
     isRefreshing: boolean;
     isSubmitting: boolean;
-    closures: (PeriodClosure & { client_name: string; is_initial_inventory: boolean; })[];
+    closures: (PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[];
     isDetailsModalOpen: boolean;
     isDetailsLoading: boolean;
     selectedClosure: (PeriodClosure & { is_initial_inventory: boolean }) | null;
@@ -210,7 +210,7 @@ export const useConsignmentsClosures = () => {
     };
 
 
-    const handleViewClosure = async (closure: PeriodClosure & { client_name: string, is_initial_inventory: boolean }) => {
+    const handleViewClosure = async (closure: PeriodClosure & { is_initial_inventory: boolean }) => {
         if (closure.status === 'approved') {
             router.push(`/dashboard/analytics/billing-report?closureId=${closure.id}`);
             return;
@@ -225,8 +225,13 @@ export const useConsignmentsClosures = () => {
             }
 
             if (closure.status === 'pending') {
+                const usedClosureIds = new Set(state.closures.map(c => c.previous_closure_id).filter(Boolean));
                 const previousClosures = state.closures
-                    .filter(c => c.agreement_id === closure.agreement_id && c.status === 'approved')
+                    .filter(c => 
+                        c.agreement_id === closure.agreement_id && 
+                        c.status === 'approved' &&
+                        !usedClosureIds.has(c.id) // Exclude used closures
+                    )
                     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                 
                 updateState({ 
