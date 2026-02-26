@@ -180,7 +180,7 @@ export function useConsignmentsReport() {
         const agreement = state.agreements.find(a => String(a.id) === state.selectedAgreementId);
 
         const flatData = state.reportData.flatMap(productRow =>
-            productRow.transactions.map((tx: any) => ({
+            productRow.transactions.map((tx) => ({
                 'Producto ID': productRow.productId,
                 'Producto Descripción': productRow.productDescription,
                 'Alias Cliente': productRow.clientProductCode,
@@ -199,7 +199,7 @@ export function useConsignmentsReport() {
         }
 
         const headers = Object.keys(flatData[0]);
-        const dataToExport = flatData.map(row => Object.values(row) as (string | number | null | undefined)[]);
+        const dataToExport = flatData.map(row => Object.values(row));
 
         exportToExcel({
             fileName: `reporte_analitico_consignacion_${agreement?.client_name.replace(/\s+/g, '_') || ''}`,
@@ -305,7 +305,7 @@ export function useConsignmentsReport() {
         availableColumns,
         visibleColumnsData: useMemo(() => 
             state.visibleColumns.map(id => availableColumns.find(c => c.id === id)).filter(Boolean) as (typeof availableColumns)[0][]
-        , [state.visibleColumns, availableColumns]),
+        , [state.visibleColumns]),
         getColumnContent: (row: ConsignmentReportRow, colId: string): { content: React.ReactNode, className?: string } => {
             switch(colId) {
                 case 'productId': return { content: row.productId, className: 'font-mono' };
