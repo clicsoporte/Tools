@@ -3,11 +3,16 @@
  */
 "use server";
 
-import { connectDb, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
+import { connectDb, getCompanySettings, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
+import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
+import { sendEmail } from '@/modules/core/lib/email-service';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
 
@@ -101,6 +106,7 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             consecutive TEXT UNIQUE NOT NULL,
             agreement_id INTEGER NOT NULL,
             status TEXT NOT NULL, -- pending, approved, rejected, invoiced, annulled
+            is_initial_inventory BOOLEAN NOT NULL DEFAULT 0,
             closure_boleta_id INTEGER,
             physical_count_ref TEXT,
             previous_closure_id INTEGER,
@@ -160,7 +166,7 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
 
         const periodClosuresTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='period_closures'`).get();
         if (!periodClosuresTable) {
-            db.exec(`CREATE TABLE period_closures (id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL, agreement_id INTEGER NOT NULL, status TEXT NOT NULL, closure_boleta_id INTEGER, physical_count_ref TEXT, previous_closure_id INTEGER, created_at TEXT NOT NULL, created_by TEXT NOT NULL, approved_at TEXT, approved_by TEXT, notes TEXT, FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id), FOREIGN KEY (closure_boleta_id) REFERENCES restock_boletas(id), FOREIGN KEY (previous_closure_id) REFERENCES period_closures(id))`);
+            db.exec(`CREATE TABLE period_closures (id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL, agreement_id INTEGER NOT NULL, status TEXT NOT NULL, is_initial_inventory BOOLEAN NOT NULL DEFAULT 0, closure_boleta_id INTEGER, physical_count_ref TEXT, previous_closure_id INTEGER, created_at TEXT NOT NULL, created_by TEXT NOT NULL, approved_at TEXT, approved_by TEXT, notes TEXT, FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id), FOREIGN KEY (closure_boleta_id) REFERENCES restock_boletas(id), FOREIGN KEY (previous_closure_id) REFERENCES period_closures(id))`);
         } else {
              const closureTableInfo = db.prepare(`PRAGMA table_info(period_closures)`).all() as { name: string }[];
              if (!closureTableInfo.some(c => c.name === 'closure_boleta_id')) {
@@ -168,6 +174,9 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
              }
              if (!closureTableInfo.some(c => c.name === 'physical_count_ref')) {
                  db.exec(`ALTER TABLE period_closures ADD COLUMN physical_count_ref TEXT`);
+             }
+             if (!closureTableInfo.some(c => c.name === 'is_initial_inventory')) {
+                db.exec(`ALTER TABLE period_closures ADD COLUMN is_initial_inventory BOOLEAN NOT NULL DEFAULT 0`);
              }
         }
         
@@ -585,6 +594,13 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
             throw new Error(`Ya existe un cierre pendiente para este cliente.`);
         }
 
+        const agreement = db.prepare('SELECT has_initial_inventory FROM consignment_agreements WHERE id = ?').get(agreementId) as { has_initial_inventory: 0 | 1 };
+        if (!agreement) {
+            throw new Error("Acuerdo no encontrado.");
+        }
+
+        const isInitial = agreement.has_initial_inventory === 0;
+
         const settings = getSettingsTx(db);
         const nextClosureNumber = settings.next_closure_number || 1;
         const closureConsecutive = `CIERRE-${String(nextClosureNumber).padStart(6, '0')}`;
@@ -597,8 +613,8 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
             stmt.run(agreementId, line.productId, line.quantity, countRef, userName);
         }
 
-        const closureInfo = db.prepare('INSERT INTO period_closures (consecutive, agreement_id, status, physical_count_ref, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)')
-            .run(closureConsecutive, agreementId, 'pending', countRef, new Date().toISOString(), userName);
+        const closureInfo = db.prepare('INSERT INTO period_closures (consecutive, agreement_id, status, is_initial_inventory, physical_count_ref, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
+            .run(closureConsecutive, agreementId, 'pending', isInitial ? 1 : 0, countRef, new Date().toISOString(), userName);
         
         db.prepare(`INSERT OR REPLACE INTO consignments_settings (key, value) VALUES ('next_closure_number', ?)`).run(nextClosureNumber + 1);
 
@@ -626,8 +642,7 @@ export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & {
     const closures = db.prepare(`
         SELECT 
             pc.*, 
-            ca.client_name,
-            CASE WHEN pc.previous_closure_id IS NULL THEN 1 ELSE 0 END as is_initial_inventory
+            ca.client_name
         FROM period_closures pc
         JOIN consignment_agreements ca ON pc.agreement_id = ca.id
         ORDER BY pc.created_at DESC
