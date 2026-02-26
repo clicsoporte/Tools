@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -329,7 +330,7 @@ export async function getAgreementDetails(agreementId: number): Promise<{ agreem
     return JSON.parse(JSON.stringify({ agreement, products }));
 }
 
-export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date }, type?: BoletaType }) {
+export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date }, type?: BoletaType, agreementId?: number }) {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     let query = `
         SELECT 
@@ -349,6 +350,11 @@ export async function getBoletas(filters: { status: string[], dateRange?: { from
     if (filters.type) {
         whereClauses.push(`rb.type = ?`);
         params.push(filters.type);
+    }
+
+    if (filters.agreementId) {
+        whereClauses.push(`rb.agreement_id = ?`);
+        params.push(filters.agreementId);
     }
 
     if (whereClauses.length > 0) {
@@ -388,9 +394,9 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
             }
         }
         
-        let approved_by = currentBoleta.approved_by;
+        let approvedBy = currentBoleta.approved_by;
         if (status === 'approved' && !currentBoleta.approved_by) {
-            approved_by = updatedBy;
+            approvedBy = updatedBy;
         }
 
         let submittedBy = currentBoleta.submitted_by;
@@ -482,14 +488,16 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return transaction();
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
+export async function getBoletasByDateRange(agreementId: string, dateRange?: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
-    let query = `
-        SELECT * FROM restock_boletas 
-        WHERE agreement_id = ? AND created_at BETWEEN ? AND ?
-    `;
-    const params: any[] = [agreementId, dateRange.from.toISOString(), dateRange.to.toISOString()];
+    let query = 'SELECT * FROM restock_boletas WHERE agreement_id = ?';
+    const params: any[] = [agreementId];
+
+    if (dateRange?.from && dateRange.to) {
+        query += ' AND created_at BETWEEN ? AND ?';
+        params.push(dateRange.from.toISOString(), dateRange.to.toISOString());
+    }
 
     if (statuses && statuses.length > 0) {
         query += ` AND status IN (${statuses.map(() => '?').join(',')})`;
@@ -637,9 +645,9 @@ export async function getPhysicalCountByRef(agreementId: number, countedAt: stri
     return JSON.parse(JSON.stringify(counts));
 }
 
-export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[]> {
+export async function getPeriodClosures(filters: { agreementId?: number } = {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const closures = db.prepare(`
+    let query = `
         SELECT 
             pc.*, 
             ca.client_name,
@@ -647,8 +655,16 @@ export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & {
         FROM period_closures pc
         JOIN consignment_agreements ca ON pc.agreement_id = ca.id
         LEFT JOIN period_closures prev_pc ON pc.previous_closure_id = prev_pc.id
-        ORDER BY pc.created_at DESC
-    `).all() as (PeriodClosure & { client_name: string; is_initial_inventory: 0 | 1; previous_closure_consecutive?: string; })[];
+    `;
+    const params: any[] = [];
+    if (filters.agreementId) {
+        query += ' WHERE pc.agreement_id = ?';
+        params.push(filters.agreementId);
+    }
+    
+    query += ' ORDER BY pc.created_at DESC';
+    
+    const closures = db.prepare(query).all(...params) as (PeriodClosure & { client_name: string; is_initial_inventory: 0 | 1; previous_closure_consecutive?: string; })[];
     
     const result = closures.map(c => ({
         ...c,
@@ -657,7 +673,6 @@ export async function getPeriodClosures(filters: {}): Promise<(PeriodClosure & {
     
     return JSON.parse(JSON.stringify(result));
 }
-
 
 export async function getPeriodClosureDetails(closureId: number): Promise<PeriodClosure | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
@@ -701,7 +716,7 @@ export async function approvePeriodClosure(closureId: number, previousClosureId:
           .run('approved', previousClosureId, new Date().toISOString(), updatedBy, boletaId, closureId);
 
         // **CRITICAL LOGIC**: If this is the first closure, update the agreement flag.
-        if (previousClosureId === null) {
+        if (previousClosureId === null || closure.is_initial_inventory) {
             db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 1 WHERE id = ?').run(closure.agreement_id);
         }
 
@@ -737,7 +752,7 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
         db.prepare(`UPDATE period_closures SET status = 'annulled', notes = 'Anulado por ${updatedBy} el ${new Date().toISOString()}' WHERE id = ?`).run(closureId);
 
         // If this was an initial inventory closure, we must reset the flag on the agreement
-        if (!closureToAnnul.previous_closure_id) {
+        if (closureToAnnul.is_initial_inventory) {
             db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 0 WHERE id = ?').run(closureToAnnul.agreement_id);
             logWarn(`Initial inventory flag reset for agreement ${closureToAnnul.agreement_id} due to closure annulment.`);
         }

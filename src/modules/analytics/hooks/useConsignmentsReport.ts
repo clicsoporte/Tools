@@ -11,7 +11,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getConsignmentsReportData } from '@/modules/analytics/lib/actions';
 import { getConsignmentAgreements } from '@/modules/consignments/lib/actions';
-import type { DateRange, ConsignmentAgreement, Company, RestockBoleta, BoletaLine, BoletaHistory, UserPreferences } from '@/modules/core/types';
+import type { DateRange, ConsignmentAgreement, Company, RestockBoleta, BoletaLine, BoletaHistory, UserPreferences, PeriodClosure } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/lib/excel-export';
@@ -50,6 +50,10 @@ interface State {
     selectedAgreementId: string | null;
     reportData: ConsignmentReportRow[];
     processedBoletas: (RestockBoleta & { lines: BoletaLine[], history: BoletaHistory[] })[];
+    allBoletasForClient: RestockBoleta[];
+    allClosuresForClient: (PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[];
+    boletaFilter: string[];
+    closureFilter: string | null;
     sortKey: ConsignmentsReportSortKey;
     sortDirection: SortDirection;
     visibleColumns: string[];
@@ -69,6 +73,10 @@ export function useConsignmentsReport() {
         selectedAgreementId: null,
         reportData: [],
         processedBoletas: [],
+        allBoletasForClient: [],
+        allClosuresForClient: [],
+        boletaFilter: [],
+        closureFilter: null,
         sortKey: 'consumption',
         sortDirection: 'desc',
         visibleColumns: ['productId', 'productDescription', 'boletaConsecutives', 'consumption', 'price', 'totalValue'],
@@ -115,21 +123,32 @@ export function useConsignmentsReport() {
     }, [setTitle, isAuthorized, toast, updateState, user, state.visibleColumns]);
 
     const handleGenerateReport = useCallback(async () => {
-        if (!state.selectedAgreementId || !state.dateRange.from || !state.dateRange.to) {
-            toast({ title: "Datos incompletos", description: "Por favor, selecciona un cliente y un rango de fechas.", variant: 'destructive'});
+        if (!state.selectedAgreementId) {
+            toast({ title: "Datos incompletos", description: "Por favor, selecciona un cliente.", variant: 'destructive'});
+            return;
+        }
+        if (!state.closureFilter && (!state.dateRange.from || !state.dateRange.to)) {
+             toast({ title: "Datos incompletos", description: "Por favor, selecciona un rango de fechas o un cierre de período.", variant: 'destructive'});
             return;
         }
         updateState({ isLoading: true, hasRun: true });
         try {
-            const { reportRows, boletas } = await getConsignmentsReportData(state.selectedAgreementId, state.dateRange as { from: Date, to: Date });
-            updateState({ reportData: reportRows, processedBoletas: boletas });
+            const { reportRows, boletas, allBoletasForClient, allClosuresForClient } = await getConsignmentsReportData(
+                state.selectedAgreementId, 
+                state.dateRange as { from: Date, to: Date },
+                {
+                    boletaIds: state.boletaFilter,
+                    closureId: state.closureFilter || undefined,
+                }
+            );
+            updateState({ reportData: reportRows, processedBoletas: boletas, allBoletasForClient, allClosuresForClient });
         } catch (error: any) {
             logError("Failed to generate consignments report", { error: error.message });
             toast({ title: "Error al Generar", description: error.message, variant: 'destructive'});
         } finally {
             updateState({ isLoading: false });
         }
-    }, [state.selectedAgreementId, state.dateRange, toast, updateState]);
+    }, [state.selectedAgreementId, state.dateRange, state.boletaFilter, state.closureFilter, toast, updateState]);
     
     const handleSort = (key: ConsignmentsReportSortKey) => {
         let direction: SortDirection = 'asc';
@@ -162,7 +181,7 @@ export function useConsignmentsReport() {
         if (!state.reportData.length) return;
         const agreement = state.agreements.find(a => String(a.id) === state.selectedAgreementId);
 
-        const headers = ["Código", "Producto", "Alias Cliente", "Boleta(s)", "Fecha(s) Creación", "Fecha(s) Entrega", "Movimiento(s) Interno(s)", "Factura(s) ERP", "Aprobado Por", "Inv. Inicial", "Repuesto", "Ajustes", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total"];
+        const headers = ["Código", "Producto", "Alias Cliente", "Boleta(s)", "Fecha(s) Creación", "Fecha(s) Entrega", "Movimiento(s) Interno(s)", "Factura(s) ERP", "Aprobado Por", "Inv. Inicial", "Total Repuesto", "Total Ajustado", "Inv. Final", "Consumo", "Precio Unit.", "Valor Total"];
         
         const dataToExport = sortedReportData.map(row => [
             row.productId,
@@ -268,6 +287,12 @@ export function useConsignmentsReport() {
         agreementOptions: useMemo(() => 
             state.agreements.map(a => ({ value: String(a.id), label: a.client_name }))
         , [state.agreements]),
+        boletaOptions: useMemo(() => 
+            state.allBoletasForClient.map(b => ({ value: String(b.id), label: `${b.consecutive} - ${format(parseISO(b.created_at), 'dd/MM/yy')}`}))
+        , [state.allBoletasForClient]),
+        closureOptions: useMemo(() => 
+            state.allClosuresForClient.map(c => ({ value: String(c.id), label: `${c.consecutive} - ${format(parseISO(c.created_at), 'dd/MM/yy')}`}))
+        , [state.allClosuresForClient]),
         totalConsumptionValue: useMemo(() => 
             state.reportData.reduce((sum, row) => sum + row.totalValue, 0)
         , [state.reportData]),
@@ -298,8 +323,19 @@ export function useConsignmentsReport() {
     return {
         state: { ...state, reportData: sortedReportData },
         actions: {
-            setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined }}),
-            setSelectedAgreementId: (id: string) => updateState({ selectedAgreementId: id }),
+            setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined }, closureFilter: null }),
+            setSelectedAgreementId: (id: string) => updateState({ 
+                selectedAgreementId: id, 
+                reportData: [], 
+                hasRun: false,
+                allBoletasForClient: [],
+                allClosuresForClient: [],
+                boletaFilter: [],
+                closureFilter: null,
+            }),
+            setBoletaFilter: (ids: string[]) => updateState({ boletaFilter: ids }),
+            setClosureFilter: (id: string | null) => updateState({ closureFilter: id, dateRange: { from: undefined, to: undefined } }),
+            handleClearFilters: () => updateState({ boletaFilter: [], closureFilter: null, dateRange: { from: startOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), to: new Date() } }),
             handleGenerateReport,
             handleExportExcel,
             handleExportPDF,

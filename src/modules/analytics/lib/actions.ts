@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server Actions for the Analytics module.
  */
@@ -12,7 +13,7 @@ import type { ProductionReportDetail, ProductionReportData } from '../hooks/useP
 import { logError } from '@/modules/core/lib/logger';
 import { getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
 import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits, getWarehouseSettings as getWHSettings } from '@/modules/warehouse/lib/db';
-import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData as getConsignmentsBillingReportDataServer, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails, getAdjustmentsInPeriod } from '@/modules/consignments/lib/db';
+import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData as getConsignmentsBillingReportDataServer, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails, getAdjustmentsInPeriod, getBoletas, getPeriodClosures, getPeriodClosureDetails } from '@/modules/consignments/lib/db';
 import type { TransitReportItem } from '../hooks/useTransitsReport';
 import type { OccupancyReportRow } from '../hooks/useOccupancyReport';
 
@@ -304,30 +305,62 @@ export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyR
     }
 }
 
-export async function getConsignmentsReportData(agreementId: string, dateRange: { from: Date; to: Date }): Promise<{ reportRows: ConsignmentReportRow[], boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[] }> {
+export async function getConsignmentsReportData(
+    agreementId: string, 
+    dateRange: { from: Date; to: Date },
+    filters: { boletaIds?: string[], closureId?: string } = {}
+): Promise<{ 
+    reportRows: ConsignmentReportRow[], 
+    boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[],
+    allBoletasForClient: RestockBoleta[],
+    allClosuresForClient: (PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[]
+}> {
     try {
-        const agreementDetails = await getAgreementDetails(parseInt(agreementId, 10));
+        const agreementIdNum = parseInt(agreementId, 10);
+        const agreementDetails = await getAgreementDetails(agreementIdNum);
         if (!agreementDetails) {
             throw new Error("Acuerdo de consignación no encontrado.");
+        }
+        
+        const [allBoletasForClient, allClosuresForClient] = await Promise.all([
+            getBoletas({ agreementId: agreementIdNum, status: [], type: 'REPOSITION' }),
+            getPeriodClosures({ agreementId: agreementIdNum })
+        ]);
+
+        let reportDateRange = dateRange;
+        if (filters.closureId) {
+            const closureDetails = allClosuresForClient.find(c => c.id === Number(filters.closureId));
+            if (closureDetails) {
+                const previousClosure = closureDetails.previous_closure_id 
+                    ? await getPeriodClosureDetails(closureDetails.previous_closure_id) 
+                    : null;
+                
+                reportDateRange = {
+                    from: previousClosure ? parseISO(previousClosure.created_at) : new Date(0), // From beginning of time if no previous
+                    to: parseISO(closureDetails.created_at)
+                };
+            }
         }
 
         const { products: agreementProducts } = agreementDetails;
 
-        // 1. Get Initial Stock (from the last boleta BEFORE the date range)
-        const initialBoleta = await getLatestBoletaBeforeDate(parseInt(agreementId, 10), dateRange.from);
+        const initialBoleta = await getLatestBoletaBeforeDate(agreementIdNum, reportDateRange.from);
         const initialStockMap = new Map<string, number>();
         if (initialBoleta) {
             for (const line of initialBoleta.lines) {
-                // The "counted_quantity" represents the stock at that point in time.
                 initialStockMap.set(line.product_id, line.counted_quantity);
             }
         }
 
-        // 2. Get all relevant boletas within the date range for replenishments and final count
-        const boletasInPeriod = await getBoletasByDateRange(agreementId, dateRange, ['approved', 'sent', 'invoiced']);
-        const adjustmentsInPeriod = await getAdjustmentsInPeriod(parseInt(agreementId, 10), dateRange);
+        let boletasInPeriod = await getBoletasByDateRange(agreementId, reportDateRange, ['approved', 'sent', 'invoiced']);
         
-        // 3. Calculate total replenishments
+        if (filters.boletaIds && filters.boletaIds.length > 0) {
+            const boletaIdSet = new Set(filters.boletaIds.map(Number));
+            boletasInPeriod = boletasInPeriod.filter(b => boletaIdSet.has(b.id));
+        }
+        
+        const adjustmentsInPeriod = await getAdjustmentsInPeriod(agreementIdNum, reportDateRange);
+        
         const replenishedMap = new Map<string, number>();
         for (const boleta of boletasInPeriod) {
             for (const line of boleta.lines) {
@@ -336,14 +369,12 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
             }
         }
         
-        // 3.5 Calculate total adjustments
         const adjustmentsMap = new Map<string, number>();
         adjustmentsInPeriod.forEach((adj: ConsignmentAdjustment) => {
             const current = adjustmentsMap.get(adj.product_id) || 0;
             adjustmentsMap.set(adj.product_id, current + adj.quantity);
         });
         
-        // 4. Get Final Stock (from the LATEST boleta within the date range)
         const finalStockMap = new Map<string, number>();
         if (boletasInPeriod.length > 0) {
             const latestBoletaInPeriod = boletasInPeriod[boletasInPeriod.length - 1];
@@ -352,7 +383,6 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
             }
         }
 
-        // 5. Build the report for all products in the agreement
         const allProducts = await getAllProducts();
         const productMap = new Map(allProducts.map(p => [p.id, p.description]));
 
@@ -400,10 +430,9 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
             };
         });
 
-        // Filter out rows that have no activity at all
         const finalReportRows = reportRows.filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.consumption > 0 || row.adjustments !== 0);
         
-        return { reportRows: finalReportRows, boletas: boletasInPeriod };
+        return { reportRows: finalReportRows, boletas: boletasInPeriod, allBoletasForClient, allClosuresForClient };
 
     } catch (error: any) {
         logError('Failed to generate consignments report data', { error: error.message });

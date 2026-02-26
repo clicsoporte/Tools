@@ -6,7 +6,7 @@ import { useConsignmentsReport, type ConsignmentsReportSortKey } from '@/modules
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet, AlertTriangle, ArrowUp, ArrowDown } from 'lucide-react';
+import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet, AlertTriangle, ArrowUp, ArrowDown, FilterX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -16,10 +16,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
 
 export default function ConsignmentsReportPage() {
     const { state, actions, selectors, isAuthorized } = useConsignmentsReport();
-    const { isLoading, hasRun, dateRange, agreements, selectedAgreementId, reportData, processedBoletas, sortKey, sortDirection, visibleColumns } = state;
+    const { isLoading, hasRun, dateRange, agreements, selectedAgreementId, reportData, processedBoletas, sortKey, sortDirection, visibleColumns, boletaFilter, closureFilter } = state;
 
     if (!isAuthorized) return null;
 
@@ -52,7 +53,7 @@ export default function ConsignmentsReportPage() {
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-4 items-center">
                     <Select value={selectedAgreementId || ''} onValueChange={actions.setSelectedAgreementId}>
-                        <SelectTrigger className="w-full sm:w-[300px]"><SelectValue placeholder="Selecciona un cliente..." /></SelectTrigger>
+                        <SelectTrigger className="w-full sm:w-[250px]"><SelectValue placeholder="Selecciona un cliente..." /></SelectTrigger>
                         <SelectContent>
                             {agreements.map((agreement) => (
                                 <SelectItem key={agreement.id} value={String(agreement.id)}>
@@ -63,13 +64,33 @@ export default function ConsignmentsReportPage() {
                     </Select>
                      <Popover>
                         <PopoverTrigger asChild>
-                            <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto sm:min-w-[260px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                            <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto sm:min-w-[260px] justify-start text-left font-normal", (!dateRange?.from || closureFilter) && "text-muted-foreground")} disabled={!!closureFilter}>
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y", { locale: es })} - ${format(dateRange.to, "LLL dd, y", { locale: es })}`) : format(dateRange.from, "LLL dd, y", { locale: es })) : (<span>Seleccionar rango</span>)}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={actions.setDateRange} numberOfMonths={2} locale={es} /></PopoverContent>
                     </Popover>
+                     <Select value={closureFilter || ''} onValueChange={actions.setClosureFilter} disabled={!selectedAgreementId}>
+                        <SelectTrigger className="w-full sm:w-[250px]"><SelectValue placeholder="O filtrar por Cierre de Periodo..." /></SelectTrigger>
+                        <SelectContent>
+                             <SelectItem value="">-- Sin Filtro por Cierre --</SelectItem>
+                            {selectors.closureOptions.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                     <MultiSelectFilter
+                        title="Filtrar por Boleta(s)"
+                        options={selectors.boletaOptions}
+                        selectedValues={boletaFilter}
+                        onSelectedChange={actions.setBoletaFilter}
+                        disabled={!selectedAgreementId}
+                    />
+                     <Button variant="ghost" onClick={actions.handleClearFilters}>
+                        <FilterX className="mr-2 h-4 w-4" />
+                        Limpiar Filtros
+                    </Button>
                 </CardContent>
             </Card>
 
