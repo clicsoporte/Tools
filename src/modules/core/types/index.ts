@@ -852,7 +852,7 @@ export interface ConsignmentReportRow {
     productDescription: string;
     initialStock: number;
     totalReplenished: number;
-    adjustments: number; // Sum of non-billable losses (e.g. -5 for damaged goods becomes 5)
+    adjustments: number;
     finalStock: number;
     consumption: number;
     price: number;
@@ -864,6 +864,14 @@ export interface ConsignmentReportRow {
     erpMovementIds: string;
     approvers: string;
     clientProductCode?: string;
+    transactions: {
+        date: string;
+        type: string;
+        document: string;
+        quantity: number;
+        user: string;
+        notes?: string;
+    }[];
 }
 
 
@@ -1127,6 +1135,7 @@ export type PeriodClosure = {
     consecutive: string;
     agreement_id: number;
     status: PeriodClosureStatus;
+    is_initial_inventory: boolean;
     closure_boleta_id: number;
     physical_count_ref?: string;
     previous_closure_id?: number;

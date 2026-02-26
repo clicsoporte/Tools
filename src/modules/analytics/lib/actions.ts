@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server Actions for the Analytics module.
  */
@@ -409,6 +408,39 @@ export async function getConsignmentsReportData(
             const erpMovementIds = [...new Set(relevantBoletas.map((b: any) => b.erp_movement_id).filter(Boolean))].join(', ');
             const deliveryDates = [...new Set(relevantBoletas.map((b: any) => b.delivery_date ? format(parseISO(b.delivery_date), 'dd/MM/yy') : null).filter(Boolean))].join(', ');
             const approvers = [...new Set(relevantBoletas.map((b: any) => b.approved_by).filter(Boolean))].join(', ');
+            
+            // Collect detailed transactions
+            const transactions: ConsignmentReportRow['transactions'] = [];
+            
+            boletasInPeriod.forEach(boleta => {
+                boleta.lines.forEach(line => {
+                    if (line.product_id === product.product_id && line.replenish_quantity > 0) {
+                        transactions.push({
+                            date: boleta.created_at,
+                            type: 'Entrega',
+                            document: boleta.consecutive,
+                            quantity: line.replenish_quantity,
+                            user: boleta.approved_by || boleta.created_by,
+                            notes: boleta.notes
+                        });
+                    }
+                });
+            });
+
+            adjustmentsInPeriod.forEach(adj => {
+                if (adj.product_id === product.product_id) {
+                    transactions.push({
+                        date: adj.created_at,
+                        type: `Ajuste: ${adj.reason}`,
+                        document: `AJUSTE-${adj.id}`,
+                        quantity: adj.quantity,
+                        user: adj.created_by,
+                        notes: adj.notes
+                    });
+                }
+            });
+
+            transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
             return {
                 productId: product.product_id,
@@ -427,6 +459,7 @@ export async function getConsignmentsReportData(
                 deliveryDates,
                 erpMovementIds,
                 adjustments: totalAdjustments,
+                transactions,
             };
         });
 

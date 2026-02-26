@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -414,7 +413,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const updateParams: any = {
             status,
             id: boletaId,
-            approved_by,
+            approved_by: approvedBy,
             submittedBy,
             previousStatus,
         };
@@ -645,16 +644,14 @@ export async function getPhysicalCountByRef(agreementId: number, countedAt: stri
     return JSON.parse(JSON.stringify(counts));
 }
 
-export async function getPeriodClosures(filters: { agreementId?: number } = {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[]> {
+export async function getPeriodClosures(filters: { agreementId?: number } = {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     let query = `
         SELECT 
             pc.*, 
-            ca.client_name,
-            prev_pc.consecutive as previous_closure_consecutive
+            ca.client_name
         FROM period_closures pc
         JOIN consignment_agreements ca ON pc.agreement_id = ca.id
-        LEFT JOIN period_closures prev_pc ON pc.previous_closure_id = prev_pc.id
     `;
     const params: any[] = [];
     if (filters.agreementId) {
@@ -664,7 +661,7 @@ export async function getPeriodClosures(filters: { agreementId?: number } = {}):
     
     query += ' ORDER BY pc.created_at DESC';
     
-    const closures = db.prepare(query).all(...params) as (PeriodClosure & { client_name: string; is_initial_inventory: 0 | 1; previous_closure_consecutive?: string; })[];
+    const closures = db.prepare(query).all(...params) as (PeriodClosure & { client_name: string; is_initial_inventory: 0 | 1; })[];
     
     const result = closures.map(c => ({
         ...c,

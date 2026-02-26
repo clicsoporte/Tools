@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook for managing the logic for the new Consignments Report page.
  */
@@ -19,6 +18,8 @@ import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { format, parseISO, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
+import { ListChecks } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export type ConsignmentsReportSortKey = 'productId' | 'productDescription' | 'consumption' | 'totalValue';
 export type SortDirection = 'asc' | 'desc';
@@ -38,7 +39,7 @@ interface State {
     sortKey: ConsignmentsReportSortKey;
     sortDirection: SortDirection;
     visibleColumns: string[];
-    detailsForProduct: ConsignmentReportRow | null; // For the details modal
+    detailsForProduct: ConsignmentReportRow | null;
     isDetailsOpen: boolean;
 }
 
@@ -48,6 +49,8 @@ export function useConsignmentsReport() {
     const { toast } = useToast();
     const { user, companyData } = useAuth();
     
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+
     const [state, setState] = useState<State>({
         isLoading: true,
         hasRun: false,
@@ -163,10 +166,10 @@ export function useConsignmentsReport() {
     };
 
     const handleExportExcel = () => {
-        if (!state.reportData.length) return;
+        if (!state.reportData || state.reportData.length === 0) return;
         const agreement = state.agreements.find(a => String(a.id) === state.selectedAgreementId);
 
-        const flatData = state.reportData.flatMap(productRow => 
+        const flatData = state.reportData.flatMap(productRow =>
             productRow.transactions.map(tx => ({
                 'Producto ID': productRow.productId,
                 'Producto Descripción': productRow.productDescription,
@@ -196,8 +199,8 @@ export function useConsignmentsReport() {
                 { label: "Cliente:", value: agreement?.client_name || 'N/A' },
                 { label: "Período:", value: `${state.dateRange.from ? format(state.dateRange.from, 'dd/MM/yyyy', { locale: es }) : ''} al ${state.dateRange.to ? format(state.dateRange.to, 'dd/MM/yyyy', { locale: es }) : ''}` }
             ],
-            data: [headers, ...dataToExport],
-            headers: [],
+            headers,
+            data: dataToExport,
             columnWidths: [20, 40, 20, 20, 25, 25, 15, 20, 30],
         });
     };
@@ -287,6 +290,7 @@ export function useConsignmentsReport() {
                 case 'consumption': return { content: row.consumption.toLocaleString(), className: 'font-bold text-lg' };
                 case 'price': return { content: `¢${row.price.toLocaleString('es-CR')}` };
                 case 'totalValue': return { content: `¢${row.totalValue.toLocaleString('es-CR')}`, className: 'font-bold text-primary text-lg' };
+                case 'details': return { content: React.createElement(Button, { variant: "ghost", size: "icon", onClick: () => actions.openDetailsModal(row) }, React.createElement(ListChecks, { className: "h-4 w-4" })) };
                 default: return { content: '' };
             }
         }
