@@ -15,11 +15,12 @@ import {
     getAgreementDetails, 
     getRecentPhysicalCounts, 
     createClosureFromCount,
-    annulPeriodClosure, // New import
+    annulPeriodClosure,
 } from '../lib/actions';
 import type { PeriodClosure, PhysicalCount, ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { useDebounce } from 'use-debounce';
 
 interface State {
     isInitialLoading: boolean;
@@ -82,6 +83,8 @@ export const useConsignmentsClosures = () => {
         annulConfirmationText: '',
         closureToAnnul: null,
     });
+
+    const [debouncedNewClosureClientSearch] = useDebounce(state.newClosureClientSearch, 300);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
@@ -304,9 +307,12 @@ export const useConsignmentsClosures = () => {
                 default: return 'Desconocido';
             }
         },
-        agreementOptions: useMemo(() => 
-            state.agreements.map(a => ({ value: String(a.id), label: a.client_name })),
-        [state.agreements]),
+        agreementOptions: useMemo(() => {
+            if (debouncedNewClosureClientSearch.length < 2) return [];
+            return state.agreements
+                .filter(a => a.client_name.toLowerCase().includes(debouncedNewClosureClientSearch.toLowerCase()))
+                .map(a => ({ value: String(a.id), label: a.client_name }));
+        }, [state.agreements, debouncedNewClosureClientSearch]),
         getProductName: (id: string) => products.find(p => p.id === id)?.description || 'Desconocido',
         hasPermission,
     };
