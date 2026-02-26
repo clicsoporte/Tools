@@ -325,6 +325,7 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
 
         // 2. Get all relevant boletas within the date range for replenishments and final count
         const boletasInPeriod = await getBoletasByDateRange(agreementId, dateRange, ['approved', 'sent', 'invoiced']);
+        const adjustmentsInPeriod = await getAdjustmentsInPeriod(parseInt(agreementId, 10), dateRange);
         
         // 3. Calculate total replenishments
         const replenishedMap = new Map<string, number>();
@@ -334,6 +335,13 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
                 replenishedMap.set(line.product_id, current + line.replenish_quantity);
             }
         }
+        
+        // 3.5 Calculate total adjustments
+        const adjustmentsMap = new Map<string, number>();
+        adjustmentsInPeriod.forEach((adj: ConsignmentAdjustment) => {
+            const current = adjustmentsMap.get(adj.product_id) || 0;
+            adjustmentsMap.set(adj.product_id, current + adj.quantity);
+        });
         
         // 4. Get Final Stock (from the LATEST boleta within the date range)
         const finalStockMap = new Map<string, number>();
@@ -351,13 +359,14 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
         const reportRows: ConsignmentReportRow[] = agreementProducts.map(product => {
             const initialStock = initialStockMap.get(product.product_id) || 0;
             const totalReplenished = replenishedMap.get(product.product_id) || 0;
+            const totalAdjustments = adjustmentsMap.get(product.product_id) || 0;
             
             const hasFinalCount = finalStockMap.has(product.product_id);
             const finalStock = hasFinalCount 
                 ? finalStockMap.get(product.product_id)!
-                : (initialStock + totalReplenished);
+                : (initialStock + totalReplenished + totalAdjustments);
             
-            const consumption = hasFinalCount ? (initialStock + totalReplenished) - finalStock : 0;
+            const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
             const totalValue = consumption * product.price;
 
             const relevantBoletas = boletasInPeriod.filter((b: any) =>
@@ -387,12 +396,12 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
                 approvers,
                 deliveryDates,
                 erpMovementIds,
-                adjustments: 0,
+                adjustments: totalAdjustments,
             };
         });
 
         // Filter out rows that have no activity at all
-        const finalReportRows = reportRows.filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.consumption > 0);
+        const finalReportRows = reportRows.filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.consumption > 0 || row.adjustments !== 0);
         
         return { reportRows: finalReportRows, boletas: boletasInPeriod };
 
