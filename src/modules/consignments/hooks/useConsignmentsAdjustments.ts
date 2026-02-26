@@ -116,8 +116,8 @@ export const useConsignmentsAdjustments = () => {
         }
 
         const quantityNum = parseInt(state.quantity, 10);
-        if (isNaN(quantityNum)) {
-            toast({ title: 'Cantidad inválida', variant: 'destructive' });
+        if (isNaN(quantityNum) || quantityNum === 0) {
+            toast({ title: 'Cantidad inválida', description: 'La cantidad no puede ser cero.', variant: 'destructive' });
             return;
         }
 

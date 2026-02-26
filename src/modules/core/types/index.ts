@@ -233,7 +233,6 @@ export type ExemptionLaw = {
   authNumber: string | null; // e.g., '9635', only for specific cases
 };
 
-
 // --- Production Planner Types ---
 
 export type ProductionOrderStatus = 'pending' | 'pending-review' | 'pending-approval' | 'approved' | 'in-queue' | 'in-progress' | 'on-hold' | 'in-maintenance' | 'completed' | 'received-in-warehouse' | 'canceled' | 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
