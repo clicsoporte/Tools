@@ -66,11 +66,11 @@ export default function FieldAssistantPage() {
                                 )}
                                 {selectedAgreement.operation_mode === 'auto' && (
                                     <Button className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('REPOSITION_BOLETA')}>
-                                        <ClipboardCheck className="mr-4" /> Generar Boleta por Conteo
+                                        <ClipboardCheck className="mr-4" /> Generar Boleta para reposición
                                     </Button>
                                 )}
                                 <Button variant="secondary" className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('INFORMATIONAL_COUNT')}>
-                                    <Save className="mr-4" /> Realizar Conteo Preliminar
+                                    <Save className="mr-4" /> Conteo Preliminar de Inventario
                                 </Button>
                                 <Button variant="destructive" className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('CLOSURE_REQUEST')}>
                                     <FileSignature className="mr-4" /> Iniciar Conteo para Cierre
