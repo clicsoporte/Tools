@@ -11,7 +11,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getConsignmentsReportData } from '@/modules/analytics/lib/actions';
 import { getConsignmentAgreements } from '@/modules/consignments/lib/actions';
-import type { DateRange, ConsignmentAgreement, Company, RestockBoleta, BoletaLine, BoletaHistory, UserPreferences, PeriodClosure } from '@/modules/core/types';
+import type { DateRange, ConsignmentAgreement, Company, RestockBoleta, BoletaLine, BoletaHistory, UserPreferences, PeriodClosure, ConsignmentReportRow } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { exportToExcel } from '@/lib/excel-export';
@@ -19,25 +19,6 @@ import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { format, parseISO, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
-
-export interface ConsignmentReportRow {
-    productId: string;
-    productDescription: string;
-    clientProductCode?: string;
-    initialStock: number;
-    totalReplenished: number;
-    totalAdjustments: number;
-    finalStock: number;
-    consumption: number;
-    price: number;
-    totalValue: number;
-    // For UI Details
-    boletaDetails: { consecutive: string; date: string; quantity: number; user: string }[];
-    adjustmentDetails: { date: string; reason: string; quantity: number; notes: string | null; user: string }[];
-    initialStockDoc?: { consecutive: string; date: string };
-    finalStockDoc?: { consecutive: string; date: string };
-}
-
 
 export type ConsignmentsReportSortKey = 'productId' | 'productDescription' | 'consumption' | 'totalValue';
 export type SortDirection = 'asc' | 'desc';
@@ -81,7 +62,7 @@ export function useConsignmentsReport() {
         closureFilter: null,
         sortKey: 'consumption',
         sortDirection: 'desc',
-        visibleColumns: ['productId', 'productDescription', 'consumption', 'price', 'totalValue'],
+        visibleColumns: ['productId', 'productDescription', 'clientProductCode', 'consumption', 'price', 'totalValue', 'details'],
         detailsForProduct: null,
         isDetailsOpen: false,
     });
@@ -148,7 +129,7 @@ export function useConsignmentsReport() {
             updateState({ reportData: reportRows, processedBoletas: boletas, allBoletasForClient, allClosuresForClient });
         } catch (error: any) {
             logError("Failed to generate consignments report", { error: error.message });
-            toast({ title: "Error al Generar", description: error.message, variant: 'destructive'});
+            toast({ title: "Error al Generar", description: error.message, variant: "destructive"});
         } finally {
             updateState({ isLoading: false });
         }
@@ -274,13 +255,10 @@ export function useConsignmentsReport() {
         { id: 'productId', label: 'Código Artículo', sortable: true },
         { id: 'productDescription', label: 'Producto', sortable: true },
         { id: 'clientProductCode', label: 'Alias Cliente' },
-        { id: 'initialStock', label: 'Inv. Inicial', align: 'right' },
-        { id: 'totalReplenished', label: 'Total Repuesto', align: 'right' },
-        { id: 'totalAdjustments', label: 'Total Ajustado', align: 'right' },
-        { id: 'finalStock', label: 'Inv. Final', align: 'right' },
         { id: 'consumption', label: 'Consumo', sortable: true, align: 'right' },
         { id: 'price', label: 'Precio Unit.', align: 'right' },
         { id: 'totalValue', label: 'Valor Total', sortable: true, align: 'right' },
+        { id: 'details', label: 'Desglose' },
     ];
     
     const selectors = {
@@ -306,10 +284,6 @@ export function useConsignmentsReport() {
                 case 'productId': return { content: row.productId, className: 'font-mono' };
                 case 'productDescription': return { content: row.productDescription };
                 case 'clientProductCode': return { content: row.clientProductCode || '-', className: 'text-muted-foreground' };
-                case 'initialStock': return { content: row.initialStock.toLocaleString() };
-                case 'totalReplenished': return { content: row.totalReplenished.toLocaleString(), className: 'text-blue-600' };
-                case 'totalAdjustments': return { content: row.totalAdjustments.toLocaleString(), className: row.totalAdjustments !== 0 ? 'text-orange-600' : '' };
-                case 'finalStock': return { content: row.finalStock.toLocaleString() };
                 case 'consumption': return { content: row.consumption.toLocaleString(), className: 'font-bold text-lg' };
                 case 'price': return { content: `¢${row.price.toLocaleString('es-CR')}` };
                 case 'totalValue': return { content: `¢${row.totalValue.toLocaleString('es-CR')}`, className: 'font-bold text-primary text-lg' };
@@ -347,5 +321,3 @@ export function useConsignmentsReport() {
         isAuthorized,
     };
 }
-```
-
