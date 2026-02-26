@@ -14,17 +14,20 @@ const nextConfig = {
     ],
   },
   experimental: {
+    // Esto permite solicitudes de origen cruzado al servidor de desarrollo de Next.js,
+    // necesario para entornos como Firebase Studio.
+    allowedDevOrigins: ['*.cloudworkstations.dev', '*.googleusercontent.com', '*.idx.dev'],
     serverActions: {
       bodySizeLimit: '50mb',
-      // Esto permite que las Server Actions funcionen detrás del proxy de IDX
+      // Esto es específico para Server Actions
       allowedOrigins: [
           'localhost:3000', 
           '*.cloudworkstations.dev', 
           '*.googleusercontent.com',
           '*.idx.dev'
       ],
-      // Si tu versión de Next lo soporta, esto desactiva el chequeo estricto (ÚSALO SOLO EN DEV)
-      checkOrigin: false 
+      // Desactivamos el chequeo de origen solo en desarrollo.
+      checkOrigin: process.env.NODE_ENV === 'development' ? false : undefined,
     },
   },
 };
