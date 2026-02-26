@@ -411,12 +411,7 @@ export async function getConsignmentsReportData(agreementId: string, dateRange: 
     }
 }
 
-export async function getConsignmentsBillingReportData(closureId: number): Promise<{
-    reportRows: ConsignmentReportRow[];
-    boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[];
-    currentClosure: PeriodClosure & { client_name: string };
-    previousClosure: PeriodClosure | null;
-}> {
+export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
     return getConsignmentsBillingReportDataServer(closureId);
 }
 

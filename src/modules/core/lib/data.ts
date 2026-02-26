@@ -424,6 +424,14 @@ export const adminTools: Tool[] = [
 export const consignmentsReportTools: Tool[] = [
     {
         id: 'analytics:consignments-report:read',
+        name: 'Reporte de Cierre (Analítico)',
+        description: 'Analiza el consumo de un cliente en un rango de fechas flexible.',
+        href: '/dashboard/analytics/consignments-report',
+        icon: BarChartBig,
+        bgColor: 'bg-lime-600',
+    },
+    {
+        id: 'consignments:boleta:approve',
         name: 'Cierres y Facturación de Consignación',
         description: 'Aprobar los cierres de período y generar el reporte oficial para facturación.',
         href: '/dashboard/consignments/cierres',
@@ -436,7 +444,7 @@ export const consignmentsReportTools: Tool[] = [
         description: 'Ver inventario teórico vs. último conteo físico para un cliente.',
         href: '/dashboard/analytics/inventory-monitor',
         icon: Box,
-        bgColor: 'bg-lime-600',
+        bgColor: 'bg-lime-700',
     }
 ];
 
@@ -448,6 +456,14 @@ export const purchasingReportTools: Tool[] = [
         href: "/dashboard/analytics/purchase-suggestions",
         icon: Lightbulb,
         bgColor: "bg-blue-600",
+    },
+    {
+        id: "analytics:purchase-report:read",
+        name: "Reporte de Compras",
+        description: "Visualiza faltantes de inventario y artículos en tránsito.",
+        href: "/dashboard/analytics/purchase-report",
+        icon: ShoppingBag,
+        bgColor: "bg-blue-500",
     },
     {
         id: "analytics:transits-report:read",
