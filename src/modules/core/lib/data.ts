@@ -423,11 +423,11 @@ export const adminTools: Tool[] = [
 
 export const consignmentsReportTools: Tool[] = [
     {
-        id: 'analytics:consignments-report:read', // Re-use the same permission
-        name: 'Reporte de Facturación de Cierres',
-        description: 'Generar el reporte mensual de consumo a partir de un Cierre de Periodo aprobado.',
-        href: '/dashboard/consignments/cierres', // Link to the closures management page
-        icon: Container,
+        id: 'analytics:consignments-report:read',
+        name: 'Cierres y Facturación de Consignación',
+        description: 'Aprobar los cierres de período y generar el reporte oficial para facturación.',
+        href: '/dashboard/consignments/cierres',
+        icon: FileSignature,
         bgColor: 'bg-lime-500'
     },
     {
