@@ -660,12 +660,15 @@ export async function getPeriodClosures(filters: { agreementId?: number } = {}):
     
     query += ' ORDER BY pc.created_at DESC';
     
-    const closures = db.prepare(query).all(...params) as any[];
+    const closures = db.prepare(query).all(...params) as (PeriodClosure & { client_name: string; previous_closure_consecutive?: string })[];
     
-    const result = closures.map(c => ({
-        ...c,
-        is_initial_inventory: c.is_initial_inventory === 1
-    }));
+    const result = closures.map(c => {
+        const { is_initial_inventory, ...rest } = c;
+        return {
+            ...rest,
+            is_initial_inventory: c.is_initial_inventory === 1,
+        };
+    });
     
     return JSON.parse(JSON.stringify(result));
 }

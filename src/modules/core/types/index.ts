@@ -959,7 +959,7 @@ export type InvoiceReportLine = {
     isSelected: boolean;
     invoiceNumber: string;
     supplierName: string;
-    issueDate: string;
+    invoiceDate: string;
     itemCode: string;
     itemDescription: string;
     unitPrice: number;

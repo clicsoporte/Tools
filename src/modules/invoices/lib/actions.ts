@@ -32,11 +32,11 @@ export interface ProcessedInvoicePayload {
         totalImpuesto: number;
         totalComprobante: number;
     };
-    lines: Omit<InvoiceReportLine, 'id' | 'isSelected' | 'invoiceKey'>[];
+    lines: Omit<InvoiceReportLine, 'id' | 'isSelected'>[];
 }
 
 
-async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ data: ProcessedInvoicePayload; invoiceInfo: Omit<ProcessedInvoiceInfo, 'status' | 'errorMessage'> } | { error: string, details: Partial<ProcessedInvoiceInfo> }> {
+async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ data: ProcessedInvoicePayload; invoiceInfo: Omit<ProcessedInvoiceInfo, 'status' | 'errorMessage'> } | { error: string, details: Partial<Omit<ProcessedInvoiceInfo, 'status' | 'errorMessage'>> }> {
     
     if (xmlContent.includes('MensajeHacienda')) {
         return { error: 'El archivo es una respuesta de Hacienda, no una factura.', details: {} };
@@ -76,11 +76,11 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ da
     const invoiceInfo = {
         supplierName: emisorNombre,
         invoiceNumber: numeroConsecutivo,
-        issueDate: fechaEmision,
+        invoiceDate: fechaEmision,
     };
 
     const detalleServicio = getValue(rootNode, ['DetalleServicio']);
-    const lines: Omit<InvoiceReportLine, 'id' | 'isSelected' | 'invoiceKey'>[] = [];
+    const lines: Omit<InvoiceReportLine, 'id' | 'isSelected'>[] = [];
     
     if (detalleServicio && detalleServicio.LineaDetalle) {
         const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
@@ -100,9 +100,10 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ da
             const unitPriceWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
             
             lines.push({
+                invoiceKey: numeroConsecutivo,
                 invoiceNumber: numeroConsecutivo,
                 supplierName: emisorNombre,
-                issueDate: fechaEmision,
+                invoiceDate: fechaEmision,
                 itemCode: itemCode,
                 itemDescription: getValue(linea, ['Detalle']),
                 unitPrice: unitPrice,
@@ -148,7 +149,7 @@ export async function processInvoicesForReport(xmlContents: string[]): Promise<{
                  statusReport.push({
                     supplierName: result.details.supplierName || 'Desconocido',
                     invoiceNumber: result.details.invoiceNumber || `Archivo ${index + 1}`,
-                    issueDate: result.details.issueDate || new Date().toISOString(),
+                    invoiceDate: result.details.invoiceDate || new Date().toISOString(),
                     status: 'error',
                     errorMessage: result.error,
                 });
@@ -157,7 +158,7 @@ export async function processInvoicesForReport(xmlContents: string[]): Promise<{
             statusReport.push({
                 supplierName: 'Desconocido',
                 invoiceNumber: `Archivo ${index + 1}`,
-                issueDate: new Date().toISOString(),
+                invoiceDate: new Date().toISOString(),
                 status: 'error',
                 errorMessage: 'XML malformado o ilegible',
             });

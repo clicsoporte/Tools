@@ -28,7 +28,7 @@ export interface InvoiceSummary {
     isSelected: boolean;
     invoiceNumber: string;
     supplierName: string;
-    issueDate: string;
+    invoiceDate: string;
     totalVentaNeta: number;
     totalImpuesto: number;
     totalComprobante: number;
@@ -162,7 +162,7 @@ export const useInvoiceReporter = () => {
             }
             const headers = ["Nº Factura", "Proveedor", "Fecha Emisión", "Código Artículo", "Descripción", "Precio Unitario (s/IVA)", "Precio Unitario (c/IVA)", "Total Línea (s/IVA)", "Total Línea (c/IVA)"];
             const dataToExport = selectedLines.map(line => [
-                line.invoiceNumber, line.supplierName, format(parseISO(line.issueDate), 'dd/MM/yyyy'), line.itemCode,
+                line.invoiceNumber, line.supplierName, format(parseISO(line.invoiceDate), 'dd/MM/yyyy'), line.itemCode,
                 line.itemDescription, line.unitPrice, line.unitPriceWithTax, line.totalLine, line.totalLineWithTax,
             ]);
             exportToExcel({ fileName: 'reporte_facturas_detallado', sheetName: 'Facturas Detalle', title: 'Reporte Detallado de Facturas Seleccionadas', data: dataToExport, headers: [], columnWidths: [25, 30, 15, 20, 40, 20, 20, 20, 20] });
@@ -174,7 +174,7 @@ export const useInvoiceReporter = () => {
             }
             const headers = ["Nº Factura", "Proveedor", "Fecha Emisión", "Venta Neta", "Impuesto", "Total Comprobante"];
             const dataToExport = selectedSummaries.map(s => [
-                s.invoiceNumber, s.supplierName, format(parseISO(s.issueDate), 'dd/MM/yyyy'),
+                s.invoiceNumber, s.supplierName, format(parseISO(s.invoiceDate), 'dd/MM/yyyy'),
                 s.totalVentaNeta, s.totalImpuesto, s.totalComprobante
             ]);
             exportToExcel({ fileName: 'reporte_facturas_resumido', sheetName: 'Facturas Resumen', title: 'Reporte Resumido de Facturas Seleccionadas', data: dataToExport, headers: [], columnWidths: [25, 30, 15, 20, 20, 20] });
@@ -188,7 +188,7 @@ export const useInvoiceReporter = () => {
             isSelected: invoice.isSelected,
             invoiceNumber: invoice.info.invoiceNumber,
             supplierName: invoice.info.supplierName,
-            issueDate: invoice.info.issueDate,
+            invoiceDate: invoice.info.invoiceDate,
             ...invoice.summary,
         })), [state.processedData]),
         areAllDetailedSelected: useMemo(() => {
