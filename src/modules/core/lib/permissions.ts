@@ -6,7 +6,7 @@
 export const permissionGroups = {
     "Acceso General": ["dashboard:access"],
     "Cotizador": ["quotes:create", "quotes:generate", "quotes:drafts:create", "quotes:drafts:read", "quotes:drafts:delete"],
-    "Facturación y XML": ["invoices:access"],
+    "Facturación y XML": ["invoices:access", "invoices:reporter:access", "invoices:reporter:export"],
     "Solicitud de Compra": [
         "requests:read", "requests:read:all", "requests:create", "requests:create:duplicate", "requests:notes:add",
         "requests:edit:pending", "requests:edit:approved",
@@ -58,6 +58,8 @@ export const permissionTranslations = {
     "admin:access": "Acceso a Configuración",
     "dashboard:access": "Acceso al Panel", "quotes:create": "Cotizador: Crear", "quotes:generate": "Cotizador: Generar PDF", "quotes:drafts:create": "Borradores: Crear", "quotes:drafts:read": "Borradores: Cargar", "quotes:drafts:delete": "Borradores: Eliminar",
     "invoices:access": "Facturas y XML: Acceso al Módulo",
+    "invoices:reporter:access": "Reporteador Facturas: Acceso",
+    "invoices:reporter:export": "Reporteador Facturas: Exportar Excel",
     "requests:read": "Compras: Leer", "requests:read:all": "Compras: Leer Todo", "requests:create": "Compras: Crear", "requests:create:duplicate": "Compras: Crear Duplicados", "requests:notes:add": "Compras: Añadir Notas",
     "requests:edit:pending": "Compras: Editar (Pendientes)", "requests:edit:approved": "Compras: Editar (Aprobadas)", "requests:status:review": "Compras: Enviar a Revisión", "requests:status:pending-approval": "Compras: Enviar a Aprobación", "requests:reopen": "Compras: Reabrir", "requests:status:approve": "Compras: Aprobar", "requests:status:ordered": "Compras: Marcar como Ordenada", "requests:status:received-in-warehouse": "Compras: Recibir en Bodega", "requests:status:entered-erp": "Compras: Ingresar a ERP", "requests:status:cancel": "Compras: Cancelar", "requests:status:revert-to-approved": "Compras: Revertir a Aprobada", "requests:status:unapproval-request": "Compras: Solicitar Desaprobación", "requests:status:unapproval-request:approve": "Compras: Aprobar Desaprobación",
     "requests:view:sale-price": "Compras: Ver Precio Venta", "requests:view:cost": "Compras: Ver Costo", "requests:view:margin": "Compras: Ver Margen",
@@ -131,6 +133,10 @@ export const permissionTree: Partial<Record<AppPermission, AppPermission[]>> = {
         "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read", 
         "analytics:consignments-report:read"
     ],
+    
+    // --- Invoices ---
+    "invoices:access": ["cost-assistant:access", "invoices:reporter:access"],
+    "invoices:reporter:access": ["invoices:reporter:export"],
 
     // --- Purchase Requests ---
     "requests:read": ["requests:read:all", "requests:create", "requests:notes:add"],

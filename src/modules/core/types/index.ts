@@ -910,6 +910,7 @@ export type CostAssistantLine = {
     supplierName: string;
 };
 
+// Shared between modules
 export type ProcessedInvoiceInfo = {
     supplierName: string;
     invoiceNumber: string;
@@ -951,6 +952,22 @@ export type CostAssistantSettings = {
     };
     discountHandling: 'customer' | 'company';
 };
+
+export type InvoiceReportLine = {
+    id: string;
+    invoiceKey: string;
+    isExpense: boolean;
+    invoiceNumber: string;
+    supplierName: string;
+    issueDate: string;
+    itemCode: string;
+    itemDescription: string;
+    unitPrice: number;
+    unitPriceWithTax: number;
+    totalLine: number;
+    totalLineWithTax: number;
+};
+
 
 // --- Operations Module Types ---
 export type OperationsDocumentType = {

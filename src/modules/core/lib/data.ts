@@ -13,7 +13,7 @@ import {
   Palette, UserCheck, ShoppingBag, QrCode, HelpCircle, ClipboardCheck,
   ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, GitBranch,
   Construction, BookCopy, Cpu, FileSignature, Settings, ListChecks, FileInput, Box, SlidersHorizontal,
-  Container, Tags, Truck, LayoutGrid
+  Container, Tags, Truck, LayoutGrid, FileSpreadsheet
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -228,6 +228,14 @@ export const invoicesTools: Tool[] = [
         href: '/dashboard/invoices/cost-assistant',
         icon: Calculator,
         bgColor: 'bg-orange-600',
+    },
+    {
+        id: 'invoices:reporter:access',
+        name: 'Reporteador de Facturas',
+        description: 'Carga facturas XML para analizar, editar y exportar a Excel.',
+        href: '/dashboard/invoices/reporter',
+        icon: FileSpreadsheet,
+        bgColor: 'bg-sky-600',
     },
 ];
 
