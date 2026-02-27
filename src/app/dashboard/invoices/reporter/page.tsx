@@ -14,6 +14,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { UploadCloud, Loader2, FileSpreadsheet, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, parseISO, isValid } from 'date-fns';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Label } from '@/components/ui/label';
 
 export default function InvoiceReporterPage() {
     const { state, actions, selectors } = useInvoiceReporter();
@@ -47,93 +49,87 @@ export default function InvoiceReporterPage() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-1">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Facturas Procesadas</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <ScrollArea className="h-48">
-                                        {state.processedInvoices.length > 0 ? (
-                                            <ul className="space-y-3 text-sm">
-                                                {state.processedInvoices.map((invoice, index) => (
-                                                    <li key={index} className="border-b pb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            {invoice.status === 'success' ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
-                                                            <div className="flex-1">
-                                                                <p className="font-semibold truncate">{invoice.supplierName}</p>
-                                                                <p className="text-xs text-muted-foreground">{invoice.invoiceNumber}</p>
-                                                            </div>
+                <CardContent className="space-y-6">
+                    {state.processedInvoices.length > 0 && (
+                        <Accordion type="single" collapsible className="w-full">
+                            <AccordionItem value="item-1">
+                                <AccordionTrigger>
+                                    Ver Resumen de Facturas Procesadas ({state.processedInvoices.length})
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <ScrollArea className="h-48 mt-4">
+                                        <ul className="space-y-3 text-sm pr-4">
+                                            {state.processedInvoices.map((invoice, index) => (
+                                                <li key={index} className="border-b pb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        {invoice.status === 'success' ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                                        <div className="flex-1">
+                                                            <p className="font-semibold truncate">{invoice.supplierName}</p>
+                                                            <p className="text-xs text-muted-foreground">{invoice.invoiceNumber}</p>
                                                         </div>
-                                                        {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            <p className="text-sm text-center text-muted-foreground h-full flex items-center justify-center">Aún no se han cargado facturas.</p>
-                                        )}
+                                                    </div>
+                                                    {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </ScrollArea>
-                                </CardContent>
-                            </Card>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    )}
+
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-semibold">Líneas de Factura</h3>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="select-all-expenses"
+                                    checked={selectors.areAllSelected}
+                                    onCheckedChange={(checked) => actions.toggleAllExpenses(!!checked)}
+                                />
+                                <Label htmlFor="select-all-expenses" className="text-sm font-medium">Marcar/desmarcar todos como gasto</Label>
+                            </div>
                         </div>
-                        <div className="lg:col-span-2">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Líneas de Factura</CardTitle>
-                                    <div className="flex items-center space-x-2 pt-2">
-                                        <Checkbox
-                                            id="select-all-expenses"
-                                            checked={selectors.areAllSelected}
-                                            onCheckedChange={(checked) => actions.toggleAllExpenses(!!checked)}
-                                        />
-                                        <label htmlFor="select-all-expenses" className="text-sm font-medium">Marcar/desmarcar todos como gasto</label>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <ScrollArea className="h-[60vh] border rounded-md">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead className="w-12">Gasto</TableHead>
-                                                    <TableHead>Nº Factura</TableHead>
-                                                    <TableHead>Proveedor</TableHead>
-                                                    <TableHead>Fecha</TableHead>
-                                                    <TableHead>Código</TableHead>
-                                                    <TableHead>Descripción</TableHead>
-                                                    <TableHead className="text-right">Unit. s/IVA</TableHead>
-                                                    <TableHead className="text-right">Unit. c/IVA</TableHead>
-                                                    <TableHead className="text-right">Total s/IVA</TableHead>
-                                                    <TableHead className="text-right">Total c/IVA</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {state.lines.length > 0 ? state.lines.map(line => (
-                                                    <TableRow key={line.id}>
-                                                        <TableCell><Checkbox checked={line.isExpense} onCheckedChange={(checked) => actions.toggleExpense(line.id, !!checked)} /></TableCell>
-                                                        <TableCell>{line.invoiceNumber}</TableCell>
-                                                        <TableCell>{line.supplierName}</TableCell>
-                                                        <TableCell>{isValid(parseISO(line.issueDate)) ? format(parseISO(line.issueDate), 'dd/MM/yyyy') : 'Inválida'}</TableCell>
-                                                        <TableCell><Input value={line.itemCode} onChange={e => actions.updateLine(line.id, { itemCode: e.target.value })} className="h-auto p-1 border-0" /></TableCell>
-                                                        <TableCell><Input value={line.itemDescription} onChange={e => actions.updateLine(line.id, { itemDescription: e.target.value })} className="h-auto p-1 border-0" /></TableCell>
-                                                        <TableCell className="text-right"><Input type="number" value={line.unitPrice} onChange={e => actions.updateLine(line.id, { unitPrice: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>
-                                                        <TableCell className="text-right"><Input type="number" value={line.unitPriceWithTax} onChange={e => actions.updateLine(line.id, { unitPriceWithTax: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>
-                                                        <TableCell className="text-right"><Input type="number" value={line.totalLine} onChange={e => actions.updateLine(line.id, { totalLine: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>
-                                                        <TableCell className="text-right"><Input type="number" value={line.totalLineWithTax} onChange={e => actions.updateLine(line.id, { totalLineWithTax: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>
-                                                    </TableRow>
-                                                )) : (
-                                                    <TableRow>
-                                                        <TableCell colSpan={10} className="h-48 text-center text-muted-foreground">
-                                                            Carga uno o más archivos XML para empezar.
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </ScrollArea>
-                                </CardContent>
-                            </Card>
+                        
+                        <div className="w-full overflow-x-auto rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-12">Gasto</TableHead>
+                                        <TableHead className="min-w-[200px]">Nº Factura</TableHead>
+                                        <TableHead className="min-w-[250px]">Proveedor</TableHead>
+                                        <TableHead className="min-w-[120px]">Fecha</TableHead>
+                                        <TableHead className="min-w-[150px]">Código</TableHead>
+                                        <TableHead className="min-w-[300px]">Descripción</TableHead>
+                                        <TableHead className="text-right min-w-[150px]">Unit. s/IVA</TableHead>
+                                        <TableHead className="text-right min-w-[150px]">Unit. c/IVA</TableHead>
+                                        <TableHead className="text-right min-w-[150px]">Total s/IVA</TableHead>
+                                        <TableHead className="text-right min-w-[150px]">Total c/IVA</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {state.lines.length > 0 ? state.lines.map(line => (
+                                        <TableRow key={line.id}>
+                                            <TableCell><Checkbox checked={line.isExpense} onCheckedChange={(checked) => actions.toggleExpense(line.id, !!checked)} /></TableCell>
+                                            <TableCell className="font-mono">{line.invoiceNumber}</TableCell>
+                                            <TableCell>{line.supplierName}</TableCell>
+                                            <TableCell>{isValid(parseISO(line.issueDate)) ? format(parseISO(line.issueDate), 'dd/MM/yyyy') : 'Inválida'}</TableCell>
+                                            <TableCell><Input value={line.itemCode} onChange={e => actions.updateLine(line.id, { itemCode: e.target.value })} className="h-auto p-1 border-0" /></TableCell>
+                                            <TableCell><Input value={line.itemDescription} onChange={e => actions.updateLine(line.id, { itemDescription: e.target.value })} className="h-auto p-1 border-0" /></TableCell>
+                                            <TableCell className="text-right"><Input type="number" value={line.unitPrice} onChange={e => actions.updateLine(line.id, { unitPrice: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>
+                                            <TableCell className="text-right"><Input type="number" value={line.unitPriceWithTax} onChange={e => actions.updateLine(line.id, { unitPriceWithTax: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>
+                                            <TableCell className="text-right"><Input type="number" value={line.totalLine} onChange={e => actions.updateLine(line.id, { totalLine: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>
+                                            <TableCell className="text-right"><Input type="number" value={line.totalLineWithTax} onChange={e => actions.updateLine(line.id, { totalLineWithTax: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow>
+                                            <TableCell colSpan={10} className="h-48 text-center text-muted-foreground">
+                                                Carga uno o más archivos XML para empezar.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
                         </div>
                     </div>
                 </CardContent>
