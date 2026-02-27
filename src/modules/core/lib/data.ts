@@ -55,6 +55,14 @@ export const mainTools: Tool[] = [
     bgColor: "bg-green-500",
   },
   {
+    id: "invoices:access",
+    name: "Facturas y XML",
+    description: "Analizar facturas de compra XML y gestionar documentos electrónicos.",
+    href: "/dashboard/invoices",
+    icon: FileText,
+    bgColor: "bg-emerald-600",
+  },
+  {
     id: "requests:create",
     name: "Solicitud de Compra",
     description: "Crear y gestionar solicitudes de compra internas.",
@@ -69,14 +77,6 @@ export const mainTools: Tool[] = [
     href: "/dashboard/planner",
     icon: CalendarCheck,
     bgColor: "bg-purple-700",
-  },
-  {
-    id: 'cost-assistant:access',
-    name: 'Asistente de Costos',
-    description: 'Calcular costos y precios a partir de facturas XML.',
-    href: '/dashboard/cost-assistant',
-    icon: Calculator,
-    bgColor: 'bg-orange-600',
   },
   {
     id: 'operations:access',
@@ -218,6 +218,17 @@ export const warehouseTools: Tool[] = [
         icon: Lock,
         bgColor: 'bg-slate-500',
     }
+];
+
+export const invoicesTools: Tool[] = [
+    {
+        id: 'cost-assistant:access',
+        name: 'Asistente de Costos',
+        description: 'Calcular costos y precios a partir de facturas XML.',
+        href: '/dashboard/invoices/cost-assistant',
+        icon: Calculator,
+        bgColor: 'bg-orange-600',
+    },
 ];
 
 export const consignmentsTools: Tool[] = [
@@ -538,6 +549,7 @@ export const analyticsTools: Tool[] = [
  */
 export const allTools: Tool[] = [
     ...mainTools, 
+    ...invoicesTools,
     ...adminTools, 
     ...analyticsTools, 
     ...warehouseTools, 
