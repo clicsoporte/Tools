@@ -7,15 +7,38 @@ import { useState, useMemo, useCallback, useRef } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import type { InvoiceReportLine, ProcessedInvoiceInfo } from '@/modules/core/types';
-import { processInvoicesForReport } from '../lib/actions';
+import { processInvoicesForReport, type ProcessedInvoicePayload } from '../lib/actions';
 import { logError } from '@/modules/core/lib/logger';
 import { exportToExcel } from '@/lib/excel-export';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
+
+type ViewMode = 'detailed' | 'summary';
+
+export interface UiInvoiceReportLine extends InvoiceReportLine {
+    // This type inherits from the core InvoiceReportLine
+}
+
+export interface UiProcessedInvoice extends ProcessedInvoicePayload {
+    isSelected: boolean; // For summary view selection
+    lines: UiInvoiceReportLine[];
+}
+
+export interface InvoiceSummary {
+    id: string; // invoice number used as unique key
+    isSelected: boolean;
+    invoiceNumber: string;
+    supplierName: string;
+    issueDate: string;
+    totalVentaNeta: number;
+    totalImpuesto: number;
+    totalComprobante: number;
+}
 
 const initialState = {
     isProcessing: false,
-    lines: [] as InvoiceReportLine[],
-    processedInvoices: [] as ProcessedInvoiceInfo[],
+    processedData: [] as UiProcessedInvoice[],
+    statusReport: [] as ProcessedInvoiceInfo[],
+    viewMode: 'detailed' as ViewMode,
 };
 
 export const useInvoiceReporter = () => {
@@ -40,15 +63,25 @@ export const useInvoiceReporter = () => {
                 }))
             );
             
-            const { lines: processedLines, processedInvoices } = await processInvoicesForReport(fileContents);
+            const { processedInvoices: newProcessedData, statusReport: newStatusReport } = await processInvoicesForReport(fileContents);
             
+            const newUiData: UiProcessedInvoice[] = newProcessedData.map(invoice => ({
+                ...invoice,
+                isSelected: true, // Default to selected for summary view
+                lines: invoice.lines.map((line, lineIndex) => ({
+                    ...line,
+                    id: `${invoice.info.invoiceNumber}-${lineIndex}`,
+                    isSelected: true, // Default to selected for detailed view
+                })),
+            }));
+
             setState(prevState => ({ 
                 ...prevState, 
-                lines: [...prevState.lines, ...processedLines],
-                processedInvoices: [...prevState.processedInvoices, ...processedInvoices]
+                processedData: [...prevState.processedData, ...newUiData],
+                statusReport: [...prevState.statusReport, ...newStatusReport],
             }));
-            const successCount = processedInvoices.filter(p => p.status === 'success').length;
-            toast({ title: "Facturas Procesadas", description: `Se agregaron ${processedLines.length} líneas de ${successCount} factura(s).` });
+            const successCount = newStatusReport.filter(p => p.status === 'success').length;
+            toast({ title: "Facturas Procesadas", description: `Se procesaron ${successCount} factura(s) exitosamente.` });
 
         } catch (error: any) {
             logError("Error processing invoice XMLs for reporter", { error: error.message });
@@ -65,24 +98,54 @@ export const useInvoiceReporter = () => {
         }
     };
 
-    const updateLine = (id: string, updatedFields: Partial<InvoiceReportLine>) => {
+    const updateLine = (id: string, updatedFields: Partial<UiInvoiceReportLine>) => {
         setState(prevState => ({
             ...prevState,
-            lines: prevState.lines.map(line => 
-                line.id === id ? { ...line, ...updatedFields } : line
-            ),
+            processedData: prevState.processedData.map(invoice => ({
+                ...invoice,
+                lines: invoice.lines.map(line =>
+                    line.id === id ? { ...line, ...updatedFields } : line
+                ),
+            })),
         }));
     };
 
     const toggleSelected = (id: string, isChecked: boolean) => {
-        updateLine(id, { isSelected: isChecked });
+        if (state.viewMode === 'detailed') {
+            setState(prevState => ({
+                ...prevState,
+                processedData: prevState.processedData.map(invoice => ({
+                    ...invoice,
+                    lines: invoice.lines.map(line =>
+                        line.id === id ? { ...line, isSelected: isChecked } : line
+                    ),
+                })),
+            }));
+        } else { // Summary mode
+            setState(prevState => ({
+                ...prevState,
+                processedData: prevState.processedData.map(invoice =>
+                    invoice.info.invoiceNumber === id ? { ...invoice, isSelected: isChecked } : invoice
+                ),
+            }));
+        }
     };
     
     const toggleAllSelected = (isChecked: boolean) => {
-         setState(prevState => ({
-            ...prevState,
-            lines: prevState.lines.map(line => ({ ...line, isSelected: isChecked })),
-        }));
+        if (state.viewMode === 'detailed') {
+            setState(prevState => ({
+                ...prevState,
+                processedData: prevState.processedData.map(invoice => ({
+                    ...invoice,
+                    lines: invoice.lines.map(line => ({...line, isSelected: isChecked})),
+                })),
+            }));
+        } else { // Summary mode
+            setState(prevState => ({
+                ...prevState,
+                processedData: prevState.processedData.map(invoice => ({...invoice, isSelected: isChecked})),
+            }));
+        }
     };
 
     const handleClear = () => {
@@ -91,33 +154,48 @@ export const useInvoiceReporter = () => {
     };
 
     const handleExport = () => {
-        const selectedLines = state.lines.filter(line => line.isSelected);
-        if (selectedLines.length === 0) {
-            toast({ title: "Sin Líneas Seleccionadas", description: "Marca las líneas que deseas exportar.", variant: "destructive" });
-            return;
+        if (state.viewMode === 'detailed') {
+            const selectedLines = selectors.detailedLines.filter(line => line.isSelected);
+            if (selectedLines.length === 0) {
+                toast({ title: "Sin Líneas Seleccionadas", description: "Marca las líneas que deseas exportar.", variant: "destructive" });
+                return;
+            }
+            const headers = ["Nº Factura", "Proveedor", "Fecha Emisión", "Código Artículo", "Descripción", "Precio Unitario (s/IVA)", "Precio Unitario (c/IVA)", "Total Línea (s/IVA)", "Total Línea (c/IVA)"];
+            const dataToExport = selectedLines.map(line => [
+                line.invoiceNumber, line.supplierName, format(parseISO(line.issueDate), 'dd/MM/yyyy'), line.itemCode,
+                line.itemDescription, line.unitPrice, line.unitPriceWithTax, line.totalLine, line.totalLineWithTax,
+            ]);
+            exportToExcel({ fileName: 'reporte_facturas_detallado', sheetName: 'Facturas Detalle', title: 'Reporte Detallado de Facturas Seleccionadas', data: dataToExport, headers: [], columnWidths: [25, 30, 15, 20, 40, 20, 20, 20, 20] });
+        } else { // Summary mode
+            const selectedSummaries = selectors.summaryLines.filter(s => s.isSelected);
+             if (selectedSummaries.length === 0) {
+                toast({ title: "Sin Facturas Seleccionadas", description: "Marca las facturas que deseas exportar.", variant: "destructive" });
+                return;
+            }
+            const headers = ["Nº Factura", "Proveedor", "Fecha Emisión", "Venta Neta", "Impuesto", "Total Comprobante"];
+            const dataToExport = selectedSummaries.map(s => [
+                s.invoiceNumber, s.supplierName, format(parseISO(s.issueDate), 'dd/MM/yyyy'),
+                s.totalVentaNeta, s.totalImpuesto, s.totalComprobante
+            ]);
+            exportToExcel({ fileName: 'reporte_facturas_resumido', sheetName: 'Facturas Resumen', title: 'Reporte Resumido de Facturas Seleccionadas', data: dataToExport, headers: [], columnWidths: [25, 30, 15, 20, 20, 20] });
         }
-
-        const headers = ["Nº Factura", "Proveedor", "Fecha Emisión", "Código Artículo", "Descripción", "Precio Unitario (s/IVA)", "Precio Unitario (c/IVA)", "Total Línea (s/IVA)", "Total Línea (c/IVA)"];
-        const dataToExport = selectedLines.map(line => [
-            line.invoiceNumber,
-            line.supplierName,
-            format(parseISO(line.issueDate), 'dd/MM/yyyy'),
-            line.itemCode,
-            line.itemDescription,
-            line.unitPrice,
-            line.unitPriceWithTax,
-            line.totalLine,
-            line.totalLineWithTax,
-        ]);
-
-        exportToExcel({
-            fileName: 'reporte_facturas_seleccionadas',
-            sheetName: 'Facturas',
-            title: 'Reporte de Facturas Seleccionadas',
-            data: [headers, ...dataToExport],
-            headers: [], // Headers are part of the data
-            columnWidths: [25, 30, 15, 20, 40, 20, 20, 20, 20],
-        });
+    };
+    
+    const selectors = {
+        detailedLines: useMemo(() => state.processedData.flatMap(invoice => invoice.lines), [state.processedData]),
+        summaryLines: useMemo(() => state.processedData.map(invoice => ({
+            id: invoice.info.invoiceNumber,
+            isSelected: invoice.isSelected,
+            invoiceNumber: invoice.info.invoiceNumber,
+            supplierName: invoice.info.supplierName,
+            issueDate: invoice.info.issueDate,
+            ...invoice.summary,
+        })), [state.processedData]),
+        areAllDetailedSelected: useMemo(() => {
+            const allLines = state.processedData.flatMap(inv => inv.lines);
+            return allLines.length > 0 && allLines.every(l => l.isSelected);
+        }, [state.processedData]),
+        areAllSummarySelected: useMemo(() => state.processedData.length > 0 && state.processedData.every(inv => inv.isSelected), [state.processedData]),
     };
     
     const actions = {
@@ -128,10 +206,7 @@ export const useInvoiceReporter = () => {
         toggleAllSelected,
         handleClear,
         handleExport,
-    };
-
-    const selectors = {
-        areAllSelected: useMemo(() => state.lines.length > 0 && state.lines.every(l => l.isSelected), [state.lines])
+        setViewMode: (mode: ViewMode) => setState(prevState => ({...prevState, viewMode: mode})),
     };
 
     return {

@@ -24,12 +24,19 @@ const parseDecimal = (str: any): number => {
     return parseFloat(s);
 };
 
-interface InvoiceParseResult {
-    lines: Omit<InvoiceReportLine, 'id' | 'isSelected'>[];
-    invoiceInfo: Omit<ProcessedInvoiceInfo, 'status' | 'errorMessage'>;
+// This is the data structure for a single processed invoice.
+export interface ProcessedInvoicePayload {
+    info: Omit<ProcessedInvoiceInfo, 'status' | 'errorMessage'>;
+    summary: {
+        totalVentaNeta: number;
+        totalImpuesto: number;
+        totalComprobante: number;
+    };
+    lines: Omit<InvoiceReportLine, 'id' | 'isSelected' | 'invoiceKey'>[];
 }
 
-async function parseInvoice(xmlContent: string, fileIndex: number): Promise<InvoiceParseResult | { error: string, details: Partial<ProcessedInvoiceInfo> }> {
+
+async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ data: ProcessedInvoicePayload; invoiceInfo: Omit<ProcessedInvoiceInfo, 'status' | 'errorMessage'> } | { error: string, details: Partial<ProcessedInvoiceInfo> }> {
     
     if (xmlContent.includes('MensajeHacienda')) {
         return { error: 'El archivo es una respuesta de Hacienda, no una factura.', details: {} };
@@ -69,85 +76,93 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
     const invoiceInfo = {
         supplierName: emisorNombre,
         invoiceNumber: numeroConsecutivo,
-        invoiceDate: fechaEmision,
+        issueDate: fechaEmision,
     };
 
     const detalleServicio = getValue(rootNode, ['DetalleServicio']);
-    if (!detalleServicio || !detalleServicio.LineaDetalle) {
-        return { lines: [], invoiceInfo };
-    }
-
-    const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
+    const lines: Omit<InvoiceReportLine, 'id' | 'isSelected' | 'invoiceKey'>[] = [];
     
-    const lines: Omit<InvoiceReportLine, 'id' | 'isSelected'>[] = [];
-    for (const linea of lineasDetalle) {
-        const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
-        if (cantidad === 0) continue;
-
-        const codigosComerciales = linea.CodigoComercial || [];
-        const supplierCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01');
-        const itemCode = supplierCodeNode ? supplierCodeNode.Codigo : (codigosComerciales[0]?.Codigo || 'N/A');
-
-        const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
-        const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
-        const unitPrice = parseDecimal(getValue(linea, ['PrecioUnitario'], '0'));
+    if (detalleServicio && detalleServicio.LineaDetalle) {
+        const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
         
-        // Robust calculation for unit price with tax
-        const unitPriceWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
-        
-        lines.push({
-            invoiceKey: numeroConsecutivo,
-            invoiceNumber: numeroConsecutivo,
-            supplierName: emisorNombre,
-            issueDate: fechaEmision,
-            itemCode: itemCode,
-            itemDescription: getValue(linea, ['Detalle']),
-            unitPrice: unitPrice,
-            unitPriceWithTax: unitPriceWithTax,
-            totalLine: subTotal,
-            totalLineWithTax: montoTotalLinea,
-        });
+        for (const linea of lineasDetalle) {
+            const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
+            if (cantidad === 0) continue;
+
+            const codigosComerciales = linea.CodigoComercial || [];
+            const supplierCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01');
+            const itemCode = supplierCodeNode ? supplierCodeNode.Codigo : (codigosComerciales[0]?.Codigo || 'N/A');
+
+            const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
+            const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
+            const unitPrice = parseDecimal(getValue(linea, ['PrecioUnitario'], '0'));
+            
+            const unitPriceWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
+            
+            lines.push({
+                invoiceNumber: numeroConsecutivo,
+                supplierName: emisorNombre,
+                issueDate: fechaEmision,
+                itemCode: itemCode,
+                itemDescription: getValue(linea, ['Detalle']),
+                unitPrice: unitPrice,
+                unitPriceWithTax: unitPriceWithTax,
+                totalLine: subTotal,
+                totalLineWithTax: montoTotalLinea,
+            });
+        }
     }
 
-    return { lines, invoiceInfo };
+    const resumenFactura = getValue(rootNode, ['ResumenFactura'], {});
+    const summary = {
+        totalVentaNeta: parseDecimal(getValue(resumenFactura, ['TotalVentaNeta'], '0')),
+        totalImpuesto: parseDecimal(getValue(resumenFactura, ['TotalImpuesto'], '0')),
+        totalComprobante: parseDecimal(getValue(resumenFactura, ['TotalComprobante'], '0')),
+    };
+
+    return { 
+        data: {
+            info: invoiceInfo,
+            summary,
+            lines,
+        },
+        invoiceInfo 
+    };
 }
 
-export async function processInvoicesForReport(xmlContents: string[]): Promise<{ lines: InvoiceReportLine[], processedInvoices: ProcessedInvoiceInfo[] }> {
-    let allLines: InvoiceReportLine[] = [];
-    const processedInvoices: ProcessedInvoiceInfo[] = [];
+
+export async function processInvoicesForReport(xmlContents: string[]): Promise<{ 
+    processedInvoices: ProcessedInvoicePayload[], 
+    statusReport: ProcessedInvoiceInfo[] 
+}> {
+    const processedInvoicePayloads: ProcessedInvoicePayload[] = [];
+    const statusReport: ProcessedInvoiceInfo[] = [];
 
     for (const [index, xmlContent] of xmlContents.entries()) {
         try {
             const result = await parseInvoice(xmlContent, index);
-            if ('lines' in result) {
-                const newLines = result.lines.map((line, lineIndex) => ({
-                    ...line,
-                    id: `${result.invoiceInfo.invoiceNumber}-${lineIndex}`,
-                    isSelected: true, // Default to true
-                }));
-                allLines = [...allLines, ...newLines];
-                if (result.invoiceInfo.supplierName) {
-                    processedInvoices.push({ ...result.invoiceInfo, status: 'success' });
-                }
+            if ('data' in result) {
+                processedInvoicePayloads.push(result.data);
+                statusReport.push({ ...result.invoiceInfo, status: 'success' });
             } else {
-                 processedInvoices.push({
+                 statusReport.push({
                     supplierName: result.details.supplierName || 'Desconocido',
                     invoiceNumber: result.details.invoiceNumber || `Archivo ${index + 1}`,
-                    invoiceDate: result.details.invoiceDate || new Date().toISOString(),
+                    issueDate: result.details.issueDate || new Date().toISOString(),
                     status: 'error',
                     errorMessage: result.error,
                 });
             }
         } catch (error: any) {
-            processedInvoices.push({
+            statusReport.push({
                 supplierName: 'Desconocido',
                 invoiceNumber: `Archivo ${index + 1}`,
-                invoiceDate: new Date().toISOString(),
+                issueDate: new Date().toISOString(),
                 status: 'error',
                 errorMessage: 'XML malformado o ilegible',
             });
         }
     }
     
-    return JSON.parse(JSON.stringify({ lines: allLines, processedInvoices }));
+    return JSON.parse(JSON.stringify({ processedInvoices: processedInvoicePayloads, statusReport }));
 }
