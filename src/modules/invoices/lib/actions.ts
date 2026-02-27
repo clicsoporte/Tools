@@ -25,7 +25,7 @@ const parseDecimal = (str: any): number => {
 };
 
 interface InvoiceParseResult {
-    lines: Omit<InvoiceReportLine, 'id' | 'isExpense'>[];
+    lines: Omit<InvoiceReportLine, 'id' | 'isSelected'>[];
     invoiceInfo: Omit<ProcessedInvoiceInfo, 'status' | 'errorMessage'>;
 }
 
@@ -79,7 +79,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
 
     const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
     
-    const lines: Omit<InvoiceReportLine, 'id' | 'isExpense'>[] = [];
+    const lines: Omit<InvoiceReportLine, 'id' | 'isSelected'>[] = [];
     for (const linea of lineasDetalle) {
         const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
         if (cantidad === 0) continue;
@@ -123,7 +123,7 @@ export async function processInvoicesForReport(xmlContents: string[]): Promise<{
                 const newLines = result.lines.map((line, lineIndex) => ({
                     ...line,
                     id: `${result.invoiceInfo.invoiceNumber}-${lineIndex}`,
-                    isExpense: true, // Default to true
+                    isSelected: true, // Default to true
                 }));
                 allLines = [...allLines, ...newLines];
                 if (result.invoiceInfo.supplierName) {

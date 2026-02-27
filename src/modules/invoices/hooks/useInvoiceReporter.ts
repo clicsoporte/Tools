@@ -74,14 +74,14 @@ export const useInvoiceReporter = () => {
         }));
     };
 
-    const toggleExpense = (id: string, isChecked: boolean) => {
-        updateLine(id, { isExpense: isChecked });
+    const toggleSelected = (id: string, isChecked: boolean) => {
+        updateLine(id, { isSelected: isChecked });
     };
     
-    const toggleAllExpenses = (isChecked: boolean) => {
+    const toggleAllSelected = (isChecked: boolean) => {
          setState(prevState => ({
             ...prevState,
-            lines: prevState.lines.map(line => ({ ...line, isExpense: isChecked })),
+            lines: prevState.lines.map(line => ({ ...line, isSelected: isChecked })),
         }));
     };
 
@@ -91,14 +91,14 @@ export const useInvoiceReporter = () => {
     };
 
     const handleExport = () => {
-        const expenseLines = state.lines.filter(line => line.isExpense);
-        if (expenseLines.length === 0) {
-            toast({ title: "Sin Gastos Seleccionados", description: "Marca las líneas que deseas exportar como gastos.", variant: "destructive" });
+        const selectedLines = state.lines.filter(line => line.isSelected);
+        if (selectedLines.length === 0) {
+            toast({ title: "Sin Líneas Seleccionadas", description: "Marca las líneas que deseas exportar.", variant: "destructive" });
             return;
         }
 
         const headers = ["Nº Factura", "Proveedor", "Fecha Emisión", "Código Artículo", "Descripción", "Precio Unitario (s/IVA)", "Precio Unitario (c/IVA)", "Total Línea (s/IVA)", "Total Línea (c/IVA)"];
-        const dataToExport = expenseLines.map(line => [
+        const dataToExport = selectedLines.map(line => [
             line.invoiceNumber,
             line.supplierName,
             format(parseISO(line.issueDate), 'dd/MM/yyyy'),
@@ -111,9 +111,9 @@ export const useInvoiceReporter = () => {
         ]);
 
         exportToExcel({
-            fileName: 'reporte_gastos_facturas',
-            sheetName: 'Gastos',
-            title: 'Reporte de Gastos de Facturas',
+            fileName: 'reporte_facturas_seleccionadas',
+            sheetName: 'Facturas',
+            title: 'Reporte de Facturas Seleccionadas',
             data: [headers, ...dataToExport],
             headers: [], // Headers are part of the data
             columnWidths: [25, 30, 15, 20, 40, 20, 20, 20, 20],
@@ -124,14 +124,14 @@ export const useInvoiceReporter = () => {
         openFileDialog,
         onFileSelected,
         updateLine,
-        toggleExpense,
-        toggleAllExpenses,
+        toggleSelected,
+        toggleAllSelected,
         handleClear,
         handleExport,
     };
 
     const selectors = {
-        areAllSelected: useMemo(() => state.lines.length > 0 && state.lines.every(l => l.isExpense), [state.lines])
+        areAllSelected: useMemo(() => state.lines.length > 0 && state.lines.every(l => l.isSelected), [state.lines])
     };
 
     return {

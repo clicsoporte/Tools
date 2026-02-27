@@ -83,11 +83,11 @@ export default function InvoiceReporterPage() {
                             <h3 className="text-lg font-semibold">Líneas de Factura</h3>
                             <div className="flex items-center space-x-2">
                                 <Checkbox
-                                    id="select-all-expenses"
+                                    id="select-all-lines"
                                     checked={selectors.areAllSelected}
-                                    onCheckedChange={(checked) => actions.toggleAllExpenses(!!checked)}
+                                    onCheckedChange={(checked) => actions.toggleAllSelected(!!checked)}
                                 />
-                                <Label htmlFor="select-all-expenses" className="text-sm font-medium">Marcar/desmarcar todos como gasto</Label>
+                                <Label htmlFor="select-all-lines" className="text-sm font-medium">Marcar/desmarcar todos para exportar</Label>
                             </div>
                         </div>
                         
@@ -95,7 +95,7 @@ export default function InvoiceReporterPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-12">Gasto</TableHead>
+                                        <TableHead className="w-12">Exportar</TableHead>
                                         <TableHead className="min-w-[200px]">Nº Factura</TableHead>
                                         <TableHead className="min-w-[250px]">Proveedor</TableHead>
                                         <TableHead className="min-w-[120px]">Fecha</TableHead>
@@ -110,7 +110,7 @@ export default function InvoiceReporterPage() {
                                 <TableBody>
                                     {state.lines.length > 0 ? state.lines.map(line => (
                                         <TableRow key={line.id}>
-                                            <TableCell><Checkbox checked={line.isExpense} onCheckedChange={(checked) => actions.toggleExpense(line.id, !!checked)} /></TableCell>
+                                            <TableCell><Checkbox checked={line.isSelected} onCheckedChange={(checked) => actions.toggleSelected(line.id, !!checked)} /></TableCell>
                                             <TableCell className="font-mono">{line.invoiceNumber}</TableCell>
                                             <TableCell>{line.supplierName}</TableCell>
                                             <TableCell>{isValid(parseISO(line.issueDate)) ? format(parseISO(line.issueDate), 'dd/MM/yyyy') : 'Inválida'}</TableCell>

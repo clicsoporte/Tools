@@ -956,7 +956,7 @@ export type CostAssistantSettings = {
 export type InvoiceReportLine = {
     id: string;
     invoiceKey: string;
-    isExpense: boolean;
+    isSelected: boolean;
     invoiceNumber: string;
     supplierName: string;
     issueDate: string;
