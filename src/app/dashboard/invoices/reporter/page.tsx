@@ -50,7 +50,7 @@ export default function InvoiceReporterPage() {
                             <TableCell><Checkbox checked={line.isSelected} onCheckedChange={(checked) => actions.toggleSelected(line.id, !!checked)} /></TableCell>
                             <TableCell className="font-mono">{line.invoiceNumber}</TableCell>
                             <TableCell>{line.supplierName}</TableCell>
-                            <TableCell>{isValid(parseISO(line.issueDate)) ? format(parseISO(line.issueDate), 'dd/MM/yyyy') : 'Inválida'}</TableCell>
+                            <TableCell>{isValid(parseISO(line.invoiceDate)) ? format(parseISO(line.invoiceDate), 'dd/MM/yyyy') : 'Inválida'}</TableCell>
                             <TableCell><Input value={line.itemCode} onChange={e => actions.updateLine(line.id, { itemCode: e.target.value })} className="h-auto p-1 border-0" /></TableCell>
                             <TableCell><Input value={line.itemDescription} onChange={e => actions.updateLine(line.id, { itemDescription: e.target.value })} className="h-auto p-1 border-0" /></TableCell>
                             <TableCell className="text-right"><Input type="number" value={line.unitPrice} onChange={e => actions.updateLine(line.id, { unitPrice: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>
@@ -96,7 +96,7 @@ export default function InvoiceReporterPage() {
                             <TableCell><Checkbox checked={summary.isSelected} onCheckedChange={(checked) => actions.toggleSelected(summary.id, !!checked)} /></TableCell>
                             <TableCell className="font-mono">{summary.invoiceNumber}</TableCell>
                             <TableCell>{summary.supplierName}</TableCell>
-                            <TableCell>{isValid(parseISO(summary.issueDate)) ? format(parseISO(summary.issueDate), 'dd/MM/yyyy') : 'Inválida'}</TableCell>
+                            <TableCell>{isValid(parseISO(summary.invoiceDate)) ? format(parseISO(summary.invoiceDate), 'dd/MM/yyyy') : 'Inválida'}</TableCell>
                             <TableCell className="text-right font-mono">{`¢${summary.totalVentaNeta.toLocaleString('es-CR', { minimumFractionDigits: 2 })}`}</TableCell>
                             <TableCell className="text-right font-mono">{`¢${summary.totalImpuesto.toLocaleString('es-CR', { minimumFractionDigits: 2 })}`}</TableCell>
                             <TableCell className="text-right font-bold text-base font-mono">{`¢${summary.totalComprobante.toLocaleString('es-CR', { minimumFractionDigits: 2 })}`}</TableCell>
