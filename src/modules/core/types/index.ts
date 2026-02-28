@@ -966,6 +966,7 @@ export type InvoiceReportLine = {
     unitPriceWithTax: number;
     totalLine: number;
     totalLineWithTax: number;
+    taxRate: number;
 };
 
 

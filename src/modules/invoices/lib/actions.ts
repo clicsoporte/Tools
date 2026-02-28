@@ -99,6 +99,9 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ da
             
             const unitPriceWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
             
+            const impuestoNode = getValue(linea, ['Impuesto']);
+            const taxRate = impuestoNode ? parseDecimal(getValue(impuestoNode, ['Tarifa'], '0')) / 100 : 0;
+
             lines.push({
                 invoiceKey: numeroConsecutivo,
                 invoiceNumber: numeroConsecutivo,
@@ -110,6 +113,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ da
                 unitPriceWithTax: unitPriceWithTax,
                 totalLine: subTotal,
                 totalLineWithTax: montoTotalLinea,
+                taxRate: taxRate,
             });
         }
     }
