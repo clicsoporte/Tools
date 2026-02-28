@@ -373,7 +373,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
     const transaction = db.transaction(() => {
         const currentBoleta = db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta | undefined;
         if (!currentBoleta) {
-            throw new Error("Boleta no encontrada.");
+            throw new Error("La boleta que intentas actualizar no fue encontrada. Es posible que haya sido eliminada.");
         }
         
         if (status === 'pending' && (!erpMovementId || !erpMovementId.trim())) {
@@ -383,11 +383,11 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
         const totalReplenish = lines.reduce((sum, line) => sum + line.replenish_quantity, 0);
 
         if (status === 'pending' && totalReplenish <= 0) {
-             throw new Error("No se puede enviar a aprobación una boleta sin cantidad total a reponer.");
+             throw new Error("La boleta no puede ser enviada a aprobación porque la cantidad total a reponer es cero o negativa.");
         }
         const hasUntouchedManualLines = lines.some(line => line.max_stock === 0 && line.is_manually_edited === 0);
         if (status === 'pending' && hasUntouchedManualLines) {
-            throw new Error("Hay productos que requieren una cantidad manual. Por favor, edita la boleta y asigna una cantidad (incluso 0) a todas las líneas antes de enviar a aprobación.");
+            throw new Error("Existen productos de reposición manual que no tienen una cantidad asignada. Por favor, edita la boleta, asigna una cantidad a reponer (incluso 0) a todas las líneas marcadas y vuelve a intentarlo.");
         }
         
         let approvedBy = currentBoleta.approved_by;
@@ -600,7 +600,7 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
 
         const agreement = db.prepare('SELECT has_initial_inventory FROM consignment_agreements WHERE id = ?').get(agreementId) as { has_initial_inventory: 0 | 1 };
         if (!agreement) {
-            throw new Error("Acuerdo no encontrado.");
+            throw new Error("El acuerdo de consignación para este cliente no fue encontrado o está inactivo.");
         }
 
         const isInitial = agreement.has_initial_inventory === 0;
@@ -662,12 +662,10 @@ export async function getPeriodClosures(filters: { agreementId?: number } = {}):
     
     const closures = db.prepare(query).all(...params) as any[];
     
-    const result = closures.map(c => {
-        return {
-            ...c,
-            is_initial_inventory: c.is_initial_inventory === 1,
-        };
-    });
+    const result = closures.map((c: any) => ({
+        ...c,
+        is_initial_inventory: c.is_initial_inventory === 1,
+    }));
     
     return JSON.parse(JSON.stringify(result));
 }
@@ -684,10 +682,10 @@ export async function approvePeriodClosure(closureId: number, previousClosureId:
 
     return db.transaction(() => {
         const closure = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
-        if (!closure || !closure.physical_count_ref) throw new Error("Cierre inválido o sin conteo físico asociado.");
+        if (!closure || !closure.physical_count_ref) throw new Error("El cierre es inválido o no tiene un conteo físico de referencia para poder ser aprobado.");
         
         const counts = db.prepare('SELECT * FROM physical_counts WHERE agreement_id = ? AND counted_at = ?').all(closure.agreement_id, closure.physical_count_ref) as PhysicalCount[];
-        if (counts.length === 0) throw new Error("No se encontraron los datos del conteo físico para este cierre.");
+        if (counts.length === 0) throw new Error("Error de consistencia: Los datos del conteo físico para este cierre se han perdido o están corruptos.");
         
         const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(closure.agreement_id) as ConsignmentAgreement;
 
@@ -736,15 +734,15 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
     return db.transaction(() => {
         const closureToAnnul = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure | undefined;
         if (!closureToAnnul) {
-            throw new Error("El cierre a anular no fue encontrado.");
+            throw new Error("El cierre que intentas anular no fue encontrado.");
         }
         if (closureToAnnul.status !== 'approved') {
-            throw new Error("Solo se pueden anular cierres que hayan sido aprobados.");
+            throw new Error("Acción no permitida: Solo se pueden anular cierres que se encuentren en estado 'Aprobado'.");
         }
 
         const isUsed = db.prepare('SELECT id FROM period_closures WHERE previous_closure_id = ?').get(closureId);
         if (isUsed) {
-            throw new Error("Este cierre no se puede anular porque ya está siendo usado como el inicio de otro período.");
+            throw new Error("Anulación bloqueada: Este cierre no se puede anular porque ya fue utilizado como el punto de partida para el siguiente período de facturación.");
         }
         
         db.prepare(`UPDATE period_closures SET status = 'annulled', notes = 'Anulado por ${updatedBy} el ${new Date().toISOString()}' WHERE id = ?`).run(closureId);
@@ -854,7 +852,7 @@ export async function saveReplenishmentBoleta(agreementId: number, lines: { prod
     
     return db.transaction(() => {
         const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as ConsignmentAgreement;
-        if (!agreement) throw new Error("Agreement not found");
+        if (!agreement) throw new Error("El acuerdo de consignación no fue encontrado. No se puede crear la solicitud de reposición.");
 
         const consecutive = `${agreement.client_id}-${String(agreement.next_boleta_number).padStart(4, '0')}`;
         const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, created_at, type) VALUES (?, ?, 'review', ?, datetime('now'), 'REPOSITION')`)
