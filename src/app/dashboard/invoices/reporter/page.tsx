@@ -30,7 +30,7 @@ export default function InvoiceReporterPage() {
                             <Checkbox 
                                 checked={selectors.areAllDetailedSelected}
                                 onCheckedChange={(checked) => actions.toggleAllSelected(!!checked)}
-                                aria-label="Seleccionar todas las líneas"
+                                aria-label="Seleccionar todas las líneas para exportar"
                             />
                         </TableHead>
                         <TableHead className="min-w-[200px]">Nº Factura</TableHead>
@@ -79,7 +79,7 @@ export default function InvoiceReporterPage() {
                              <Checkbox 
                                 checked={selectors.areAllSummarySelected}
                                 onCheckedChange={(checked) => actions.toggleAllSelected(!!checked)}
-                                aria-label="Seleccionar todas las facturas"
+                                aria-label="Seleccionar todas las facturas para exportar"
                             />
                         </TableHead>
                         <TableHead className="min-w-[200px]">Nº Factura</TableHead>
@@ -143,33 +143,31 @@ export default function InvoiceReporterPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {state.statusReport.length > 0 && (
-                        <Accordion type="single" collapsible className="w-full">
-                            <AccordionItem value="item-1">
-                                <AccordionTrigger>
-                                    Ver Resumen de Facturas Procesadas ({state.statusReport.length})
-                                </AccordionTrigger>
-                                <AccordionContent>
-                                    <ScrollArea className="h-48 mt-4">
-                                        <ul className="space-y-3 text-sm pr-4">
-                                            {state.statusReport.map((invoice, index) => (
-                                                <li key={`${invoice.invoiceNumber}-${index}`} className="border-b pb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        {invoice.status === 'success' ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
-                                                        <div className="flex-1">
-                                                            <p className="font-semibold truncate">{invoice.supplierName}</p>
-                                                            <p className="text-xs text-muted-foreground">{invoice.invoiceNumber}</p>
-                                                        </div>
+                    <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger>
+                                Ver Resumen de Facturas Procesadas ({state.statusReport.length})
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <ScrollArea className="h-48 mt-4">
+                                    <ul className="space-y-3 text-sm pr-4">
+                                        {state.statusReport.map((invoice, index) => (
+                                            <li key={`${invoice.invoiceNumber}-${index}`} className="border-b pb-2">
+                                                <div className="flex items-center gap-2">
+                                                    {invoice.status === 'success' ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                                    <div className="flex-1">
+                                                        <p className="font-semibold truncate">{invoice.supplierName}</p>
+                                                        <p className="text-xs text-muted-foreground">{invoice.invoiceNumber}</p>
                                                     </div>
-                                                    {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </ScrollArea>
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
-                    )}
+                                                </div>
+                                                {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </ScrollArea>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
 
                     <div className="space-y-4">
                          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
@@ -188,8 +186,9 @@ export default function InvoiceReporterPage() {
                             </div>
                         </div>
                         
-                        {state.viewMode === 'detailed' ? renderDetailedTable() : renderSummaryTable()}
-
+                        <ScrollArea className="w-full whitespace-nowrap">
+                            {state.viewMode === 'detailed' ? renderDetailedTable() : renderSummaryTable()}
+                        </ScrollArea>
                     </div>
                 </CardContent>
             </Card>
