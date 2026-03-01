@@ -95,7 +95,9 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ da
 
             const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
             const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
-            const unitPrice = parseDecimal(getValue(linea, ['PrecioUnitario'], '0'));
+            
+            // Corrected calculation for unitPrice, similar to Cost Assistant
+            const unitPrice = cantidad > 0 ? subTotal / cantidad : 0;
             
             const unitPriceWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
             

@@ -160,12 +160,13 @@ export const useInvoiceReporter = () => {
                 toast({ title: "Sin Líneas Seleccionadas", description: "Marca las líneas que deseas exportar.", variant: "destructive" });
                 return;
             }
-            const headers = ["Nº Factura", "Proveedor", "Fecha Emisión", "Código Artículo", "Descripción", "Precio Unitario (s/IVA)", "Precio Unitario (c/IVA)", "Total Línea (s/IVA)", "Total Línea (c/IVA)"];
+            const headers = ["Nº Factura", "Proveedor", "Fecha Emisión", "Código Artículo", "Descripción", "Precio Unitario (s/IVA)", "Precio Unitario (c/IVA)", "Total Línea (s/IVA)", "Total Línea (c/IVA)", "% Imp."];
             const dataToExport = selectedLines.map(line => [
                 line.invoiceNumber, line.supplierName, format(parseISO(line.invoiceDate), 'dd/MM/yyyy'), line.itemCode,
                 line.itemDescription, line.unitPrice, line.unitPriceWithTax, line.totalLine, line.totalLineWithTax,
+                line.taxRate !== undefined ? (line.taxRate * 100) : '-'
             ]);
-            exportToExcel({ fileName: 'reporte_facturas_detallado', sheetName: 'Facturas Detalle', title: 'Reporte Detallado de Facturas Seleccionadas', data: dataToExport, headers: [], columnWidths: [25, 30, 15, 20, 40, 20, 20, 20, 20] });
+            exportToExcel({ fileName: 'reporte_facturas_detallado', sheetName: 'Facturas Detalle', title: 'Reporte Detallado de Facturas Seleccionadas', data: dataToExport, headers: headers, columnWidths: [25, 30, 15, 20, 40, 20, 20, 20, 20, 10] });
         } else { // Summary mode
             const selectedSummaries = selectors.summaryLines.filter(s => s.isSelected);
              if (selectedSummaries.length === 0) {
@@ -177,7 +178,7 @@ export const useInvoiceReporter = () => {
                 s.invoiceNumber, s.supplierName, format(parseISO(s.invoiceDate), 'dd/MM/yyyy'),
                 s.totalVentaNeta, s.totalImpuesto, s.totalComprobante
             ]);
-            exportToExcel({ fileName: 'reporte_facturas_resumido', sheetName: 'Facturas Resumen', title: 'Reporte Resumido de Facturas Seleccionadas', data: dataToExport, headers: [], columnWidths: [25, 30, 15, 20, 20, 20] });
+            exportToExcel({ fileName: 'reporte_facturas_resumido', sheetName: 'Facturas Resumen', title: 'Reporte Resumido de Facturas Seleccionadas', data: dataToExport, headers: headers, columnWidths: [25, 30, 15, 20, 20, 20] });
         }
     };
     

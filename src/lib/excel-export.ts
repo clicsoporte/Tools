@@ -33,7 +33,7 @@ export const exportToExcel = ({
     columnWidths,
 }: ExportToExcelOptions) => {
     
-    // Create worksheet from the array of arrays
+    // Create worksheet from an empty array first, to add data incrementally
     const worksheet = XLSX.utils.aoa_to_sheet([]);
     let currentRow = 0;
 
