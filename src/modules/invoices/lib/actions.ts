@@ -102,16 +102,15 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ da
             const taxRate = impuestoNode ? parseDecimal(getValue(impuestoNode, ['Tarifa'], '0')) / 100 : 0;
             
             let unitPrice;
-            let unitPriceWithTax;
 
             if (unitPriceFromXml > 0) {
                 unitPrice = unitPriceFromXml;
-                unitPriceWithTax = unitPrice * (1 + taxRate);
             } else {
                 // Fallback to calculation if PrecioUnitario is missing or zero
                 unitPrice = cantidad > 0 ? subTotal / cantidad : 0;
-                unitPriceWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
             }
+            
+            const unitPriceWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
 
             lines.push({
                 invoiceKey: numeroConsecutivo,
