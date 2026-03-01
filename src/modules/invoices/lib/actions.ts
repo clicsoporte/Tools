@@ -90,8 +90,14 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ da
             if (cantidad === 0) continue;
 
             const codigosComerciales = linea.CodigoComercial || [];
-            const supplierCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01');
-            const itemCode = supplierCodeNode ? supplierCodeNode.Codigo : (codigosComerciales[0]?.Codigo || 'N/A');
+            let itemCode = 'N/A';
+            const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01'); // Prioritize supplier's code
+            if (preferredCodeNode && preferredCodeNode.Codigo) {
+                itemCode = preferredCodeNode.Codigo;
+            } else if (codigosComerciales[0]?.Codigo) {
+                itemCode = codigosComerciales[0].Codigo;
+            }
+
 
             const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
             const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
@@ -102,15 +108,16 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ da
             const taxRate = impuestoNode ? parseDecimal(getValue(impuestoNode, ['Tarifa'], '0')) / 100 : 0;
             
             let unitPrice;
-
             if (unitPriceFromXml > 0) {
                 unitPrice = unitPriceFromXml;
             } else {
-                // Fallback to calculation if PrecioUnitario is missing or zero
                 unitPrice = cantidad > 0 ? subTotal / cantidad : 0;
             }
             
             const unitPriceWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
+
+            const rawDescription = getValue(linea, ['Detalle']);
+            const cleanDescription = rawDescription.split(';')[0].trim();
 
             lines.push({
                 invoiceKey: numeroConsecutivo,
@@ -118,7 +125,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ da
                 supplierName: emisorNombre,
                 invoiceDate: fechaEmision,
                 itemCode: itemCode,
-                itemDescription: getValue(linea, ['Detalle']),
+                itemDescription: cleanDescription,
                 unitPrice: unitPrice,
                 unitPriceWithTax: unitPriceWithTax,
                 totalLine: subTotal,
