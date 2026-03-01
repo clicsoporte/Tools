@@ -30,7 +30,7 @@ export default function InvoiceReporterPage() {
                             <Checkbox 
                                 checked={selectors.areAllDetailedSelected}
                                 onCheckedChange={(checked) => actions.toggleAllSelected(!!checked)}
-                                aria-label="Seleccionar todas las líneas para exportar"
+                                aria-label="Marcar/desmarcar todos para exportar"
                             />
                         </TableHead>
                         <TableHead className="min-w-[200px]">Nº Factura</TableHead>
@@ -81,15 +81,15 @@ export default function InvoiceReporterPage() {
                              <Checkbox 
                                 checked={selectors.areAllSummarySelected}
                                 onCheckedChange={(checked) => actions.toggleAllSelected(!!checked)}
-                                aria-label="Seleccionar todas las facturas para exportar"
+                                aria-label="Marcar/desmarcar todos para exportar"
                             />
                         </TableHead>
                         <TableHead className="min-w-[200px]">Nº Factura</TableHead>
                         <TableHead className="min-w-[300px]">Proveedor</TableHead>
                         <TableHead className="min-w-[120px]">Fecha</TableHead>
-                        <TableHead className="text-right min-w-[150px]">Venta Neta</TableHead>
-                        <TableHead className="text-right min-w-[150px]">Impuesto</TableHead>
-                        <TableHead className="text-right min-w-[150px]">Total</TableHead>
+                        <TableHead className="text-right min-w-[200px]">Venta Neta</TableHead>
+                        <TableHead className="text-right min-w-[200px]">Impuesto</TableHead>
+                        <TableHead className="text-right min-w-[200px]">Total</TableHead>
                     </TableRow>
                 </TableHeader>
                  <TableBody>
