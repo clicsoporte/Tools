@@ -705,8 +705,8 @@ export async function approvePeriodClosure(closureId: number, previousClosureId:
         db.prepare('UPDATE period_closures SET status = ?, previous_closure_id = ?, approved_at = ?, approved_by = ?, closure_boleta_id = ? WHERE id = ?')
           .run('approved', previousClosureId, new Date().toISOString(), updatedBy, boletaId, closureId);
 
-        // **CRITICAL LOGIC**: If this is the first closure, update the agreement flag.
-        if (previousClosureId === null || closure.is_initial_inventory) {
+        // **CRITICAL LOGIC**: If this is an initial inventory closure, update the agreement flag.
+        if (closure.is_initial_inventory) {
             db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 1 WHERE id = ?').run(closure.agreement_id);
         }
 
