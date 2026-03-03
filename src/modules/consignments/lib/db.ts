@@ -155,8 +155,10 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
         }
 
         const boletasTableInfo = db.prepare(`PRAGMA table_info(restock_boletas)`).all() as { name: string }[];
-        if (boletasTableInfo.length > 0 && !boletasTableInfo.some(c => c.name === 'type')) {
-            db.exec(`ALTER TABLE restock_boletas ADD COLUMN type TEXT NOT NULL DEFAULT 'REPOSITION'`);
+        if (boletasTableInfo.length > 0) {
+            const boletaColumns = new Set(boletasTableInfo.map(c => c.name));
+            if (!boletaColumns.has('type')) db.exec(`ALTER TABLE restock_boletas ADD COLUMN type TEXT NOT NULL DEFAULT 'REPOSITION'`);
+            if (!boletaColumns.has('submitted_by')) db.exec(`ALTER TABLE restock_boletas ADD COLUMN submitted_by TEXT`);
         }
         
         const physicalCountsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='physical_counts'`).get();
@@ -785,8 +787,8 @@ export async function saveReplenishmentBoleta(agreementId: number, lines: { prod
         if (!agreement) throw new Error("El acuerdo de consignación no fue encontrado. No se puede crear la solicitud de reposición.");
 
         const consecutive = `${agreement.client_id}-${String(agreement.next_boleta_number).padStart(4, '0')}`;
-        const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, created_at, type) VALUES (?, ?, 'review', ?, datetime('now'), 'REPOSITION')`)
-            .run(consecutive, agreement.id, userName);
+        const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, submitted_by, created_at, type) VALUES (?, ?, 'review', ?, ?, datetime('now'), 'REPOSITION')`)
+            .run(consecutive, agreement.id, userName, userName);
         const boletaId = boletaInfo.lastInsertRowid as number;
 
         const allProducts = mainDb.prepare('SELECT * FROM products').all() as Product[];
