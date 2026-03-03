@@ -773,77 +773,7 @@ export async function saveAdjustment(payload: { agreementId: number; productId: 
 }
 
 export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
-    const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const currentClosure = db.prepare('SELECT ca.client_name, pc.* FROM period_closures pc JOIN consignment_agreements ca ON pc.agreement_id = ca.id WHERE pc.id = ?').get(closureId) as (PeriodClosure & { client_name: string });
-    if (!currentClosure) throw new Error('Cierre no encontrado.');
-    if (currentClosure.status !== 'approved') throw new Error('El cierre debe estar aprobado para generar el reporte de facturación.');
-
-    const previousClosure = currentClosure.previous_closure_id ? db.prepare('SELECT * FROM period_closures WHERE id = ?').get(currentClosure.previous_closure_id) as PeriodClosure : null;
-
-    const startDate = previousClosure ? new Date(previousClosure.created_at) : new Date(0);
-    const endDate = new Date(currentClosure.created_at);
-
-    const boletasInPeriod = await getBoletasByDateRange(String(currentClosure.agreement_id), { from: startDate, to: endDate }, ['approved', 'sent', 'invoiced']);
-    const replenishmentBoletas = boletasInPeriod.filter(b => b.type === 'REPOSITION');
-
-    const [currentClosureDetails, previousClosureDetails, adjustmentsInPeriod] = await Promise.all([
-        currentClosure.closure_boleta_id ? getBoletaDetails(currentClosure.closure_boleta_id) : Promise.resolve(null),
-        previousClosure && previousClosure.closure_boleta_id ? getBoletaDetails(previousClosure.closure_boleta_id) : Promise.resolve(null),
-        getAdjustmentsInPeriod(currentClosure.agreement_id, { from: startDate, to: endDate }),
-    ]);
-
-    if (!currentClosureDetails) throw new Error('Boleta de cierre actual no encontrada.');
-
-    const initialStockMap = new Map<string, number>();
-    previousClosureDetails?.lines.forEach(line => initialStockMap.set(line.product_id, line.counted_quantity));
-
-    const finalStockMap = new Map<string, number>();
-    currentClosureDetails.lines.forEach(line => finalStockMap.set(line.product_id, line.counted_quantity));
-    
-    const replenishedMap = new Map<string, number>();
-    replenishmentBoletas.forEach((boleta: RestockBoleta & { lines: BoletaLine[] }) => {
-        boleta.lines.forEach((line: BoletaLine) => {
-            const current = replenishedMap.get(line.product_id) || 0;
-            replenishedMap.set(line.product_id, current + line.replenish_quantity);
-        });
-    });
-
-    const adjustmentsMap = new Map<string, number>();
-    adjustmentsInPeriod.forEach((adjustment: ConsignmentAdjustment) => {
-        const current = adjustmentsMap.get(adjustment.product_id) || 0;
-        adjustmentsMap.set(adjustment.product_id, current + adjustment.quantity);
-    });
-
-    const allProductIds = new Set([
-        ...initialStockMap.keys(),
-        ...finalStockMap.keys(),
-        ...replenishedMap.keys(),
-        ...adjustmentsMap.keys(),
-    ]);
-
-    const reportRows = Array.from(allProductIds).map(productId => {
-        const productDetails = currentClosureDetails.lines.find(l => l.product_id === productId) || previousClosureDetails?.lines.find(l => l.product_id === productId);
-        const initialStock = initialStockMap.get(productId) || 0;
-        const totalReplenished = replenishedMap.get(productId) || 0;
-        const totalAdjustments = adjustmentsMap.get(productId) || 0;
-        const finalStock = finalStockMap.get(productId) || 0;
-        const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
-
-        return {
-            productId,
-            productDescription: productDetails?.product_description || 'Desconocido',
-            clientProductCode: productDetails?.client_product_code || '',
-            initialStock,
-            totalReplenished,
-            adjustments: totalAdjustments,
-            finalStock,
-            consumption: consumption > 0 ? consumption : 0,
-            price: productDetails?.price || 0,
-            totalValue: (consumption > 0 ? consumption : 0) * (productDetails?.price || 0),
-        };
-    }).filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.consumption > 0 || row.adjustments !== 0);
-
-    return { reportRows, boletas: replenishmentBoletas, currentClosure, previousClosure, adjustments: adjustmentsInPeriod };
+    return getConsignmentsBillingReportDataServer(closureId);
 }
 
 export async function saveReplenishmentBoleta(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<RestockBoleta> {
@@ -861,7 +791,7 @@ export async function saveReplenishmentBoleta(agreementId: number, lines: { prod
 
         const allProducts = mainDb.prepare('SELECT * FROM products').all() as Product[];
         const agreementProducts = db.prepare('SELECT * FROM consignment_products WHERE agreement_id = ?').all(agreementId) as ConsignmentProduct[];
-        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, client_product_code, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, 0, ?, ?, ?, 1)');
+        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, client_product_code, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)');
         
         for (const line of lines) {
             const agreementProduct = agreementProducts.find(p => p.product_id === line.productId);
@@ -869,6 +799,7 @@ export async function saveReplenishmentBoleta(agreementId: number, lines: { prod
             
             const productDescription = allProducts.find(p => p.id === line.productId)?.description || 'Desconocido';
             
+            // Fix: Added '0' for the counted_quantity placeholder
             insertLine.run(boletaId, line.productId, productDescription, agreementProduct.client_product_code, 0, line.quantity, agreementProduct.max_stock, agreementProduct.price);
         }
 
