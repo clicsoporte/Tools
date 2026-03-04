@@ -675,7 +675,7 @@ export async function approvePeriodClosure(closureId: number, previousClosureId:
     const mainDb = await connectDb();
 
     return db.transaction(() => {
-        const closure = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
+        const closure = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure & { is_initial_inventory: boolean };
         if (!closure || !closure.physical_count_ref) throw new Error("El cierre es inválido o no tiene un conteo físico de referencia para poder ser aprobado.");
         
         const counts = db.prepare('SELECT * FROM physical_counts WHERE agreement_id = ? AND counted_at = ?').all(closure.agreement_id, closure.physical_count_ref) as PhysicalCount[];
@@ -706,7 +706,7 @@ export async function approvePeriodClosure(closureId: number, previousClosureId:
           .run('approved', previousClosureId, new Date().toISOString(), updatedBy, boletaId, closureId);
 
         // **CRITICAL LOGIC**: If this is an initial inventory closure, update the agreement flag.
-        if (closure.is_initial_inventory === 1) {
+        if (closure.is_initial_inventory) {
             db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 1 WHERE id = ?').run(closure.agreement_id);
         }
 
@@ -726,7 +726,7 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
 
     return db.transaction(() => {
-        const closureToAnnul = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure | undefined;
+        const closureToAnnul = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as (PeriodClosure & { is_initial_inventory: boolean }) | undefined;
         if (!closureToAnnul) {
             throw new Error("El cierre que intentas anular no fue encontrado.");
         }
@@ -982,3 +982,5 @@ export async function releaseAgreementLock(agreementId: number, userId: number):
     // Only release the lock if the current user is the one who holds it.
     db.prepare('UPDATE consignment_agreements SET locked_by = NULL, locked_by_user_id = NULL, locked_at = NULL WHERE id = ? AND locked_by_user_id = ?').run(agreementId, userId);
 }
+
+    

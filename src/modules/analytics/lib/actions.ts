@@ -12,7 +12,7 @@ import type { ProductionReportDetail, ProductionReportData } from '../hooks/useP
 import { logError } from '@/modules/core/lib/logger';
 import { getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
 import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits, getWarehouseSettings as getWHSettings } from '@/modules/warehouse/lib/db';
-import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails, getAdjustmentsInPeriod, getBoletas, getPeriodClosures, getPeriodClosureDetails } from '@/modules/consignments/lib/db';
+import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData as getConsignmentsBillingReportDataFromDb, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails, getAdjustmentsInPeriod, getBoletas, getPeriodClosures, getPeriodClosureDetails } from '@/modules/consignments/lib/db';
 import type { TransitReportItem } from '../hooks/useTransitsReport';
 import type { OccupancyReportRow } from '../hooks/useOccupancyReport';
 
@@ -452,12 +452,6 @@ export async function getConsignmentsReportData(
                 consumption: consumption > 0 ? consumption : 0,
                 price: product.price,
                 totalValue: totalValue > 0 ? totalValue : 0,
-                boletaConsecutives,
-                creationDates,
-                erpInvoices,
-                approvers,
-                deliveryDates,
-                erpMovementIds,
                 adjustments: totalAdjustments,
                 transactions,
             };
@@ -544,3 +538,5 @@ export async function getInventoryMonitorData(agreementId: number): Promise<any>
         countHistory,
     }));
 }
+
+    
