@@ -12,7 +12,7 @@ import type { ProductionReportDetail, ProductionReportData } from '../hooks/useP
 import { logError } from '@/modules/core/lib/logger';
 import { getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
 import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits, getWarehouseSettings as getWHSettings } from '@/modules/warehouse/lib/db';
-import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData as getConsignmentsBillingReportDataFromDb, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails, getAdjustmentsInPeriod, getBoletas, getPeriodClosures, getPeriodClosureDetails } from '@/modules/consignments/lib/db';
+import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails, getAdjustmentsInPeriod, getBoletas, getPeriodClosures, getPeriodClosureDetails, getConsignmentsBillingReportData as getConsignmentsBillingReportDataFromDb } from '@/modules/consignments/lib/db';
 import type { TransitReportItem } from '../hooks/useTransitsReport';
 import type { OccupancyReportRow } from '../hooks/useOccupancyReport';
 
@@ -382,7 +382,7 @@ export async function getConsignmentsReportData(
             }
         }
 
-        const allProducts = await getAllProducts();
+        const allProducts = await getAllProductsFromMainDb();
         const productMap = new Map(allProducts.map(p => [p.id, p.description]));
 
         const reportRows: ConsignmentReportRow[] = agreementProducts.map(product => {
@@ -454,10 +454,16 @@ export async function getConsignmentsReportData(
                 totalValue: totalValue > 0 ? totalValue : 0,
                 adjustments: totalAdjustments,
                 transactions,
+                boletaConsecutives,
+                creationDates,
+                deliveryDates,
+                erpInvoices,
+                erpMovementIds,
+                approvers,
             };
         });
 
-        const finalReportRows = reportRows.filter(row => row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.consumption > 0 || row.adjustments !== 0);
+        const finalReportRows = reportRows.filter(row => row.consumption > 0 || row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.adjustments !== 0);
         
         return { reportRows: finalReportRows, boletas: boletasInPeriod, allBoletasForClient, allClosuresForClient };
 
