@@ -726,7 +726,7 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
 
     return db.transaction(() => {
-        const closureToAnnul = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as (PeriodClosure & { is_initial_inventory: number }) | undefined;
+        const closureToAnnul = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as (PeriodClosure & { is_initial_inventory: 0 | 1 }) | undefined;
         if (!closureToAnnul) {
             throw new Error("El cierre que intentas anular no fue encontrado.");
         }
@@ -752,7 +752,7 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
 }
 
 
-export async function saveAdjustment(payload: { agreementId: number; productId: string; quantity: number; reason: string; notes?: string; userName: string; }): Promise<ConsignmentAdjustment> {
+export async function saveAdjustment(payload: { agreementId: number; productId: string; quantity: number; reason: ConsignmentAdjustmentReason; notes?: string; userName: string; }): Promise<ConsignmentAdjustment> {
     await authorizeAction('consignments:adjustments:create');
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const { agreementId, productId, quantity, reason, notes, userName } = payload;
@@ -772,7 +772,80 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     currentClosure: (PeriodClosure & { client_name: string }) | null,
     previousClosure: PeriodClosure | null,
 }> {
-    return getConsignmentsBillingReportDataServer(closureId);
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    
+    const currentClosure = db.prepare(`
+        SELECT pc.*, ca.client_name 
+        FROM period_closures pc 
+        JOIN consignment_agreements ca ON pc.agreement_id = ca.id 
+        WHERE pc.id = ? AND pc.status = 'approved'
+    `).get(closureId) as (PeriodClosure & { client_name: string }) | null;
+
+    if (!currentClosure) {
+        throw new Error("Cierre no encontrado o no está aprobado.");
+    }
+    
+    const previousClosure = currentClosure.previous_closure_id
+        ? db.prepare('SELECT * FROM period_closures WHERE id = ?').get(currentClosure.previous_closure_id) as PeriodClosure | null
+        : null;
+
+    const startDate = previousClosure ? parseISO(previousClosure.created_at) : new Date(0);
+    const endDate = parseISO(currentClosure.created_at);
+
+    const initialCountBoleta = previousClosure
+        ? await getBoletaDetails(previousClosure.closure_boleta_id)
+        : null;
+
+    const finalCountBoleta = await getBoletaDetails(currentClosure.closure_boleta_id);
+    if (!finalCountBoleta) throw new Error("Datos de conteo final no encontrados.");
+
+    const agreementDetails = await getAgreementDetails(currentClosure.agreement_id);
+    if (!agreementDetails) throw new Error("Acuerdo no encontrado.");
+
+    const boletasInPeriod = await getBoletasByDateRange(String(currentClosure.agreement_id), { from: startDate, to: endDate }, ['sent', 'invoiced']);
+    const adjustmentsInPeriod = await getAdjustmentsInPeriod(currentClosure.agreement_id, { from: startDate, to: endDate });
+    const allProductsInAgreement = agreementDetails.products;
+
+    const reportRows: ConsignmentReportRow[] = allProductsInAgreement.map(prod => {
+        const initialLine = initialCountBoleta?.lines.find(l => l.product_id === prod.product_id);
+        const finalLine = finalCountBoleta.lines.find(l => l.product_id === prod.product_id);
+
+        const initialStock = initialLine?.counted_quantity || 0;
+        const finalStock = finalLine?.counted_quantity || 0;
+
+        const totalReplenished = boletasInPeriod
+            .flatMap(b => b.lines)
+            .filter(l => l.product_id === prod.product_id)
+            .reduce((sum, l) => sum + l.replenish_quantity, 0);
+
+        const totalAdjustments = adjustmentsInPeriod
+            .filter(adj => adj.product_id === prod.product_id)
+            .reduce((sum, adj) => sum + adj.quantity, 0);
+
+        const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
+
+        return {
+            productId: prod.product_id,
+            productDescription: prod.product_id, // Placeholder, will be enriched in hook
+            clientProductCode: prod.client_product_code,
+            initialStock,
+            totalReplenished,
+            adjustments: totalAdjustments,
+            finalStock,
+            consumption: consumption > 0 ? consumption : 0,
+            price: prod.price,
+            totalValue: consumption > 0 ? consumption * prod.price : 0,
+            transactions: [], // Not needed for this server action
+            boletaConsecutives: '', creationDates: '', deliveryDates: '', erpInvoices: '', erpMovementIds: '', approvers: ''
+        };
+    }).filter(row => row.consumption > 0 || row.initialStock > 0 || row.totalReplenished > 0 || row.adjustments !== 0 || row.finalStock > 0);
+
+    return JSON.parse(JSON.stringify({
+        reportRows,
+        boletas: boletasInPeriod,
+        currentClosure,
+        previousClosure
+    }));
 }
 
 

@@ -383,7 +383,7 @@ export async function getConsignmentsReportData(
         }
 
         const allProducts = await getAllProducts();
-        const productMap = new Map(allProducts.map(p => [p.id, p.description]));
+        const productMap = new Map(allProducts.map((p: Product) => [p.id, p.description]));
 
         const reportRows: ConsignmentReportRow[] = agreementProducts.map(product => {
             const initialStock = initialStockMap.get(product.product_id) || 0;
@@ -473,7 +473,7 @@ export async function getConsignmentsReportData(
     }
 }
 
-export async function getBillingReportData(closureId: number): Promise<any> {
+export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
     return getConsignmentsBillingReportDataFromDb(closureId);
 }
 
