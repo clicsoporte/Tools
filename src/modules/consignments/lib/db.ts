@@ -5,7 +5,7 @@
 
 import { connectDb, getCompanySettings, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -706,7 +706,7 @@ export async function approvePeriodClosure(closureId: number, previousClosureId:
           .run('approved', previousClosureId, new Date().toISOString(), updatedBy, boletaId, closureId);
 
         // **CRITICAL LOGIC**: If this is an initial inventory closure, update the agreement flag.
-        if (closure.is_initial_inventory) {
+        if (closure.is_initial_inventory === 1) {
             db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 1 WHERE id = ?').run(closure.agreement_id);
         }
 
@@ -766,9 +766,117 @@ export async function saveAdjustment(payload: { agreementId: number; productId: 
     return db.prepare('SELECT * FROM consignment_adjustments WHERE id = ?').get(info.lastInsertRowid) as ConsignmentAdjustment;
 }
 
-export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
-    return getConsignmentsBillingReportDataServer(closureId);
+export async function getConsignmentsBillingReportData(closureId: number): Promise<{ 
+    reportRows: ConsignmentReportRow[], 
+    boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[],
+    currentClosure: (PeriodClosure & { client_name: string }) | null,
+    previousClosure: PeriodClosure | null,
+}> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const mainDb = await connectDb();
+
+    const currentClosure = db.prepare(`
+        SELECT pc.*, ca.client_name 
+        FROM period_closures pc 
+        JOIN consignment_agreements ca ON pc.agreement_id = ca.id 
+        WHERE pc.id = ? AND pc.status = 'approved'
+    `).get(closureId) as (PeriodClosure & { client_name: string }) | undefined;
+
+    if (!currentClosure) {
+        throw new Error("Cierre de período no encontrado o no está aprobado.");
+    }
+    
+    const previousClosure = currentClosure.previous_closure_id 
+        ? db.prepare('SELECT * FROM period_closures WHERE id = ?').get(currentClosure.previous_closure_id) as PeriodClosure | null
+        : null;
+
+    const startDate = previousClosure ? parseISO(previousClosure.created_at) : new Date(0);
+    const endDate = parseISO(currentClosure.created_at);
+
+    const agreementDetails = await getAgreementDetails(currentClosure.agreement_id);
+    if (!agreementDetails) {
+        throw new Error("Acuerdo de consignación no encontrado.");
+    }
+    const { products: agreementProducts } = agreementDetails;
+    
+    const allProducts = await getAllProductsFromMainDb();
+    const productMap = new Map(allProducts.map(p => [p.id, p.description]));
+
+    // Get initial stock from previous closure's count boleta
+    const initialStockMap = new Map<string, number>();
+    if (previousClosure && previousClosure.closure_boleta_id) {
+        const initialLines = db.prepare('SELECT product_id, counted_quantity FROM boleta_lines WHERE boleta_id = ?').all(previousClosure.closure_boleta_id) as { product_id: string; counted_quantity: number }[];
+        initialLines.forEach(line => initialStockMap.set(line.product_id, line.counted_quantity));
+    }
+    
+    // Get final stock from current closure's count boleta
+    const finalStockMap = new Map<string, number>();
+    if (currentClosure.closure_boleta_id) {
+        const finalLines = db.prepare('SELECT product_id, counted_quantity FROM boleta_lines WHERE boleta_id = ?').all(currentClosure.closure_boleta_id) as { product_id: string; counted_quantity: number }[];
+        finalLines.forEach(line => finalStockMap.set(line.product_id, line.counted_quantity));
+    } else if (currentClosure.physical_count_ref) { // Fallback to physical count if boleta not created (shouldn't happen for approved)
+         const finalLines = db.prepare('SELECT product_id, quantity FROM physical_counts WHERE agreement_id = ? AND counted_at = ?').all(currentClosure.agreement_id, currentClosure.physical_count_ref) as { product_id: string; quantity: number }[];
+         finalLines.forEach(line => finalStockMap.set(line.product_id, line.quantity));
+    }
+
+    // Get deliveries in the period
+    const boletasInPeriod = await getBoletasByDateRange(String(currentClosure.agreement_id), { from: startDate, to: endDate }, ['approved', 'sent', 'invoiced']);
+    
+    const replenishedMap = new Map<string, number>();
+    for (const boleta of boletasInPeriod) {
+        for (const line of boleta.lines) {
+            const current = replenishedMap.get(line.product_id) || 0;
+            replenishedMap.set(line.product_id, current + line.replenish_quantity);
+        }
+    }
+
+    // Get adjustments in the period
+    const adjustmentsInPeriod = await getAdjustmentsInPeriod(currentClosure.agreement_id, { from: startDate, to: endDate });
+    const adjustmentsMap = new Map<string, number>();
+    adjustmentsInPeriod.forEach(adj => {
+        const current = adjustmentsMap.get(adj.product_id) || 0;
+        adjustmentsMap.set(adj.product_id, current + adj.quantity);
+    });
+
+    const reportRows: ConsignmentReportRow[] = agreementProducts.map(product => {
+        const initialStock = initialStockMap.get(product.product_id) || 0;
+        const totalReplenished = replenishedMap.get(product.product_id) || 0;
+        const totalAdjustments = adjustmentsMap.get(product.product_id) || 0;
+        const finalStock = finalStockMap.get(product.product_id) ?? (initialStock + totalReplenished + totalAdjustments);
+
+        const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
+        const totalValue = consumption * product.price;
+
+        return {
+            productId: product.product_id,
+            productDescription: productMap.get(product.product_id) || 'Producto Desconocido',
+            clientProductCode: product.client_product_code || '',
+            initialStock,
+            totalReplenished,
+            finalStock,
+            consumption: consumption > 0 ? consumption : 0,
+            price: product.price,
+            totalValue: totalValue > 0 ? totalValue : 0,
+            adjustments: totalAdjustments,
+            transactions: [], // Not needed for this server function, but part of the type
+            // Fields from older report, can be omitted
+            boletaConsecutives: '',
+            creationDates: '',
+            deliveryDates: '',
+            erpInvoices: '',
+            erpMovementIds: '',
+            approvers: '',
+        };
+    }).filter(row => row.consumption > 0 || row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.adjustments !== 0);
+
+    return JSON.parse(JSON.stringify({ 
+        reportRows, 
+        boletas: boletasInPeriod,
+        currentClosure,
+        previousClosure,
+    }));
 }
+
 
 export async function saveReplenishmentBoleta(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<RestockBoleta> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
@@ -793,7 +901,6 @@ export async function saveReplenishmentBoleta(agreementId: number, lines: { prod
             
             const productDescription = allProducts.find(p => p.id === line.productId)?.description || 'Desconocido';
             
-            // Fix: Added '0' for the counted_quantity placeholder
             insertLine.run(boletaId, line.productId, productDescription, agreementProduct.client_product_code, 0, line.quantity, agreementProduct.max_stock, agreementProduct.price);
         }
 

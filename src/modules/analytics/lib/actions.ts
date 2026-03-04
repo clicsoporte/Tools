@@ -12,7 +12,7 @@ import type { ProductionReportDetail, ProductionReportData } from '../hooks/useP
 import { logError } from '@/modules/core/lib/logger';
 import { getAllErpPurchaseOrderHeaders, getAllErpPurchaseOrderLines } from '@/modules/core/lib/db';
 import { getLocations as getWarehouseLocations, getInventory as getPhysicalInventory, getAllItemLocations, getSelectableLocations, getInventoryUnits, getWarehouseSettings as getWHSettings } from '@/modules/warehouse/lib/db';
-import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData as getConsignmentsBillingReportDataServer, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails, getAdjustmentsInPeriod, getBoletas, getPeriodClosures, getPeriodClosureDetails } from '@/modules/consignments/lib/db';
+import { getBoletasByDateRange, getLatestBoletaBeforeDate, getAgreementDetails, getConsignmentsBillingReportData, getLatestApprovedClosure, getPhysicalCountHistory, getLatestPhysicalCount, getBoletaDetails, getAdjustmentsInPeriod, getBoletas, getPeriodClosures, getPeriodClosureDetails } from '@/modules/consignments/lib/db';
 import type { TransitReportItem } from '../hooks/useTransitsReport';
 import type { OccupancyReportRow } from '../hooks/useOccupancyReport';
 
@@ -474,7 +474,7 @@ export async function getConsignmentsReportData(
 }
 
 export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
-    return getConsignmentsBillingReportDataServer(closureId);
+    return getConsignmentsBillingReportDataFromDb(closureId);
 }
 
 export async function getInventoryMonitorData(agreementId: number): Promise<any> {
