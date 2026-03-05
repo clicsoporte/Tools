@@ -51,20 +51,17 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: data.orientation || 'portrait', unit: 'pt', format: data.paperSize || 'letter' });
     const margin = 40;
     const pageWidth = doc.internal.pageSize.getWidth();
-    let finalY = 0;
-    let pagesDrawnByAutotable = new Set<number>();
-    let totalPages = 1;
-    let currentPage = 1;
-
-    const addHeader = () => {
-        let currentY = 40; // Initial Y position for the main title
+    
+    // This function draws the header and returns the Y position after the header content.
+    const drawHeaderAndGetY = (isFirstPage: boolean) => {
+        let currentY = 40;
         const rightColX = pageWidth - margin;
 
         // --- 1. Draw Main Title on the first line ---
         doc.setFontSize(16);
         doc.setFont('Helvetica', 'bold');
         doc.text(data.docTitle, pageWidth / 2, currentY, { align: 'center' });
-        currentY += 25; // Move down for the next section
+        currentY += 25;
 
         // --- 2. Draw Company Info & Meta Info ---
         let companyY = currentY;
@@ -78,7 +75,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
                 const imgHeight = 45; 
                 const imgWidth = (imgProps.width * imgHeight) / imgProps.height;
                 doc.addImage(data.logoDataUrl, 'PNG', margin, companyY, imgWidth, imgHeight);
-                companyX = margin + imgWidth + 2; // Reduced from 15 to move text left
+                companyX = margin + imgWidth + 2;
             } catch (e) {
                 console.error("Error adding logo image to PDF:", e);
             }
@@ -105,9 +102,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFontSize(11);
         doc.setFont('Helvetica', 'bold');
         if (data.docId) {
-            doc.setTextColor(255, 0, 0); // Red color for ID
+            doc.setTextColor(255, 0, 0);
             doc.text(data.docId, rightColX, rightY, { align: 'right' });
-            doc.setTextColor(0, 0, 0); // Reset color
+            doc.setTextColor(0, 0, 0);
             rightY += 15;
         }
 
@@ -143,73 +140,65 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             doc.text(data.topLegend, margin, 25);
         }
         
-        finalY = Math.max(companyY, rightY) + 20;
-    };
+        let headerBottomY = Math.max(companyY, rightY) + 20;
 
-    const didDrawPage = (hookData: any) => {
-        pagesDrawnByAutotable.add(hookData.pageNumber);
-        if (hookData.pageNumber > 1) {
-            addHeader();
+        // Draw the body blocks only on the first page
+        if (isFirstPage && data.blocks.length > 0) {
+            data.blocks.forEach(block => {
+                doc.setFont('Helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.text(block.title, margin, headerBottomY);
+                headerBottomY += 15;
+        
+                doc.setFont('Helvetica', 'normal');
+                doc.setFontSize(9);
+                const contentLines = doc.splitTextToSize(block.content, pageWidth - (margin * 2));
+                doc.text(contentLines, margin, headerBottomY);
+                headerBottomY += (contentLines.length * 10) + 10;
+            });
+            headerBottomY += 5;
         }
-    };
-    
-    addHeader();
-    
-    if (data.blocks.length > 0) {
-        data.blocks.forEach(block => {
-            if (finalY > doc.internal.pageSize.getHeight() - 100) { // Check if space is needed
-                doc.addPage();
-                addHeader();
-            }
-            doc.setFont('Helvetica', 'bold');
-            doc.setFontSize(10);
-            doc.text(block.title, margin, finalY);
-            finalY += 15;
-    
-            doc.setFont('Helvetica', 'normal');
-            doc.setFontSize(9);
-            const contentLines = doc.splitTextToSize(block.content, pageWidth - (margin * 2));
-            doc.text(contentLines, margin, finalY);
-            finalY += (contentLines.length * 10) + 10;
-        });
-        finalY += 5;
-    }
 
-    if (data.table && data.table.rows && data.table.rows.length > 0) {
-        autoTable(doc, {
-            head: [data.table.columns],
-            body: data.table.rows,
-            startY: finalY,
-            margin: { right: margin, left: margin, bottom: 120 },
-            theme: 'striped',
-            headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
-            styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
-            columnStyles: data.table.columnStyles,
-            didDrawPage: didDrawPage,
-        });
-        finalY = (doc as any).lastAutoTable.finalY;
-    }
+        return headerBottomY;
+    };
+
+    // Draw the full header and body blocks on the first page to get the final starting Y for the table
+    const tableStartY = drawHeaderAndGetY(true);
     
-    totalPages = (doc.internal as any).getNumberOfPages();
-    currentPage = totalPages;
-    doc.setPage(currentPage);
-    
+    // For subsequent pages, we need a consistent header height. We draw only the parts that repeat.
+    const repeatingHeaderHeight = drawHeaderAndGetY(false);
+
+    autoTable(doc, {
+        head: [data.table.columns],
+        body: data.table.rows,
+        startY: tableStartY, // Start table after header AND blocks on page 1.
+        margin: { top: repeatingHeaderHeight, right: margin, bottom: 50 }, // Reserve fixed space for header on subsequent pages.
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
+        styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
+        columnStyles: data.table.columnStyles,
+        didDrawPage: (hookData) => {
+            if (hookData.pageNumber > 1) {
+                drawHeaderAndGetY(false); // Draw only the repeating header part
+            }
+        },
+    });
+
+    let finalY = (doc as any).lastAutoTable.finalY;
     const pageHeight = doc.internal.pageSize.getHeight();
     
     // Calculate required space for the footer section
     const notesHeight = data.notes ? doc.getTextDimensions(data.notes, { maxWidth: (pageWidth / 2) - margin * 2 }).h + 15 : 0;
     const paymentInfoHeight = data.paymentInfo ? doc.getTextDimensions(data.paymentInfo, { maxWidth: (pageWidth / 2) - margin * 2 }).h + 15 : 0;
-    const totalsHeight = data.totals.length * 15 + 15; // Approximate height for totals block
+    const totalsHeight = data.totals.length * 15 + 15;
     const signatureHeight = data.signatureBlock ? 60 : 0;
-    
     const spaceNeeded = Math.max(notesHeight + paymentInfoHeight, totalsHeight) + signatureHeight + 30;
 
-    // If there is not enough space, add a new page and redraw the header.
-    if (finalY + spaceNeeded > pageHeight - 40) { // Check against bottom margin
+    if (finalY + spaceNeeded > pageHeight - 40) {
         doc.addPage();
-        addHeader(); // This resets finalY to be after the header on the new page
+        finalY = drawHeaderAndGetY(false);
     }
-
+    
     let leftY = finalY + 20;
     let rightY = finalY + 20;
     
@@ -249,9 +238,8 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     if (data.signatureBlock && data.signatureBlock.length > 0) {
         if (bottomContentY > pageHeight - 120) {
             doc.addPage();
-            currentPage++; totalPages++;
-            addHeader();
-            bottomContentY = 80;
+            drawHeaderAndGetY(false);
+            bottomContentY = repeatingHeaderHeight;
         }
 
         doc.setFontSize(10).setFont('Helvetica', 'bold');
@@ -278,11 +266,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         }
     }
 
+    const totalPages = (doc.internal as any).getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        if (!pagesDrawnByAutotable.has(i) && i > 1) {
-            addHeader();
-        }
         addFooter(doc, i, totalPages);
     }
 
