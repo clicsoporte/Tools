@@ -300,7 +300,7 @@ export default function CostAssistantPage() {
                                 )}
                                 {state.exportStatus === 'ready' && state.exportFileName && (
                                     <div className="flex gap-2">
-                                        <a href={`/api/temp-exports?file=${state.exportFileName}`} download={state.exportFileName}>
+                                        <a href={`/routes/temp-exports?file=${state.exportFileName}`} download={state.exportFileName}>
                                             <Button>
                                                 <Download className="mr-2 h-4 w-4" />
                                                 Descargar Archivo

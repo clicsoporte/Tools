@@ -620,7 +620,7 @@ export default function MaintenancePage() {
                                                                 <p className="font-semibold text-sm">{b.moduleName} {b.version && <span className="font-normal text-xs text-muted-foreground">(v{b.version})</span>}</p>
                                                                 <p className="text-xs text-muted-foreground">{format(parseBackupTimestamp(b.date), "dd/MM/yyyy HH:mm:ss", { locale: es })}</p>
                                                             </div>
-                                                            <a href={`/api/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
+                                                            <a href={`/routes/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
                                                                 <Button variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
                                                             </a>
                                                         </div>
