@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -5,13 +6,14 @@
 
 import { connectDb, getCompanySettings, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow, PeriodClosureStatus } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
 import { sendEmail } from '@/modules/core/lib/email-service';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getAllUsers } from '@/modules/core/lib/auth-client';
 
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
@@ -726,13 +728,12 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
 
     return db.transaction(() => {
-        // Fetch as a raw object from the DB. is_initial_inventory will be a number (0 or 1).
-        const closureToAnnulRaw = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as (Omit<PeriodClosure, 'is_initial_inventory'> & { is_initial_inventory: 0 | 1 }) | undefined;
+        const closureToAnnul = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure | undefined;
 
-        if (!closureToAnnulRaw) {
+        if (!closureToAnnul) {
             throw new Error("El cierre que intentas anular no fue encontrado.");
         }
-        if (closureToAnnulRaw.status !== 'approved') {
+        if (closureToAnnul.status !== 'approved') {
             throw new Error("Acción no permitida: Solo se pueden anular cierres que se encuentren en estado 'Aprobado'.");
         }
 
@@ -744,18 +745,15 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
         const newNotes = `Anulado por ${updatedBy} el ${new Date().toISOString()}`;
         db.prepare(`UPDATE period_closures SET status = 'annulled', notes = ? WHERE id = ?`).run(newNotes, closureId);
 
-        // If this was an initial inventory closure, we must reset the flag on the agreement
-        if (closureToAnnulRaw.is_initial_inventory === 1) {
-            db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 0 WHERE id = ?').run(closureToAnnulRaw.agreement_id);
-            logWarn(`Initial inventory flag reset for agreement ${closureToAnnulRaw.agreement_id} due to closure annulment.`);
+        if (closureToAnnul.is_initial_inventory) {
+            db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 0 WHERE id = ?').run(closureToAnnul.agreement_id);
+            logWarn(`Initial inventory flag reset for agreement ${closureToAnnul.agreement_id} due to closure annulment.`);
         }
         
-        // Return the updated object with the correct type.
         const updatedClosure = {
-            ...closureToAnnulRaw,
+            ...closureToAnnul,
             status: 'annulled' as PeriodClosureStatus,
             notes: newNotes,
-            is_initial_inventory: closureToAnnulRaw.is_initial_inventory === 1
         };
         return updatedClosure;
     })();
@@ -782,80 +780,7 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     currentClosure: (PeriodClosure & { client_name: string }) | null,
     previousClosure: PeriodClosure | null,
 }> {
-    const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    
-    const currentClosure = db.prepare(`
-        SELECT pc.*, ca.client_name 
-        FROM period_closures pc 
-        JOIN consignment_agreements ca ON pc.agreement_id = ca.id 
-        WHERE pc.id = ? AND pc.status = 'approved'
-    `).get(closureId) as (PeriodClosure & { client_name: string }) | null;
-
-    if (!currentClosure) {
-        throw new Error("Cierre no encontrado o no está aprobado.");
-    }
-    
-    const previousClosure = currentClosure.previous_closure_id
-        ? db.prepare('SELECT * FROM period_closures WHERE id = ?').get(currentClosure.previous_closure_id) as PeriodClosure | null
-        : null;
-
-    const startDate = previousClosure ? parseISO(previousClosure.created_at) : new Date(0);
-    const endDate = parseISO(currentClosure.created_at);
-
-    const initialCountBoleta = previousClosure
-        ? await getBoletaDetails(previousClosure.closure_boleta_id)
-        : null;
-
-    const finalCountBoleta = await getBoletaDetails(currentClosure.closure_boleta_id);
-    if (!finalCountBoleta) throw new Error("Datos de conteo final no encontrados.");
-
-    const agreementDetails = await getAgreementDetails(currentClosure.agreement_id);
-    if (!agreementDetails) throw new Error("Acuerdo no encontrado.");
-
-    const boletasInPeriod = await getBoletasByDateRange(String(currentClosure.agreement_id), { from: startDate, to: endDate }, ['sent', 'invoiced']);
-    const adjustmentsInPeriod = await getAdjustmentsInPeriod(currentClosure.agreement_id, { from: startDate, to: endDate });
-    const allProductsInAgreement = agreementDetails.products;
-
-    const reportRows: ConsignmentReportRow[] = allProductsInAgreement.map(prod => {
-        const initialLine = initialCountBoleta?.lines.find(l => l.product_id === prod.product_id);
-        const finalLine = finalCountBoleta.lines.find(l => l.product_id === prod.product_id);
-
-        const initialStock = initialLine?.counted_quantity || 0;
-        const finalStock = finalLine?.counted_quantity || 0;
-
-        const totalReplenished = boletasInPeriod
-            .flatMap(b => b.lines)
-            .filter(l => l.product_id === prod.product_id)
-            .reduce((sum, l) => sum + l.replenish_quantity, 0);
-
-        const totalAdjustments = adjustmentsInPeriod
-            .filter(adj => adj.product_id === prod.product_id)
-            .reduce((sum, adj) => sum + adj.quantity, 0);
-
-        const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
-
-        return {
-            productId: prod.product_id,
-            productDescription: prod.product_id, // Placeholder, will be enriched in hook
-            clientProductCode: prod.client_product_code,
-            initialStock,
-            totalReplenished,
-            adjustments: totalAdjustments,
-            finalStock,
-            consumption: consumption > 0 ? consumption : 0,
-            price: prod.price,
-            totalValue: consumption > 0 ? consumption * prod.price : 0,
-            transactions: [], // Not needed for this server action
-            boletaConsecutives: '', creationDates: '', deliveryDates: '', erpInvoices: '', erpMovementIds: '', approvers: ''
-        };
-    }).filter(row => row.consumption > 0 || row.initialStock > 0 || row.totalReplenished > 0 || row.adjustments !== 0 || row.finalStock > 0);
-
-    return JSON.parse(JSON.stringify({
-        reportRows,
-        boletas: boletasInPeriod,
-        currentClosure,
-        previousClosure
-    }));
+    return getConsignmentsBillingReportData(closureId);
 }
 
 
@@ -922,7 +847,7 @@ export async function getPhysicalCountHistory(agreementId: number): Promise<{ co
         GROUP BY counted_at, counted_by
         ORDER BY counted_at DESC
         LIMIT 10
-    `).all(agreementId) as { counted_at: string, counted_by: string }[];
+    `).all(agreementId) as { counted_at: string; counted_by: string }[];
     return JSON.parse(JSON.stringify(history));
 }
 
@@ -963,3 +888,5 @@ export async function releaseAgreementLock(agreementId: number, userId: number):
     // Only release the lock if the current user is the one who holds it.
     db.prepare('UPDATE consignment_agreements SET locked_by = NULL, locked_by_user_id = NULL, locked_at = NULL WHERE id = ? AND locked_by_user_id = ?').run(agreementId, userId);
 }
+
+    
