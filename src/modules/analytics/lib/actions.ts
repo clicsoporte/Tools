@@ -463,7 +463,7 @@ export async function getConsignmentsReportData(
             };
         });
 
-        const finalReportRows = reportRows.filter(row => row.consumption > 0 || row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.adjustments !== 0);
+        const finalReportRows = reportRows.filter(row => row.consumption > 0 || row.initialStock > 0 || row.totalReplenished > 0 || row.adjustments !== 0 || row.finalStock > 0);
         
         return { reportRows: finalReportRows, boletas: boletasInPeriod, allBoletasForClient, allClosuresForClient };
 
@@ -544,5 +544,3 @@ export async function getInventoryMonitorData(agreementId: number): Promise<any>
         countHistory,
     }));
 }
-
-    

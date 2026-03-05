@@ -726,11 +726,13 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
 
     return db.transaction(() => {
-        const closureToAnnul = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as (PeriodClosure & { is_initial_inventory: 0 | 1 }) | undefined;
-        if (!closureToAnnul) {
+        // Fetch as a raw object from the DB. is_initial_inventory will be a number (0 or 1).
+        const closureToAnnulRaw = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as (Omit<PeriodClosure, 'is_initial_inventory'> & { is_initial_inventory: 0 | 1 }) | undefined;
+
+        if (!closureToAnnulRaw) {
             throw new Error("El cierre que intentas anular no fue encontrado.");
         }
-        if (closureToAnnul.status !== 'approved') {
+        if (closureToAnnulRaw.status !== 'approved') {
             throw new Error("Acción no permitida: Solo se pueden anular cierres que se encuentren en estado 'Aprobado'.");
         }
 
@@ -739,15 +741,23 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
             throw new Error("Anulación bloqueada: Este cierre no se puede anular porque ya fue utilizado como el punto de partida para el siguiente período de facturación.");
         }
         
-        db.prepare(`UPDATE period_closures SET status = 'annulled', notes = 'Anulado por ${updatedBy} el ${new Date().toISOString()}' WHERE id = ?`).run(closureId);
+        const newNotes = `Anulado por ${updatedBy} el ${new Date().toISOString()}`;
+        db.prepare(`UPDATE period_closures SET status = 'annulled', notes = ? WHERE id = ?`).run(newNotes, closureId);
 
         // If this was an initial inventory closure, we must reset the flag on the agreement
-        if (closureToAnnul.is_initial_inventory === 1) {
-            db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 0 WHERE id = ?').run(closureToAnnul.agreement_id);
-            logWarn(`Initial inventory flag reset for agreement ${closureToAnnul.agreement_id} due to closure annulment.`);
+        if (closureToAnnulRaw.is_initial_inventory === 1) {
+            db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 0 WHERE id = ?').run(closureToAnnulRaw.agreement_id);
+            logWarn(`Initial inventory flag reset for agreement ${closureToAnnulRaw.agreement_id} due to closure annulment.`);
         }
-
-        return db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure;
+        
+        // Return the updated object with the correct type.
+        const updatedClosure = {
+            ...closureToAnnulRaw,
+            status: 'annulled' as PeriodClosureStatus,
+            notes: newNotes,
+            is_initial_inventory: closureToAnnulRaw.is_initial_inventory === 1
+        };
+        return updatedClosure;
     })();
 }
 
