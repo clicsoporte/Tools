@@ -26,8 +26,11 @@ const renderLocationPathAsString = (locationId: number, locations: any[]): strin
 };
 
 const updateLocationMixedStatus = (db: import('better-sqlite3').Database, locationId: number) => {
-    const result = db.prepare('SELECT COUNT(DISTINCT itemId) as count FROM item_locations WHERE locationId = ?').get(locationId) as { count: number };
-    const newIsMixed = result.count > 1 ? 1 : 0;
+    const assignedItemIds = db.prepare('SELECT DISTINCT itemId FROM item_locations WHERE locationId = ?').all(locationId).map((row: any) => row.itemId);
+    const physicalItemIds = db.prepare('SELECT DISTINCT productId as itemId FROM inventory_units WHERE locationId = ? AND status != \'voided\'').all(locationId).map((row: any) => row.itemId);
+    const allUniqueItemIds = new Set([...assignedItemIds, ...physicalItemIds]);
+    
+    const newIsMixed = allUniqueItemIds.size > 1 ? 1 : 0;
     db.prepare('UPDATE locations SET is_mixed = ? WHERE id = ?').run(newIsMixed, locationId);
 };
 
@@ -698,6 +701,8 @@ export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'created
 
         if (unit.locationId) {
             db.prepare('UPDATE locations SET population_status = \'O\' WHERE id = ?').run(unit.locationId);
+            // After adding a unit, always recalculate the mixed status for that location
+            updateLocationMixedStatus(db, unit.locationId);
         }
 
         return db.prepare('SELECT * FROM inventory_units WHERE id = ?').get(newId) as InventoryUnit;
@@ -1256,7 +1261,7 @@ export async function cleanupAndInitializeLocationFlags(): Promise<{ deletedCoun
     return result;
 }
 
-export async function checkAssignmentConflict(payload: { itemId: string, locationId: number }): Promise<{
+export async function checkAssignmentConflict(payload: { itemId: string; locationId: number; }): Promise<{
     productHasOtherLocations: boolean;
     locationHasOtherProducts: boolean;
     conflictingProduct?: Product;
