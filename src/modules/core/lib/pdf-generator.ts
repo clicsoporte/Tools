@@ -114,8 +114,15 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         doc.setFontSize(9);
         doc.setFont('Helvetica', 'normal');
         data.meta.forEach(item => {
-            doc.text(`${item.label}: ${item.value}`, rightColX, rightY, { align: 'right' });
-            rightY += 12;
+            if (item.label.endsWith('::')) {
+                doc.text(item.label, rightColX, rightY, { align: 'right' });
+                rightY += 12;
+                doc.text(item.value, rightColX, rightY, { align: 'right' });
+                rightY += 12;
+            } else {
+                doc.text(`${item.label}: ${item.value}`, rightColX, rightY, { align: 'right' });
+                rightY += 12;
+            }
         });
         
         if (data.sellerInfo) {
@@ -188,6 +195,21 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     doc.setPage(currentPage);
     
     const pageHeight = doc.internal.pageSize.getHeight();
+    
+    // Calculate required space for the footer section
+    const notesHeight = data.notes ? doc.getTextDimensions(data.notes, { maxWidth: (pageWidth / 2) - margin * 2 }).h + 15 : 0;
+    const paymentInfoHeight = data.paymentInfo ? doc.getTextDimensions(data.paymentInfo, { maxWidth: (pageWidth / 2) - margin * 2 }).h + 15 : 0;
+    const totalsHeight = data.totals.length * 15 + 15; // Approximate height for totals block
+    const signatureHeight = data.signatureBlock ? 60 : 0;
+    
+    const spaceNeeded = Math.max(notesHeight + paymentInfoHeight, totalsHeight) + signatureHeight + 30;
+
+    // If there is not enough space, add a new page and redraw the header.
+    if (finalY + spaceNeeded > pageHeight - 40) { // Check against bottom margin
+        doc.addPage();
+        addHeader(); // This resets finalY to be after the header on the new page
+    }
+
     let leftY = finalY + 20;
     let rightY = finalY + 20;
     
