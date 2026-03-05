@@ -9,7 +9,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getConsignmentsBillingReportData } from '@/modules/analytics/lib/actions';
+import { getConsignmentsBillingReportData } from '@/modules/consignments/lib/actions';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { exportToExcel } from '@/lib/excel-export';
 import { generateDocument } from '@/lib/pdf-generator';

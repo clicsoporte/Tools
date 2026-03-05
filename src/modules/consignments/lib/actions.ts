@@ -22,7 +22,7 @@ import {
     getPeriodClosureDetails as getPeriodClosureDetailsServer,
     approvePeriodClosure as approvePeriodClosureServer,
     rejectPeriodClosure as rejectPeriodClosureServer,
-    getConsignmentsBillingReportData,
+    getConsignmentsBillingReportData as getConsignmentsBillingReportDataFromDb,
     saveReplenishmentBoleta as saveReplenishmentBoletaServer,
     getPhysicalCountByRef as getPhysicalCountByRefServer,
     lockAgreement as lockAgreementServer,
@@ -447,6 +447,11 @@ export async function approvePeriodClosure(closureId: number, previousClosureId:
 export async function rejectPeriodClosure(closureId: number, notes: string, updatedBy: string): Promise<PeriodClosure> {
     return rejectPeriodClosureServer(closureId, notes, updatedBy);
 }
+
+export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
+    return getConsignmentsBillingReportDataFromDb(closureId);
+}
+
 
 export async function saveReplenishmentBoleta(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<RestockBoleta> {
     return saveReplenishmentBoletaServer(agreementId, lines, userName);

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -728,7 +727,7 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
 
     return db.transaction(() => {
-        const closureToAnnul = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure | undefined;
+        const closureToAnnul = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as (Omit<PeriodClosure, 'is_initial_inventory'> & { is_initial_inventory: 0 | 1; }) | undefined;
 
         if (!closureToAnnul) {
             throw new Error("El cierre que intentas anular no fue encontrado.");
@@ -745,14 +744,15 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
         const newNotes = `Anulado por ${updatedBy} el ${new Date().toISOString()}`;
         db.prepare(`UPDATE period_closures SET status = 'annulled', notes = ? WHERE id = ?`).run(newNotes, closureId);
 
-        if (closureToAnnul.is_initial_inventory) {
+        if (closureToAnnul.is_initial_inventory === 1) {
             db.prepare('UPDATE consignment_agreements SET has_initial_inventory = 0 WHERE id = ?').run(closureToAnnul.agreement_id);
             logWarn(`Initial inventory flag reset for agreement ${closureToAnnul.agreement_id} due to closure annulment.`);
         }
         
-        const updatedClosure = {
-            ...closureToAnnul,
-            status: 'annulled' as PeriodClosureStatus,
+        const updatedClosure: PeriodClosure = {
+            ...(closureToAnnul as any), // This cast is to satisfy TS, we know the shape is correct
+            is_initial_inventory: closureToAnnul.is_initial_inventory === 1,
+            status: 'annulled',
             notes: newNotes,
         };
         return updatedClosure;
@@ -780,7 +780,103 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     currentClosure: (PeriodClosure & { client_name: string }) | null,
     previousClosure: PeriodClosure | null,
 }> {
-    return getConsignmentsBillingReportData(closureId);
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const mainDb = await connectDb();
+
+    const currentClosure = db.prepare(`
+        SELECT pc.*, ca.client_name 
+        FROM period_closures pc
+        JOIN consignment_agreements ca ON pc.agreement_id = ca.id
+        WHERE pc.id = ? AND pc.status = 'approved'
+    `).get(closureId) as (PeriodClosure & { client_name: string }) | undefined;
+
+    if (!currentClosure) {
+        throw new Error("Cierre no encontrado o no está en estado 'Aprobado'.");
+    }
+
+    const previousClosure = currentClosure.previous_closure_id
+        ? db.prepare('SELECT * FROM period_closures WHERE id = ?').get(currentClosure.previous_closure_id) as PeriodClosure
+        : null;
+
+    const startDate = previousClosure ? parseISO(previousClosure.created_at) : new Date(0);
+    const endDate = parseISO(currentClosure.created_at);
+
+    const boletasInPeriod = await getBoletasByDateRange(String(currentClosure.agreement_id), { from: startDate, to: endDate }, ['approved', 'sent', 'invoiced']);
+    const adjustmentsInPeriod = await getAdjustmentsInPeriod(currentClosure.agreement_id, { from: startDate, to: endDate });
+    const agreementDetails = await getAgreementDetails(currentClosure.agreement_id);
+    const allProducts = await mainDb.prepare('SELECT * FROM products').all() as Product[];
+    const productMap = new Map(allProducts.map(p => [p.id, p.description]));
+
+    const getStockFromClosure = (closure: PeriodClosure | null): Map<string, number> => {
+        const stockMap = new Map<string, number>();
+        if (closure?.physical_count_ref) {
+            const counts = db.prepare('SELECT product_id, quantity FROM physical_counts WHERE agreement_id = ? AND counted_at = ?').all(closure.agreement_id, closure.physical_count_ref) as { product_id: string, quantity: number }[];
+            counts.forEach(c => stockMap.set(c.product_id, c.quantity));
+        }
+        return stockMap;
+    };
+    
+    const initialStockMap = getStockFromClosure(previousClosure);
+    const finalStockMap = getStockFromClosure(currentClosure);
+
+    const replenishedMap = new Map<string, number>();
+    boletasInPeriod.forEach(boleta => {
+        boleta.lines.forEach(line => {
+            replenishedMap.set(line.product_id, (replenishedMap.get(line.product_id) || 0) + line.replenish_quantity);
+        });
+    });
+    
+    const adjustmentsMap = new Map<string, number>();
+    adjustmentsInPeriod.forEach(adj => {
+        adjustmentsMap.set(adj.product_id, (adjustmentsMap.get(adj.product_id) || 0) + adj.quantity);
+    });
+
+    const reportRows: ConsignmentReportRow[] = (agreementDetails?.products || []).map(product => {
+        const initialStock = initialStockMap.get(product.product_id) || 0;
+        const totalReplenished = replenishedMap.get(product.product_id) || 0;
+        const totalAdjustments = adjustmentsMap.get(product.product_id) || 0;
+        const finalStock = finalStockMap.get(product.product_id) || 0;
+        const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
+
+        // Create transaction history for details
+        const transactions: ConsignmentReportRow['transactions'] = [];
+        boletasInPeriod.forEach(boleta => {
+            boleta.lines.forEach(line => {
+                if (line.product_id === product.product_id && line.replenish_quantity > 0) {
+                    transactions.push({ date: boleta.created_at, type: 'Entrega', document: boleta.consecutive, quantity: line.replenish_quantity, user: boleta.approved_by || boleta.created_by, notes: boleta.notes });
+                }
+            });
+        });
+        adjustmentsInPeriod.forEach(adj => {
+            if (adj.product_id === product.product_id) {
+                transactions.push({ date: adj.created_at, type: `Ajuste: ${adj.reason}`, document: `AJUSTE-${adj.id}`, quantity: adj.quantity, user: adj.created_by, notes: adj.notes });
+            }
+        });
+        transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        return {
+            productId: product.product_id,
+            productDescription: productMap.get(product.product_id) || 'Producto Desconocido',
+            clientProductCode: product.client_product_code || '',
+            initialStock,
+            totalReplenished,
+            finalStock,
+            consumption: consumption > 0 ? consumption : 0,
+            price: product.price,
+            totalValue: consumption > 0 ? consumption * product.price : 0,
+            adjustments: totalAdjustments,
+            transactions,
+            // These fields are actually not part of the required type, the error was misleading. But I will keep them for the other report.
+            boletaConsecutives: '', creationDates: '', deliveryDates: '', erpInvoices: '', erpMovementIds: '', approvers: '',
+        };
+    }).filter(row => row.consumption > 0 || row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.adjustments !== 0);
+
+    return {
+        reportRows: JSON.parse(JSON.stringify(reportRows)),
+        boletas: JSON.parse(JSON.stringify(boletasInPeriod)),
+        currentClosure: JSON.parse(JSON.stringify(currentClosure)),
+        previousClosure: JSON.parse(JSON.stringify(previousClosure)),
+    };
 }
 
 

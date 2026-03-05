@@ -6,7 +6,7 @@
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
 import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb, getAllProducts, connectDb } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, RestockBoletaStatus, ConsignmentProduct, ConsignmentReportRow, PeriodClosure, ConsignmentAdjustment, PhysicalCount } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, ConsignmentProduct, ConsignmentReportRow, PeriodClosure, ConsignmentAdjustment, PhysicalCount } from '@/modules/core/types';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
@@ -471,10 +471,6 @@ export async function getConsignmentsReportData(
         logError('Failed to generate consignments report data', { error: error.message });
         throw new Error(`No se pudo generar el reporte de consignaciones: ${error.message}`);
     }
-}
-
-export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
-    return getConsignmentsBillingReportDataFromDb(closureId);
 }
 
 export async function getInventoryMonitorData(agreementId: number): Promise<any> {
