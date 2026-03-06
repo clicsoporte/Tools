@@ -1,27 +1,31 @@
 /**
  * @fileoverview The main entry point of the application.
- * This component now acts as a simple Server Component wrapper, delegating the
- * core logic of displaying either the login form or the setup wizard to the
- * client-side AuthForm component. This simplifies the initial render and
- * improves build stability.
+ * This page now acts as a Server Component, fetching initial data on the server
+ * to prevent client-side flickering and layout shifts.
  */
-"use client";
 
 import { AuthForm } from "@/components/auth/auth-form";
 import {
   Card,
 } from "@/components/ui/card";
 import React from "react";
+import { getInitialPageData } from "@/app/actions";
 
 // This is the critical fix for the production cache issue.
 export const dynamic = 'force-dynamic';
 
-export default function InitialPage() {
+export default async function InitialPage() {
+  const { hasUsers, companyName, systemVersion } = await getInitialPageData();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm shadow-2xl">
-        {/* The AuthForm component will now handle showing the correct title/description and form */}
-        <AuthForm />
+        {/* Pass initial data as props to the client component */}
+        <AuthForm 
+          initialHasUsers={hasUsers} 
+          initialCompanyName={companyName}
+          initialSystemVersion={systemVersion}
+        />
       </Card>
     </div>
   );

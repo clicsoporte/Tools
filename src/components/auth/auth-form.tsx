@@ -35,29 +35,25 @@ import {
   saveAllUsers,
   sendRecoveryEmail,
 } from "@/modules/core/lib/auth-client";
-import { getInitialPageData } from "@/app/actions";
 import { logInfo, logWarn, logError } from "@/modules/core/lib/logger";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { SetupWizard } from "./setup-wizard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-interface AuthFormProps {}
+interface AuthFormProps {
+    initialHasUsers: boolean;
+    initialCompanyName: string;
+    initialSystemVersion: string | null;
+}
 
 /**
  * Renders the login form, setup wizard, or password recovery flow.
- * This component is now the entry point for authentication logic on the client.
+ * This component now receives its initial state as props from a Server Component parent.
  */
-export function AuthForm({}: AuthFormProps) {
+export function AuthForm({ initialHasUsers, initialCompanyName, initialSystemVersion }: AuthFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { user, isAuthReady, refreshAuth, redirectAfterLogin } = useAuth();
-
-  // Initial page state
-  const [hasUsers, setHasUsers] = useState<boolean | null>(null);
-  const [companyName, setCompanyName] = useState<string>("Clic-Tools");
-  const [systemVersion, setSystemVersion] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Auth flow state
   const [authStep, setAuthStep] = useState<"login" | "force_change" | "recovery_success">("login");
@@ -80,29 +76,6 @@ export function AuthForm({}: AuthFormProps) {
       redirectAfterLogin("/dashboard");
     }
   }, [isAuthReady, user, redirectAfterLogin]);
-
-  useEffect(() => {
-    async function checkUserStatus() {
-      // Only run this check if the user is not logged in.
-      if (!user) {
-        try {
-          const { hasUsers, companyName, systemVersion } = await getInitialPageData();
-          setHasUsers(hasUsers);
-          setCompanyName(companyName);
-          setSystemVersion(systemVersion);
-        } catch (err: any) {
-          console.error("Critical error on initial page data fetch:", err);
-          setError("No se pudo conectar con la base de datos. Revisa la consola del servidor.");
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        // If user is already loaded, we don't need to fetch initial data.
-        setIsLoading(false);
-      }
-    }
-    checkUserStatus();
-  }, [user]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,30 +158,23 @@ export function AuthForm({}: AuthFormProps) {
   };
   
   const getHeaderIcon = () => {
-    if (isLoading) return <Loader2 className="h-8 w-8 animate-spin" />;
-    if (error) return <AlertTriangle className="h-8 w-8" />;
-    return hasUsers ? <Network className="h-8 w-8" /> : <UserPlus className="h-8 w-8" />;
+    return initialHasUsers ? <Network className="h-8 w-8" /> : <UserPlus className="h-8 w-8" />;
   };
 
   const getHeaderTitle = () => {
-    if (isLoading) return "Cargando...";
-    if (error) return "Error";
-    return hasUsers ? companyName : "Bienvenido a Clic-Tools";
+    return initialHasUsers ? initialCompanyName : "Bienvenido a Clic-Tools";
   };
 
   const getHeaderDescription = () => {
-    if (isLoading) return "Verificando el estado del sistema...";
-    if (error) return "Ocurrió un error al inicializar.";
     if (authStep === 'force_change') return "Por seguridad, debes establecer una nueva contraseña.";
     if (authStep === 'recovery_success') return "Tu contraseña ha sido actualizada.";
-    return hasUsers ? "Inicia sesión para acceder a tus herramientas" : "Completa la configuración para crear tu cuenta de administrador";
+    return initialHasUsers ? "Inicia sesión para acceder a tus herramientas" : "Completa la configuración para crear tu cuenta de administrador";
   };
 
   const renderContent = () => {
-    if (isLoading || (isAuthReady && user)) return <div className="flex justify-center items-center h-48"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
-    if (error) return <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><CardTitle>Error Crítico</CardTitle><AlertDescription>{error}</AlertDescription></Alert>;
+    if (isAuthReady && user) return <div className="flex justify-center items-center h-48"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
     
-    if (hasUsers === false) return <SetupWizard />;
+    if (initialHasUsers === false) return <SetupWizard />;
 
     switch (authStep) {
       case 'force_change':
@@ -258,9 +224,9 @@ export function AuthForm({}: AuthFormProps) {
         <CardDescription>{getHeaderDescription()}</CardDescription>
       </CardHeader>
       <CardContent>{renderContent()}</CardContent>
-      {systemVersion && (
+      {initialSystemVersion && (
         <div className="p-6 pt-0 text-center text-xs text-muted-foreground">
-            Versión {systemVersion}
+            Versión {initialSystemVersion}
         </div>
       )}
     </>
