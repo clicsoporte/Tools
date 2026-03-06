@@ -9,12 +9,13 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getActiveTransitsReportData, getAnalyticsSettings } from '@/modules/analytics/lib/actions';
+import { getActiveTransitsReportData } from '@/modules/analytics/lib/actions';
+import { getAnalyticsSettings } from '@/modules/core/lib/db';
 import type { DateRange, ErpPurchaseOrderLine, TransitStatusAlias, AnalyticsSettings } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { subDays, startOfDay, format, parseISO } from 'date-fns';
 import { useDebounce } from 'use-debounce';
-import { exportToExcel } from '@/modules/core/lib/excel-export';
+import { exportToExcel } from '@/lib/excel-export';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 
@@ -118,7 +119,7 @@ export function useTransitsReport() {
             updateState({
                 analyticsSettings: settings,
                 visibleColumns: prefs?.visibleColumns || availableColumns.map(c => c.id),
-                statusFilter: prefs?.statusFilter || settings.transitStatusAliases.filter(s => s.id !== 'N' && s.id !== 'R').map(s => s.id), // Default to all non-final
+                statusFilter: prefs?.statusFilter || settings.transitStatusAliases.filter((s: TransitStatusAlias) => s.id !== 'N' && s.id !== 'R').map((s: TransitStatusAlias) => s.id), // Default to all non-final
             });
         }
         setIsInitialLoading(false);
@@ -307,4 +308,3 @@ export function useTransitsReport() {
         isInitialLoading,
     };
 }
-    

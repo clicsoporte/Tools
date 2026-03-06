@@ -4,9 +4,9 @@
 'use server';
 
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
-import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAllProducts, connectDb } from '@/modules/core/lib/db';
+import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAllProducts, connectDb, getAnalyticsSettings } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, ConsignmentProduct, ConsignmentReportRow, PeriodClosure, ConsignmentAdjustment, PhysicalCount } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, ConsignmentProduct, ConsignmentReportRow, PeriodClosure, ConsignmentAdjustment, PhysicalCount, TransitStatusAlias } from '@/modules/core/types';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
@@ -126,24 +126,24 @@ export async function getActiveTransitsReportData(filters: { dateRange: DateRang
         getAnalyticsSettings()
     ]);
 
-    const supplierMap = new Map<string, string>(allSuppliers.map(s => [s.id, s.name]));
-    const productMap = new Map<string, string>(allProducts.map(p => [p.id, p.description]));
-    const stockMap = new Map<string, number>(allStock.map(s => [s.itemId, s.totalStock]));
+    const supplierMap = new Map<string, string>(allSuppliers.map((s: Supplier) => [s.id, s.name]));
+    const productMap = new Map<string, string>(allProducts.map((p: Product) => [p.id, p.description]));
+    const stockMap = new Map<string, number>(allStock.map((s: StockInfo) => [s.itemId, s.totalStock]));
 
     // Use the status filter if provided, otherwise default to all non-final states
-    const relevantStates = (statusFilter && statusFilter.length > 0) ? statusFilter : analyticsSettings.transitStatusAliases.filter(s => s.id !== 'N' && s.id !== 'R').map(s => s.id);
+    const relevantStates = (statusFilter && statusFilter.length > 0) ? statusFilter : analyticsSettings.transitStatusAliases.filter((s: TransitStatusAlias) => s.id !== 'N' && s.id !== 'R').map((s: TransitStatusAlias) => s.id);
     
-    const filteredHeaders = allHeaders.filter(h => {
+    const filteredHeaders = allHeaders.filter((h: ErpPurchaseOrderHeader) => {
         const orderDate = new Date(h.FECHA_HORA);
         return relevantStates.includes(h.ESTADO) && orderDate >= dateRange.from! && orderDate <= toDate;
     });
 
-    const headerIds = new Set(filteredHeaders.map(h => h.ORDEN_COMPRA));
+    const headerIds = new Set(filteredHeaders.map((h: ErpPurchaseOrderHeader) => h.ORDEN_COMPRA));
 
     const reportData: TransitReportItem[] = allLines
-        .filter(line => headerIds.has(line.ORDEN_COMPRA))
-        .map(line => {
-            const header = filteredHeaders.find(h => h.ORDEN_COMPRA === line.ORDEN_COMPRA)!;
+        .filter((line: ErpPurchaseOrderLine) => headerIds.has(line.ORDEN_COMPRA))
+        .map((line: ErpPurchaseOrderLine) => {
+            const header = filteredHeaders.find((h: ErpPurchaseOrderHeader) => h.ORDEN_COMPRA === line.ORDEN_COMPRA)!;
             const fechaHora = header.FECHA_HORA;
             const fechaHoraString = typeof fechaHora === 'object' && fechaHora !== null && 'toISOString' in fechaHora ? (fechaHora as Date).toISOString() : String(fechaHora);
 
