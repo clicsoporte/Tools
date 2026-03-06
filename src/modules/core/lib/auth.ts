@@ -229,6 +229,73 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
 }
 
 /**
+ * Saves or updates a single user in the database.
+ * This is the new, safer way to handle user modifications.
+ * @param {User} user - The user object to save or update.
+ * @returns {Promise<User>} The updated user object without password.
+ */
+export async function updateUser(user: User): Promise<User> {
+    const db = await connectDb();
+    const validationResult = UserSchema.safeParse(user);
+    if (!validationResult.success) {
+        throw new Error(`Validation failed: ${validationResult.error.errors.map(e => e.message).join(', ')}`);
+    }
+
+    const validatedUser = validationResult.data;
+    let passwordToSave = validatedUser.password;
+
+    // Password handling logic
+    if (passwordToSave) { // Only if a new password is provided
+        if (!passwordToSave.startsWith('$2a$')) { // Check if it's not already hashed
+            passwordToSave = bcrypt.hashSync(passwordToSave, SALT_ROUNDS);
+        }
+    } else {
+        // If no password is provided, fetch the existing one to avoid erasing it.
+        const existingUser = db.prepare('SELECT password FROM users WHERE id = ?').get(validatedUser.id) as { password?: string };
+        passwordToSave = existingUser?.password;
+    }
+
+    const userToUpdate = {
+        ...validatedUser,
+        password: passwordToSave,
+        phone: validatedUser.phone || null,
+        whatsapp: validatedUser.whatsapp || null,
+        erpAlias: validatedUser.erpAlias || null,
+        securityQuestion: validatedUser.securityQuestion || null,
+        securityAnswer: validatedUser.securityAnswer || null,
+        forcePasswordChange: validatedUser.forcePasswordChange ? 1 : 0,
+    };
+    
+    db.prepare(`
+        UPDATE users SET
+            name = @name, email = @email, password = @password,
+            phone = @phone, whatsapp = @whatsapp, erpAlias = @erpAlias,
+            avatar = @avatar, role = @role, recentActivity = @recentActivity,
+            securityQuestion = @securityQuestion, securityAnswer = @securityAnswer,
+            forcePasswordChange = @forcePasswordChange
+        WHERE id = @id
+    `).run(userToUpdate);
+    
+    const { password: _, ...userWithoutPassword } = userToUpdate;
+    revalidatePath('/dashboard/admin/users');
+    return userWithoutPassword as User;
+}
+
+/**
+ * Deletes a user from the database.
+ * @param {number} userId - The ID of the user to delete.
+ */
+export async function deleteUser(userId: number): Promise<void> {
+    const db = await connectDb();
+    if (userId === 1) {
+        throw new Error("No se puede eliminar al usuario administrador principal.");
+    }
+    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+    revalidatePath('/dashboard/admin/users');
+}
+
+
+/**
  * Saves the entire list of users to the database.
  * This is an "all-or-nothing" operation that replaces all existing users.
  * It handles password hashing for new or changed passwords.

@@ -10,6 +10,8 @@ import {
     getAllUsers as getAllUsersServer, 
     login as loginServer, 
     saveAllUsers as saveAllUsersServer, 
+    updateUser as updateUserServer,
+    deleteUser as deleteUserServer,
     comparePasswords as comparePasswordsServer, 
     addUser as addUserServer, 
     logout as logoutServer,
@@ -62,6 +64,24 @@ export async function getAllUsers(): Promise<User[]> {
 export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string, forcePasswordChange: boolean }): Promise<User> {
     return addUserServer(userData);
 }
+
+/**
+ * Saves or updates a single user's data via the server.
+ * @param {User} user - The user object with updated data.
+ * @returns {Promise<User>} The updated user object.
+ */
+export async function updateUser(user: User): Promise<User> {
+    return await updateUserServer(user);
+}
+
+/**
+ * Deletes a single user via the server.
+ * @param {number} userId - The ID of the user to delete.
+ */
+export async function deleteUser(userId: number): Promise<void> {
+    return await deleteUserServer(userId);
+}
+
 
 /**
  * Saves the entire list of users to the database via the server.

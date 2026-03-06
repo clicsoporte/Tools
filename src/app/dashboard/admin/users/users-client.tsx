@@ -41,7 +41,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import { getAllUsers, addUser, saveAllUsers } from '@/modules/core/lib/auth-client';
+import { getAllUsers, addUser, updateUser, deleteUser } from '@/modules/core/lib/auth-client';
 import { getAllRoles } from '@/modules/core/lib/db';
 import type { User, Role } from '@/modules/core/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -118,12 +118,10 @@ export default function UsersClient() {
     setIsSubmitting(true);
     try {
       if (isEditing) {
-        const updatedUsers = users.map(u => u.id === currentUser.id ? { ...u, ...currentUser } as User : u);
-        await saveAllUsers(updatedUsers);
-        setUsers(updatedUsers);
+        await updateUser(currentUser as User);
         toast({ title: 'Usuario Actualizado' });
       } else {
-        const newUser = await addUser({
+        await addUser({
           name: currentUser.name,
           email: currentUser.email,
           password: currentUser.password!,
@@ -133,13 +131,13 @@ export default function UsersClient() {
           erpAlias: currentUser.erpAlias || '',
           forcePasswordChange: !!(currentUser.forcePasswordChange ?? true),
         });
-        setUsers(prev => [...prev, newUser]);
         toast({ title: 'Usuario Creado' });
       }
+      await fetchData(); // Re-fetch to see changes
       setDialogOpen(false);
     } catch (error: any) {
       logError('Failed to save user', { error: error.message });
-      toast({ title: 'Error al Guardar', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error al Guardar', description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -149,13 +147,12 @@ export default function UsersClient() {
     if (!userToDelete) return;
     setIsSubmitting(true);
     try {
-      const updatedUsers = users.filter(u => u.id !== userToDelete.id);
-      await saveAllUsers(updatedUsers);
-      setUsers(updatedUsers);
+      await deleteUser(userToDelete.id);
       toast({ title: 'Usuario Eliminado', variant: 'destructive' });
+      await fetchData(); // Re-fetch to see changes
     } catch (error: any) {
       logError('Failed to delete user', { error: error.message });
-      toast({ title: 'Error al Eliminar', variant: 'destructive' });
+      toast({ title: 'Error al Eliminar', description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
       setUserToDelete(null);
