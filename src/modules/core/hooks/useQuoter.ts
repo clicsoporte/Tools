@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -37,6 +35,7 @@ import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
 import { getExemptionStatus } from "@/modules/hacienda/lib/actions";
+import { searchProducts, searchCustomers } from "@/modules/core/lib/search-actions";
 import type { RowInput } from "jspdf-autotable";
 
 /**
@@ -131,8 +130,6 @@ export const useQuoter = () => {
   const { setTitle } = usePageTitle();
   const {
     user: currentUser,
-    customers,
-    products,
     companyData: authCompanyData,
     stockLevels,
     exchangeRateData,
@@ -204,6 +201,9 @@ export const useQuoter = () => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
   const [isProductSearchOpen, setProductSearchOpen] = useState(false);
   const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
+  
+  const [searchedProducts, setSearchedProducts] = useState<Product[]>([]);
+  const [searchedCustomers, setSearchedCustomers] = useState<Customer[]>([]);
 
   const [debouncedCustomerSearch] = useDebounce(
     customerSearchTerm,
@@ -375,31 +375,39 @@ export const useQuoter = () => {
     }
   }, [lines]);
 
+  useEffect(() => {
+    if (debouncedCustomerSearch.length < 2) {
+      setSearchedCustomers([]);
+      return;
+    }
+    const fetcher = async () => {
+      const results = await searchCustomers(debouncedCustomerSearch, !showInactiveCustomers);
+      setSearchedCustomers(results);
+    };
+    fetcher();
+  }, [debouncedCustomerSearch, showInactiveCustomers]);
+
+  useEffect(() => {
+    if (debouncedProductSearch.length < 2) {
+      setSearchedProducts([]);
+      return;
+    }
+    const fetcher = async () => {
+      const results = await searchProducts(debouncedProductSearch, !showInactiveProducts);
+      setSearchedProducts(results);
+    };
+    fetcher();
+  }, [debouncedProductSearch, showInactiveProducts]);
+
   const customerOptions = useMemo(() => {
-    if (debouncedCustomerSearch.length < 2) return [];
-    const searchTerms = debouncedCustomerSearch.toLowerCase().split(" ").filter(Boolean);
-    return (customers || [])
-      .filter((c) => {
-        if (!showInactiveCustomers && c.active !== "S") return false;
-        const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
-        return searchTerms.every((term) => targetText.includes(term));
-      })
-      .map((c) => ({
+    return (searchedCustomers || []).map((c) => ({
         value: c.id,
         label: `[${c.id}] ${c.name} (${c.taxId})`,
-      }));
-  }, [customers, showInactiveCustomers, debouncedCustomerSearch]);
-
+    }));
+  }, [searchedCustomers]);
+  
   const productOptions = useMemo(() => {
-    if (debouncedProductSearch.length < 2) return [];
-    const searchTerms = debouncedProductSearch.toLowerCase().split(" ").filter(Boolean);
-    return (products || [])
-      .filter((p) => {
-        if (!showInactiveProducts && p.active !== "S") return false;
-        const targetText = `${p.id} ${p.description}`.toLowerCase();
-        return searchTerms.every((term) => targetText.includes(term));
-      })
-      .map((p) => {
+    return (searchedProducts || []).map((p) => {
         const stockInfo = stockLevels.find((s) => s.itemId === p.id);
         const stockLabel = stockInfo
           ? ` (ERP: ${stockInfo.totalStock.toLocaleString()})`
@@ -410,7 +418,7 @@ export const useQuoter = () => {
           className: p.active === "N" ? "text-red-500" : "",
         };
       });
-  }, [products, showInactiveProducts, debouncedProductSearch, stockLevels]);
+  }, [searchedProducts, stockLevels]);
 
   // --- ACTIONS ---
   const addLine = useCallback(
@@ -451,6 +459,7 @@ export const useQuoter = () => {
       lastEntry: "",
       notes: "",
       unit: "UN",
+      barcode: "",
     };
     const newLine: QuoteLine = {
       id: newLineId,
@@ -471,13 +480,13 @@ export const useQuoter = () => {
         setProductSearchTerm("");
         return;
       }
-      const product = products.find((p) => p.id === productId);
+      const product = searchedProducts.find((p) => p.id === productId);
       if (product) {
         addLine(product);
         setProductSearchTerm("");
       }
     },
-    [products, addLine]
+    [searchedProducts, addLine]
   );
 
   const handleSelectCustomer = useCallback(
@@ -490,7 +499,7 @@ export const useQuoter = () => {
         setCustomerSearchTerm("");
         return;
       }
-      const customer = customers.find((c) => c.id === customerId);
+      const customer = searchedCustomers.find((c) => c.id === customerId);
       if (customer) {
         setSelectedCustomer(customer);
         setCustomerDetails(
@@ -544,7 +553,7 @@ export const useQuoter = () => {
         }
       }
     },
-    [customers, allExemptions, exemptionLaws, checkExemptionStatus]
+    [searchedCustomers, allExemptions, exemptionLaws, checkExemptionStatus]
   );
 
   const handleProductInputKeyDown = useCallback(
@@ -697,6 +706,8 @@ export const useQuoter = () => {
         { content: formatCurrency(line.quantity * line.price * (1 + line.tax)), styles: { halign: 'right' } as any },
     ]);
     
+    const finalCustomerDetails = customerDetails.trim() || customerSearchTerm.trim() || "Cliente Contado";
+
     const doc = generateDocument({
         docTitle: "COTIZACIÓN",
         docId: quoteNumber,
@@ -714,7 +725,7 @@ export const useQuoter = () => {
             whatsapp: sellerType === 'user' ? currentUser?.whatsapp : undefined
         },
         blocks: [
-            { title: 'Cliente', content: customerDetails },
+            { title: 'Cliente', content: finalCustomerDetails },
             {
                 title: 'Entrega',
                 content: `Dirección: ${deliveryAddress}\nFecha Entrega: ${
@@ -866,14 +877,14 @@ export const useQuoter = () => {
     const draftsFromDb = await getAllQuoteDrafts(currentUser.id);
     const enrichedDrafts = draftsFromDb.map((draft) => ({
       ...draft,
-      customer: customers.find((c) => c.id === draft.customerId) || null,
+      customer: searchedCustomers.find((c) => c.id === draft.customerId) || null,
     }));
     setSavedDrafts(
       enrichedDrafts.sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
     );
-  }, [isAuthReady, currentUser, customers]);
+  }, [isAuthReady, currentUser, searchedCustomers]);
 
   const handleLoadDraft = (draft: QuoteDraft) => {
     setQuoteNumber(draft.id);
@@ -1037,8 +1048,8 @@ export const useQuoter = () => {
       creditDays,
       validUntilDate,
       notes,
-      products,
-      customers,
+      products: searchedProducts,
+      customers: searchedCustomers,
       showInactiveCustomers,
       showInactiveProducts,
       selectedLineForInfo,
