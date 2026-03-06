@@ -301,6 +301,30 @@ export default function HelpPage() {
                         <strong>Ventajas:</strong> Es más rápido, directo y elimina la necesidad de generar archivos manualmente.
                     </li>
                 </ul>
+                
+                <h4 className="font-semibold text-lg pt-2 border-t">Automatización de Sincronización (Cron Job) - ¡NUEVO!</h4>
+                <p>Para mantener los datos del ERP actualizados automáticamente (por ejemplo, todas las noches), puedes configurar una tarea programada o "cron job" que llame a un endpoint seguro de la aplicación.</p>
+                <ol className="list-decimal space-y-3 pl-6">
+                    <li>
+                        <strong>Configurar la Clave Secreta:</strong>
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                            <li>En el servidor, abre (o crea) el archivo <code>.env.local</code> en la raíz del proyecto.</li>
+                            <li>Añade la siguiente línea, reemplazando el valor de ejemplo por una cadena de texto larga y aleatoria:</li>
+                            <li className="p-2 bg-muted rounded-md font-mono text-xs"><code>CRON_SECRET=&quot;tu_clave_super_secreta_y_aleatoria_aqui&quot;</code></li>
+                        </ul>
+                    </li>
+                     <li>
+                        <strong>Configurar la Tarea Programada:</strong>
+                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                            <li>La tarea debe realizar una petición `POST` a la URL <code>/api/cron/sync-erp</code> de tu aplicación, incluyendo la clave secreta en la cabecera de autorización.</li>
+                            <li><strong>Ejemplo para Linux (<code>crontab</code>):</strong></li>
+                            <li className="p-2 bg-muted rounded-md font-mono text-xs"><code>0 2 * * * curl -X POST -H &quot;Authorization: Bearer tu_clave_super_secreta&quot; http://localhost:9003/api/cron/sync-erp</code></li>
+                            <li><strong>Ejemplo para Windows (Programador de Tareas):</strong></li>
+                            <li className="p-2 bg-muted rounded-md font-mono text-xs">Programa/script: <code>powershell</code><br/>Argumentos: <code>Invoke-WebRequest -Uri &quot;http://localhost:9003/api/cron/sync-erp&quot; -Method POST -Headers @{{"Authorization"="Bearer tu_clave_super_secreta"}}</code></li>
+                             <li><span className="font-bold">Importante:</span> El `cron` usará automáticamente las consultas SQL que hayas guardado en el panel de administración. No necesitas actualizar la tarea programada si cambias una consulta.</li>
+                        </ul>
+                    </li>
+                </ol>
 
                 <h4 className="font-semibold text-lg pt-2 border-t">¿Qué es el Botón &quot;Sincronizar ERP&quot;?</h4>
                  <ul className="list-disc space-y-3 pl-6">

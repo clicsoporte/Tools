@@ -27,27 +27,30 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
 
 ### Funcionalidades y Mejoras Principales
 
--   **[NUEVO FLUJO] Ciclo de Facturación de Consignaciones:** Se ha rediseñado por completo el módulo de consignaciones para soportar diferentes escenarios operativos y un proceso de facturación más robusto.
-    -   **Asistente de Campo Unificado:** Las herramientas de "Toma de Inventario" y "Solicitud de Reposición" se han fusionado en un único y potente **"Asistente de Campo"**. Este asistente guía al bodeguero, mostrando solo las acciones relevantes según el estado del acuerdo con el cliente.
-    -   **Flujo de Cierre de Periodo Formalizado:**
-        -   **Nuevo Módulo "Gestión de Cierres de Periodo":** Herramienta central para que el personal de oficina cree, apruebe y gestione los cierres de facturación.
-        -   **Lógica de Inventario Inicial Obligatoria:** El sistema ahora fuerza a que el **primer cierre** de un acuerdo nuevo sea para **"Establecer Inventario Inicial"**. Es imposible crear reposiciones o cierres de consumo sin este paso inicial aprobado, garantizando la integridad de los datos desde el principio.
-        -   **Promoción de Conteos Informativos:** El personal de oficina ahora puede generar un cierre de período oficial utilizando los "conteos preliminares" que el bodeguero ha guardado desde el campo, haciendo el proceso más eficiente.
-    -   **Nuevo "Reporte de Facturación" por Cierre:**
-        -   Se accede desde la "Gestión de Cierres" al ver los detalles de un cierre **aprobado**.
-        -   Calcula el consumo a facturar de forma precisa con la fórmula: `Consumo = (Inventario Inicial + Entregas + Ajustes) - Inventario Final`.
-        -   Presenta un resumen consolidado listo para ser ingresado en el ERP.
-    -   **[NUEVO] Herramienta de "Ajustes de Inventario":**
-        -   Permite a los supervisores registrar cambios en el inventario que no son ventas (ej: productos dañados, vencidos, encontrados).
-        -   Estos ajustes se descuentan o suman automáticamente en el Reporte de Facturación para garantizar que solo se facture el consumo real.
-    -   **[NUEVO] Anulación de Cierres Aprobados:**
-        -   Los supervisores con el permiso `consignments:closures:annul` ahora pueden anular un cierre ya aprobado.
-        -   Esta es una acción de seguridad crítica que permite corregir errores graves. Si se anula un cierre que era un "Inventario Inicial", el sistema inteligentemente revierte el estado del acuerdo para forzar un nuevo conteo inicial.
+-   **[NUEVO] Sincronización Automática de Datos (Cron Job):**
+    -   Se ha añadido un endpoint de API seguro (`/api/cron/sync-erp`) que permite automatizar la sincronización de datos del ERP.
+    -   La ejecución se protege mediante una clave secreta (`CRON_SECRET`) que debe ser configurada en el archivo `.env.local`.
+    -   Se ha añadido documentación detallada en el `README.md` y en el **Centro de Ayuda** con instrucciones para configurar la tarea programada tanto en servidores Linux (crontab) como en Windows (Task Scheduler).
 
-### Mejoras Internas y de Calidad
+### Correcciones Críticas de Estabilidad
 
--   **[Refactorización]** Se creó un componente reutilizable `InventoryCountForm` para el ingreso de cantidades, eliminando código duplicado entre el "Asistente de Campo" y la "Gestión de Cierres".
--   **[Base de Datos]** Se implementaron nuevas tablas (`period_closures`, `physical_counts`, `consignment_adjustments`) y se actualizaron las existentes para soportar el nuevo ciclo de consignaciones.
+-   **[Corregido] Error Crítico de Arranque del Servidor (`EADDRINUSE`):**
+    -   Se ha solucionado un error fatal que impedía que el servidor de desarrollo se iniciara correctamente debido a un conflicto de puertos.
+    -   La causa raíz era una configuración incorrecta en el script `dev` del archivo `package.json`, que intentaba usar dos puertos a la vez. El script ha sido corregido para usar un único puerto (`9003`).
+-   **[Corregido] Errores de Renderizado en el Servidor (`Cannot read properties of undefined`):**
+    -   Se ha solucionado una serie de errores de renderizado que ocurrían en varias páginas de la aplicación.
+    -   El problema se debía a una arquitectura incorrecta donde un componente de servidor se renderizaba dentro de un componente de cliente (`AuthProvider`), lo cual es inválido en Next.js App Router.
+    -   Se ha aplicado la directiva `"use client";` en las páginas afectadas para asegurar un renderizado consistente y estable.
+-   **[Corregido] Error de Compilación (`PageNotFoundError`):**
+    -   Se ha resuelto un error que impedía que la aplicación se compilara correctamente (`next build`).
+    -   El error ocurría porque el sistema de rutas de Next.js confundía las rutas de API (`/api/...`) con páginas.
+    -   Se han movido todos los endpoints de la API del directorio `src/app/api/` al nuevo directorio `src/app/routes/` para eliminar la ambigüedad y seguir las convenciones modernas del App Router.
+
+### Mejoras Internas y de Calidad de Código
+
+-   **[Calidad] Fiabilidad de Datos con Revalidación de Caché:** Se ha implementado el uso de `revalidatePath()` en todas las acciones del servidor que modifican datos (crear, editar, eliminar). Esto soluciona un problema clave de la arquitectura de Next.js, asegurando que la interfaz de usuario siempre muestre la información más reciente y evitando la visualización de datos en caché obsoletos.
+-   **[Calidad] Compatibilidad Multiplataforma:** Se ha reemplazado el comando `rm -rf` en `package.json` por `rimraf`, garantizando que el entorno de desarrollo pueda ser iniciado sin problemas tanto en sistemas Windows como Unix (Linux/macOS).
+-   **[Refactorización]** Se ha centralizado la lógica de configuración de Analíticas y se han corregido múltiples errores de tipado en TypeScript para mejorar la mantenibilidad y robustez del código.
 
 ---
 
@@ -277,13 +280,13 @@ Este documento registra todas las mejoras, correcciones y cambios significativos
     -   La interfaz ha sido rediseñada con una tabla principal que muestra todas las asignaciones y un diálogo simplificado para crear o editar estas asociaciones.
 
 -   **[Funcionalidad Clave] Nueva Herramienta "Administración de Ingresos" (Corrección):**
-    -   Se ha añadido una potente herramienta en **Almacén &gt; Administración de Ingresos**.
+    -   Se ha añadido una potente herramienta en **Almacén > Administración de Ingresos**.
     -   Permite a un supervisor buscar una unidad de inventario (lote/tarima) por múltiples criterios (fecha, producto, lote, consecutivo, etc.).
     -   Al seleccionar una unidad, se abre un modal que permite **corregir el producto o la cantidad** del ingreso original.
     -   Internamente, el sistema anula la unidad incorrecta y crea una nueva con los datos corregidos, generando los movimientos de inventario de entrada y salida correspondientes para una trazabilidad completa.
 
 -   **[Funcionalidad Clave] Nuevo "Reporte de Catálogo":**
-    -   Se ha añadido un nuevo reporte en **Analíticas &gt; Reporte de Catálogo**.
+    -   Se ha añadido un nuevo reporte en **Analíticas > Reporte de Catálogo**.
     -   Permite auditar todas las asignaciones de producto-cliente-ubicación.
     -   Incluye filtros estándar por **rango de fechas**, búsqueda de texto, **clasificación de producto** y un nuevo filtro por **tipo de asignación** (General, Exclusivo, Sin Cliente).
     -   Cuenta con paginación y exportación a PDF y Excel.
