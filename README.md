@@ -184,6 +184,51 @@ Este módulo agrupa herramientas de inteligencia de negocio para ayudar en la to
     ```
     Se recomienda usar un gestor de procesos como **PM2** (para Linux) o configurar el sitio en **IIS** (para Windows). Puedes encontrar guías detalladas en la carpeta `deployment/`.
 
+### 5.1. (Opcional) Automatización de Sincronización (Cron Job)
+
+Para mantener los datos del ERP actualizados automáticamente (por ejemplo, todas las noches), puedes configurar una tarea programada o "cron job" que llame a un endpoint seguro de la aplicación.
+
+**Paso 1: Configurar la Clave Secreta**
+
+1.  Abre (o crea) el archivo `.env.local` en la raíz de tu proyecto en el servidor.
+2.  Añade la siguiente línea, reemplazando el valor de ejemplo con una cadena de texto larga y aleatoria:
+    ```
+    CRON_SECRET="tu_clave_super_secreta_y_aleatoria_aqui"
+    ```
+    *Puedes generar una clave segura en Linux con el comando: `openssl rand -base64 32`*
+
+**Paso 2: Configurar la Tarea Programada**
+
+La tarea debe realizar una petición `POST` a la URL `/api/cron/sync-erp` de tu aplicación, incluyendo la clave secreta en la cabecera de autorización.
+
+**Ejemplo para Linux (usando `crontab`):**
+
+1.  Abre el editor de cron con el comando `crontab -e`.
+2.  Añade la siguiente línea para ejecutar la tarea todos los días a las 2:00 AM:
+
+    ```bash
+    # Sincroniza Clic-Tools con el ERP
+    0 2 * * * curl -X POST -H "Authorization: Bearer tu_clave_super_secreta_y_aleatoria_aqui" http://localhost:9003/api/cron/sync-erp
+    ```
+    *Asegúrate de que `http://localhost:9003` sea la dirección y puerto correctos de tu aplicación en el servidor.*
+
+**Ejemplo para Windows (usando el Programador de Tareas):**
+
+1.  Abre el "Programador de Tareas".
+2.  Crea una nueva "Tarea Básica".
+3.  **Desencadenador:** Configúralo para que se ejecute "Diariamente" a la hora que prefieras (ej. 02:00:00).
+4.  **Acción:** Selecciona "Iniciar un programa".
+5.  **Programa/script:** `powershell`
+6.  **Agregar argumentos (opcional):** Pega el siguiente comando, reemplazando la URL y la clave secreta:
+
+    ```powershell
+    Invoke-WebRequest -Uri "http://localhost:9003/api/cron/sync-erp" -Method POST -Headers @{"Authorization"="Bearer tu_clave_super_secreta_y_aleatoria_aqui"}
+    ```
+7.  Finaliza el asistente.
+
+Una vez configurado, el sistema se sincronizará automáticamente sin necesidad de intervención manual. Si actualizas las consultas SQL desde el panel de administración, el cron job usará las nuevas consultas en su próxima ejecución.
+
+
 ---
 
 ## 6. Proceso de Actualización de Versiones
