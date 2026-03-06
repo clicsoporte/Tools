@@ -38,6 +38,7 @@ export default function InvoiceReporterPage() {
                         <TableHead className="min-w-[120px]">Fecha</TableHead>
                         <TableHead className="min-w-[150px]">Código</TableHead>
                         <TableHead className="min-w-[300px]">Descripción</TableHead>
+                        <TableHead className="text-right min-w-[100px]">Cantidad</TableHead>
                         <TableHead className="text-right min-w-[100px]">Imp. %</TableHead>
                         <TableHead className="text-right min-w-[150px]">Unit. s/IVA</TableHead>
                         <TableHead className="text-right min-w-[150px]">Unit. c/IVA</TableHead>
@@ -54,6 +55,7 @@ export default function InvoiceReporterPage() {
                             <TableCell>{isValid(parseISO(line.invoiceDate)) ? format(parseISO(line.invoiceDate), 'dd/MM/yyyy') : 'Inválida'}</TableCell>
                             <TableCell><Input value={line.itemCode} onChange={e => actions.updateLine(line.id, { itemCode: e.target.value })} className="h-auto p-1 border-0" /></TableCell>
                             <TableCell><Input value={line.itemDescription} onChange={e => actions.updateLine(line.id, { itemDescription: e.target.value })} className="h-auto p-1 border-0" /></TableCell>
+                            <TableCell><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="h-auto p-1 border-0 text-right hide-number-arrows" /></TableCell>
                             <TableCell className="text-right">{line.taxRate !== undefined ? `${(line.taxRate * 100).toFixed(0)}%` : '-'}</TableCell>
                             <TableCell className="text-right"><Input type="number" value={line.unitPrice} onChange={e => actions.updateLine(line.id, { unitPrice: Number(e.target.value) })} className="h-auto p-1 border-0 text-right hide-number-arrows" /></TableCell>
                             <TableCell className="text-right"><Input type="number" value={line.unitPriceWithTax} onChange={e => actions.updateLine(line.id, { unitPriceWithTax: Number(e.target.value) })} className="h-auto p-1 border-0 text-right hide-number-arrows" /></TableCell>
@@ -62,7 +64,7 @@ export default function InvoiceReporterPage() {
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={11} className="h-48 text-center text-muted-foreground">
+                            <TableCell colSpan={12} className="h-48 text-center text-muted-foreground">
                                 Carga uno o más archivos XML para empezar.
                             </TableCell>
                         </TableRow>

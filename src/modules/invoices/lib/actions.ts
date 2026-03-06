@@ -126,6 +126,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<{ da
                 invoiceDate: fechaEmision,
                 itemCode: itemCode,
                 itemDescription: cleanDescription,
+                quantity: cantidad,
                 unitPrice: unitPrice,
                 unitPriceWithTax: unitPriceWithTax,
                 totalLine: subTotal,

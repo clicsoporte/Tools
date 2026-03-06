@@ -160,13 +160,13 @@ export const useInvoiceReporter = () => {
                 toast({ title: "Sin Líneas Seleccionadas", description: "Marca las líneas que deseas exportar.", variant: "destructive" });
                 return;
             }
-            const headers = ["Nº Factura", "Proveedor", "Fecha Emisión", "Código Artículo", "Descripción", "Precio Unitario (s/IVA)", "Precio Unitario (c/IVA)", "Total Línea (s/IVA)", "Total Línea (c/IVA)", "% Imp."];
+            const headers = ["Nº Factura", "Proveedor", "Fecha Emisión", "Código Artículo", "Descripción", "Cantidad", "Precio Unitario (s/IVA)", "Precio Unitario (c/IVA)", "Total Línea (s/IVA)", "Total Línea (c/IVA)", "% Imp."];
             const dataToExport = selectedLines.map(line => [
                 line.invoiceNumber, line.supplierName, format(parseISO(line.invoiceDate), 'dd/MM/yyyy'), line.itemCode,
-                line.itemDescription, line.unitPrice, line.unitPriceWithTax, line.totalLine, line.totalLineWithTax,
+                line.itemDescription, line.quantity, line.unitPrice, line.unitPriceWithTax, line.totalLine, line.totalLineWithTax,
                 line.taxRate !== undefined ? (line.taxRate * 100) : '-'
             ]);
-            exportToExcel({ fileName: 'reporte_facturas_detallado', sheetName: 'Facturas Detalle', title: 'Reporte Detallado de Facturas Seleccionadas', data: dataToExport, headers: headers, columnWidths: [25, 30, 15, 20, 40, 20, 20, 20, 20, 10] });
+            exportToExcel({ fileName: 'reporte_facturas_detallado', sheetName: 'Facturas Detalle', title: 'Reporte Detallado de Facturas Seleccionadas', data: dataToExport, headers: headers, columnWidths: [25, 30, 15, 20, 40, 10, 20, 20, 20, 20, 10] });
         } else { // Summary mode
             const selectedSummaries = selectors.summaryLines.filter(s => s.isSelected);
              if (selectedSummaries.length === 0) {

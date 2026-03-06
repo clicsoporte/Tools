@@ -962,6 +962,7 @@ export type InvoiceReportLine = {
     invoiceDate: string;
     itemCode: string;
     itemDescription: string;
+    quantity: number;
     unitPrice: number;
     unitPriceWithTax: number;
     totalLine: number;
