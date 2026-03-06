@@ -222,7 +222,7 @@ La tarea debe realizar una petición `POST` a la URL `/api/cron/sync-erp` de tu 
 6.  **Agregar argumentos (opcional):** Pega el siguiente comando, reemplazando la URL y la clave secreta:
 
     ```powershell
-    Invoke-WebRequest -Uri "http://localhost:9003/api/cron/sync-erp" -Method POST -Headers @{"Authorization"="Bearer tu_clave_super_secreta_y_aleatoria_aqui"}
+    Invoke-WebRequest -Uri "http://localhost:9003/api/cron/sync-erp" -Method POST -Headers @{'Authorization' = 'Bearer tu_clave_super_secreta_y_aleatoria_aqui'} -UseBasicParsing
     ```
 7.  Finaliza el asistente.
 

@@ -318,9 +318,9 @@ export default function HelpPage() {
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li>La tarea debe realizar una petición `POST` a la URL <code>/api/cron/sync-erp</code> de tu aplicación, incluyendo la clave secreta en la cabecera de autorización.</li>
                             <li><strong>Ejemplo para Linux (<code>crontab</code>):</strong></li>
-                            <li className="p-2 bg-muted rounded-md font-mono text-xs"><code>0 2 * * * curl -X POST -H &quot;Authorization: Bearer tu_clave_super_secreta&quot; http://localhost:9003/api/cron/sync-erp</code></li>
+                            <li className="p-2 bg-muted rounded-md font-mono text-xs"><code>0 2 * * * curl -X POST -H &quot;Authorization: Bearer tu_clave_super_secreta_y_aleatoria_aqui&quot; http://localhost:9003/api/cron/sync-erp</code></li>
                             <li><strong>Ejemplo para Windows (Programador de Tareas):</strong></li>
-                            <li className="p-2 bg-muted rounded-md font-mono text-xs">Programa/script: <code>powershell</code><br/>Argumentos: <code>{`Invoke-WebRequest -Uri "http://localhost:9003/api/cron/sync-erp" -Method POST -Headers @{'"Authorization"'='"Bearer tu_clave_super_secreta"'}`}</code></li>
+                            <li className="p-2 bg-muted rounded-md font-mono text-xs"><code>powershell</code><br/>Argumentos: <code>{`Invoke-WebRequest -Uri "http://localhost:9003/api/cron/sync-erp" -Method POST -Headers @{'Authorization' = 'Bearer tu_clave_super_secreta'} -UseBasicParsing`}</code></li>
                              <li><span className="font-bold">Importante:</span> El `cron` usará automáticamente las consultas SQL que hayas guardado en el panel de administración. No necesitas actualizar la tarea programada si cambias una consulta.</li>
                         </ul>
                     </li>
