@@ -4,7 +4,7 @@
 'use server';
 
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
-import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAnalyticsSettings as getAnalyticsSettingsDb, saveAnalyticsSettings as saveAnalyticsSettingsDb, getAllProducts, connectDb } from '@/modules/core/lib/db';
+import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAllProducts, connectDb } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
 import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, ConsignmentProduct, ConsignmentReportRow, PeriodClosure, ConsignmentAdjustment, PhysicalCount } from '@/modules/core/types';
 import { differenceInDays, parseISO, format } from 'date-fns';
@@ -26,14 +26,6 @@ interface ReportFilters {
 interface FullProductionReportData {
     reportData: ProductionReportData;
     plannerSettings: PlannerSettings;
-}
-
-export async function getAnalyticsSettings(): Promise<AnalyticsSettings> {
-    return getAnalyticsSettingsDb();
-}
-
-export async function saveAnalyticsSettings(settings: AnalyticsSettings): Promise<void> {
-    return saveAnalyticsSettingsDb(settings);
 }
 
 /**
@@ -125,12 +117,13 @@ export async function getActiveTransitsReportData(filters: { dateRange: DateRang
     const toDate = dateRange.to || new Date();
     toDate.setHours(23, 59, 59, 999);
 
-    const [allHeaders, allLines, allSuppliers, allProducts, allStock] = await Promise.all([
+    const [allHeaders, allLines, allSuppliers, allProducts, allStock, analyticsSettings] = await Promise.all([
         getAllErpPurchaseOrderHeaders(),
         getAllErpPurchaseOrderLines(),
         getAllSuppliers(),
         getAllProducts(),
         getAllStock(),
+        getAnalyticsSettings()
     ]);
 
     const supplierMap = new Map<string, string>(allSuppliers.map(s => [s.id, s.name]));
@@ -138,7 +131,7 @@ export async function getActiveTransitsReportData(filters: { dateRange: DateRang
     const stockMap = new Map<string, number>(allStock.map(s => [s.itemId, s.totalStock]));
 
     // Use the status filter if provided, otherwise default to all non-final states
-    const relevantStates = (statusFilter && statusFilter.length > 0) ? statusFilter : ['A', 'E', 'O', 'R', 'U'];
+    const relevantStates = (statusFilter && statusFilter.length > 0) ? statusFilter : analyticsSettings.transitStatusAliases.filter(s => s.id !== 'N' && s.id !== 'R').map(s => s.id);
     
     const filteredHeaders = allHeaders.filter(h => {
         const orderDate = new Date(h.FECHA_HORA);

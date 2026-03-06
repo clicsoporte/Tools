@@ -5,6 +5,8 @@
  * client-side AuthForm component. This simplifies the initial render and
  * improves build stability.
  */
+"use client";
+
 import { AuthForm } from "@/components/auth/auth-form";
 import {
   Card,

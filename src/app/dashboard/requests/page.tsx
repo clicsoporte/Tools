@@ -64,7 +64,7 @@ export default function PurchaseRequestPage() {
     const {
         isLoading, isSubmitting, isNewRequestDialogOpen, isEditRequestDialogOpen, viewingArchived,
         currentPage, requestSettings, newRequest, requestToEdit,
-        searchTerm, statusFilter, classificationFilter, dateFilter, showOnlyMyRequests,
+        searchTerm, statusFilter, classificationFilter, showOnlyMyRequests, dateFilter,
         clientSearchTerm, isClientSearchOpen, itemSearchTerm, isItemSearchOpen,
         isStatusDialogOpen, requestToUpdate, newStatus, statusUpdateNotes, deliveredQuantity,
         isHistoryDialogOpen, historyRequest, history, isHistoryLoading,

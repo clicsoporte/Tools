@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getAnalyticsSettings, saveAnalyticsSettings } from '../lib/actions';
+import { getAnalyticsSettings, saveAnalyticsSettings } from '@/modules/core/lib/db';
 import type { AnalyticsSettings, TransitStatusAlias } from '@/modules/core/types';
 
 const defaultSettings: AnalyticsSettings = {

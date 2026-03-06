@@ -66,12 +66,12 @@ export default function ClosuresPage() {
                                 <TableHead>Cliente</TableHead>
                                 <TableHead>Fecha Creación</TableHead>
                                 <TableHead>Estado</TableHead>
-                                <TableHead>Tipo</TableHead>
+                                <TableHead>Tipo / Vínculo</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {state.closures.map((closure: PeriodClosure & { client_name: string; is_initial_inventory: boolean; }) => (
+                            {state.closures.map((closure: PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; }) => (
                                 <TableRow key={closure.id}>
                                     <TableCell className="font-mono font-bold text-primary">{closure.consecutive}</TableCell>
                                     <TableCell>{closure.client_name}</TableCell>
@@ -82,10 +82,17 @@ export default function ClosuresPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        {closure.is_initial_inventory && (
+                                        {closure.is_initial_inventory ? (
                                             <Badge variant="outline" className="border-green-600 text-green-700">
                                                 Inventario Inicial
                                             </Badge>
+                                        ) : closure.previous_closure_consecutive ? (
+                                            <div className="text-xs text-muted-foreground">
+                                                <span>Inicia desde:</span><br/>
+                                                <span className="font-mono">{closure.previous_closure_consecutive}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground italic">No vinculado</span>
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right space-x-1">

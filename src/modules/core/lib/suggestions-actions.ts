@@ -31,6 +31,7 @@ export async function getSuggestions(): Promise<Suggestion[]> {
  */
 export async function markSuggestionAsRead(id: number): Promise<void> {
   await dbMarkSuggestionAsRead(id);
+  revalidatePath('/dashboard/admin/suggestions');
 }
 
 /**
@@ -39,6 +40,7 @@ export async function markSuggestionAsRead(id: number): Promise<void> {
  */
 export async function deleteSuggestion(id: number): Promise<void> {
   await dbDeleteSuggestion(id);
+  revalidatePath('/dashboard/admin/suggestions');
 }
 
 /**

@@ -224,6 +224,7 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
 
   const { password: _, ...userWithoutPassword } = userToCreate;
   await logInfo(`Admin added a new user: ${userToCreate.name}`, { role: userToCreate.role });
+  revalidatePath('/dashboard/admin/users');
   return userWithoutPassword as User;
 }
 
@@ -285,6 +286,7 @@ export async function saveAllUsers(users: User[]): Promise<void> {
     try {
         transaction(users);
         await logInfo(`${users.length} user records were processed for saving.`);
+        revalidatePath('/dashboard/admin/users');
     } catch (error) {
         await logError("Failed to save all users (saveAllUsers)", { error: (error as Error).message });
         throw new Error("Database transaction failed to save users.");
