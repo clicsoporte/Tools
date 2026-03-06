@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook for managing the logic for the new unified Consignment Field Assistant.
  */
@@ -8,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getConsignmentAgreements, getAgreementDetails, savePhysicalCount, createClosureFromCount, saveReplenishmentBoleta, lockAgreement, forceRelayLock, releaseAgreementLock } from '../lib/actions';
+import { getConsignmentAgreements, getAgreementDetails, savePhysicalCount, createClosureFromCount, saveReplenishmentBoleta, lockAgreement, forceRelayLock, releaseAgreementLock, createBoletaFromCount } from '../lib/actions';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import type { ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
@@ -33,6 +32,7 @@ interface State {
     // Search states
     clientSearchTerm: string;
     isClientSearchOpen: boolean;
+    lastCreatedEntity: { type: string, consecutive: string } | null;
 }
 
 export const useFieldAssistant = () => {
@@ -55,6 +55,7 @@ export const useFieldAssistant = () => {
         lockConflictUser: null,
         clientSearchTerm: '',
         isClientSearchOpen: false,
+        lastCreatedEntity: null,
     });
 
     const [debouncedSearch] = useDebounce(state.clientSearchTerm, 300);
@@ -167,20 +168,22 @@ export const useFieldAssistant = () => {
                 case 'INFORMATIONAL_COUNT':
                     await savePhysicalCount(state.selectedAgreement.id, linesToSubmit, user.name);
                     toast({ title: 'Conteo Guardado', description: 'El conteo informativo ha sido guardado exitosamente.' });
+                    updateState({ lastCreatedEntity: null });
                     break;
                 case 'CLOSURE_REQUEST':
                     const closure = await createClosureFromCount(state.selectedAgreement.id, linesToSubmit, user.name);
                     toast({ title: 'Solicitud de Cierre Generada', description: `Se creó el Cierre ${closure.consecutive} y está pendiente de aprobación.` });
+                    updateState({ lastCreatedEntity: { type: 'Cierre', consecutive: closure.consecutive } });
                     break;
                 case 'REPOSITION_REQUEST':
                     const repoBoleta = await saveReplenishmentBoleta(state.selectedAgreement.id, linesToSubmit, user.name);
                     toast({ title: 'Boleta de Reposición Generada', description: `La boleta ${repoBoleta.consecutive} está pendiente de revisión.` });
+                    updateState({ lastCreatedEntity: { type: 'Boleta', consecutive: repoBoleta.consecutive } });
                     break;
                 case 'REPOSITION_BOLETA':
-                    // This action requires more complex logic, creating a boleta with calculated quantities
-                    // For now, we'll just log it. This needs full implementation.
-                    console.log('Generating boleta by count...');
-                    toast({ title: 'Acción Pendiente', description: 'La generación automática de boletas por conteo se implementará.' });
+                    const boleta = await createBoletaFromCount(state.selectedAgreement.id, state.counts, user.name);
+                    toast({ title: 'Boleta de Reposición Generada', description: `La boleta ${boleta.consecutive} está pendiente de revisión.` });
+                    updateState({ lastCreatedEntity: { type: 'Boleta', consecutive: boleta.consecutive } });
                     break;
             }
             updateState({ step: 'finished' });
@@ -208,6 +211,7 @@ export const useFieldAssistant = () => {
             lockStatus: 'unlocked',
             lockConflictUser: null,
             clientSearchTerm: '',
+            lastCreatedEntity: null,
         });
     };
 

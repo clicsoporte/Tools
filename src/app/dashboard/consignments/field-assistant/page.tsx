@@ -16,7 +16,7 @@ import { InventoryCountForm } from '@/components/consignments/inventory-count-fo
 
 export default function FieldAssistantPage() {
     const { state, actions, selectors } = useFieldAssistant();
-    const { step, isLoading, isSubmitting, clientSearchTerm, isClientSearchOpen, selectedAgreement, productsToCount, counts } = state;
+    const { step, isLoading, isSubmitting, clientSearchTerm, isClientSearchOpen, selectedAgreement, productsToCount, counts, lastCreatedEntity } = state;
 
     if (isLoading && step === 'select_client') {
         return (
@@ -66,7 +66,7 @@ export default function FieldAssistantPage() {
                                 )}
                                 {selectedAgreement.operation_mode === 'auto' && (
                                     <Button className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('REPOSITION_BOLETA')}>
-                                        <ClipboardCheck className="mr-4" /> Generar Boleta para reposición
+                                        <ClipboardCheck className="mr-4" /> Generar Boleta por Conteo
                                     </Button>
                                 )}
                                 <Button variant="secondary" className="w-full justify-start h-14 text-base" onClick={() => actions.handleSelectAction('INFORMATIONAL_COUNT')}>
@@ -108,7 +108,7 @@ export default function FieldAssistantPage() {
                          <Button variant="outline" onClick={actions.cancelAndReleaseLock}>Cancelar y Salir</Button>
                          <Button onClick={actions.handleFinishCount} disabled={isSubmitting || !selectors.hasCounts}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            Finalizar y Revisar
+                            Finalizar Conteo
                         </Button>
                     </CardFooter>
                 </Card>
@@ -119,9 +119,15 @@ export default function FieldAssistantPage() {
                     <CardHeader>
                         <CheckCircle className="mx-auto h-16 w-16 text-green-500"/>
                         <CardTitle className="mt-4 text-2xl">¡Tarea Completada!</CardTitle>
-                        <CardDescription>
-                           La acción se ha registrado correctamente y el acuerdo ha sido liberado.
-                        </CardDescription>
+                        {lastCreatedEntity ? (
+                             <CardDescription>
+                                Se ha generado la <strong>{lastCreatedEntity.type} {lastCreatedEntity.consecutive}</strong>. La sesión ha sido finalizada y el acuerdo liberado.
+                            </CardDescription>
+                        ) : (
+                            <CardDescription>
+                               La acción se ha registrado correctamente y el acuerdo ha sido liberado.
+                            </CardDescription>
+                        )}
                     </CardHeader>
                     <CardFooter className="justify-center">
                         <Button onClick={actions.reset}>Iniciar Nueva Tarea</Button>

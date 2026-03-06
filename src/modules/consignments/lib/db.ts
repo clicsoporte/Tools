@@ -629,6 +629,54 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
     })();
 }
 
+export async function createBoletaFromCount(agreementId: number, counts: Record<string, string>, userName: string): Promise<RestockBoleta> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const mainDb = await connectDb();
+
+    return db.transaction(() => {
+        const agreement = db.prepare('SELECT * FROM consignment_agreements WHERE id = ?').get(agreementId) as ConsignmentAgreement;
+        if (!agreement) throw new Error("Acuerdo de consignación no encontrado.");
+
+        const consecutive = `${agreement.client_id}-${String(agreement.next_boleta_number).padStart(4, '0')}`;
+        const boletaInfo = db.prepare(`INSERT INTO restock_boletas (consecutive, agreement_id, status, created_by, submitted_by, created_at, type) VALUES (?, ?, 'review', ?, ?, datetime('now'), 'REPOSITION')`)
+            .run(consecutive, agreement.id, userName, userName);
+        const boletaId = boletaInfo.lastInsertRowid as number;
+
+        const allProducts = mainDb.prepare('SELECT * FROM products').all() as Product[];
+        const agreementProducts = db.prepare('SELECT * FROM consignment_products WHERE agreement_id = ?').all(agreementId) as ConsignmentProduct[];
+        const insertLine = db.prepare('INSERT INTO boleta_lines (boleta_id, product_id, product_description, client_product_code, counted_quantity, replenish_quantity, max_stock, price, is_manually_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)');
+        
+        let hasLinesToReplenish = false;
+
+        for (const ap of agreementProducts) {
+            const countedQuantity = Number(counts[ap.product_id] || 0);
+            
+            const replenishQuantity = ap.max_stock > 0 
+                ? Math.max(0, ap.max_stock - countedQuantity) 
+                : 0;
+
+            if (replenishQuantity > 0) {
+                hasLinesToReplenish = true;
+            }
+
+            const productDescription = allProducts.find(p => p.id === ap.product_id)?.description || 'Desconocido';
+            
+            insertLine.run(boletaId, ap.product_id, productDescription, ap.client_product_code, countedQuantity, replenishQuantity, ap.max_stock, ap.price);
+        }
+
+        if (!hasLinesToReplenish) {
+            throw new Error("No hay productos que necesiten reposición según el conteo y los stocks máximos.");
+        }
+
+        db.prepare(`UPDATE consignment_agreements SET next_boleta_number = ? WHERE id = ?`).run(agreement.next_boleta_number + 1, agreement.id);
+        
+        const historyStmt = db.prepare('INSERT INTO boleta_history (boleta_id, timestamp, status, updatedBy, notes) VALUES (?, datetime(\'now\'), ?, ?, ?)');
+        historyStmt.run(boletaId, 'review', userName, 'Boleta generada desde conteo de campo.');
+        
+        return db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta;
+    })();
+}
+
 export async function getLatestPhysicalCount(agreementId: number): Promise<PhysicalCount[] | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const latestTimestamp = db.prepare('SELECT MAX(counted_at) as last_date FROM physical_counts WHERE agreement_id = ?').get(agreementId) as { last_date: string | null };
@@ -984,5 +1032,3 @@ export async function releaseAgreementLock(agreementId: number, userId: number):
     // Only release the lock if the current user is the one who holds it.
     db.prepare('UPDATE consignment_agreements SET locked_by = NULL, locked_by_user_id = NULL, locked_at = NULL WHERE id = ? AND locked_by_user_id = ?').run(agreementId, userId);
 }
-
-    

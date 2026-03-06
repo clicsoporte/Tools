@@ -24,6 +24,7 @@ import {
     rejectPeriodClosure as rejectPeriodClosureServer,
     getConsignmentsBillingReportData as getConsignmentsBillingReportDataFromDb,
     saveReplenishmentBoleta as saveReplenishmentBoletaServer,
+    createBoletaFromCount as createBoletaFromCountDb, // Import the new DB function
     getPhysicalCountByRef as getPhysicalCountByRefServer,
     lockAgreement as lockAgreementServer,
     forceRelayLock as forceRelayLockServer,
@@ -35,7 +36,7 @@ import {
     annulPeriodClosure as annulPeriodClosureServer,
     getAdjustmentsInPeriod
 } from './db';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -301,12 +302,65 @@ export async function createClosureFromCount(agreementId: number, lines: { produ
     return closure;
 }
 
+export async function createBoletaFromCount(agreementId: number, counts: Record<string, string>, userName: string): Promise<RestockBoleta> {
+    await authorizeAction('consignments:count');
+    const boleta = await createBoletaFromCountDb(agreementId, counts, userName);
+
+    try {
+        const [agreementDetails, settings, users] = await Promise.all([
+            getAgreementDetailsServer(agreementId),
+            getConsignmentSettingsServer(),
+            getAllUsers()
+        ]);
+        
+        if (!agreementDetails) throw new Error("Agreement not found for notification.");
+        
+        const allRecipients = new Set<string>();
+
+        (settings.notificationUserIds || []).forEach(userId => {
+            const user = users.find(u => u.id === userId);
+            if (user?.email) allRecipients.add(user.email);
+        });
+
+        (agreementDetails.agreement.notification_user_ids || []).forEach(userId => {
+            const user = users.find(u => u.id === userId);
+            if (user?.email) allRecipients.add(user.email);
+        });
+
+        (settings.additionalNotificationEmails?.split(',') || []).map(e => e.trim()).filter(Boolean).forEach(email => allRecipients.add(email));
+
+        if (allRecipients.size > 0) {
+            await sendBoletaEmail({
+                boletaId: boleta.id,
+                subject: `Nueva Boleta para Aprobación: ${boleta.consecutive}`,
+                introText: `El usuario <strong>${userName}</strong> ha generado una nueva boleta de reposición automática y requiere tu aprobación.`,
+                recipientEmails: Array.from(allRecipients),
+                includePrice: true
+            });
+        }
+        
+        await createNotificationForPermission(
+            'consignments:boleta:approve',
+            `Nueva boleta ${boleta.consecutive} para "${agreementDetails.agreement.client_name}" requiere aprobación.`,
+            `/dashboard/consignments/boletas`,
+            boleta.id,
+            'consignment_boleta',
+            'approve'
+        );
+
+    } catch(e: any) {
+        logError('Failed to send boleta creation notification from count', { error: e.message, boletaId: boleta.id });
+    }
+
+    return boleta;
+}
+
 
 export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date }, type?: BoletaType, agreementId?: number }) {
     return getBoletasServer(filters);
 }
 
-export async function updateBoletaStatus(payload: { boletaId: number, status: RestockBoletaStatus, notes: string, updatedBy: string, erpInvoiceNumber?: string, erpMovementId?: string }): Promise<RestockBoleta> {
+export async function updateBoletaStatus(payload: { boletaId: number, status: string, notes: string, updatedBy: string, erpInvoiceNumber?: string, erpMovementId?: string }): Promise<RestockBoleta> {
     if (payload.status === 'pending' && !payload.erpMovementId?.trim()) {
         throw new Error("El número de movimiento de inventario del ERP es requerido para poder enviar a aprobación.");
     }
@@ -323,7 +377,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: Re
                 invoiced: 'Facturada',
                 canceled: 'Cancelada',
             };
-            const statusLabel = statusConfig[payload.status] || payload.status;
+            const statusLabel = statusConfig[payload.status as keyof typeof statusConfig] || payload.status;
             const users: User[] = await getAllUsers();
             const creator = users.find((u: User) => u.name === (updatedBoleta.submitted_by || updatedBoleta.created_by));
             const settings = await getConsignmentSettingsServer();
@@ -332,7 +386,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: Re
             const allRecipients = new Map<string, { includePrice: boolean }>();
             
             const milestoneStatuses: RestockBoletaStatus[] = ['approved', 'sent', 'invoiced', 'canceled', 'review'];
-            const isImportantUpdate = milestoneStatuses.includes(payload.status);
+            const isImportantUpdate = milestoneStatuses.includes(payload.status as RestockBoletaStatus);
             const isApprovalRequest = payload.status === 'pending';
 
             if (isImportantUpdate) {
@@ -381,7 +435,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: Re
                     href: '/dashboard/consignments/boletas',
                     entityId: updatedBoleta.id,
                     entityType: 'consignment_boleta',
-                    entityStatus: payload.status,
+                    entityStatus: payload.status as RestockBoletaStatus,
                 });
             }
             
