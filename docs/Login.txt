@@ -70,3 +70,828 @@ Y aquí los archivos que implementan el sistema de permisos:
 -   `src/modules/core/lib/auth-guard.ts`: (Funciones de protección del servidor)
 -   `src/modules/core/hooks/useAuthorization.tsx`: (Hook de cliente para UI)
 -   `src/app/dashboard/admin/roles/roles-client.tsx`: (Ejemplo práctico de la UI de gestión de roles)
+---
+### Sección 5: Código Fuente - UI de Gestión de Usuarios y Roles
+---
+Estos archivos construyen la interfaz de usuario para que los administradores puedan gestionar los usuarios y sus roles asignados.
+
+-   `src/app/dashboard/admin/roles/page.tsx`: (Página principal para roles)
+```typescript
+"use client";
+import { authorizePage } from "@/modules/core/lib/auth-guard";
+import RolesClient from "./roles-client";
+
+export const dynamic = 'force-dynamic';
+
+export default function RolesPage() {
+    // await authorizePage('roles:read'); // This line is commented out as it's a server-side function
+    return <RolesClient />;
+}
+```
+
+-   `src/app/dashboard/admin/roles/roles-client.tsx`: (Componente de cliente con la lógica de UI para roles)
+```typescript
+'use client';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/modules/core/hooks/use-toast';
+import { logInfo, logError } from '@/modules/core/lib/logger';
+import {
+  permissionGroups,
+  permissionTranslations,
+  permissionTree,
+  AppPermission,
+} from '@/modules/core/lib/permissions';
+import { getAllRoles, saveAllRoles, resetDefaultRoles } from '@/modules/core/lib/db';
+import type { Role } from '@/modules/core/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { PlusCircle, Save, Trash2, ShieldQuestion, Copy } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+
+export default function RolesClient() {
+  const { hasPermission } = useAuthorization(['roles:create', 'roles:read', 'roles:update', 'roles:delete']);
+  const { toast } = useToast();
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { setTitle } = usePageTitle();
+
+  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [currentRole, setCurrentRole] = useState<Role | null>(null);
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+
+  const fetchRoles = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const rolesData = await getAllRoles();
+      setRoles(rolesData);
+    } catch (error) {
+      logError('Error fetching roles', { error });
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los roles.',
+        variant: 'destructive',
+      });
+    }
+    setIsLoading(false);
+  }, [toast]);
+
+  useEffect(() => {
+    setTitle('Gestión de Roles');
+    fetchRoles();
+  }, [setTitle, fetchRoles]);
+
+  const handleOpenDialog = (role?: Role) => {
+    setCurrentRole(role ? { ...role } : { id: '', name: '', permissions: [] });
+    setDialogOpen(true);
+  };
+  
+  const handleCopyRole = (role: Role) => {
+    setCurrentRole({
+        id: '', // New role, so no ID
+        name: `Copia de ${role.name}`,
+        permissions: [...role.permissions] // Copy permissions
+    });
+    setDialogOpen(true);
+  }
+
+  const handleSaveRole = async () => {
+    if (!currentRole || !currentRole.name.trim()) {
+      toast({
+        title: 'Error de Validación',
+        description: 'El nombre del rol no puede estar vacío.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    let updatedRoles;
+    const isNew = !currentRole.id;
+    if (isNew) {
+      const newRoleId = currentRole.name
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
+      if (roles.some((r) => r.id === newRoleId)) {
+        toast({
+          title: 'Error',
+          description: 'Ya existe un rol con un ID similar.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      updatedRoles = [...roles, { ...currentRole, id: newRoleId }];
+    } else {
+      updatedRoles = roles.map((r) =>
+        r.id === currentRole.id ? currentRole : r
+      );
+    }
+
+    try {
+      await saveAllRoles(updatedRoles);
+      setRoles(updatedRoles);
+      toast({
+        title: 'Roles Guardados',
+        description: `El rol "${currentRole.name}" ha sido ${
+          isNew ? 'creado' : 'actualizado'
+        }.`,
+      });
+      await logInfo('Roles saved', { role: currentRole.name });
+    } catch (err: any) {
+      logError('Failed to save roles', { error: err.message });
+      toast({
+        title: 'Error',
+        description: 'No se pudieron guardar los roles.',
+        variant: 'destructive',
+      });
+    }
+
+    setDialogOpen(false);
+  };
+
+  const handleDeleteRole = async () => {
+    if (!roleToDelete) return;
+    if (roleToDelete.id === 'admin') {
+      toast({
+        title: 'Acción no permitida',
+        description: 'No se puede eliminar el rol de Administrador.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const updatedRoles = roles.filter((r) => r.id !== roleToDelete.id);
+    await saveAllRoles(updatedRoles);
+    setRoles(updatedRoles);
+    toast({
+      title: 'Rol Eliminado',
+      description: `El rol "${roleToDelete.name}" ha sido eliminado.`,
+      variant: 'destructive',
+    });
+    await logInfo('Role deleted', { roleId: roleToDelete.id });
+    setRoleToDelete(null);
+  };
+
+  const handleResetAdmin = async () => {
+    await resetDefaultRoles();
+    await fetchRoles(); // Re-fetch all roles to get the updated admin role
+    toast({
+      title: 'Rol de Administrador Restablecido',
+      description:
+        'Todos los permisos han sido re-asignados al rol de Administrador.',
+    });
+    await logInfo('Admin role reset to default');
+  };
+
+  const handlePermissionChange = (permission: AppPermission, isChecked: boolean, role: Role) => {
+    if (!currentRole) return;
+
+    let newPermissions = new Set(role.permissions as AppPermission[]);
+
+    const addWithParents = (perm: AppPermission) => {
+        newPermissions.add(perm);
+        for (const parent in permissionTree) {
+            const parentPerm = parent as AppPermission;
+            if (permissionTree[parentPerm]?.includes(perm)) {
+                addWithParents(parentPerm);
+            }
+        }
+    };
+    
+    const removeWithChildren = (perm: AppPermission) => {
+        newPermissions.delete(perm);
+        const children = permissionTree[perm] || [];
+        for (const child of children) {
+            removeWithChildren(child as AppPermission);
+        }
+    };
+    
+    if (isChecked) {
+        addWithParents(permission);
+    } else {
+        removeWithChildren(permission);
+    }
+    
+    setCurrentRole({ ...role, permissions: Array.from(newPermissions) });
+  };
+  
+ const handleGroupPermissionChange = (groupPermissions: AppPermission[], check: boolean) => {
+    if (!currentRole) return;
+    
+    let newPermissions = new Set(currentRole.permissions as AppPermission[]);
+
+    const addWithParents = (perm: AppPermission) => {
+        newPermissions.add(perm);
+        for (const parent in permissionTree) {
+            const parentPerm = parent as AppPermission;
+            if (permissionTree[parentPerm]?.includes(perm)) {
+                addWithParents(parentPerm);
+            }
+        }
+    };
+
+    const removeWithChildren = (perm: AppPermission) => {
+        newPermissions.delete(perm);
+        const children = permissionTree[perm] || [];
+        for (const child of children) {
+            removeWithChildren(child as AppPermission);
+        }
+    };
+
+    groupPermissions.forEach(p => {
+        if (check) {
+            addWithParents(p);
+        } else {
+            removeWithChildren(p);
+        }
+    });
+
+    setCurrentRole({ ...currentRole, permissions: Array.from(newPermissions) });
+};
+
+
+  const renderPermissionGroup = (
+    groupName: string,
+    permissions: AppPermission[],
+    role: Role
+  ) => {
+    const allSelectedInGroup = permissions.every(p => role.permissions.includes(p));
+
+    return (
+      <details key={groupName} className="space-y-2">
+        <summary className="cursor-pointer font-medium flex justify-between items-center py-2 hover:bg-muted/50 rounded-md -mx-2 px-2">
+          <span>{groupName}</span>
+          <div className="flex items-center gap-2 mr-4" onClick={(e) => e.preventDefault()}>
+            <Label htmlFor={`select-all-${groupName.replace(/\s+/g, '-')}`} className="text-xs font-normal cursor-pointer">
+              Todos
+            </Label>
+            <Checkbox
+              id={`select-all-${groupName.replace(/\s+/g, '-')}`}
+              checked={allSelectedInGroup}
+              onCheckedChange={(checked) => handleGroupPermissionChange(permissions, !!checked)}
+              disabled={role.id === 'admin'}
+            />
+          </div>
+        </summary>
+        <div className="pl-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 border-l-2 ml-2 pl-4">
+          {permissions.map((permission) => (
+            <div key={permission} className="flex items-center space-x-2">
+              <Checkbox
+                id={`${role.id}-${permission}`}
+                checked={role.permissions.includes(permission)}
+                onCheckedChange={(checked) =>
+                  handlePermissionChange(permission, !!checked, role)
+                }
+                disabled={role.id === 'admin'}
+              />
+              <Label
+                htmlFor={`${role.id}-${permission}`}
+                className="font-normal text-sm"
+              >
+                {(permissionTranslations as any)[permission] || permission}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </details>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <div className="mx-auto max-w-4xl space-y-6">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex-1 p-4 md:p-6 lg:p-8">
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Gestión de Roles</h1>
+            <p className="text-muted-foreground">
+              Define roles de usuario y asigna permisos específicos.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleResetAdmin}
+              disabled={!hasPermission('roles:update')}
+            >
+              <ShieldQuestion className="mr-2 h-4 w-4" />
+              Restablecer Rol Admin
+            </Button>
+            <Button
+              onClick={() => handleOpenDialog()}
+              disabled={!hasPermission('roles:create')}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nuevo Rol
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {roles.map((role) => (
+            <Card key={role.id}>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>{role.name}</CardTitle>
+                    <CardDescription>ID: {role.id}</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleCopyRole(role)}
+                      disabled={!hasPermission('roles:create')}
+                    >
+                      <Copy className="mr-2 h-4 w-4"/>
+                      Copiar Rol
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleOpenDialog(role)}
+                      disabled={
+                        role.id === 'admin' || !hasPermission('roles:update')
+                      }
+                    >
+                      Editar Permisos
+                    </Button>
+                     <AlertDialog onOpenChange={(open) => !open && setRoleToDelete(null)}>
+                        <AlertDialogTrigger asChild>
+                             <Button
+                                variant="destructive"
+                                disabled={
+                                    role.id === 'admin' || !hasPermission('roles:delete')
+                                }
+                                onClick={() => setRoleToDelete(role)}
+                                >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar el rol &quot;{roleToDelete?.name}&quot;?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Los usuarios con este rol perderán sus permisos.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteRole}>Sí, Eliminar</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              {currentRole?.id ? 'Editar Rol' : 'Nuevo Rol'}
+            </DialogTitle>
+            <DialogDescription>
+              {currentRole?.id
+                ? `Editando permisos para "${currentRole?.name}"`
+                : 'Crea un nuevo rol y asigna sus permisos.'}
+            </DialogDescription>
+          </DialogHeader>
+          {currentRole && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="role-name">Nombre del Rol</Label>
+                <Input
+                  id="role-name"
+                  value={currentRole.name}
+                  onChange={(e) =>
+                    setCurrentRole({ ...currentRole, name: e.target.value })
+                  }
+                  disabled={currentRole.id === 'admin'}
+                />
+              </div>
+              <ScrollArea className="h-[50vh] rounded-md border p-4">
+                <div className="space-y-6">
+                  {Object.entries(permissionGroups).map(([groupName, perms]) =>
+                    renderPermissionGroup(groupName, perms as AppPermission[], currentRole)
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancelar</Button>
+            </DialogClose>
+            <Button
+              onClick={handleSaveRole}
+              disabled={currentRole?.id === 'admin'}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </main>
+  );
+}
+```
+
+-   `src/app/dashboard/admin/users/page.tsx`:
+```typescript
+"use client";
+import { authorizePage } from "@/modules/core/lib/auth-guard";
+import UsersClient from "./users-client";
+
+export const dynamic = 'force-dynamic';
+
+export default function UsersPage() {
+    // await authorizePage('users:read'); // This is a server-side function and cannot be used in a client component.
+    return <UsersClient />;
+}
+```
+
+-   `src/app/dashboard/admin/users/users-client.tsx`:
+```typescript
+'use client';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/modules/core/hooks/use-toast';
+import { logInfo, logError } from '@/modules/core/lib/logger';
+import { getAllUsers, addUser, updateUser, deleteUser } from '@/modules/core/lib/auth-client';
+import { getAllRoles } from '@/modules/core/lib/db';
+import type { User, Role } from '@/modules/core/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { PlusCircle, Edit, Trash2, Save, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { Badge } from '@/components/ui/badge';
+import { getInitials } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
+
+const emptyUser: Omit<User, 'id' | 'password'> = {
+  name: '',
+  email: '',
+  phone: '',
+  whatsapp: '',
+  avatar: '',
+  role: 'viewer', // default role
+  erpAlias: '',
+  recentActivity: '',
+  forcePasswordChange: true,
+};
+
+export default function UsersClient() {
+  const { hasPermission } = useAuthorization();
+  const { toast } = useToast();
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { setTitle } = usePageTitle();
+
+  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUser, setCurrentUser] = useState<Partial<User> & { password?: string }>({});
+  const [isEditing, setIsEditing] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [usersData, rolesData] = await Promise.all([getAllUsers(), getAllRoles()]);
+      setUsers(usersData);
+      setRoles(rolesData);
+    } catch (error) {
+      logError('Error fetching users/roles', { error });
+      toast({ title: 'Error', description: 'No se pudieron cargar los datos de usuarios y roles.', variant: 'destructive' });
+    }
+    setIsLoading(false);
+  }, [toast]);
+
+  useEffect(() => {
+    setTitle('Gestión de Usuarios');
+    fetchData();
+  }, [setTitle, fetchData]);
+
+  const handleOpenDialog = (user?: User) => {
+    if (user) {
+      setCurrentUser(user);
+      setIsEditing(true);
+    } else {
+      setCurrentUser({ ...emptyUser, password: '', forcePasswordChange: true });
+      setIsEditing(false);
+    }
+    setDialogOpen(true);
+  };
+
+  const handleSaveUser = async () => {
+    if (!currentUser.name || !currentUser.email || (!isEditing && !currentUser.password) || !currentUser.role) {
+      toast({ title: 'Datos Incompletos', description: 'Nombre, correo, contraseña (si es nuevo) y rol son requeridos.', variant: 'destructive' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (isEditing) {
+        await updateUser(currentUser as User);
+        toast({ title: 'Usuario Actualizado' });
+      } else {
+        await addUser({
+          name: currentUser.name,
+          email: currentUser.email,
+          password: currentUser.password!,
+          role: currentUser.role,
+          phone: currentUser.phone || '',
+          whatsapp: currentUser.whatsapp || '',
+          erpAlias: currentUser.erpAlias || '',
+          forcePasswordChange: !!(currentUser.forcePasswordChange ?? true),
+        });
+        toast({ title: 'Usuario Creado' });
+      }
+      await fetchData(); // Re-fetch to see changes
+      setDialogOpen(false);
+    } catch (error: any) {
+      logError('Failed to save user', { error: error.message });
+      toast({ title: 'Error al Guardar', description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsSubmitting(true);
+    try {
+      await deleteUser(userToDelete.id);
+      toast({ title: 'Usuario Eliminado', variant: 'destructive' });
+      await fetchData(); // Re-fetch to see changes
+    } catch (error: any) {
+      logError('Failed to delete user', { error: error.message });
+      toast({ title: 'Error al Eliminar', description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+      setUserToDelete(null);
+    }
+  };
+
+  const handleFieldChange = (field: keyof User | 'password', value: string | boolean) => {
+    setCurrentUser(prev => ({ ...prev, [field]: value }));
+  };
+
+  if (isLoading) {
+    return (
+      <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <div className="mx-auto max-w-6xl space-y-6">
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex-1 p-4 md:p-6 lg:p-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Gestión de Usuarios</h1>
+            <p className="text-muted-foreground">Crea, edita y gestiona las cuentas de usuario.</p>
+          </div>
+          {hasPermission('users:create') && (
+            <Button onClick={() => handleOpenDialog()}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Nuevo Usuario
+            </Button>
+          )}
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50">
+                  <tr className="border-b">
+                    <th className="p-4 text-left font-medium">Usuario</th>
+                    <th className="p-4 text-left font-medium">Contacto</th>
+                    <th className="p-4 text-left font-medium">Alias ERP</th>
+                    <th className="p-4 text-left font-medium">Rol</th>
+                    <th className="p-4 text-right font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(user => (
+                    <tr key={user.id} className="border-b">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarImage src={user.avatar} alt={user.name} />
+                            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-semibold">{user.name}</p>
+                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4 text-sm text-muted-foreground">
+                        <div>{user.phone}</div>
+                        <div>{user.whatsapp}</div>
+                      </td>
+                      <td className="p-4 text-sm font-mono">{user.erpAlias}</td>
+                      <td className="p-4">
+                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                          {roles.find(r => r.id === user.role)?.name || user.role}
+                        </Badge>
+                      </td>
+                      <td className="p-4 text-right">
+                        {hasPermission('users:update') && (
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(user)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {hasPermission('users:delete') && user.id !== 1 && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={() => setUserToDelete(user)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Eliminar Usuario?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta acción eliminará permanentemente al usuario &quot;{userToDelete?.name}&quot;. No se puede deshacer.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDeleteUser}>Sí, Eliminar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <ScrollArea className="max-h-[70vh] p-1">
+              <div className="space-y-4 pr-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nombre Completo</Label>
+                    <Input id="name" value={currentUser.name || ''} onChange={(e) => handleFieldChange('name', e.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Correo Electrónico</Label>
+                    <Input id="email" type="email" value={currentUser.email || ''} onChange={(e) => handleFieldChange('email', e.target.value)} required />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">{isEditing ? 'Nueva Contraseña (dejar en blanco para no cambiar)' : 'Contraseña'}</Label>
+                  <Input id="password" type="password" value={currentUser.password || ''} onChange={(e) => handleFieldChange('password', e.target.value)} required={!isEditing} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Teléfono</Label>
+                    <Input id="phone" value={currentUser.phone || ''} onChange={(e) => handleFieldChange('phone', e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp">WhatsApp</Label>
+                    <Input id="whatsapp" value={currentUser.whatsapp || ''} onChange={(e) => handleFieldChange('whatsapp', e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="erpAlias">Alias de Usuario (ERP)</Label>
+                        <Input id="erpAlias" value={currentUser.erpAlias || ''} onChange={(e) => handleFieldChange('erpAlias', e.target.value)} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="role">Rol</Label>
+                        <Select value={currentUser.role} onValueChange={(value) => handleFieldChange('role', value)} required>
+                            <SelectTrigger id="role"><SelectValue placeholder="Seleccionar un rol" /></SelectTrigger>
+                            <SelectContent>
+                            {roles.map(role => (
+                                <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div className="flex items-center space-x-2 pt-4">
+                  <Checkbox
+                    id="forcePasswordChange"
+                    checked={!!currentUser.forcePasswordChange}
+                    onCheckedChange={(checked) => handleFieldChange('forcePasswordChange', !!checked)}
+                  />
+                  <Label htmlFor="forcePasswordChange" className="font-normal">Forzar cambio de contraseña en el próximo inicio de sesión</Label>
+                </div>
+              </div>
+            </ScrollArea>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+            <Button onClick={handleSaveUser} disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEditing ? 'Guardar Cambios' : 'Crear Usuario'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </main>
+  );
+}
+```
