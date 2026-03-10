@@ -1,0 +1,72 @@
+======================================================================
+  ARQUITECTURA DE AUTENTICACIÓN Y PERMISOS - GUÍA DE REPLICACIÓN
+======================================================================
+Este documento detalla el funcionamiento del sistema de login y de los
+permisos granulares para que puedas replicar esta arquitectura en otros
+proyectos.
+
+---
+### Sección 1: Arquitectura de Autenticación y Sesión
+---
+El sistema utiliza una autenticación moderna y segura basada en cookies,
+ideal para aplicaciones Next.js con Server Actions y Server Components.
+
+1.  **Flujo de Inicio de Sesión:**
+    *   El usuario ingresa su correo y contraseña en el componente `AuthForm`.
+    *   Estos datos se envían a la Server Action `login()` en `auth.ts`.
+    *   El servidor verifica la contraseña contra el hash almacenado en la base de datos `intratool.db` usando `bcrypt`.
+    *   Si las credenciales son válidas, el servidor crea una **cookie de sesión segura y httpOnly**. Esta cookie solo contiene el ID del usuario. Ser `httpOnly` impide que el JavaScript del navegador pueda leerla, protegiendo contra ataques XSS.
+
+2.  **Manejo de Sesión:**
+    *   En cada petición subsecuente al servidor, Next.js envía automáticamente la cookie de sesión.
+    *   La función del servidor `getCurrentUser()` lee esta cookie, obtiene el ID del usuario y lo busca en la base de datos para confirmar que la sesión es válida.
+    *   Gracias a la caché de React (`cache`), esta verificación de la base de datos solo se hace una vez por cada petición, siendo muy eficiente.
+
+3.  **El Hook `useAuth`:**
+    *   Este es el "corazón" de la autenticación en el lado del cliente.
+    *   El `AuthProvider` que envuelve la aplicación se encarga de cargar una única vez toda la información esencial de la sesión (datos del usuario, rol, permisos, etc.) al iniciar.
+    *   Cualquier componente en la aplicación puede usar `const { user, isAuthReady } = useAuth();` para acceder a los datos del usuario actual sin necesidad de hacer nuevas peticiones al servidor.
+
+---
+### Sección 2: Arquitectura de Permisos Granulares
+---
+El sistema permite un control de acceso extremadamente detallado para cada acción y vista.
+
+1.  **Definición Centralizada (`permissions.ts`):**
+    *   El archivo `src/modules/core/lib/permissions.ts` es la única fuente de verdad. Aquí se definen todos los permisos disponibles en la aplicación (ej: `requests:create`, `admin:logs:clear`) y su jerarquía.
+    *   La `permissionTree` define dependencias: si otorgas un permiso "padre", el sistema puede otorgar automáticamente los "hijos".
+
+2.  **Roles en la Base de Datos:**
+    *   La tabla `roles` en `intratool.db` almacena los roles (ej: "Admin", "Vendedor", "Bodeguero").
+    *   Cada rol tiene un campo `permissions` que es un array JSON con la lista de los `string` de permisos que tiene asignados.
+
+3.  **Protección en el Lado del Servidor (Auth Guards):**
+    *   **Para Server Actions (acciones que modifican datos):** Se debe llamar a `await authorizeAction('permiso:requerido');` al inicio de la función. Si el usuario no tiene el permiso, la función lanzará un error y se detendrá, previniendo cualquier acción no autorizada. Esto es crucial para la seguridad.
+    *   **Para Páginas (Server Components):** Se debe llamar a `await authorizePage('permiso:requerido');` al inicio de la página. Si el usuario no tiene permiso, será redirigido automáticamente al dashboard sin ver ningún contenido.
+
+4.  **Verificación en el Lado del Cliente (UI):**
+    *   **El Hook `useAuthorization`:** Este hook permite ocultar o deshabilitar elementos de la interfaz de forma reactiva.
+    *   **Uso:** `const { isAuthorized, hasPermission } = useAuthorization('permiso:requerido');`
+    *   `isAuthorized` será `true` o `false`, permitiéndote hacer `if (!isAuthorized) return null;`.
+    *   `hasPermission('otro:permiso')` te permite hacer chequeos adicionales para mostrar/ocultar botones específicos dentro de un componente.
+
+---
+### Sección 3: Código Fuente - Autenticación
+---
+A continuación se adjuntan los archivos completos que implementan la lógica de autenticación:
+
+-   `src/modules/core/lib/auth.ts`: (Lógica principal del servidor)
+-   `src/modules/core/lib/auth-client.ts`: (Wrappers para el cliente)
+-   `src/modules/core/hooks/useAuth.tsx`: (Contexto y hook de React)
+-   `src/app/page.tsx`: (Página de carga del login, Server Component)
+-   `src/components/auth/auth-form.tsx`: (Formulario de login, Client Component)
+
+---
+### Sección 4: Código Fuente - Permisos Granulares
+---
+Y aquí los archivos que implementan el sistema de permisos:
+
+-   `src/modules/core/lib/permissions.ts`: (Definición de todos los permisos)
+-   `src/modules/core/lib/auth-guard.ts`: (Funciones de protección del servidor)
+-   `src/modules/core/hooks/useAuthorization.tsx`: (Hook de cliente para UI)
+-   `src/app/dashboard/admin/roles/roles-client.tsx`: (Ejemplo práctico de la UI de gestión de roles)
