@@ -1,0 +1,1139 @@
+
+======================================================================
+     ARQUITECTURA DE NOTIFICACIONES: MÓDULO DE CONSIGNACIONES
+======================================================================
+Este documento detalla el funcionamiento completo del sistema de notificaciones
+por correo y dentro de la aplicación para el módulo de consignaciones,
+facilitando su replicación en otros proyectos.
+
+---
+### Sección 1: Arquitectura General
+---
+El sistema de notificaciones se divide en dos componentes principales:
+
+1.  **Notificaciones en la Aplicación (Campana):**
+    *   Gestionadas por el `NotificationBell` y su contexto en `useAuth`.
+    *   Las notificaciones se crean en el servidor usando la función `createNotification` o `createNotificationForPermission` desde `notifications-actions.ts`.
+    *   Estas se guardan en la tabla `notifications` de la base de datos principal y se asocian a un `userId`.
+    *   Son ideales para alertar a los usuarios que están actualmente usando el sistema sobre acciones que requieren su atención.
+
+2.  **Notificaciones por Correo Electrónico (Email):**
+    *   Gestionadas por el servicio `email-service.ts`, que utiliza `nodemailer`.
+    *   Requiere que un administrador configure las credenciales del servidor SMTP en **Administración > Configuración de Correo**.
+    *   La lógica para construir y enviar correos específicos de un módulo (como el de consignaciones) se encuentra en las `actions` de dicho módulo.
+
+Ambos sistemas pueden funcionar en paralelo. Una misma acción, como "aprobar una boleta", puede generar tanto una notificación en la app para el creador como un correo electrónico para los supervisores.
+
+---
+### Sección 2: Código - Configuración de Notificaciones (Interfaz de Admin)
+---
+La interfaz para configurar quién recibe los correos de consignación se encuentra en la sección de administración del módulo.
+
+-   **Archivo de UI:** `src/app/dashboard/admin/consignments/page.tsx`
+-   **Hook de Lógica:** `src/modules/consignments/hooks/useConsignmentsSettings.ts`
+
+A continuación se adjunta el código completo de ambos archivos.
+
+#### Código Fuente: `src/app/dashboard/admin/consignments/page.tsx`
+```typescript
+/**
+ * @fileoverview Page for managing consignments settings.
+ */
+'use client';
+
+import React from 'react';
+import { useConsignmentsSettings } from '@/modules/consignments/hooks/useConsignmentsSettings';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Save, Users } from 'lucide-react';
+import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
+import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
+import { Textarea } from '@/components/ui/textarea';
+
+export default function ConsignmentsSettingsPage() {
+    const { state, actions, selectors, isAuthorized } = useConsignmentsSettings();
+
+    if (selectors.isLoading) {
+        return (
+            <main className="flex-1 p-4 md:p-6 lg:p-8">
+                <Skeleton className="h-96 w-full max-w-4xl mx-auto" />
+            </main>
+        );
+    }
+    
+    if (!isAuthorized) {
+        return null; // Or a permission denied component
+    }
+
+    return (
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
+            <div className="mx-auto max-w-4xl space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Configuración de Consignaciones</CardTitle>
+                        <CardDescription>
+                            Ajustes para los consecutivos y el formato de los documentos del módulo de consignaciones.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                         <div className="space-y-2">
+                            <Label htmlFor="pdf-top-legend">Leyenda Superior del PDF (Opcional)</Label>
+                            <Input
+                                id="pdf-top-legend"
+                                value={state.settings.pdfTopLegend || ''}
+                                onChange={(e) => actions.updateSetting('pdfTopLegend', e.target.value)}
+                                placeholder="Ej: Documento Controlado - ISO9001"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Columnas en Boleta de Reposición (PDF)</Label>
+                            <DialogColumnSelector
+                                allColumns={selectors.availableColumns}
+                                visibleColumns={state.settings.pdfExportColumns || []}
+                                onColumnChange={actions.handleColumnVisibilityChange}
+                                onSave={actions.handleSave}
+                                className="w-full"
+                            />
+                             <p className="text-sm text-muted-foreground">
+                                Selecciona las columnas que aparecerán en el PDF de la boleta de reposición.
+                            </p>
+                        </div>
+                        <div className="space-y-4 pt-4 border-t">
+                            <h3 className="font-semibold text-lg">Notificaciones por Correo</h3>
+                            <div className="space-y-2">
+                                <Label>Usuarios a Notificar para Aprobación</Label>
+                                <MultiSelectFilter
+                                    title="Seleccionar Usuarios"
+                                    options={selectors.userOptions}
+                                    selectedValues={(state.settings.notificationUserIds || []).map(String)}
+                                    onSelectedChange={(ids) => actions.updateSetting('notificationUserIds', ids.map(Number))}
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Selecciona los usuarios del sistema que recibirán un correo cuando una boleta requiera aprobación.
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="additional-emails">Correos Adicionales (separados por coma)</Label>
+                                <Textarea
+                                    id="additional-emails"
+                                    value={state.settings.additionalNotificationEmails || ''}
+                                    onChange={(e) => actions.updateSetting('additionalNotificationEmails', e.target.value)}
+                                    placeholder="ejemplo@correo.com, otro@correo.com"
+                                />
+                                 <p className="text-sm text-muted-foreground">
+                                    Añade buzones de grupo o correos que no sean usuarios del sistema.
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={actions.handleSave}>
+                            <Save className="mr-2 h-4 w-4"/>
+                            Guardar Cambios
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
+        </main>
+    );
+}
+```
+
+#### Código Fuente: `src/modules/consignments/hooks/useConsignmentsSettings.ts`
+```typescript
+/**
+ * @fileoverview Hook for managing the state and logic of the Consignments settings page.
+ */
+'use client';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { useToast } from '@/modules/core/hooks/use-toast';
+import { getConsignmentSettings, saveConsignmentSettings } from '../lib/actions';
+import type { ConsignmentSettings, User } from '@/modules/core/types';
+import { useAuth } from '@/modules/core/hooks/useAuth';
+import { getAllUsers } from '@/modules/core/lib/auth-client';
+
+const availableColumns = [
+    { id: 'product_id', label: 'Código Producto' },
+    { id: 'product_description', label: 'Descripción' },
+    { id: 'counted_quantity', label: 'Inv. Físico' },
+    { id: 'max_stock', label: 'Stock Máximo' },
+    { id: 'replenish_quantity', label: 'A Reponer' },
+];
+
+export const useConsignmentsSettings = () => {
+    const { setTitle } = usePageTitle();
+    const { isAuthorized } = useAuthorization(['admin:settings:consignments']);
+    const { toast } = useToast();
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+
+    const [state, setState] = useState({
+        isLoading: true,
+        settings: {
+            pdfTopLegend: '',
+            pdfExportColumns: availableColumns.map(c => c.id),
+            notificationUserIds: [],
+            additionalNotificationEmails: '',
+        } as ConsignmentSettings,
+    });
+
+    const updateState = useCallback((newState: Partial<typeof state>) => {
+        setState(prevState => ({ ...prevState, ...newState }));
+    }, []);
+
+    useEffect(() => {
+        setTitle('Configuración de Consignaciones');
+        if (isAuthorized) {
+            Promise.all([
+                getConsignmentSettings(),
+                getAllUsers()
+            ]).then(([settingsData, usersData]) => {
+                const completeSettings = {
+                    pdfTopLegend: settingsData.pdfTopLegend || '',
+                    pdfExportColumns: settingsData.pdfExportColumns || availableColumns.map(c => c.id),
+                    notificationUserIds: settingsData.notificationUserIds || [],
+                    additionalNotificationEmails: settingsData.additionalNotificationEmails || '',
+                };
+                updateState({ settings: completeSettings, isLoading: false });
+                setAllUsers(usersData);
+            });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized]);
+
+    const handleColumnVisibilityChange = (columnId: string, checked: boolean) => {
+        updateState({
+            settings: {
+                ...state.settings,
+                pdfExportColumns: checked
+                    ? [...(state.settings.pdfExportColumns || []), columnId]
+                    : (state.settings.pdfExportColumns || []).filter(id => id !== columnId),
+            },
+        });
+    };
+    
+    const updateSetting = (key: keyof ConsignmentSettings, value: any) => {
+        updateState({
+            settings: {
+                ...state.settings,
+                [key]: value,
+            },
+        });
+    };
+
+    const handleSave = async () => {
+        try {
+            await saveConsignmentSettings(state.settings);
+            toast({ title: 'Configuración Guardada', description: 'Los ajustes de consignaciones han sido actualizados.' });
+        } catch (error: any) {
+            toast({ title: 'Error', description: 'No se pudieron guardar los ajustes.', variant: 'destructive' });
+        }
+    };
+    
+    const selectors = {
+        availableColumns,
+        isLoading: state.isLoading,
+        userOptions: allUsers.map((u: User) => ({ value: String(u.id), label: u.name })),
+    };
+
+    const actions = {
+        updateSetting,
+        handleColumnVisibilityChange,
+        handleSave,
+    };
+
+    return {
+        state,
+        actions,
+        selectors,
+        isAuthorized,
+    };
+};
+```
+
+---
+### Sección 3: Código - Lógica de Disparo de Notificaciones (Backend del Módulo)
+---
+El "cerebro" que decide cuándo y a quién enviar las notificaciones de consignación se encuentra en el archivo de acciones del servidor del módulo. La función clave es `updateBoletaStatus`.
+
+-   **Archivo Principal:** `src/modules/consignments/lib/actions.ts`
+
+Esta función:
+1.  Recibe la acción de cambio de estado (ej: de 'pending' a 'approved').
+2.  Actualiza la base de datos.
+3.  Obtiene la configuración de notificaciones (tanto global como la específica del acuerdo de consignación).
+4.  Construye una lista de destinatarios (correos y usuarios de la app).
+5.  Llama a la función interna `sendBoletaEmail` para enviar los correos.
+6.  Llama a `createNotification` o `createNotificationForPermission` para crear las alertas dentro de la aplicación.
+
+A continuación se adjunta el código completo del archivo.
+
+#### Código Fuente: `src/modules/consignments/lib/actions.ts`
+```typescript
+/**
+ * @fileoverview Client-side functions for interacting with the Consignments module's server-side DB functions.
+ */
+'use client';
+
+import { 
+    getAgreements as getAgreementsServer,
+    saveAgreement as saveAgreementServer,
+    getAgreementDetails as getAgreementDetailsServer,
+    deleteAgreement as deleteAgreementServer,
+    getBoletas as getBoletasServer,
+    updateBoletaStatus as updateBoletaStatusServer,
+    getBoletaDetails as getBoletaDetailsServer,
+    updateBoleta as updateBoletaServer,
+    getBoletasByDateRange as getBoletasByDateRangeServer,
+    getSettings as getConsignmentSettingsServer,
+    saveSettings as saveConsignmentSettingsServer,
+    savePhysicalCount as savePhysicalCountServer,
+    createClosureFromCount as createClosureFromCountServer,
+    getLatestPhysicalCount as getLatestPhysicalCountServer,
+    getPeriodClosures as getPeriodClosuresServer,
+    getPeriodClosureDetails as getPeriodClosureDetailsServer,
+    approvePeriodClosure as approvePeriodClosureServer,
+    rejectPeriodClosure as rejectPeriodClosureServer,
+    getConsignmentsBillingReportData as getConsignmentsBillingReportDataFromDb,
+    saveReplenishmentBoleta as saveReplenishmentBoletaServer,
+    createBoletaFromCount as createBoletaFromCountDb, // Import the new DB function
+    getPhysicalCountByRef as getPhysicalCountByRefServer,
+    lockAgreement as lockAgreementServer,
+    forceRelayLock as forceRelayLockServer,
+    releaseAgreementLock as releaseAgreementLockServer,
+    getLatestApprovedClosure,
+    getPhysicalCountHistory,
+    getRecentPhysicalCounts as getRecentPhysicalCountsServer,
+    saveAdjustment as saveAdjustmentServer,
+    annulPeriodClosure as annulPeriodClosureServer,
+    getAdjustmentsInPeriod
+} from './db';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow } from '@/modules/core/types';
+import { authorizeAction } from '@/modules/core/lib/auth-guard';
+import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
+import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
+import { getCompanySettings, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
+import { sendEmail } from '@/modules/core/lib/email-service';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { getAllUsers } from '@/modules/core/lib/auth-client';
+
+
+async function sendBoletaEmail({
+    boletaId,
+    subject,
+    introText,
+    recipientEmails,
+    includePrice = false,
+}: {
+    boletaId: number;
+    subject: string;
+    introText: string;
+    recipientEmails: string[];
+    includePrice?: boolean;
+}) {
+    if (recipientEmails.length === 0) {
+        logWarn(`Tried to send boleta email for #${boletaId} but no recipients were found.`);
+        return;
+    }
+
+    try {
+        const details = await getBoletaDetailsServer(boletaId);
+        if (!details) throw new Error(`Details for boleta #${boletaId} not found.`);
+        
+        const companySettings = await getCompanySettings();
+        const { boleta, lines } = details;
+        const agreement = await getAgreementDetailsServer(boleta.agreement_id);
+        const clientName = agreement?.agreement.client_name || 'N/A';
+        const warehouseId = agreement?.agreement.erp_warehouse_id || 'N/A';
+        const submittedBy = boleta.submitted_by || boleta.created_by;
+
+        let html = `
+            <div style="font-family: sans-serif; font-size: 14px; color: #333;">
+                <p>${introText}</p>
+                <h3 style="color: #2c3e50;">Boleta: ${boleta.consecutive}</h3>
+                ${boleta.status === 'invoiced' && boleta.erp_invoice_number ? `<p><strong>Factura ERP: <span style="color: #c0392b;">${boleta.erp_invoice_number}</span></strong></p>` : ''}
+                ${boleta.erp_movement_id ? `<p><strong>Movimiento Interno:</strong> ${boleta.erp_movement_id}</p>` : ''}
+                <p><strong>Cliente:</strong> ${clientName}</p>
+                <p><strong>Bodega ERP:</strong> ${warehouseId}</p>
+                <p><strong>Fecha de Creación:</strong> ${format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</p>
+                ${boleta.delivery_date ? `<p><strong>Fecha de Entrega:</strong> ${format(parseISO(boleta.delivery_date), 'dd/MM/yyyy')}</p>` : ''}
+                ${submittedBy ? `<p><strong>Toma de Inventario por:</strong> ${submittedBy}</p>` : ''}
+                <hr>
+                <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 12px;">
+                    <thead style="background-color: #f2f2f2;">
+                        <tr>
+                            <th style="text-align: left;">Código</th>
+                            <th style="text-align: left;">Descripción</th>
+                            <th style="text-align: right;">Inv. Físico</th>
+                            <th style="text-align: right;">Máximo</th>
+                            <th style="text-align: right;">A Reponer</th>
+                            ${includePrice ? `
+                            <th style="text-align: right;">Precio</th>
+                            <th style="text-align: right;">Total</th>
+                            ` : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        let totalValue = 0;
+        for (const line of lines) {
+            const lineTotal = line.replenish_quantity * line.price;
+            totalValue += lineTotal;
+            html += `
+                <tr>
+                    <td style="font-family: monospace;">${line.product_id}</td>
+                    <td>${line.product_description}</td>
+                    <td style="text-align: right;">${line.counted_quantity}</td>
+                    <td style="text-align: right;">${line.max_stock}</td>
+                    <td style="text-align: right; font-weight: bold; color: #2980b9;">${line.replenish_quantity}</td>
+                    ${includePrice ? `
+                    <td style="text-align: right;">¢${line.price.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</td>
+                    <td style="text-align: right; font-weight: bold;">¢${lineTotal.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</td>
+                    ` : ''}
+                </tr>
+            `;
+        }
+        
+        html += `</tbody>`;
+
+        if (includePrice) {
+            html += `
+                <tfoot>
+                    <tr>
+                        <td colspan="6" style="text-align: right; font-weight: bold;">Total a Reponer:</td>
+                        <td style="text-align: right; font-weight: bold; font-size: 14px;">¢${totalValue.toLocaleString('es-CR', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                </tfoot>
+            `;
+        }
+
+        html += `
+            </table>
+            <p style="margin-top: 20px; font-size: 12px; color: #7f8c8d;">Este es un correo automático generado por Clic-Tools.</p>
+            ${companySettings?.publicUrl ? `<p style="font-size: 12px; color: #7f8c8d;">Accede al sistema en: <a href="${companySettings.publicUrl}">${companySettings.publicUrl}</a></p>` : ''}
+            </div>
+        `;
+        
+        await sendEmail({
+            to: recipientEmails,
+            subject,
+            html,
+        });
+        logInfo(`Consignment boleta email sent for #${boletaId} to ${recipientEmails.length} recipient(s).`);
+
+    } catch (error: any) {
+        logError('Failed to send boleta HTML email', { error: error.message, boletaId });
+    }
+}
+
+async function sendClosurePendingEmail({
+    closure,
+    agreementDetails,
+    physicalCount,
+    recipientEmails,
+}: {
+    closure: PeriodClosure;
+    agreementDetails: { agreement: ConsignmentAgreement; products: ConsignmentProduct[] };
+    physicalCount: { productId: string; quantity: number }[];
+    recipientEmails: string[];
+}) {
+    if (recipientEmails.length === 0) return;
+
+    try {
+        const companySettings = await getCompanySettings();
+        const allProducts = await getAllProductsFromMainDb();
+        const productMap = new Map(allProducts.map(p => [p.id, p.description]));
+
+        const subject = `Nuevo Cierre de Periodo Pendiente: ${closure.consecutive}`;
+        let html = `
+            <div style="font-family: sans-serif; font-size: 14px; color: #333;">
+                <p>El usuario <strong>${closure.created_by}</strong> ha generado un nuevo cierre de periodo para el cliente <strong>${agreementDetails.agreement.client_name}</strong>.</p>
+                <p>El cierre <strong>${closure.consecutive}</strong> está pendiente de aprobación. A continuación se muestra el detalle del conteo físico registrado:</p>
+                <hr>
+                <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 12px;">
+                    <thead style="background-color: #f2f2f2;">
+                        <tr>
+                            <th style="text-align: left;">Código</th>
+                            <th style="text-align: left;">Descripción</th>
+                            <th style="text-align: right;">Cantidad Contada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        for (const line of physicalCount) {
+            html += `
+                <tr>
+                    <td style="font-family: monospace;">${line.productId}</td>
+                    <td>${productMap.get(line.productId) || 'Producto Desconocido'}</td>
+                    <td style="text-align: right; font-weight: bold;">${line.quantity}</td>
+                </tr>
+            `;
+        }
+
+        html += `</tbody></table>
+            <p style="margin-top: 20px;">Por favor, ingrese a Clic-Tools en la sección de "Gestión de Cierres" para revisar, vincular con el período anterior y aprobar.</p>
+            ${companySettings?.publicUrl ? `<p style="font-size: 12px; color: #7f8c8d;">Accede al sistema en: <a href="${companySettings.publicUrl}">${companySettings.publicUrl}</a></p>` : ''}
+            </div>
+        `;
+        
+        await sendEmail({
+            to: recipientEmails,
+            subject,
+            html,
+        });
+        logInfo(`Closure pending email sent for #${closure.consecutive} to ${recipientEmails.length} recipient(s).`);
+
+    } catch (error: any) {
+        logError('Failed to send closure pending HTML email', { error: error.message, closureId: closure.id });
+    }
+}
+
+
+export async function getConsignmentAgreements(): Promise<(ConsignmentAgreement & { product_count?: number; boleta_count?: number })[]> {
+    return getAgreementsServer();
+}
+
+export async function saveConsignmentAgreement(agreement: Omit<ConsignmentAgreement, 'id' | 'next_boleta_number'> & { id?: number }, products: Omit<ConsignmentProduct, 'id' | 'agreement_id'>[]) {
+    return saveAgreementServer(agreement, products);
+}
+
+export async function getAgreementDetails(agreementId: number): Promise<{ agreement: ConsignmentAgreement, products: ConsignmentProduct[] } | null> {
+    return getAgreementDetailsServer(agreementId);
+}
+
+export async function deleteConsignmentAgreement(agreementId: number): Promise<{ success: boolean; message: string }> {
+    await authorizeAction('consignments:setup');
+    return deleteAgreementServer(agreementId);
+}
+
+export async function savePhysicalCount(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<void> {
+    await authorizeAction('consignments:count');
+    return savePhysicalCountServer(agreementId, lines, userName);
+}
+
+export async function createClosureFromCount(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<PeriodClosure> {
+    await authorizeAction('consignments:count');
+    const closure = await createClosureFromCountServer(agreementId, lines, userName);
+    
+    // --- Send Notification on new pending closure ---
+    try {
+        const [users, agreementDetails, settings] = await Promise.all([
+            getAllUsers(),
+            getAgreementDetailsServer(agreementId),
+            getConsignmentSettingsServer(),
+        ]);
+
+        if (!agreementDetails) {
+            throw new Error('Agreement details not found for notification.');
+        }
+
+        const allRecipients = new Set<string>();
+
+        // 1. Get recipients from the specific agreement
+        const agreementUserIds = agreementDetails.agreement.notification_user_ids || [];
+        agreementUserIds.forEach(userId => {
+            const user = users.find(u => u.id === userId);
+            if (user?.email) allRecipients.add(user.email);
+        });
+
+        // 2. Get global recipients from settings
+        const globalUserIds = settings.notificationUserIds || [];
+        globalUserIds.forEach(userId => {
+            const user = users.find(u => u.id === userId);
+            if (user?.email) allRecipients.add(user.email);
+        });
+
+        const additionalEmails = settings.additionalNotificationEmails?.split(',').map(e => e.trim()).filter(Boolean) || [];
+        additionalEmails.forEach(email => allRecipients.add(email));
+
+        if (allRecipients.size > 0) {
+            await sendClosurePendingEmail({
+                closure,
+                agreementDetails,
+                physicalCount: lines,
+                recipientEmails: Array.from(allRecipients),
+            });
+        }
+
+        await createNotificationForPermission(
+            'consignments:boleta:approve', // Reuse permission for approving closures
+            `Nuevo cierre de periodo ${closure.consecutive} requiere aprobación.`,
+            `/dashboard/consignments/cierres`,
+            closure.id,
+            'period_closure',
+            'approve'
+        );
+
+    } catch(e: any) {
+        logError('Failed to send closure creation notification', { error: e.message, closureId: closure.id });
+    }
+    
+    return closure;
+}
+
+export async function createBoletaFromCount(agreementId: number, counts: Record<string, string>, userName: string): Promise<RestockBoleta> {
+    await authorizeAction('consignments:count');
+    const boleta = await createBoletaFromCountDb(agreementId, counts, userName);
+
+    try {
+        const [agreementDetails, settings, users] = await Promise.all([
+            getAgreementDetailsServer(agreementId),
+            getConsignmentSettingsServer(),
+            getAllUsers()
+        ]);
+        
+        if (!agreementDetails) throw new Error("Agreement not found for notification.");
+        
+        const allRecipients = new Set<string>();
+
+        (settings.notificationUserIds || []).forEach(userId => {
+            const user = users.find(u => u.id === userId);
+            if (user?.email) allRecipients.add(user.email);
+        });
+
+        (agreementDetails.agreement.notification_user_ids || []).forEach(userId => {
+            const user = users.find(u => u.id === userId);
+            if (user?.email) allRecipients.add(user.email);
+        });
+
+        (settings.additionalNotificationEmails?.split(',') || []).map(e => e.trim()).filter(Boolean).forEach(email => allRecipients.add(email));
+
+        if (allRecipients.size > 0) {
+            await sendBoletaEmail({
+                boletaId: boleta.id,
+                subject: `Nueva Boleta para Aprobación: ${boleta.consecutive}`,
+                introText: `El usuario <strong>${userName}</strong> ha generado una nueva boleta de reposición automática y requiere tu aprobación.`,
+                recipientEmails: Array.from(allRecipients),
+                includePrice: true
+            });
+        }
+        
+        await createNotificationForPermission(
+            'consignments:boleta:approve',
+            `Nueva boleta ${boleta.consecutive} para "${agreementDetails.agreement.client_name}" requiere aprobación.`,
+            `/dashboard/consignments/boletas`,
+            boleta.id,
+            'consignment_boleta',
+            'approve'
+        );
+
+    } catch(e: any) {
+        logError('Failed to send boleta creation notification from count', { error: e.message, boletaId: boleta.id });
+    }
+
+    return boleta;
+}
+
+
+export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date }, type?: BoletaType, agreementId?: number }) {
+    return getBoletasServer(filters);
+}
+
+export async function updateBoletaStatus(payload: { boletaId: number, status: string, notes: string, updatedBy: string, erpInvoiceNumber?: string, erpMovementId?: string }): Promise<RestockBoleta> {
+    if (payload.status === 'pending' && !payload.erpMovementId?.trim()) {
+        throw new Error("El número de movimiento de inventario del ERP es requerido para poder enviar a aprobación.");
+    }
+
+    try {
+        const updatedBoleta = await updateBoletaStatusServer(payload);
+        
+        try {
+            const statusConfig = {
+                review: 'En Revisión',
+                pending: 'Pendiente Aprobación',
+                approved: 'Aprobada',
+                sent: 'Enviada',
+                invoiced: 'Facturada',
+                canceled: 'Cancelada',
+            };
+            const statusLabel = statusConfig[payload.status as keyof typeof statusConfig] || payload.status;
+            const users: User[] = await getAllUsers();
+            const creator = users.find((u: User) => u.name === (updatedBoleta.submitted_by || updatedBoleta.created_by));
+            const settings = await getConsignmentSettingsServer();
+            const agreementDetails = await getAgreementDetailsServer(updatedBoleta.agreement_id);
+            
+            const allRecipients = new Map<string, { includePrice: boolean }>();
+            
+            const milestoneStatuses: RestockBoletaStatus[] = ['approved', 'sent', 'invoiced', 'canceled', 'review'];
+            const isImportantUpdate = milestoneStatuses.includes(payload.status as RestockBoletaStatus);
+            const isApprovalRequest = payload.status === 'pending';
+
+            if (isImportantUpdate) {
+                if (creator?.email) {
+                    allRecipients.set(creator.email, { includePrice: false });
+                }
+                const agreementUserIds = agreementDetails?.agreement.notification_user_ids || [];
+                agreementUserIds.forEach(userId => {
+                    const user = users.find(u => u.id === userId);
+                    if (user?.email) {
+                        allRecipients.set(user.email, { includePrice: true });
+                    }
+                });
+            }
+            
+            if (isApprovalRequest) {
+                const globalUserIds = settings.notificationUserIds || [];
+                users.forEach(user => {
+                    if (globalUserIds.includes(user.id)) {
+                        allRecipients.set(user.email, { includePrice: true });
+                    }
+                });
+                const additionalEmails = settings.additionalNotificationEmails?.split(',').map(e => e.trim()).filter(Boolean) || [];
+                additionalEmails.forEach(email => allRecipients.set(email, { includePrice: true }));
+            }
+
+            if (allRecipients.size > 0) {
+                const introText = `La boleta <strong>${updatedBoleta.consecutive}</strong> para el cliente <strong>${agreementDetails?.agreement.client_name}</strong> ha sido actualizada al estado <strong>${statusLabel}</strong> por ${payload.updatedBy}.`;
+                const subject = `Actualización de Boleta: ${updatedBoleta.consecutive} - ${statusLabel}`;
+                
+                for (const [email, config] of allRecipients.entries()) {
+                    await sendBoletaEmail({
+                        boletaId: updatedBoleta.id,
+                        subject,
+                        introText,
+                        recipientEmails: [email],
+                        includePrice: config.includePrice,
+                    });
+                }
+            }
+            
+            if (creator && creator.name !== payload.updatedBy && isImportantUpdate) {
+                 await createNotification({
+                    userId: creator.id,
+                    message: `La boleta ${updatedBoleta.consecutive} ha sido actualizada a: ${statusLabel}.`,
+                    href: '/dashboard/consignments/boletas',
+                    entityId: updatedBoleta.id,
+                    entityType: 'consignment_boleta',
+                    entityStatus: payload.status as RestockBoletaStatus,
+                });
+            }
+            
+            if (isApprovalRequest) {
+                await createNotificationForPermission(
+                    'consignments:boleta:approve',
+                    `Nueva boleta de consignación ${updatedBoleta.consecutive} requiere aprobación.`,
+                    '/dashboard/consignments/boletas',
+                    updatedBoleta.id,
+                    'consignment_boleta',
+                    'approve'
+                );
+            }
+
+        } catch (e: any) {
+            logError('Failed to send boleta status update notification (from actions)', { boletaId: payload.boletaId, error: e.message });
+        }
+        
+        return updatedBoleta;
+    } catch(error: any) {
+        logError('Failed to update boleta status (from actions)', { error: error.message, payload });
+        throw new Error(`${error.message}`);
+    }
+}
+
+export async function getBoletaDetails(boletaId: number): Promise<{ boleta: RestockBoleta, lines: BoletaLine[], history: BoletaHistory[] } | null> {
+    return getBoletaDetailsServer(boletaId);
+}
+
+export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], updatedBy: string): Promise<RestockBoleta> {
+    return updateBoletaServer(boleta, lines, updatedBy);
+}
+
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
+    const result = await getBoletasByDateRangeServer(agreementId, dateRange, statuses);
+    return result;
+}
+
+export async function getConsignmentSettings(): Promise<ConsignmentSettings> {
+    return getConsignmentSettingsServer();
+}
+
+export async function saveConsignmentSettings(settings: ConsignmentSettings): Promise<void> {
+    return saveConsignmentSettingsServer(settings);
+}
+
+export async function getLatestPhysicalCount(agreementId: number): Promise<PhysicalCount[] | null> {
+    return getLatestPhysicalCountServer(agreementId);
+}
+
+export async function getPeriodClosures(filters: {} = {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; })[]> {
+    return getPeriodClosuresServer(filters);
+}
+
+export async function getPeriodClosureDetails(closureId: number): Promise<PeriodClosure | null> {
+    return getPeriodClosureDetailsServer(closureId);
+}
+
+export async function approvePeriodClosure(closureId: number, previousClosureId: number | null, updatedBy: string): Promise<PeriodClosure> {
+    return approvePeriodClosureServer(closureId, previousClosureId, updatedBy);
+}
+
+export async function rejectPeriodClosure(closureId: number, notes: string, updatedBy: string): Promise<PeriodClosure> {
+    return rejectPeriodClosureServer(closureId, notes, updatedBy);
+}
+
+export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
+    return getConsignmentsBillingReportDataFromDb(closureId);
+}
+
+
+export async function saveReplenishmentBoleta(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<RestockBoleta> {
+    return saveReplenishmentBoletaServer(agreementId, lines, userName);
+}
+
+export async function getPhysicalCountDetails(agreementId: number, countedAt: string): Promise<PhysicalCount[]> {
+    return getPhysicalCountByRefServer(agreementId, countedAt);
+}
+
+export async function lockAgreement(agreementId: number, userId: number, userName: string): Promise<{ success: boolean, locked: boolean, message: string }> {
+    return lockAgreementServer(agreementId, userId, userName);
+}
+
+export async function forceRelayLock(agreementId: number, userId: number, userName: string): Promise<void> {
+    return forceRelayLockServer(agreementId, userId, userName);
+}
+
+export async function releaseAgreementLock(agreementId: number, userId: number): Promise<void> {
+    return releaseAgreementLockServer(agreementId, userId);
+}
+
+export async function getRecentPhysicalCounts(agreementId: number): Promise<{ counted_at: string; counted_by: string }[]> {
+    return getRecentPhysicalCountsServer(agreementId);
+}
+
+export async function saveAdjustment(payload: { agreementId: number; productId: string; quantity: number; reason: ConsignmentAdjustmentReason; notes?: string; userName: string; }): Promise<void> {
+    await saveAdjustmentServer(payload);
+}
+
+export async function annulPeriodClosure(closureId: number, updatedBy: string): Promise<PeriodClosure> {
+    return await annulPeriodClosureServer(closureId, updatedBy);
+}
+```
+
+---
+### Sección 4: Código - Servicios Centrales de Notificación y Correo
+---
+Estos son los archivos del núcleo del sistema que los `actions` de consignación utilizan para realizar el trabajo de bajo nivel.
+
+-   **Notificaciones en App:** `src/modules/core/lib/notifications-actions.ts`
+-   **Envío de Correo:** `src/modules/core/lib/email-service.ts`
+
+#### Código Fuente: `src/modules/core/lib/notifications-actions.ts`
+```typescript
+/**
+ * @fileoverview Server Actions for the notification system.
+ */
+"use server";
+
+import { revalidatePath } from 'next/cache';
+import { getNotifications as dbGetNotifications, markNotificationsAsRead as dbMarkAsRead, createNotification as dbCreateNotification, getNotificationById, deleteNotificationById, getAllRoles as getAllRolesFromDb } from './db';
+import { getAllUsers as dbGetAllUsers } from './auth';
+import type { Notification, User, ProductionOrderStatus, PurchaseRequestStatus } from '../types';
+import { updateStatus as updatePlannerStatus, confirmModification } from '@/modules/planner/lib/db';
+import { updateStatus as updateRequestStatus, updatePendingAction } from '@/modules/requests/lib/db';
+import { logError } from './logger';
+
+
+/**
+ * Creates a new notification for a single user.
+ * @param notificationData - The data for the notification.
+ */
+export async function createNotification(notificationData: Omit<Notification, 'id' | 'timestamp' | 'isRead'>): Promise<void> {
+    await dbCreateNotification(notificationData);
+}
+
+/**
+ * Creates a notification for all users who have a specific permission.
+ * @param permission - The permission string required to receive the notification.
+ * @param message - The notification message.
+ * @param href - An optional URL for the notification to link to.
+ * @param entityId - The ID of the entity this notification relates to (e.g., order ID).
+ * @param entityType - The type of entity (e.g., 'production-order').
+ * @param taskType - A specific identifier for the task (e.g., 'approve').
+ */
+export async function createNotificationForPermission(
+    permission: string, 
+    message: string, 
+    href: string,
+    entityId: number,
+    entityType: string,
+    taskType: string
+): Promise<void> {
+    const [allUsers, allRoles] = await Promise.all([dbGetAllUsers(), getAllRolesFromDb()]);
+    
+    // Get roles that have this permission.
+    const relevantRoleIds = allRoles
+        .filter(role => role.id === 'admin' || role.permissions.includes(permission))
+        .map(role => role.id);
+    
+    // Find all users who have one of the relevant roles.
+    const targetUsers = allUsers.filter((user: User) => 
+        relevantRoleIds.includes(user.role)
+    );
+
+    for (const user of targetUsers) {
+        await dbCreateNotification({ 
+            userId: user.id, 
+            message, 
+            href,
+            entityId,
+            entityType,
+            taskType,
+        });
+    }
+}
+
+
+/**
+ * Fetches all unread notifications for a specific user.
+ * @param userId - The ID of the user.
+ * @returns A promise that resolves to an array of notifications.
+ */
+export async function getNotificationsForUser(userId: number): Promise<Notification[]> {
+    return dbGetNotifications(userId);
+}
+
+/**
+ * Marks a specific notification as read.
+ * @param notificationId - The ID of the notification to mark as read.
+ * @param userId - The ID of the user who owns the notification, for security.
+ */
+export async function markNotificationAsRead(notificationId: number, userId: number): Promise<void> {
+    await dbMarkAsRead([notificationId], userId);
+    revalidatePath('/dashboard');
+}
+
+/**
+ * Marks all of a user's notifications as read.
+ * @param userId - The ID of the user whose notifications should be marked as read.
+ */
+export async function markAllNotificationsAsRead(userId: number): Promise<void> {
+    const notifications = await dbGetNotifications(userId);
+    const unreadIds = notifications.filter(n => !n.isRead && typeof n.id === 'number').map(n => n.id as number);
+    if (unreadIds.length > 0) {
+        await dbMarkAsRead(unreadIds, userId);
+        revalidatePath('/dashboard');
+    }
+}
+
+/**
+ * Executes a specific action related to a notification, like approving or rejecting a request.
+ * @param notificationId - The ID of the notification triggering the action.
+ * @param actionType - The action to perform ('approve' or 'reject').
+ * @param updatedBy - The name of the user performing the action.
+ * @param userId - The ID of the user performing the action (for validation).
+ */
+export async function executeNotificationAction(notificationId: number, actionType: 'approve' | 'reject', updatedBy: string, userId: number): Promise<{ success: boolean, message: string }> {
+    const notification = await getNotificationById(notificationId);
+
+    if (!notification || notification.userId !== userId) {
+        return { success: false, message: 'Notificación no encontrada o no autorizada.' };
+    }
+    
+    if (!notification.entityId || !notification.entityType || !notification.taskType) {
+        return { success: false, message: 'La notificación no es accionable.' };
+    }
+
+    try {
+        let originalRequester: User | null = null;
+        let targetStatus: ProductionOrderStatus | PurchaseRequestStatus;
+
+        if (notification.entityType === 'production-order') {
+            const currentOrder = await confirmModification(notification.entityId, updatedBy); // Dummy call to get order, should be a get function
+            originalRequester = await getUserByName(currentOrder.requestedBy);
+
+            if (notification.taskType === 'cancellation-request') {
+                await updatePendingAction({
+                    entityId: notification.entityId,
+                    action: 'none',
+                    notes: `Solicitud de cancelación ${actionType === 'approve' ? 'aprobada' : 'rechazada'} por ${updatedBy} desde notificación.`,
+                    updatedBy,
+                });
+                
+                if (actionType === 'approve') {
+                     await updatePlannerStatus({
+                        orderId: notification.entityId,
+                        status: 'canceled',
+                        notes: `Cancelación aprobada por ${updatedBy}.`,
+                        updatedBy,
+                        reopen: false
+                    });
+                }
+            }
+        } else if (notification.entityType === 'purchase-request') {
+            const currentRequest = await updatePendingAction({ entityId: notification.entityId, action: 'none', notes: '', updatedBy }); // Dummy call to get order details
+            originalRequester = await getUserByName(currentRequest.requestedBy);
+
+             if (notification.taskType === 'cancellation-request') {
+                await updatePendingAction({
+                    entityId: notification.entityId,
+                    action: 'none',
+                    notes: `Solicitud de cancelación ${actionType === 'approve' ? 'aprobada' : 'rechazada'} por ${updatedBy} desde notificación.`,
+                    updatedBy,
+                });
+
+                if (actionType === 'approve') {
+                    await updateRequestStatus({
+                        requestId: notification.entityId,
+                        status: 'canceled',
+                        notes: `Cancelación aprobada por ${updatedBy}.`,
+                        updatedBy,
+                        reopen: false
+                    });
+                }
+            }
+        }
+
+        if (actionType === 'reject' && originalRequester && originalRequester.id !== userId) {
+            await createNotification({
+                userId: originalRequester.id,
+                message: `Tu solicitud para la entidad #${notification.entityId} fue rechazada por ${updatedBy}.`,
+                href: notification.href,
+            });
+        }
+
+        // Action was successful, delete the notification as it's been handled.
+        await deleteNotificationById(notificationId);
+        revalidatePath('/dashboard'); // Revalidate to update UI everywhere
+        return { success: true, message: 'Acción completada.' };
+
+    } catch (error: any) {
+        logError('Error executing notification action', { error: error.message, notificationId, actionType });
+        return { success: false, message: 'Error al procesar la acción.' };
+    }
+}
+
+
+async function getUserByName(name: string): Promise<User | null> {
+    const allUsers = await dbGetAllUsers();
+    return allUsers.find(u => u.name === name) || null;
+}
+```
+
+#### Código Fuente: `src/modules/core/lib/email-service.ts`
+```typescript
+"use server";
+
+import nodemailer from 'nodemailer';
+import { connectDb } from './db';
+import type { EmailSettings } from '../types';
+import { logError, logWarn } from './logger';
+
+/**
+ * Retrieves email settings from the database.
+ * @returns The saved email settings or an empty object.
+ */
+export async function getEmailSettings(): Promise<Partial<EmailSettings>> {
+    const db = await connectDb();
+    try {
+        const rows = db.prepare('SELECT key, value FROM email_settings').all() as { key: string, value: string }[];
+        if (rows.length === 0) return {};
+        const settings: Partial<EmailSettings> = {};
+        for (const row of rows) {
+            const key = row.key as keyof EmailSettings;
+            if (key === 'smtpPort') {
+                settings[key] = Number(row.value);
+            } else if (key === 'smtpSecure') {
+                settings[key] = row.value === 'true';
+            } else {
+                settings[key] = row.value;
+            }
+        }
+        return settings;
+    } catch (error) {
+        // If the table doesn't exist, it's not a critical failure, just return empty settings.
+        if ((error as Error).message.includes('no such table')) {
+            console.warn('email_settings table does not exist. Returning empty settings.');
+            return {};
+        }
+        await logError('getEmailSettings', { error: (error as Error).message });
+        return {};
+    }
+}
+
+/**
+ * Saves email settings to the database.
+ * @param settings The email settings to save.
+ */
+export async function saveEmailSettings(settings: EmailSettings): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO email_settings (key, value) VALUES (?, ?)');
+    const transaction = db.transaction((s: EmailSettings) => {
+        for (const [key, value] of Object.entries(s)) {
+            insert.run(key, String(value));
+        }
+    });
+    transaction(settings);
+}
+
+/**
+ * Creates a nodemailer transporter based on saved settings.
+ * @param settings The email settings to use.
+ * @returns A nodemailer transporter instance.
+ */
+function createTransporter(settings: EmailSettings) {
+    if (!settings.smtpHost || !settings.smtpUser || !settings.smtpPass) {
+        throw new Error("La configuración SMTP está incompleta. Por favor, verifica el host, usuario y contraseña.");
+    }
+    return nodemailer.createTransport({
+        host: settings.smtpHost,
+        port: settings.smtpPort,
+        secure: settings.smtpSecure, // true for 465, false for other ports
+        auth: {
+            user: settings.smtpUser,
+            pass: settings.smtpPass,
+        },
+        tls: {
+            // Do not fail on invalid certs for local servers or development environments
+            rejectUnauthorized: false
+        }
+    });
+}
+
+/**
+ * Sends an email using the configured settings.
+ * @param options The email options.
+ * @param options.to Recipient's email address.
+ * @param options.subject The email subject.
+ * @param options.html The HTML body of the email.
+ */
+export async function sendEmail({ to, subject, html }: { to: string | string[], subject: string, html: string }) {
+    const settings = await getEmailSettings();
+    if (!settings.smtpHost) {
+        console.warn("Attempted to send email, but SMTP settings are not configured. Skipping.");
+        await logWarn("Email not sent: SMTP settings are missing.");
+        return; // Silently fail if not configured
+    }
+    const transporter = createTransporter(settings as EmailSettings);
+
+    await transporter.sendMail({
+        from: `"${settings.smtpUser}" <${settings.smtpUser}>`, // sender address
+        to: to,
+        subject: subject,
+        html: html,
+    });
+}
+
+/**
+ * Sends a test email to verify SMTP configuration.
+ * @param settings The settings to test.
+ * @param testRecipientEmails The email addresses to send the test email to.
+ */
+export async function testEmailSettings(settings: EmailSettings, testRecipientEmails: string[]): Promise<void> {
+    const transporter = createTransporter(settings);
+    await transporter.sendMail({
+        from: `"${settings.smtpUser}" <${settings.smtpUser}>`,
+        to: testRecipientEmails.join(','),
+        subject: "Correo de Prueba - Clic-Tools",
+        html: "<p>¡Hola!</p><p>Este es un correo de prueba para verificar que tu configuración SMTP en Clic-Tools funciona correctamente.</p><p>¡La conexión es exitosa!</p>",
+    });
+}
+```
+
