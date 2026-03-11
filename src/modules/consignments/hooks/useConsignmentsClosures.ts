@@ -17,8 +17,10 @@ import {
     createClosureFromCount,
     getConsignmentAgreements, // Import missing function
     annulPeriodClosure,
+    linkInvoiceToClosure,
+    searchErpInvoices,
 } from '../lib/actions';
-import type { PeriodClosure, PhysicalCount, ConsignmentAgreement, ConsignmentProduct } from '@/modules/core/types';
+import type { PeriodClosure, PhysicalCount, ConsignmentAgreement, ConsignmentProduct, ErpInvoiceHeader } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useDebounce } from 'use-debounce';
@@ -50,6 +52,13 @@ interface State {
     isAnnulConfirmOpen: boolean;
     annulConfirmationText: string;
     closureToAnnul: PeriodClosure | null;
+    // Link Invoice state
+    isLinkInvoiceModalOpen: boolean;
+    closureToLinkInvoice: (PeriodClosure & { client_name: string; }) | null;
+    invoiceSearchTerm: string;
+    searchedInvoices: ErpInvoiceHeader[];
+    isInvoiceLoading: boolean;
+    manualInvoiceNumber: string;
 }
 
 export const useConsignmentsClosures = () => {
@@ -83,9 +92,16 @@ export const useConsignmentsClosures = () => {
         isAnnulConfirmOpen: false,
         annulConfirmationText: '',
         closureToAnnul: null,
+        isLinkInvoiceModalOpen: false,
+        closureToLinkInvoice: null,
+        invoiceSearchTerm: '',
+        searchedInvoices: [],
+        isInvoiceLoading: false,
+        manualInvoiceNumber: '',
     });
 
     const [debouncedNewClosureClientSearch] = useDebounce(state.newClosureClientSearch, 300);
+    const [debouncedInvoiceSearch] = useDebounce(state.invoiceSearchTerm, 300);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
@@ -107,7 +123,7 @@ export const useConsignmentsClosures = () => {
             if (state.isInitialLoading) updateState({ isInitialLoading: false });
         }
     }, [toast, updateState, state.isInitialLoading]);
-
+    
     useEffect(() => {
         if (isAuthorized) {
             loadData();
@@ -116,7 +132,27 @@ export const useConsignmentsClosures = () => {
         }
     }, [isAuthorized, loadData, updateState]);
     
-     const resetNewClosureModal = () => {
+    useEffect(() => {
+        const fetchInvoices = async () => {
+            if (!state.isLinkInvoiceModalOpen || !state.closureToLinkInvoice || debouncedInvoiceSearch.length < 3) {
+                updateState({ searchedInvoices: [] });
+                return;
+            }
+            updateState({ isInvoiceLoading: true });
+            try {
+                const results = await searchErpInvoices(state.closureToLinkInvoice.client_id, debouncedInvoiceSearch);
+                updateState({ searchedInvoices: results });
+            } catch (error) {
+                toast({ title: "Error buscando facturas", variant: "destructive" });
+            } finally {
+                updateState({ isInvoiceLoading: false });
+            }
+        };
+        fetchInvoices();
+    }, [debouncedInvoiceSearch, state.isLinkInvoiceModalOpen, state.closureToLinkInvoice, toast, updateState]);
+
+
+    const resetNewClosureModal = () => {
         updateState({
             isNewClosureModalOpen: false,
             newClosureStep: 'select_client',
@@ -136,6 +172,33 @@ export const useConsignmentsClosures = () => {
             updateState({ isNewClosureModalOpen: true });
         }
     };
+    
+    const openLinkInvoiceModal = (closure: PeriodClosure & { client_name: string }) => {
+        updateState({
+            closureToLinkInvoice: closure,
+            isLinkInvoiceModalOpen: true,
+            invoiceSearchTerm: '',
+            manualInvoiceNumber: '',
+            searchedInvoices: []
+        });
+    };
+
+    const handleLinkInvoice = async (invoiceNumber: string) => {
+        if (!state.closureToLinkInvoice || !invoiceNumber.trim() || !user) return;
+        updateState({ isSubmitting: true });
+        try {
+            await linkInvoiceToClosure(state.closureToLinkInvoice.id, invoiceNumber.trim(), user.name);
+            toast({ title: "Factura Vinculada", description: "El cierre ha sido marcado como facturado." });
+            updateState({ isLinkInvoiceModalOpen: false });
+            await loadData(true);
+        } catch (error: any) {
+            logError("Failed to link invoice", { error: error.message });
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } finally {
+            updateState({ isSubmitting: false });
+        }
+    };
+
 
     const handleSelectAgreementForClosure = async (agreementId: string) => {
         const id = Number(agreementId);
@@ -211,7 +274,8 @@ export const useConsignmentsClosures = () => {
 
 
     const handleViewClosure = async (closure: PeriodClosure & { is_initial_inventory: boolean }) => {
-        if (closure.status === 'approved') {
+        // This button now always goes to the billing report for approved closures
+        if (closure.status === 'approved' || closure.status === 'invoiced') {
             router.push(`/dashboard/analytics/billing-report?closureId=${closure.id}`);
             return;
         }
@@ -350,6 +414,11 @@ export const useConsignmentsClosures = () => {
             setAnnulConfirmationText: (text: string) => updateState({ annulConfirmationText: text }),
             setClosureToAnnul: (closure: PeriodClosure | null) => updateState({ closureToAnnul: closure }),
             handleAnnul,
+            openLinkInvoiceModal,
+            setLinkInvoiceModalOpen: (open: boolean) => updateState({ isLinkInvoiceModalOpen: open }),
+            setInvoiceSearchTerm: (term: string) => updateState({ invoiceSearchTerm: term }),
+            setManualInvoiceNumber: (num: string) => updateState({ manualInvoiceNumber: num }),
+            handleLinkInvoice,
         },
         selectors
     };

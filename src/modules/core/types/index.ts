@@ -56,6 +56,8 @@ export type Company = {
     supplierFilePath?: string;
     erpPurchaseOrderHeaderFilePath?: string;
     erpPurchaseOrderLineFilePath?: string;
+    erpInvoiceHeaderFilePath?: string;
+    erpInvoiceLineFilePath?: string;
 };
 
 /**
@@ -647,7 +649,7 @@ export type InventoryItem = {
 
 // --- SQL Import Types ---
 export type ImportQuery = {
-    type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines' | 'erp_purchase_order_headers' | 'erp_purchase_order_lines' | 'employees' | 'departments' | 'positions' | 'payrolls' | 'salespersons';
+    type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys' | 'suppliers' | 'erp_order_headers' | 'erp_order_lines' | 'erp_purchase_order_headers' | 'erp_purchase_order_lines' | 'erp_invoice_headers' | 'erp_invoice_lines' | 'employees' | 'departments' | 'positions' | 'payrolls' | 'salespersons';
     query: string;
 }
 
@@ -769,6 +771,23 @@ export type ErpPurchaseOrderLine = {
     ORDEN_COMPRA: string;
     ARTICULO: string;
     CANTIDAD_ORDENADA: number;
+};
+
+// ERP Invoice Types
+export type ErpInvoiceHeader = {
+    FACTURA: string;
+    CLIENTE: string;
+    NOMBRE_CLIENTE: string;
+    FECHA: string | Date;
+};
+
+export type ErpInvoiceLine = {
+    FACTURA: string;
+    LINEA: number;
+    ARTICULO: string;
+    DESCRIPCION: string;
+    CANTIDAD: number;
+    PRECIO_UNITARIO: number;
 };
 
 
@@ -1163,6 +1182,8 @@ export type PeriodClosure = {
     approved_at?: string;
     approved_by?: string;
     notes?: string;
+    erp_invoice_number?: string;
+    invoiced_at?: string;
 };
 
 export type ConsignmentAdjustmentReason = 'Dañado' | 'Vencido' | 'Pérdida' | 'Corrección de Conteo';

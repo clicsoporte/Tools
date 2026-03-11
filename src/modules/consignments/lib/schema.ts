@@ -13,6 +13,6 @@ export const consignmentsSchema: ExpectedSchema = {
     'boleta_history': ['id', 'boleta_id', 'timestamp', 'status', 'notes', 'updatedBy'],
     'consignments_settings': ['key', 'value'],
     'physical_counts': ['id', 'agreement_id', 'product_id', 'quantity', 'counted_at', 'counted_by'],
-    'period_closures': ['id', 'consecutive', 'agreement_id', 'status', 'is_initial_inventory', 'closure_boleta_id', 'previous_closure_id', 'created_at', 'created_by', 'approved_at', 'approved_by', 'notes', 'physical_count_ref'],
+    'period_closures': ['id', 'consecutive', 'agreement_id', 'status', 'is_initial_inventory', 'closure_boleta_id', 'previous_closure_id', 'created_at', 'created_by', 'approved_at', 'approved_by', 'notes', 'physical_count_ref', 'erp_invoice_number', 'invoiced_at'],
     'consignment_adjustments': ['id', 'agreement_id', 'product_id', 'quantity', 'reason', 'notes', 'created_at', 'created_by'],
 };

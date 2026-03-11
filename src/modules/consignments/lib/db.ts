@@ -116,6 +116,8 @@ export async function initializeConsignmentsDb(db: import('better-sqlite3').Data
             approved_at TEXT,
             approved_by TEXT,
             notes TEXT,
+            erp_invoice_number TEXT,
+            invoiced_at TEXT,
             FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id),
             FOREIGN KEY (closure_boleta_id) REFERENCES restock_boletas(id),
             FOREIGN KEY (previous_closure_id) REFERENCES period_closures(id)
@@ -169,18 +171,21 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
 
         const periodClosuresTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='period_closures'`).get();
         if (!periodClosuresTable) {
-            db.exec(`CREATE TABLE period_closures (id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL, agreement_id INTEGER NOT NULL, status TEXT NOT NULL, is_initial_inventory BOOLEAN NOT NULL DEFAULT 0, closure_boleta_id INTEGER, physical_count_ref TEXT, previous_closure_id INTEGER, created_at TEXT NOT NULL, created_by TEXT NOT NULL, approved_at TEXT, approved_by TEXT, notes TEXT, FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id), FOREIGN KEY (closure_boleta_id) REFERENCES restock_boletas(id), FOREIGN KEY (previous_closure_id) REFERENCES period_closures(id))`);
+            db.exec(`CREATE TABLE period_closures (id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL, agreement_id INTEGER NOT NULL, status TEXT NOT NULL, is_initial_inventory BOOLEAN NOT NULL DEFAULT 0, closure_boleta_id INTEGER, physical_count_ref TEXT, previous_closure_id INTEGER, created_at TEXT NOT NULL, created_by TEXT NOT NULL, approved_at TEXT, approved_by TEXT, notes TEXT, erp_invoice_number TEXT, invoiced_at TEXT, FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id), FOREIGN KEY (closure_boleta_id) REFERENCES restock_boletas(id), FOREIGN KEY (previous_closure_id) REFERENCES period_closures(id))`);
         } else {
              const closureTableInfo = db.prepare(`PRAGMA table_info(period_closures)`).all() as { name: string }[];
-             if (!closureTableInfo.some(c => c.name === 'closure_boleta_id')) {
+             const closureColumns = new Set(closureTableInfo.map(c => c.name));
+             if (!closureColumns.has('closure_boleta_id')) {
                  db.exec(`ALTER TABLE period_closures ADD COLUMN closure_boleta_id INTEGER REFERENCES restock_boletas(id)`);
              }
-             if (!closureTableInfo.some(c => c.name === 'physical_count_ref')) {
+             if (!closureColumns.has('physical_count_ref')) {
                  db.exec(`ALTER TABLE period_closures ADD COLUMN physical_count_ref TEXT`);
              }
-             if (!closureTableInfo.some(c => c.name === 'is_initial_inventory')) {
+             if (!closureColumns.has('is_initial_inventory')) {
                 db.exec(`ALTER TABLE period_closures ADD COLUMN is_initial_inventory BOOLEAN NOT NULL DEFAULT 0`);
              }
+             if (!closureColumns.has('erp_invoice_number')) db.exec('ALTER TABLE period_closures ADD COLUMN erp_invoice_number TEXT');
+             if (!closureColumns.has('invoiced_at')) db.exec('ALTER TABLE period_closures ADD COLUMN invoiced_at TEXT');
         }
         
         const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignments_settings'`).get();

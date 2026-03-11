@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import { initialCompany, initialRoles } from './data';
 import { DB_MODULES } from './db-modules';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession, AnalyticsSettings, TransitStatusAlias, WarehouseLocation, WarehouseInventoryItem, WarehouseSettings } from '@/modules/core/types';
+import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, StockSettings, ImportQuery, ItemLocation, UpdateBackupInfo, Suggestion, DateRange, Supplier, ErpOrderHeader, ErpOrderLine, Notification, UserPreferences, AuditResult, ErpPurchaseOrderHeader, ErpPurchaseOrderLine, SqlConfig, ProductionOrder, WizardSession, AnalyticsSettings, TransitStatusAlias, WarehouseLocation, WarehouseInventoryItem, WarehouseSettings, ErpInvoiceHeader, ErpInvoiceLine } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import Papa from 'papaparse';
 import { executeQuery } from './sql-service';
@@ -68,7 +68,8 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             systemName TEXT, publicUrl TEXT, systemVersion TEXT, quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER, quoterShowTaxId BOOLEAN,
             searchDebounceTime INTEGER, syncWarningHours REAL, lastSyncTimestamp TEXT,
             importMode TEXT, customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT, stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT, supplierFilePath TEXT,
-            erpPurchaseOrderHeaderFilePath TEXT, erpPurchaseOrderLineFilePath TEXT
+            erpPurchaseOrderHeaderFilePath TEXT, erpPurchaseOrderLineFilePath TEXT,
+            erpInvoiceHeaderFilePath TEXT, erpInvoiceLineFilePath TEXT
         );
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,6 +98,8 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE IF NOT EXISTS erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));
         CREATE TABLE IF NOT EXISTS erp_purchase_order_headers (ORDEN_COMPRA TEXT PRIMARY KEY, PROVEEDOR TEXT, FECHA_HORA TEXT, ESTADO TEXT, CreatedBy TEXT);
         CREATE TABLE IF NOT EXISTS erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY(ORDEN_COMPRA, ARTICULO));
+        CREATE TABLE IF NOT EXISTS erp_invoice_headers (FACTURA TEXT PRIMARY KEY, CLIENTE TEXT, NOMBRE_CLIENTE TEXT, FECHA TEXT);
+        CREATE TABLE IF NOT EXISTS erp_invoice_lines (FACTURA TEXT, LINEA INTEGER, ARTICULO TEXT, DESCRIPCION TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (FACTURA, LINEA));
         CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);
     `;
     db.exec(schema);
@@ -267,6 +270,16 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
              console.log("Migration check skipped: Main database not initialized yet.");
              return;
         }
+        
+        // Add new ERP invoice tables
+        if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_invoice_headers'`).get()) {
+            console.log("MIGRATION: Creating erp_invoice_headers table.");
+            db.exec(`CREATE TABLE erp_invoice_headers (FACTURA TEXT PRIMARY KEY, CLIENTE TEXT, NOMBRE_CLIENTE TEXT, FECHA TEXT);`);
+        }
+        if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_invoice_lines'`).get()) {
+            console.log("MIGRATION: Creating erp_invoice_lines table.");
+            db.exec(`CREATE TABLE erp_invoice_lines (FACTURA TEXT, LINEA INTEGER, ARTICULO TEXT, DESCRIPCION TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (FACTURA, LINEA));`);
+        }
 
         const analyticsSettingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='analytics_settings'`).get() as { name: string } | undefined;
         if (!analyticsSettingsTable) {
@@ -375,6 +388,8 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         if (!companyColumns.has('supplierFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN supplierFilePath TEXT`);
         if (!companyColumns.has('erpPurchaseOrderHeaderFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN erpPurchaseOrderHeaderFilePath TEXT`);
         if (!companyColumns.has('erpPurchaseOrderLineFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN erpPurchaseOrderLineFilePath TEXT`);
+        if (!companyColumns.has('erpInvoiceHeaderFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN erpInvoiceHeaderFilePath TEXT`);
+        if (!companyColumns.has('erpInvoiceLineFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN erpInvoiceLineFilePath TEXT`);
         if (!companyColumns.has('importMode')) db.exec(`ALTER TABLE company_settings ADD COLUMN importMode TEXT DEFAULT 'file'`);
         if (!companyColumns.has('logoUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN logoUrl TEXT`);
         if (!companyColumns.has('searchDebounceTime')) db.exec(`ALTER TABLE company_settings ADD COLUMN searchDebounceTime INTEGER DEFAULT 500`);
@@ -549,6 +564,7 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
                 stockFilePath = @stockFilePath, locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath,
                 supplierFilePath = @supplierFilePath, erpPurchaseOrderHeaderFilePath = @erpPurchaseOrderHeaderFilePath,
                 erpPurchaseOrderLineFilePath = @erpPurchaseOrderLineFilePath,
+                erpInvoiceHeaderFilePath = @erpInvoiceHeaderFilePath, erpInvoiceLineFilePath = @erpInvoiceLineFilePath,
                 importMode = @importMode, lastSyncTimestamp = @lastSyncTimestamp, quoterShowTaxId = @quoterShowTaxId, syncWarningHours = @syncWarningHours
             WHERE id = 1
         `);
@@ -983,6 +999,8 @@ const createHeaderMapping = (type: ImportQuery['type']) => {
         case 'erp_order_lines': return {'PEDIDO': 'PEDIDO', 'PEDIDO_LINEA': 'PEDIDO_LINEA', 'ARTICULO': 'ARTICULO', 'CANTIDAD_PEDIDA': 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO': 'PRECIO_UNITARIO'};
         case 'erp_purchase_order_headers': return { 'ORDEN_COMPRA': 'ORDEN_COMPRA', 'PROVEEDOR': 'PROVEEDOR', 'FECHA_HORA': 'FECHA_HORA', 'ESTADO': 'ESTADO', 'CREATEDBY': 'CreatedBy' };
         case 'erp_purchase_order_lines': return { 'ORDEN_COMPRA': 'ORDEN_COMPRA', 'ARTICULO': 'ARTICULO', 'CANTIDAD_ORDENADA': 'CANTIDAD_ORDENADA' };
+        case 'erp_invoice_headers': return {'FACTURA': 'FACTURA', 'CLIENTE': 'CLIENTE', 'NOMBRE_CLIENTE': 'NOMBRE_CLIENTE', 'FECHA': 'FECHA'};
+        case 'erp_invoice_lines': return {'FACTURA': 'FACTURA', 'LINEA': 'LINEA', 'ARTICULO': 'ARTICULO', 'DESCRIPCION': 'DESCRIPCION', 'CANTIDAD': 'CANTIDAD', 'PRECIO_UNITARIO': 'PRECIO_UNITARIO'};
         default: return {};
     }
 }
@@ -999,7 +1017,7 @@ const parseData = (lines: string[], type: ImportQuery['type']) => {
             const key = headerMapping[h as keyof typeof headerMapping];
             if (key) {
                 const value = data[index]?.replace(/[\\n\\r]/g, '').trim() || '';
-                if (['creditLimit', 'percentage', 'stock', 'rack', 'hPos', 'taxRate', 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO', 'TOTAL_UNIDADES', 'CANTIDAD_ORDENADA'].includes(key)) {
+                if (['creditLimit', 'percentage', 'stock', 'rack', 'hPos', 'taxRate', 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO', 'TOTAL_UNIDADES', 'CANTIDAD_ORDENADA', 'CANTIDAD'].includes(key)) {
                     dataObject[key] = parseFloat(value.replace('%','')) || 0;
                     if(key === 'taxRate') dataObject[key] /= 100;
                 } else dataObject[key] = value;
@@ -1044,6 +1062,8 @@ export async function importDataFromFile(type: Exclude<ImportQuery['type'], 'erp
         case 'suppliers': filePath = companySettings.supplierFilePath || ''; break;
         case 'erp_purchase_order_headers': filePath = companySettings.erpPurchaseOrderHeaderFilePath || ''; break;
         case 'erp_purchase_order_lines': filePath = companySettings.erpPurchaseOrderLineFilePath || ''; break;
+        case 'erp_invoice_headers': filePath = companySettings.erpInvoiceHeaderFilePath || ''; break;
+        case 'erp_invoice_lines': filePath = companySettings.erpInvoiceLineFilePath || ''; break;
     }
     if (!filePath) throw new Error(`La ruta de importación para ${type} no está configurada.`);
     if (!fs.existsSync(filePath)) throw new Error(`El archivo no fue encontrado: ${filePath}`);
@@ -1074,6 +1094,8 @@ export async function importDataFromFile(type: Exclude<ImportQuery['type'], 'erp
     else if (type === 'suppliers') await saveAllSuppliers(dataArray as Supplier[]);
     else if (type === 'erp_purchase_order_headers') await saveAllErpPurchaseOrderHeaders(dataArray as ErpPurchaseOrderHeader[]);
     else if (type === 'erp_purchase_order_lines') await saveAllErpPurchaseOrderLines(dataArray as ErpPurchaseOrderLine[]);
+    else if (type === 'erp_invoice_headers') await saveAllErpInvoiceHeaders(dataArray as ErpInvoiceHeader[]);
+    else if (type === 'erp_invoice_lines') await saveAllErpInvoiceLines(dataArray as ErpInvoiceLine[]);
     
     return { count: dataArray.length, source: filePath };
 }
@@ -1116,6 +1138,10 @@ async function importDataFromSql(type: ImportQuery['type']): Promise<{ count: nu
         await saveAllErpPurchaseOrderHeaders(mappedData as ErpPurchaseOrderHeader[]);
     } else if (type === 'erp_purchase_order_lines') {
         await saveAllErpPurchaseOrderLines(mappedData as ErpPurchaseOrderLine[]);
+    } else if (type === 'erp_invoice_headers') {
+        await saveAllErpInvoiceHeaders(mappedData as ErpInvoiceHeader[]);
+    } else if (type === 'erp_invoice_lines') {
+        await saveAllErpInvoiceLines(mappedData as ErpInvoiceLine[]);
     }
     return { count: mappedData.length, source: 'SQL Server' };
 }
@@ -1139,7 +1165,8 @@ export async function importAllData(): Promise<{ results: { type: string; count:
     const importTasks: ImportQuery['type'][] = [
         'customers', 'products', 'exemptions', 'stock', 'locations', 
         'cabys', 'suppliers', 'erp_order_headers', 'erp_order_lines', 
-        'erp_purchase_order_headers', 'erp_purchase_order_lines'
+        'erp_purchase_order_headers', 'erp_purchase_order_lines',
+        'erp_invoice_headers', 'erp_invoice_lines'
     ];
     
     const results: { type: string; count: number; }[] = [];
@@ -1562,6 +1589,27 @@ export async function saveAllErpPurchaseOrderLines(lines: ErpPurchaseOrderLine[]
     }
 }
 
+export async function saveAllErpInvoiceHeaders(headers: ErpInvoiceHeader[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_invoice_headers (FACTURA, CLIENTE, NOMBRE_CLIENTE, FECHA) VALUES (@FACTURA, @CLIENTE, @NOMBRE_CLIENTE, @FECHA)');
+    const transaction = db.transaction((data: ErpInvoiceHeader[]) => {
+        db.prepare('DELETE FROM erp_invoice_headers').run();
+        for(const header of data) insert.run(header);
+    });
+    transaction(headers);
+}
+
+export async function saveAllErpInvoiceLines(lines: ErpInvoiceLine[]): Promise<void> {
+    const db = await connectDb();
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_invoice_lines (FACTURA, LINEA, ARTICULO, DESCRIPCION, CANTIDAD, PRECIO_UNITARIO) VALUES (@FACTURA, @LINEA, @ARTICULO, @DESCRIPCION, @CANTIDAD, @PRECIO_UNITARIO)');
+    const transaction = db.transaction((data: ErpInvoiceLine[]) => {
+        db.prepare('DELETE FROM erp_invoice_lines').run();
+        for(const line of data) insert.run(line);
+    });
+    transaction(lines);
+}
+
+
 export async function getAllErpPurchaseOrderHeaders(): Promise<ErpPurchaseOrderHeader[]> {
     const db = await connectDb();
     try {
@@ -1779,4 +1827,19 @@ export async function getWarehouseData(): Promise<{ locations: WarehouseLocation
     // The ideal solution is a more robust service locator or dependency injection pattern.
     const { getWarehouseData: getWarehouseDataFromModule } = await import('@/modules/warehouse/lib/db');
     return getWarehouseDataFromModule();
+}
+
+/**
+ * Searches ERP invoices by client ID and a search term (invoice number).
+ */
+export async function searchErpInvoices(clientId: string, searchTerm: string): Promise<ErpInvoiceHeader[]> {
+    const db = await connectDb();
+    const results = db.prepare(`
+        SELECT FACTURA, CLIENTE, NOMBRE_CLIENTE, FECHA 
+        FROM erp_invoice_headers 
+        WHERE CLIENTE = ? AND FACTURA LIKE ? 
+        ORDER BY FECHA DESC 
+        LIMIT 10
+    `).all(clientId, `%${searchTerm}%`) as ErpInvoiceHeader[];
+    return results;
 }

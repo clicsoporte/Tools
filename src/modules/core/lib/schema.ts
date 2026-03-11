@@ -8,7 +8,7 @@ import type { ExpectedSchema } from '@/modules/core/types';
 export const mainDbSchema: ExpectedSchema = {
     'users': ['id', 'name', 'email', 'password', 'phone', 'whatsapp', 'erpAlias', 'avatar', 'role', 'recentActivity', 'securityQuestion', 'securityAnswer', 'forcePasswordChange', 'activeWizardSession'],
     'roles': ['id', 'name', 'permissions'],
-    'company_settings': ['id', 'name', 'taxId', 'address', 'phone', 'email', 'logoUrl', 'systemName', 'publicUrl', 'systemVersion', 'quotePrefix', 'nextQuoteNumber', 'decimalPlaces', 'quoterShowTaxId', 'searchDebounceTime', 'syncWarningHours', 'lastSyncTimestamp', 'importMode', 'customerFilePath', 'productFilePath', 'exemptionFilePath', 'stockFilePath', 'locationFilePath', 'cabysFilePath', 'supplierFilePath', 'erpPurchaseOrderHeaderFilePath', 'erpPurchaseOrderLineFilePath'],
+    'company_settings': ['id', 'name', 'taxId', 'address', 'phone', 'email', 'logoUrl', 'systemName', 'publicUrl', 'systemVersion', 'quotePrefix', 'nextQuoteNumber', 'decimalPlaces', 'quoterShowTaxId', 'searchDebounceTime', 'syncWarningHours', 'lastSyncTimestamp', 'importMode', 'customerFilePath', 'productFilePath', 'exemptionFilePath', 'stockFilePath', 'locationFilePath', 'cabysFilePath', 'supplierFilePath', 'erpPurchaseOrderHeaderFilePath', 'erpPurchaseOrderLineFilePath', 'erpInvoiceHeaderFilePath', 'erpInvoiceLineFilePath'],
     'logs': ['id', 'timestamp', 'type', 'message', 'details'],
     'api_settings': ['id', 'exchangeRateApi', 'haciendaExemptionApi', 'haciendaTributariaApi'],
     'analytics_settings': ['key', 'value'],
@@ -30,5 +30,7 @@ export const mainDbSchema: ExpectedSchema = {
     'erp_order_lines': ['PEDIDO', 'PEDIDO_LINEA', 'ARTICULO', 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO'],
     'erp_purchase_order_headers': ['ORDEN_COMPRA', 'PROVEEDOR', 'FECHA_HORA', 'ESTADO', 'CreatedBy'],
     'erp_purchase_order_lines': ['ORDEN_COMPRA', 'ARTICULO', 'CANTIDAD_ORDENADA'],
+    'erp_invoice_headers': ['FACTURA', 'CLIENTE', 'NOMBRE_CLIENTE', 'FECHA'],
+    'erp_invoice_lines': ['FACTURA', 'LINEA', 'ARTICULO', 'DESCRIPCION', 'CANTIDAD', 'PRECIO_UNITARIO'],
     'stock_settings': ['key', 'value'],
 };

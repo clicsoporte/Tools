@@ -1,0 +1,105 @@
+======================================================================
+     PLAN DE DISEÑO INTEGRAL: MÓDULO DE CONSIGNACIONES (v2)
+======================================================================
+Este documento consolida la visión final y el plan de acción para la
+refactorización del módulo de consignaciones, basado en la lluvia de
+ideas. El objetivo es simplificar drásticamente el flujo de trabajo,
+haciéndolo más intuitivo y a prueba de errores.
+
+--- ÍNDICE ---
+1. Pilar 1: El "Portal del Bodeguero" (Asistente de Campo Unificado)
+   1.1. Flujo de Trabajo Guiado
+   1.2. Autoguardado Universal y Seguro
+   1.3. Sistema de Bloqueo Inteligente con Relevo
+
+2. Pilar 2: El "Portal de Oficina" (Gestión de Cierres Centralizada)
+   2.1. El Ciclo de Aprobación Guiado
+   2.2. Aprobación y Reinicio del Ciclo
+   2.3. Nuevo Diálogo para Ligar Factura ERP
+   
+3. Pilar 3: Mejoras de Usabilidad y Configuración
+   3.1. Visibilidad en la Tabla Principal de Cierres
+   3.2. Configuración para el "Conteo Preliminar"
+
+======================================================================
+ 1. PILAR 1: EL "PORTAL DEL BODEGUERO"
+======================================================================
+Reemplazaremos las herramientas de campo actuales por una única interfaz
+inteligente y guiada.
+
+----------------------------------------------------------------------
+ 1.1. Flujo de Trabajo Guiado
+----------------------------------------------------------------------
+1.  **Inicio:** El bodeguero entra al "Asistente de Campo" y selecciona
+    el cliente.
+2.  **Menú de Acciones:** El sistema muestra solo dos opciones claras:
+    a. **"Registrar Entrega de Mercancía":** Para generar una "Boleta de Entrega" simple. Esto registra una entrada al inventario del cliente.
+    b. **"Realizar Conteo para Cierre":** Acción específica para iniciar el conteo físico que se usará para facturar.
+3.  **Separación Clave:** Se separa la "entrega" del "cierre", eliminando la
+    confusión de boletas de reposición creadas en el momento incorrecto.
+
+----------------------------------------------------------------------
+ 1.2. Autoguardado y Bloqueo Inteligente
+----------------------------------------------------------------------
+- **Autoguardado:** Cada número ingresado durante un conteo se guarda
+  automáticamente en un borrador para prevenir la pérdida de datos.
+- **Bloqueo con Relevo:** Al iniciar un conteo, el cliente se bloquea.
+  Si otro usuario intenta acceder, se le notifica y se le da la opción
+  de "Forzar Relevo", registrando la acción para auditoría.
+
+======================================================================
+ 2. PILAR 2: EL "PORTAL DE OFICINA"
+======================================================================
+La página de "Gestión de Cierres" se convierte en el centro de mando
+para el personal administrativo, guiando todo el ciclo de facturación.
+
+----------------------------------------------------------------------
+ 2.1. El Ciclo de Aprobación Guiado
+----------------------------------------------------------------------
+1.  **Tarea Clara:** Cuando un bodeguero termina un "Conteo para Cierre",
+    aparece un nuevo **"Cierre Pendiente"** en esta pantalla.
+2.  **Dashboard de Aprobación:** Al hacer clic en "Revisar", el sistema
+    hace todo el trabajo en una sola vista:
+    *   **Inventario Inicial:** Carga automáticamente el inventario final del
+        último cierre *aprobado* de ese cliente. Si no hay ninguno,
+        informa que se está estableciendo un inventario inicial.
+    *   **Entregas:** Suma todas las "Boletas de Entrega" realizadas desde
+        la fecha del último cierre.
+    *   **Inventario Final:** Muestra el conteo que el bodeguero acaba de
+        registrar.
+    *   **Cálculo Final:** Presenta el resultado claro:
+        `(Inicial + Entregas) - Final = Consumo a Facturar`.
+
+----------------------------------------------------------------------
+ 2.2. Aprobación y Flujo de Facturación
+----------------------------------------------------------------------
+1.  **Aprobar Cierre:** El supervisor verifica los datos y aprueba el cierre.
+2.  **Generar Reporte:** Una vez aprobado, el botón principal cambia a
+    **"Reporte de Facturación"**. Al hacer clic, se genera el PDF/Excel
+    con el consumo a facturar, que se utilizará para crear la factura
+    en el ERP.
+3.  **Ligar Factura:** Aparece un nuevo botón: **"Ligar Factura ERP"**.
+
+----------------------------------------------------------------------
+ 2.3. Nuevo Diálogo para Ligar Factura ERP
+----------------------------------------------------------------------
+- Este diálogo permite buscar la factura recién creada en el ERP (por
+  cliente o número) y vincularla al cierre.
+- **Lógica de Propagación:** Al confirmar, el sistema guarda el número de
+  factura en el registro del cierre y **propaga automáticamente ese
+  número a todas las boletas de entrega** que formaron parte del
+  período, asegurando una trazabilidad completa.
+
+======================================================================
+ 3. PILAR 3: MEJORAS DE USABILIDAD Y CONFIGURACIÓN
+======================================================================
+- **Tabla de Cierres Mejorada:** La vista principal mostrará el estado de
+  facturación ("Pendiente" o "Facturado") y el número de factura ERP
+  vinculado.
+- **Configuración Opcional:** En la administración del módulo, se añadirá
+  un interruptor para habilitar o deshabilitar la funcionalidad de
+  "Conteo Preliminar" en el Asistente de Campo.
+
+Este plan de diseño crea un flujo de trabajo lineal y lógico, eliminando
+la ambigüedad y guiando al usuario a través de un ciclo simple:
+**Entrega -> Conteo de Cierre -> Aprobación Informada -> Facturación y Vínculo**.
