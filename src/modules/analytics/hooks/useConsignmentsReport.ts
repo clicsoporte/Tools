@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the logic for the new Consignments Report page.
  */
@@ -276,7 +277,7 @@ export function useConsignmentsReport() {
             closureFilter: null,
         }),
         setBoletaFilter: (ids: string[]) => updateState({ boletaFilter: ids }),
-        setClosureFilter: (id: string | null) => updateState({ closureFilter: id, dateRange: { from: undefined, to: undefined } }),
+        setClosureFilter: (id: string) => updateState({ closureFilter: id === 'none' ? null : id, dateRange: { from: undefined, to: undefined } }),
         handleClearFilters: () => updateState({ boletaFilter: [], closureFilter: null, dateRange: { from: startOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)), to: new Date() } }),
         handleGenerateReport,
         handleExportExcel,

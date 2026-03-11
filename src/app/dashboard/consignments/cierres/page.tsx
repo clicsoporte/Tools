@@ -274,6 +274,7 @@ export default function ClosuresPage() {
                 <DialogContent className="sm:max-w-4xl">
                      <DialogHeader>
                         <DialogTitle>Asistente para Nuevo Cierre</DialogTitle>
+                        <DialogDescription>Selecciona un cliente para iniciar la creación de un nuevo cierre de período.</DialogDescription>
                     </DialogHeader>
                     {state.newClosureStep === 'select_client' && (
                         <div className="py-4 space-y-4">

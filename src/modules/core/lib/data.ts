@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file contains the initial or default data for the application.
  * This data is used to populate the database on its first run.
@@ -451,11 +452,11 @@ export const consignmentsReportTools: Tool[] = [
     },
     {
         id: 'consignments:boleta:approve',
-        name: 'Cierres y Facturación de Consignación',
-        description: 'Aprobar los cierres de período y generar el reporte oficial para facturación.',
+        name: 'Reporte de Facturación (Oficial)',
+        description: 'Gestiona los cierres y genera el reporte de facturación oficial desde un período aprobado.',
         href: '/dashboard/consignments/cierres',
         icon: FileSignature,
-        bgColor: 'bg-lime-500'
+        bgColor: 'bg-indigo-600',
     },
     {
         id: 'analytics:consignments-report:read', // Re-use permission

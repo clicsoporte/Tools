@@ -71,10 +71,10 @@ export default function ConsignmentsReportPage() {
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={actions.setDateRange} numberOfMonths={2} locale={es} /></PopoverContent>
                     </Popover>
-                     <Select value={closureFilter || ''} onValueChange={actions.setClosureFilter} disabled={!selectedAgreementId}>
+                     <Select value={closureFilter || 'none'} onValueChange={actions.setClosureFilter} disabled={!selectedAgreementId}>
                         <SelectTrigger className="w-full sm:w-[250px]"><SelectValue placeholder="O filtrar por Cierre de Periodo..." /></SelectTrigger>
                         <SelectContent>
-                             <SelectItem value="">-- Sin Filtro por Cierre --</SelectItem>
+                             <SelectItem value="none">-- Sin Filtro por Cierre --</SelectItem>
                             {selectors.closureOptions.map(opt => (
                                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                             ))}
