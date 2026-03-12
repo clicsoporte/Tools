@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getLocations, getAllItemLocations, assignItemToLocation, unassignItemFromLocation, getSelectableLocations, unassignAllByProduct, unassignAllByLocation, checkAssignmentConflict } from '@/modules/warehouse/lib/actions';
+import { getLocations, getAllItemLocations, assignItemToLocation, unassignItemFromLocation, getSelectableLocations, unassignAllByProduct, unassignAllByLocation, checkAssignmentConflict, unassignAllByRack } from '@/modules/warehouse/lib/actions';
 import type { Product, Customer, WarehouseLocation, ItemLocation } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -172,6 +172,13 @@ export function useItemLocation() {
         return selectableLocations.filter(l => renderLocationPathAsString(l.id, allLocations).toLowerCase().includes(searchTerm))
             .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, allLocations) }));
     }, [allLocations, selectableLocations, debouncedCleanupSearch]);
+    
+    const cleanupRackOptions = useMemo(() => {
+        const searchTerm = debouncedCleanupSearch.trim().toLowerCase();
+        if (searchTerm.length < 1) return [];
+        return allLocations.filter(l => l.type === 'rack' && (l.name.toLowerCase().includes(searchTerm) || l.code.toLowerCase().includes(searchTerm)))
+            .map(r => ({ value: String(r.id), label: `${r.name} (${r.code})` }));
+    }, [allLocations, debouncedCleanupSearch]);
 
 
     const handleSelectProduct = (value: string) => {
@@ -390,7 +397,7 @@ export function useItemLocation() {
         });
     };
 
-    const handleCleanup = async (type: 'product' | 'location', id: string | number) => {
+    const handleCleanup = async (type: 'product' | 'location' | 'rack', id: string | number) => {
         if (!user) return;
         updateState({ isSubmitting: true });
         try {
@@ -401,6 +408,10 @@ export function useItemLocation() {
                 const locPath = renderLocationPathAsString(id, allLocations);
                 await unassignAllByLocation(id, user.name);
                 toast({ title: "Limpieza Completada", description: `Se eliminaron todas las asignaciones de la ubicación ${locPath}.` });
+            } else if (type === 'rack' && typeof id === 'number') {
+                const rack = allLocations.find(l => l.id === id);
+                await unassignAllByRack(id, user.name);
+                toast({ title: "Limpieza de Rack Completada", description: `Se eliminaron todas las asignaciones del rack ${rack?.name || ''}.` });
             }
             await loadInitialData(); // Refresh data
         } catch (e: any) {
@@ -418,7 +429,7 @@ export function useItemLocation() {
         selectors: {
             paginatedAssignments, totalPages, filteredAssignments,
             productOptions, clientOptions, locationOptions, hasPermission,
-            cleanupProductOptions, cleanupLocationOptions,
+            cleanupProductOptions, cleanupLocationOptions, cleanupRackOptions,
             getProductName: (id: string) => authProducts.find(p => p.id === id)?.description || 'Desconocido',
             getClientName: (id: string | null | undefined) => id ? authCustomers.find(c => c.id === id)?.name : 'General',
             getLocationPath: (id: number) => renderLocationPathAsString(id, allLocations)

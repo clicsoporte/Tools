@@ -661,6 +661,43 @@ export async function unassignAllByLocation(locationId: number, userName: string
     logWarn(`All assignments for location ID ${locationId} were deleted by ${userName}.`);
 }
 
+export async function unassignAllByRack(rackId: number, userName: string): Promise<void> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+
+    const transaction = db.transaction(() => {
+        const allLocations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
+        
+        const locationsToClearIds = new Set<number>();
+        const queue: number[] = [rackId];
+        const visited = new Set<number>();
+
+        while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            if (visited.has(currentId)) continue;
+            visited.add(currentId);
+            locationsToClearIds.add(currentId);
+            
+            const children = allLocations.filter(l => l.parentId === currentId);
+            children.forEach(child => queue.push(child.id));
+        }
+        
+        if (locationsToClearIds.size === 0) {
+            logWarn(`unassignAllByRack called for non-existent or empty rack ID: ${rackId}.`, { user: userName });
+            return;
+        }
+        
+        const placeholders = Array.from(locationsToClearIds).map(() => '?').join(',');
+        
+        const deleteResult = db.prepare(`DELETE FROM item_locations WHERE locationId IN (${placeholders})`).run(...Array.from(locationsToClearIds));
+        
+        const updateResult = db.prepare(`UPDATE locations SET population_status = 'P', is_mixed = 0 WHERE id IN (${placeholders})`).run(...Array.from(locationsToClearIds));
+
+        logWarn(`All assignments under rack ID ${rackId} (${deleteResult.changes} deleted) were cleared by ${userName}. ${updateResult.changes} location statuses were reset.`);
+    });
+    
+    transaction();
+}
+
 
 export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive' | 'status'>): Promise<InventoryUnit> {
     const db = await connectDb(WAREHOUSE_DB_FILE);

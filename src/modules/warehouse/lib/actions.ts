@@ -20,6 +20,7 @@ import {
     unassignItemFromLocation as unassignItemFromLocationServer,
     unassignAllByProduct as unassignAllByProductServer,
     unassignAllByLocation as unassignAllByLocationServer,
+    unassignAllByRack as unassignAllByRackServer,
     getWarehouseData as getWarehouseDataServer,
     getMovements as getMovementsServer,
     addInventoryUnit as addInventoryUnitServer,
@@ -127,6 +128,10 @@ export async function unassignAllByProduct(itemId: string, userName: string): Pr
 
 export async function unassignAllByLocation(locationId: number, userName: string): Promise<void> {
     await unassignAllByLocationServer(locationId, userName);
+}
+
+export async function unassignAllByRack(rackId: number, userName: string): Promise<void> {
+    await unassignAllByRackServer(rackId, userName);
 }
 
 

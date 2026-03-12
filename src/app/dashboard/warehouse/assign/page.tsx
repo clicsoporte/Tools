@@ -55,7 +55,7 @@ export default function AssignItemPage() {
     const { setTitle } = usePageTitle();
     const { state, actions, selectors } = useItemLocation();
     
-    const [cleanupType, setCleanupType] = React.useState<'product' | 'location' | null>(null);
+    const [cleanupType, setCleanupType] = React.useState<'product' | 'location' | 'rack' | null>(null);
     const [isCleanupDialogOpen, setIsCleanupDialogOpen] = React.useState(false);
     const [itemToClean, setItemToClean] = React.useState<{ value: string; label: string } | null>(null);
     const [isConfirmCleanupOpen, setIsConfirmCleanupOpen] = React.useState(false);
@@ -72,7 +72,7 @@ export default function AssignItemPage() {
         cleanupSearchTerm, isCleanupSearchOpen,
     } = state;
     
-    const handleOpenCleanupDialog = (type: 'product' | 'location') => {
+    const handleOpenCleanupDialog = (type: 'product' | 'location' | 'rack') => {
         setCleanupType(type);
         setItemToClean(null);
         actions.setCleanupSearchTerm('');
@@ -81,7 +81,7 @@ export default function AssignItemPage() {
 
     const handleConfirmCleanup = () => {
         if (!cleanupType || !itemToClean) return;
-        const id = cleanupType === 'location' ? Number(itemToClean.value) : itemToClean.value;
+        const id = (cleanupType === 'product') ? itemToClean.value : Number(itemToClean.value);
         actions.handleCleanup(cleanupType, id);
         setIsCleanupDialogOpen(false);
     };
@@ -89,6 +89,15 @@ export default function AssignItemPage() {
     const renderSortIcon = (key: SortKey) => {
         if (sortKey !== key) return null;
         return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
+    };
+    
+    const getCleanupTitle = () => {
+        switch (cleanupType) {
+            case 'product': return 'Producto';
+            case 'location': return 'Ubicación';
+            case 'rack': return 'Rack';
+            default: return '';
+        }
     };
 
 
@@ -116,6 +125,7 @@ export default function AssignItemPage() {
                                         <Button variant="outline"><Trash2 className="mr-2 h-4 w-4"/> Herramientas de Limpieza</Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent>
+                                        <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('rack')}>Limpiar por Rack...</DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('product')}>Limpiar por Producto...</DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('location')}>Limpiar por Ubicación...</DropdownMenuItem>
                                     </DropdownMenuContent>
@@ -307,23 +317,34 @@ export default function AssignItemPage() {
                 <Dialog open={isCleanupDialogOpen} onOpenChange={setIsCleanupDialogOpen}>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Limpiar Asignaciones por {cleanupType === 'product' ? 'Producto' : 'Ubicación'}</DialogTitle>
+                            <DialogTitle>Limpiar Asignaciones por {getCleanupTitle()}</DialogTitle>
                             <DialogDescription>
-                                Selecciona {cleanupType === 'product' ? 'el producto' : 'la ubicación'} para eliminar todas sus asignaciones. Esta acción es irreversible.
+                                Selecciona {
+                                    cleanupType === 'product' ? 'el producto' : 
+                                    cleanupType === 'rack' ? 'el rack' : 
+                                    'la ubicación'
+                                } para eliminar todas sus asignaciones. Esta acción es irreversible.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-4">
                             <SearchInput
-                                options={cleanupType === 'product' ? selectors.cleanupProductOptions : selectors.cleanupLocationOptions}
+                                options={
+                                    cleanupType === 'product' ? selectors.cleanupProductOptions : 
+                                    cleanupType === 'rack' ? selectors.cleanupRackOptions : 
+                                    selectors.cleanupLocationOptions
+                                }
                                 onSelect={(value) => {
-                                    const options = cleanupType === 'product' ? selectors.cleanupProductOptions : selectors.cleanupLocationOptions;
+                                    const options = 
+                                        cleanupType === 'product' ? selectors.cleanupProductOptions : 
+                                        cleanupType === 'rack' ? selectors.cleanupRackOptions : 
+                                        selectors.cleanupLocationOptions;
                                     setItemToClean(options.find(opt => opt.value === value) || null);
                                 }}
                                 value={cleanupSearchTerm}
                                 onValueChange={actions.setCleanupSearchTerm}
                                 open={isCleanupSearchOpen}
                                 onOpenChange={actions.setIsCleanupSearchOpen}
-                                placeholder={`Buscar ${cleanupType === 'product' ? 'producto' : 'ubicación'}...`}
+                                placeholder={`Buscar ${getCleanupTitle().toLowerCase()}...`}
                             />
                         </div>
                         <DialogFooter>
