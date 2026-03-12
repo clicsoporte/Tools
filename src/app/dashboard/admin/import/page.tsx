@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Admin page for managing data imports from external sources (files or SQL DB).
  * This component allows administrators to configure import paths, connection strings,
@@ -26,7 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type ImportType = ImportQuery['type'];
-const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys', 'suppliers', 'erp_order_headers', 'erp_order_lines', 'erp_purchase_order_headers', 'erp_purchase_order_lines', 'employees', 'departments', 'positions', 'payrolls', 'salespersons'];
+const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys', 'suppliers', 'erp_order_headers', 'erp_order_lines', 'erp_purchase_order_headers', 'erp_purchase_order_lines', 'erp_invoice_headers', 'erp_invoice_lines', 'employees', 'departments', 'positions', 'payrolls', 'salespersons'];
 
 const importTypeTranslations: { [key in ImportType]: string } = {
     customers: 'Clientes',
@@ -40,6 +38,8 @@ const importTypeTranslations: { [key in ImportType]: string } = {
     erp_order_lines: 'Pedidos ERP (Líneas)',
     erp_purchase_order_headers: 'Órdenes de Compra ERP (Cabeceras)',
     erp_purchase_order_lines: 'Órdenes de Compra ERP (Líneas)',
+    erp_invoice_headers: 'Facturas ERP (Cabeceras)',
+    erp_invoice_lines: 'Facturas ERP (Líneas)',
     employees: 'Empleados (RRHH)',
     departments: 'Departamentos (RRHH)',
     positions: 'Puestos (RRHH)',
@@ -58,6 +58,8 @@ const defaultQueries: { [key in ImportType]?: string } = {
     erp_order_lines: "SELECT T1.[PEDIDO], T1.[PEDIDO_LINEA], T1.[ARTICULO], T1.[CANTIDAD_PEDIDA], T1.[PRECIO_UNITARIO] FROM [GAREND].[PEDIDO_LINEA] AS T1 INNER JOIN [GAREND].[PEDIDO] AS T0 ON T1.PEDIDO = T0.PEDIDO WHERE T0.FECHA_PEDIDO >= DATEADD(day, -60, GETDATE()) AND T1.[ESTADO] NOT IN ('F', 'C')",
     erp_purchase_order_headers: "SELECT [ORDEN_COMPRA], [PROVEEDOR], [FECHA_HORA], [ESTADO], [CreatedBy] FROM [SOFTLAND].[GAREND].[ORDEN_COMPRA]",
     erp_purchase_order_lines: "SELECT [ORDEN_COMPRA], [ARTICULO], [CANTIDAD_ORDENADA] FROM [SOFTLAND].[GAREND].[ORDEN_COMPRA_LINEA]",
+    erp_invoice_headers: "SELECT [CLIENTE], [NOMBRE_CLIENTE], [TIPO_DOCUMENTO], [FACTURA], [PEDIDO], [FACTURA_ORIGINAL], [FECHA], [FECHA_ENTREGA], [ANULADA], [EMBARCAR_A], [DIRECCION_FACTURA], [OBSERVACIONES], [RUTA], [USUARIO], [USUARIO_ANULA], [ZONA], [VENDEDOR], [REIMPRESO] FROM [SOFTLAND].[GAREND].[FACTURA]",
+    erp_invoice_lines: "SELECT [FACTURA], [TIPO_DOCUMENTO], [LINEA], [BODEGA], [PEDIDO], [ARTICULO], [ANULADA], [FECHA_FACTURA], [CANTIDAD], [PRECIO_UNITARIO], [TOTAL_IMPUESTO1], [PRECIO_TOTAL], [DESCRIPCION], [DOCUMENTO_ORIGEN], [CANT_DESPACHADA], [ES_CANASTA_BASICA] FROM [SOFTLAND].[GAREND].[FACTURA_LINEA]",
     employees: '',
     departments: '',
     positions: '',
@@ -76,6 +78,8 @@ const importTypeFieldMapping: { [key in ImportType]?: keyof Company } = {
     suppliers: 'supplierFilePath',
     erp_purchase_order_headers: 'erpPurchaseOrderHeaderFilePath',
     erp_purchase_order_lines: 'erpPurchaseOrderLineFilePath',
+    erp_invoice_headers: 'erpInvoiceHeaderFilePath',
+    erp_invoice_lines: 'erpInvoiceLineFilePath',
 };
 
 /**

@@ -34,9 +34,13 @@ import {
     getRecentPhysicalCounts as getRecentPhysicalCountsServer,
     saveAdjustment as saveAdjustmentServer,
     annulPeriodClosure as annulPeriodClosureServer,
-    getAdjustmentsInPeriod
+    getAdjustmentsInPeriod,
+    linkInvoiceToClosure as linkInvoiceToClosureServer,
 } from './db';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow } from '@/modules/core/types';
+import { 
+    searchErpInvoices as searchErpInvoicesServer 
+} from '@/modules/core/lib/db';
+import type { ErpInvoiceHeader, ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -486,7 +490,7 @@ export async function getLatestPhysicalCount(agreementId: number): Promise<Physi
     return getLatestPhysicalCountServer(agreementId);
 }
 
-export async function getPeriodClosures(filters: {} = {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; })[]> {
+export async function getPeriodClosures(filters: {} = {}): Promise<(PeriodClosure & { client_name: string; client_id: string; is_initial_inventory: boolean; })[]> {
     return getPeriodClosuresServer(filters);
 }
 
@@ -537,4 +541,14 @@ export async function saveAdjustment(payload: { agreementId: number; productId: 
 
 export async function annulPeriodClosure(closureId: number, updatedBy: string): Promise<PeriodClosure> {
     return await annulPeriodClosureServer(closureId, updatedBy);
+}
+
+export async function linkInvoiceToClosure(closureId: number, invoiceNumber: string, userName: string): Promise<void> {
+    await authorizeAction('consignments:boleta:invoice'); // Re-using invoice permission
+    return linkInvoiceToClosureServer(closureId, invoiceNumber, userName);
+}
+
+export async function searchErpInvoices(clientId: string, searchTerm: string): Promise<ErpInvoiceHeader[]> {
+    await authorizeAction('consignments:boleta:invoice'); // Re-using invoice permission
+    return searchErpInvoicesServer(clientId, searchTerm);
 }

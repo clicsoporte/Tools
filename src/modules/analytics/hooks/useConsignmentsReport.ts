@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Hook for managing the logic for the new Consignments Report page.
  */
@@ -63,7 +62,7 @@ export function useConsignmentsReport() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [state, setState] = useState<State>({
-        isLoading: true,
+        isLoading: false,
         hasRun: false,
         dateRange: { from: undefined, to: undefined },
         agreements: [],

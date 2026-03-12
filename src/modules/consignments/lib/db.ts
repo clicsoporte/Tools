@@ -5,7 +5,7 @@
 
 import { connectDb, getCompanySettings, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow, PeriodClosureStatus } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow, PeriodClosureStatus, ErpInvoiceHeader } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -697,9 +697,9 @@ export async function getPhysicalCountByRef(agreementId: number, countedAt: stri
     return JSON.parse(JSON.stringify(counts));
 }
 
-export async function getPeriodClosures(filters: { agreementId?: number } = {}): Promise<(PeriodClosure & { client_name: string; is_initial_inventory: boolean; })[]> {
+export async function getPeriodClosures(filters: { agreementId?: number } = {}): Promise<(PeriodClosure & { client_name: string; client_id: string; is_initial_inventory: boolean; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    let query = 'SELECT pc.*, ca.client_name FROM period_closures pc JOIN consignment_agreements ca ON pc.agreement_id = ca.id';
+    let query = 'SELECT pc.*, ca.client_name, ca.client_id FROM period_closures pc JOIN consignment_agreements ca ON pc.agreement_id = ca.id';
     const params: any[] = [];
     if (filters.agreementId) {
         query += ' WHERE pc.agreement_id = ?';
@@ -1036,4 +1036,42 @@ export async function releaseAgreementLock(agreementId: number, userId: number):
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     // Only release the lock if the current user is the one who holds it.
     db.prepare('UPDATE consignment_agreements SET locked_by = NULL, locked_by_user_id = NULL, locked_at = NULL WHERE id = ? AND locked_by_user_id = ?').run(agreementId, userId);
+}
+
+
+export async function linkInvoiceToClosure(closureId: number, invoiceNumber: string, userName: string): Promise<void> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+
+    db.transaction(() => {
+        const closure = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closureId) as PeriodClosure | undefined;
+        if (!closure || closure.status !== 'approved') {
+            throw new Error("El cierre no fue encontrado o no está aprobado.");
+        }
+
+        const previousClosure = closure.previous_closure_id 
+            ? db.prepare('SELECT * FROM period_closures WHERE id = ?').get(closure.previous_closure_id) as PeriodClosure
+            : null;
+
+        const startDate = previousClosure ? parseISO(previousClosure.created_at) : new Date(0);
+        const endDate = parseISO(closure.created_at);
+
+        const boletasToUpdate = db.prepare(`
+            SELECT id FROM restock_boletas
+            WHERE agreement_id = ? 
+            AND created_at > ? 
+            AND created_at <= ?
+            AND status IN ('approved', 'sent', 'invoiced')
+        `).all(closure.agreement_id, startDate.toISOString(), endDate.toISOString()) as { id: number }[];
+
+        if (boletasToUpdate.length > 0) {
+            const boletaIds = boletasToUpdate.map(b => b.id);
+            const placeholders = boletaIds.map(() => '?').join(',');
+            db.prepare(`UPDATE restock_boletas SET erp_invoice_number = ? WHERE id IN (${placeholders})`).run(invoiceNumber, ...boletaIds);
+        }
+
+        db.prepare("UPDATE period_closures SET erp_invoice_number = ?, invoiced_at = datetime('now'), status = 'invoiced' WHERE id = ?")
+            .run(invoiceNumber, closureId);
+
+        logInfo(`Linked invoice ${invoiceNumber} to closure ${closure.consecutive}`, { user: userName, closureId, boletasUpdated: boletasToUpdate.length });
+    })();
 }

@@ -1841,5 +1841,5 @@ export async function searchErpInvoices(clientId: string, searchTerm: string): P
         ORDER BY FECHA DESC 
         LIMIT 10
     `).all(clientId, `%${searchTerm}%`) as ErpInvoiceHeader[];
-    return results;
+    return JSON.parse(JSON.stringify(results));
 }

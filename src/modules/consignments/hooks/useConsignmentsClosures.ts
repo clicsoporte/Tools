@@ -15,7 +15,7 @@ import {
     getAgreementDetails, 
     getRecentPhysicalCounts, 
     createClosureFromCount,
-    getConsignmentAgreements, // Import missing function
+    getConsignmentAgreements,
     annulPeriodClosure,
     linkInvoiceToClosure,
     searchErpInvoices,
@@ -29,7 +29,7 @@ interface State {
     isInitialLoading: boolean;
     isRefreshing: boolean;
     isSubmitting: boolean;
-    closures: (PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[];
+    closures: (PeriodClosure & { client_name: string; client_id: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[];
     isDetailsModalOpen: boolean;
     isDetailsLoading: boolean;
     selectedClosure: (PeriodClosure & { is_initial_inventory: boolean }) | null;
@@ -54,7 +54,7 @@ interface State {
     closureToAnnul: PeriodClosure | null;
     // Link Invoice state
     isLinkInvoiceModalOpen: boolean;
-    closureToLinkInvoice: (PeriodClosure & { client_name: string; }) | null;
+    closureToLinkInvoice: (PeriodClosure & { client_name: string; client_id: string; }) | null;
     invoiceSearchTerm: string;
     searchedInvoices: ErpInvoiceHeader[];
     isInvoiceLoading: boolean;
@@ -173,7 +173,7 @@ export const useConsignmentsClosures = () => {
         }
     };
     
-    const openLinkInvoiceModal = (closure: PeriodClosure & { client_name: string }) => {
+    const openLinkInvoiceModal = (closure: PeriodClosure & { client_name: string; client_id: string; }) => {
         updateState({
             closureToLinkInvoice: closure,
             isLinkInvoiceModalOpen: true,
