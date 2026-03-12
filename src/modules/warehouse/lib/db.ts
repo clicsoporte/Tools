@@ -698,7 +698,43 @@ export async function unassignAllByRack(rackId: number, userName: string): Promi
     transaction();
 }
 
+export async function unassignAllByLevel(levelId: number, userName: string): Promise<void> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
 
+    const transaction = db.transaction(() => {
+        const allLocations = db.prepare('SELECT * FROM locations').all() as WarehouseLocation[];
+        
+        const locationsToClearIds = new Set<number>();
+        const queue: number[] = [levelId];
+        const visited = new Set<number>();
+
+        while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            if (visited.has(currentId)) continue;
+            visited.add(currentId);
+            locationsToClearIds.add(currentId);
+            
+            const children = allLocations.filter(l => l.parentId === currentId);
+            children.forEach(child => queue.push(child.id));
+        }
+        
+        if (locationsToClearIds.size === 0) {
+            logWarn(`unassignAllByLevel called for non-existent or empty level ID: ${levelId}.`, { user: userName });
+            return;
+        }
+        
+        const placeholders = Array.from(locationsToClearIds).map(() => '?').join(',');
+        
+        const deleteResult = db.prepare(`DELETE FROM item_locations WHERE locationId IN (${placeholders})`).run(...Array.from(locationsToClearIds));
+        
+        const updateResult = db.prepare(`UPDATE locations SET population_status = 'P', is_mixed = 0 WHERE id IN (${placeholders})`).run(...Array.from(locationsToClearIds));
+
+        logWarn(`All assignments under level ID ${levelId} (${deleteResult.changes} deleted) were cleared by ${userName}. ${updateResult.changes} location statuses were reset.`);
+    });
+    
+    transaction();
+}
+//... rest of file
 export async function addInventoryUnit(unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive' | 'status'>): Promise<InventoryUnit> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     

@@ -55,7 +55,7 @@ export default function AssignItemPage() {
     const { setTitle } = usePageTitle();
     const { state, actions, selectors } = useItemLocation();
     
-    const [cleanupType, setCleanupType] = React.useState<'product' | 'location' | 'rack' | null>(null);
+    const [cleanupType, setCleanupType] = React.useState<'product' | 'location' | 'rack' | 'level' | null>(null);
     const [isCleanupDialogOpen, setIsCleanupDialogOpen] = React.useState(false);
     const [itemToClean, setItemToClean] = React.useState<{ value: string; label: string } | null>(null);
     const [isConfirmCleanupOpen, setIsConfirmCleanupOpen] = React.useState(false);
@@ -72,7 +72,7 @@ export default function AssignItemPage() {
         cleanupSearchTerm, isCleanupSearchOpen,
     } = state;
     
-    const handleOpenCleanupDialog = (type: 'product' | 'location' | 'rack') => {
+    const handleOpenCleanupDialog = (type: 'product' | 'location' | 'rack' | 'level') => {
         setCleanupType(type);
         setItemToClean(null);
         actions.setCleanupSearchTerm('');
@@ -96,6 +96,7 @@ export default function AssignItemPage() {
             case 'product': return 'Producto';
             case 'location': return 'Ubicación';
             case 'rack': return 'Rack';
+            case 'level': return 'Nivel';
             default: return '';
         }
     };
@@ -126,6 +127,7 @@ export default function AssignItemPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent>
                                         <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('rack')}>Limpiar por Rack...</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('level')}>Limpiar por Nivel...</DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('product')}>Limpiar por Producto...</DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('location')}>Limpiar por Ubicación...</DropdownMenuItem>
                                     </DropdownMenuContent>
@@ -322,6 +324,7 @@ export default function AssignItemPage() {
                                 Selecciona {
                                     cleanupType === 'product' ? 'el producto' : 
                                     cleanupType === 'rack' ? 'el rack' : 
+                                    cleanupType === 'level' ? 'el nivel' : 
                                     'la ubicación'
                                 } para eliminar todas sus asignaciones. Esta acción es irreversible.
                             </DialogDescription>
@@ -331,12 +334,14 @@ export default function AssignItemPage() {
                                 options={
                                     cleanupType === 'product' ? selectors.cleanupProductOptions : 
                                     cleanupType === 'rack' ? selectors.cleanupRackOptions : 
+                                    cleanupType === 'level' ? selectors.cleanupLevelOptions : 
                                     selectors.cleanupLocationOptions
                                 }
                                 onSelect={(value) => {
                                     const options = 
                                         cleanupType === 'product' ? selectors.cleanupProductOptions : 
                                         cleanupType === 'rack' ? selectors.cleanupRackOptions : 
+                                        cleanupType === 'level' ? selectors.cleanupLevelOptions : 
                                         selectors.cleanupLocationOptions;
                                     setItemToClean(options.find(opt => opt.value === value) || null);
                                 }}

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Hook to manage the state and logic for the ItemLocation assignment page.
+ * @fileoverview Hook to manage the logic for the ItemLocation assignment page.
  */
 'use client';
 
@@ -7,8 +7,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getLocations, getAllItemLocations, assignItemToLocation, unassignItemFromLocation, getSelectableLocations, unassignAllByProduct, unassignAllByLocation, checkAssignmentConflict, unassignAllByRack } from '@/modules/warehouse/lib/actions';
-import type { Product, Customer, WarehouseLocation, ItemLocation } from '@/modules/core/types';
+import { 
+    getLocations, getAllItemLocations, assignItemToLocation, 
+    unassignItemFromLocation, getSelectableLocations, unassignAllByProduct, 
+    unassignAllByLocation, checkAssignmentConflict, unassignAllByRack, unassignAllByLevel,
+    getWarehouseSettings,
+} from '@/modules/warehouse/lib/actions';
+import type { Product, Customer, WarehouseLocation, ItemLocation, WarehouseSettings } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 
@@ -53,6 +58,7 @@ interface State {
     sortKey: SortKey;
     sortDirection: SortDirection;
     formData: typeof emptyFormData;
+    warehouseSettings: WarehouseSettings | null;
     productSearchTerm: string;
     isProductSearchOpen: boolean;
     clientSearchTerm: string;
@@ -89,6 +95,7 @@ export function useItemLocation() {
         sortKey: 'updatedAt',
         sortDirection: 'desc',
         formData: emptyFormData,
+        warehouseSettings: null,
         productSearchTerm: '',
         isProductSearchOpen: false,
         clientSearchTerm: '',
@@ -117,9 +124,10 @@ export function useItemLocation() {
     const loadInitialData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const [locs, allAssigns] = await Promise.all([getLocations(), getAllItemLocations()]);
+            const [locs, allAssigns, settings] = await Promise.all([getLocations(), getAllItemLocations(), getWarehouseSettings()]);
             setAllLocations(locs);
             setAllAssignments(allAssigns.sort((a, b) => (b.id ?? 0) - (a.id ?? 0)));
+            updateState({ warehouseSettings: settings });
         } catch (error) {
             logError("Failed to load data for assignment page", { error });
             toast({ title: "Error de Carga", description: "No se pudieron cargar los datos necesarios.", variant: "destructive" });
@@ -179,6 +187,17 @@ export function useItemLocation() {
         return allLocations.filter(l => l.type === 'rack' && (l.name.toLowerCase().includes(searchTerm) || l.code.toLowerCase().includes(searchTerm)))
             .map(r => ({ value: String(r.id), label: `${r.name} (${r.code})` }));
     }, [allLocations, debouncedCleanupSearch]);
+
+    const cleanupLevelOptions = useMemo(() => {
+        const searchTerm = debouncedCleanupSearch.trim().toLowerCase();
+        if (!state.warehouseSettings || searchTerm.length < 1) return [];
+        
+        const levelType = state.warehouseSettings.locationLevels.find(l => l.name.toLowerCase().includes('nivel') || l.name.toLowerCase().includes('estante'))?.type;
+        if (!levelType) return [];
+
+        return allLocations.filter(l => l.type === levelType && renderLocationPathAsString(l.id, allLocations).toLowerCase().includes(searchTerm))
+            .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, allLocations) }));
+    }, [allLocations, debouncedCleanupSearch, state.warehouseSettings]);
 
 
     const handleSelectProduct = (value: string) => {
@@ -397,7 +416,7 @@ export function useItemLocation() {
         });
     };
 
-    const handleCleanup = async (type: 'product' | 'location' | 'rack', id: string | number) => {
+    const handleCleanup = async (type: 'product' | 'location' | 'rack' | 'level', id: string | number) => {
         if (!user) return;
         updateState({ isSubmitting: true });
         try {
@@ -412,6 +431,10 @@ export function useItemLocation() {
                 const rack = allLocations.find(l => l.id === id);
                 await unassignAllByRack(id, user.name);
                 toast({ title: "Limpieza de Rack Completada", description: `Se eliminaron todas las asignaciones del rack ${rack?.name || ''}.` });
+            } else if (type === 'level' && typeof id === 'number') {
+                const level = allLocations.find(l => l.id === id);
+                await unassignAllByLevel(id, user.name);
+                toast({ title: "Limpieza de Nivel Completada", description: `Se eliminaron todas las asignaciones del nivel ${level?.name || ''}.` });
             }
             await loadInitialData(); // Refresh data
         } catch (e: any) {
@@ -429,7 +452,7 @@ export function useItemLocation() {
         selectors: {
             paginatedAssignments, totalPages, filteredAssignments,
             productOptions, clientOptions, locationOptions, hasPermission,
-            cleanupProductOptions, cleanupLocationOptions, cleanupRackOptions,
+            cleanupProductOptions, cleanupLocationOptions, cleanupRackOptions, cleanupLevelOptions,
             getProductName: (id: string) => authProducts.find(p => p.id === id)?.description || 'Desconocido',
             getClientName: (id: string | null | undefined) => id ? authCustomers.find(c => c.id === id)?.name : 'General',
             getLocationPath: (id: number) => renderLocationPathAsString(id, allLocations)
