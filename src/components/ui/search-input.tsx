@@ -19,7 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { ScrollArea, ScrollViewport } from "./scroll-area";
+import { ScrollArea } from "./scroll-area";
 
 export interface SearchInputProps {
   options: { label: string; value: string; className?: string }[];
@@ -48,7 +48,6 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
   }, ref) => {
     
     const showPopover = open && options.length > 0;
-    const scrollViewportRef = React.useRef<HTMLDivElement>(null);
     
     const handleSelect = (optionValue: string) => {
         // Close the popover immediately for a snappier user experience.
@@ -62,13 +61,6 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
         if (!open) onOpenChange(true);
     };
     
-    // This function handles the mouse wheel event to enable scrolling the list.
-    const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-      if (scrollViewportRef.current) {
-        scrollViewportRef.current.scrollTop += e.deltaY;
-      }
-    };
-
     return (
         <Popover open={showPopover} onOpenChange={onOpenChange}>
             <div className={cn("relative w-full", className)}>
@@ -91,11 +83,11 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                 className="w-[var(--radix-popover-trigger-width)] p-0" 
                 align="start"
                 onOpenAutoFocus={(e) => e.preventDefault()}
-                onWheel={handleWheel} // Attach wheel event here
+                onPointerDownOutside={(e) => e.preventDefault()} // Fix for nested dialogs
             >
                 <Command shouldFilter={false}>
+                    {/* CommandList is intrinsically scrollable, but ScrollArea gives a consistent scrollbar */}
                     <ScrollArea className="h-auto max-h-72">
-                      <ScrollViewport ref={scrollViewportRef}>
                         <CommandList>
                             {options.length > 0 ? (
                                 options.map((option) => (
@@ -110,7 +102,6 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                                 ))
                             ) : null }
                         </CommandList>
-                      </ScrollViewport>
                     </ScrollArea>
                 </Command>
             </PopoverContent>
