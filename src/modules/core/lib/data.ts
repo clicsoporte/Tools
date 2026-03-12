@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file contains the initial or default data for the application.
  * This data is used to populate the database on its first run.
@@ -266,8 +265,8 @@ export const consignmentsTools: Tool[] = [
         bgColor: "bg-orange-600",
     },
     {
-        id: "consignments:boleta:approve",
-        name: "Gestión de Cierres",
+        id: "consignments:closures:create",
+        name: "Gestión de Cierres y Facturación",
         description: "Administrar y facturar los cierres de período de consignación.",
         href: "/dashboard/consignments/cierres",
         icon: FileSignature,
@@ -444,8 +443,8 @@ export const adminTools: Tool[] = [
 export const consignmentsReportTools: Tool[] = [
     {
         id: 'analytics:consignments-report:read',
-        name: 'Reporte de Cierre (Analítico)',
-        description: 'Analiza el consumo de un cliente en un rango de fechas flexible.',
+        name: 'Análisis de Consumo (Flexible)',
+        description: 'Analiza el consumo de un cliente en un rango de fechas flexible. No para facturación oficial.',
         href: '/dashboard/analytics/consignments-report',
         icon: BarChartBig,
         bgColor: 'bg-lime-600',
@@ -453,7 +452,7 @@ export const consignmentsReportTools: Tool[] = [
     {
         id: 'consignments:boleta:approve',
         name: 'Reporte de Facturación (Oficial)',
-        description: 'Gestiona los cierres y genera el reporte de facturación oficial desde un período aprobado.',
+        description: 'Gestiona cierres y genera el reporte de facturación oficial desde un período aprobado.',
         href: '/dashboard/consignments/cierres',
         icon: FileSignature,
         bgColor: 'bg-indigo-600',

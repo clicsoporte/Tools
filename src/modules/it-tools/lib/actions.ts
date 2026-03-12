@@ -5,7 +5,7 @@
 
 import type { ITNote } from '@/modules/core/types';
 import { getNotes as getNotesServer, saveNote as saveNoteServer, deleteNote as deleteNoteServer } from './db';
-import { adminTools, analyticsTools, mainTools, warehouseTools, consignmentsTools, itTools } from '@/modules/core/lib/data';
+import { adminTools, analyticsTools, mainTools, warehouseTools, consignmentsTools, itTools, invoicesTools } from '@/modules/core/lib/data';
 
 export async function getNotes(): Promise<ITNote[]> {
     return getNotesServer();
@@ -23,6 +23,7 @@ export async function getAvailableModules(): Promise<{ id: string, name: string 
     // Combine all tool lists to get a comprehensive list of modules & sub-modules
     const allTools = [
         ...mainTools,
+        ...invoicesTools,
         ...adminTools,
         ...analyticsTools,
         ...warehouseTools,
@@ -37,6 +38,7 @@ export async function getAvailableModules(): Promise<{ id: string, name: string 
         'operations', // Module is under construction
         'warehouse', // It's a container, we have specific warehouse tools
         'consignments', // It's a container now too
+        'invoices', // It's a container as well
     ]);
     
     const modulesMap = new Map<string, { id: string; name: string }>();
