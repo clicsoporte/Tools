@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook to manage the logic for the ItemLocation assignment page.
  */
@@ -9,7 +10,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { 
     getLocations, getAllItemLocations, assignItemToLocation, 
-    unassignItemFromLocation, getSelectableLocations,
+    unassignItemFromLocation, getSelectableLocations, 
     checkAssignmentConflict,
 } from '@/modules/warehouse/lib/actions';
 import type { Product, Customer, WarehouseLocation, ItemLocation, WarehouseSettings } from '@/modules/core/types';
@@ -400,8 +401,6 @@ export function useItemLocation() {
             setLocationSearchTerm: (term: string) => updateState({ locationSearchTerm: term }),
             setIsLocationSearchOpen: (open: boolean) => updateState({ isLocationSearchOpen: open }),
             handleSelectLocation,
-            setCleanupSearchTerm: (term: string) => updateState({ cleanupSearchTerm: term }),
-            setIsCleanupSearchOpen: (open: boolean) => updateState({ isCleanupSearchOpen: open }),
             handleSort,
             setMoveProductConfirmOpen: (open: boolean) => updateState({ moveProductConfirmOpen: open }),
             setMixedLocationConfirmOpen: (open: boolean) => updateState({ mixedLocationConfirmOpen: open }),

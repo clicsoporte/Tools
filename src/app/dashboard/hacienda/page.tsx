@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -415,7 +416,7 @@ export default function HaciendaQueryPage() {
                             <div className="flex items-center gap-2">
                                 <SearchInput
                                     options={customerOptions}
-                                    onSelect={executeUnifiedSearch}
+                                    onSelect={(option) => executeUnifiedSearch(option.value)}
                                     value={unifiedSearchInput}
                                     onValueChange={handleSearchInputChange}
                                     placeholder="Buscar cliente por código, nombre o cédula..."

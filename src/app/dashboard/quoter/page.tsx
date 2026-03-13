@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview The main Quoter page.
  * This component provides the user interface for creating, managing, and generating quotes.
@@ -230,7 +231,7 @@ export default function QuoterPage() {
                 <SearchInput
                   ref={refs.customerInputRef}
                   options={selectors.customerOptions}
-                  onSelect={actions.handleSelectCustomer}
+                  onSelect={(option) => actions.handleSelectCustomer(option.value)}
                   value={state.customerSearchTerm}
                   onValueChange={actions.setCustomerSearchTerm}
                   placeholder="Buscar cliente por código, nombre o cédula..."
@@ -429,7 +430,7 @@ export default function QuoterPage() {
                 <SearchInput
                     ref={refs.productInputRef}
                     options={selectors.productOptions}
-                    onSelect={actions.handleSelectProduct}
+                    onSelect={(option) => actions.handleSelectProduct(option.value)}
                     value={state.productSearchTerm}
                     onValueChange={actions.setProductSearchTerm}
                     onKeyDown={actions.handleProductInputKeyDown}

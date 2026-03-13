@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -94,23 +95,23 @@ export default function PlannerClient() {
         const netDifference = (order.deliveredQuantity ?? 0) - (order.defectiveQuantity ?? 0) - order.quantity;
         
         const changeStatusActions = [
-            { check: permissions.canSendToReview, action: () => actions.openStatusDialog(order, 'pending-review'), label: 'Enviar a Revisión', icon: <Send className="mr-2"/>, className: 'text-cyan-600' },
-            { check: permissions.canGoBackToPending, action: () => actions.openStatusDialog(order, 'pending'), label: 'Devolver a Pendiente', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' },
-            { check: permissions.canSendToApproval, action: () => actions.openStatusDialog(order, 'pending-approval'), label: 'Enviar a Aprobación', icon: <ShoppingBag className="mr-2"/>, className: 'text-orange-600' },
-            { check: permissions.canGoBackToReview, action: () => actions.openStatusDialog(order, 'pending-review'), label: 'Devolver a Revisión', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' },
-            { check: permissions.canConfirmModification, action: () => actions.setOrderToConfirmModification(order), label: 'Confirmar Modificación', icon: <Check className="mr-2"/>, className: 'text-green-600 font-bold' },
-            { check: permissions.canApprove, action: () => actions.openStatusDialog(order, 'approved'), label: 'Aprobar', icon: <Check className="mr-2"/>, className: 'text-green-600' },
-            { check: permissions.canQueue, action: () => actions.openStatusDialog(order, 'in-queue'), label: 'Poner en Cola', icon: <Hourglass className="mr-2"/>, className: 'text-cyan-600' },
-            { check: permissions.canStart, action: () => actions.openStatusDialog(order, 'in-progress'), label: 'Iniciar Progreso', icon: <Play className="mr-2"/>, className: 'text-blue-600' },
-            { check: permissions.canResumeFromHold, action: () => actions.openStatusDialog(order, 'in-progress'), label: 'Reanudar Progreso', icon: <Play className="mr-2"/>, className: 'text-blue-600' },
-            { check: permissions.canHold, action: () => actions.openStatusDialog(order, 'on-hold'), label: 'Poner en Espera', icon: <Pause className="mr-2"/>, className: 'text-gray-600' },
-            { check: permissions.canMaintain, action: () => actions.openStatusDialog(order, 'in-maintenance'), label: 'Poner en Mantenimiento', icon: <Wrench className="mr-2"/>, className: 'text-gray-600' },
-            { check: permissions.canComplete, action: () => actions.openStatusDialog(order, 'completed'), label: 'Marcar como Completada', icon: <PackageCheck className="mr-2"/>, className: 'text-indigo-600' },
-            { check: permissions.canReceive, action: () => actions.openStatusDialog(order, 'received-in-warehouse'), label: 'Recibir en Bodega', icon: <PackageCheck className="mr-2"/>, className: 'text-gray-700' },
-            { check: permissions.canRequestUnapproval, action: () => actions.openAdminActionDialog(order, 'unapproval-request'), label: 'Solicitar Desaprobación', icon: <AlertTriangle className="mr-2"/>, className: 'text-orange-600' },
-            { check: permissions.canCancelPending, action: () => actions.openStatusDialog(order, 'canceled'), label: 'Cancelar Orden', icon: <XCircle className="mr-2"/>, className: 'text-red-600' },
-            { check: permissions.canRequestCancel, action: () => actions.openAdminActionDialog(order, 'cancellation-request'), label: 'Solicitar Cancelación', icon: <XCircle className="mr-2"/>, className: 'text-red-600 font-bold' },
-            { check: permissions.canReopen, action: () => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }, label: 'Reabrir', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' }
+            { check: permissions.canSendToReview.allowed, action: () => actions.openStatusDialog(order, 'pending-review'), label: 'Enviar a Revisión', icon: <Send className="mr-2"/>, className: 'text-cyan-600' },
+            { check: permissions.canGoBackToPending.allowed, action: () => actions.openStatusDialog(order, 'pending'), label: 'Devolver a Pendiente', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' },
+            { check: permissions.canSendToApproval.allowed, action: () => actions.openStatusDialog(order, 'pending-approval'), label: 'Enviar a Aprobación', icon: <ShoppingBag className="mr-2"/>, className: 'text-orange-600' },
+            { check: permissions.canGoBackToReview.allowed, action: () => actions.openStatusDialog(order, 'pending-review'), label: 'Devolver a Revisión', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' },
+            { check: permissions.canConfirmModification.allowed, action: () => actions.setOrderToConfirmModification(order), label: 'Confirmar Modificación', icon: <Check className="mr-2"/>, className: 'text-green-600 font-bold' },
+            { check: permissions.canApprove.allowed, action: () => actions.openStatusDialog(order, 'approved'), label: 'Aprobar', icon: <Check className="mr-2"/>, className: 'text-green-600' },
+            { check: permissions.canQueue.allowed, action: () => actions.openStatusDialog(order, 'in-queue'), label: 'Poner en Cola', icon: <Hourglass className="mr-2"/>, className: 'text-cyan-600' },
+            { check: permissions.canStart.allowed, action: () => actions.openStatusDialog(order, 'in-progress'), label: 'Iniciar Progreso', icon: <Play className="mr-2"/>, className: 'text-blue-600' },
+            { check: permissions.canResumeFromHold.allowed, action: () => actions.openStatusDialog(order, 'in-progress'), label: 'Reanudar Progreso', icon: <Play className="mr-2"/>, className: 'text-blue-600' },
+            { check: permissions.canHold.allowed, action: () => actions.openStatusDialog(order, 'on-hold'), label: 'Poner en Espera', icon: <Pause className="mr-2"/>, className: 'text-gray-600' },
+            { check: permissions.canMaintain.allowed, action: () => actions.openStatusDialog(order, 'in-maintenance'), label: 'Poner en Mantenimiento', icon: <Wrench className="mr-2"/>, className: 'text-gray-600' },
+            { check: permissions.canComplete.allowed, action: () => actions.openStatusDialog(order, 'completed'), label: 'Marcar como Completada', icon: <PackageCheck className="mr-2"/>, className: 'text-indigo-600' },
+            { check: permissions.canReceive.allowed, action: () => actions.openStatusDialog(order, 'received-in-warehouse'), label: 'Recibir en Bodega', icon: <PackageCheck className="mr-2"/>, className: 'text-gray-700' },
+            { check: permissions.canRequestUnapproval.allowed, action: () => actions.openAdminActionDialog(order, 'unapproval-request'), label: 'Solicitar Desaprobación', icon: <AlertTriangle className="mr-2"/>, className: 'text-orange-600 font-bold' },
+            { check: permissions.canCancelPending.allowed, action: () => actions.openStatusDialog(order, 'canceled'), label: 'Cancelar Orden', icon: <XCircle className="mr-2"/>, className: 'text-red-600' },
+            { check: permissions.canRequestCancel.allowed, action: () => actions.openAdminActionDialog(order, 'cancellation-request'), label: 'Solicitar Cancelación', icon: <XCircle className="mr-2"/>, className: 'text-red-600' },
+            { check: permissions.canReopen.allowed, action: () => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }, label: 'Reabrir', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' }
         ];
 
         return (
@@ -336,10 +337,7 @@ export default function PlannerClient() {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <h1 className="text-lg font-semibold md:text-2xl">Órdenes de Producción</h1>
                     <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-                        <Button variant="outline" onClick={() => actions.loadInitialData(true)} disabled={isRefreshing || isLoading}>
-                            {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
-                            Refrescar
-                        </Button>
+                        <Button variant="outline" onClick={() => actions.loadInitialData(true)} disabled={isRefreshing || isLoading}>{isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}Refrescar</Button>
                         <div className="flex items-center gap-1">
                             <Button variant={viewingArchived ? "outline" : "secondary"} onClick={() => actions.setViewingArchived(false)}>Activas ({selectors.totalActiveCount})</Button>
                             <Button variant={viewingArchived ? "secondary" : "outline"} onClick={() => actions.setViewingArchived(true)}>Archivadas ({selectors.totalArchivedCount})</Button>
@@ -361,7 +359,7 @@ export default function PlannerClient() {
                                                     <Label htmlFor="customer-search">Cliente</Label>
                                                     <SearchInput
                                                         options={selectors.customerOptions}
-                                                        onSelect={actions.handleSelectCustomer}
+                                                        onSelect={(option) => actions.handleSelectCustomer(option.value)}
                                                         value={customerSearchTerm}
                                                         onValueChange={actions.setCustomerSearchTerm}
                                                         placeholder="Buscar cliente..."
@@ -374,7 +372,7 @@ export default function PlannerClient() {
                                                     <Label htmlFor="product-search">Producto</Label>
                                                     <SearchInput
                                                         options={selectors.productOptions}
-                                                        onSelect={actions.handleSelectProduct}
+                                                        onSelect={(option) => actions.handleSelectProduct(option.value)}
                                                         value={productSearchTerm}
                                                         onValueChange={actions.setProductSearchTerm}
                                                         placeholder="Buscar producto..."
@@ -469,7 +467,7 @@ export default function PlannerClient() {
             </div>
             
             <div className="flex-1 overflow-auto space-y-4 pt-2">
-                {(isLoading && !isRefreshing) ? (
+                {(isLoading && !state.isRefreshing) ? (
                     Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-56 w-full" />)
                 ) : selectors.filteredOrders.length > 0 ? (
                     selectors.filteredOrders.map(renderOrderCard)

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview New page for physical inventory counting.
  * This component allows users to select a product and location, and input the physically counted quantity.
@@ -9,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, List, ScanLine, CheckCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2, Save, List, ScanLine, CheckCircle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useInventoryCount, CountMode } from '@/modules/warehouse/hooks/useInventoryCount';
 import { SearchInput } from '@/components/ui/search-input';
@@ -37,7 +38,7 @@ const ManualMode = () => {
                 <div className="space-y-2">
                     <Label>1. Seleccione una Ubicación</Label>
                     <div className="flex items-center gap-2">
-                        <SearchInput options={selectors.locationOptions} onSelect={actions.handleSelectLocation} value={locationSearchTerm} onValueChange={actions.setLocationSearchTerm} placeholder="Buscar... ('*' o vacío para ver todas)" open={isLocationSearchOpen} onOpenChange={actions.setLocationSearchOpen} />
+                        <SearchInput options={selectors.locationOptions} onSelect={(option) => actions.handleSelectLocation(option.value)} value={locationSearchTerm} onValueChange={actions.setLocationSearchTerm} placeholder="Buscar... ('*' o vacío para ver todas)" open={isLocationSearchOpen} onOpenChange={actions.setLocationSearchOpen} />
                         <Button type="button" variant="outline" size="icon" onClick={() => { actions.setLocationSearchTerm('*'); actions.setLocationSearchOpen(true); }}>
                             <List className="h-4 w-4" />
                         </Button>
@@ -45,7 +46,7 @@ const ManualMode = () => {
                 </div>
                 <div className="space-y-2">
                     <Label>2. Seleccione un Producto</Label>
-                    <SearchInput options={selectors.productOptions} onSelect={actions.handleSelectProduct} value={productSearchTerm} onValueChange={actions.setProductSearchTerm} placeholder="Buscar producto..." open={isProductSearchOpen} onOpenChange={actions.setProductSearchOpen} />
+                    <SearchInput options={selectors.productOptions} onSelect={(option) => actions.handleSelectProduct(option.value)} value={productSearchTerm} onValueChange={actions.setProductSearchTerm} placeholder="Buscar producto..." open={isProductSearchOpen} onOpenChange={actions.setProductSearchOpen} />
                 </div>
                 <div className="space-y-2">
                     <Label>3. Ingrese la Cantidad Contada</Label>

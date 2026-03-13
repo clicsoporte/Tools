@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Page for creating consignment inventory adjustments.
  */
@@ -47,7 +48,7 @@ export default function ConsignmentsAdjustmentsPage() {
                         <Label>1. Selecciona el Cliente</Label>
                         <SearchInput
                             options={selectors.agreementOptions}
-                            onSelect={actions.handleSelectAgreement}
+                            onSelect={(option) => actions.handleSelectAgreement(option.value)}
                             value={state.agreementSearchTerm}
                             onValueChange={actions.setAgreementSearchTerm}
                             open={state.isAgreementSearchOpen}
@@ -62,7 +63,7 @@ export default function ConsignmentsAdjustmentsPage() {
                                 <Label>2. Selecciona el Producto</Label>
                                 <SearchInput
                                     options={selectors.productOptions}
-                                    onSelect={actions.handleSelectProduct}
+                                    onSelect={(option) => actions.handleSelectProduct(option.value)}
                                     value={state.productSearchTerm}
                                     onValueChange={actions.setProductSearchTerm}
                                     open={state.isProductSearchOpen}

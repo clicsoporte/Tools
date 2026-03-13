@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview New page for the receiving wizard.
  * Allows warehouse staff to register incoming products and assign them to locations.
@@ -76,7 +77,7 @@ export default function ReceivingWizardPage() {
                             <Label htmlFor="product-search" className="text-lg font-semibold">1. Buscar o escanear el Producto</Label>
                             <SearchInput
                                 options={selectors.productOptions}
-                                onSelect={actions.handleSelectProduct}
+                                onSelect={(option) => actions.handleSelectProduct(option.value)}
                                 value={productSearchTerm}
                                 onValueChange={actions.setProductSearchTerm}
                                 onKeyDown={actions.handleProductSearchKeyDown}
@@ -134,7 +135,7 @@ export default function ReceivingWizardPage() {
                                     <div className="flex items-center gap-2">
                                         <SearchInput
                                             options={selectors.locationOptions}
-                                            onSelect={actions.handleSelectLocation}
+                                            onSelect={(option) => actions.handleSelectLocation(option.value)}
                                             value={locationSearchTerm}
                                             onValueChange={actions.setLocationSearchTerm}
                                             placeholder="Buscar ubicación por código o nombre..."

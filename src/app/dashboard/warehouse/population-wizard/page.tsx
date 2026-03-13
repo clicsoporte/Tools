@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Page component for the guided rack population wizard.
  * This component consumes the `usePopulationWizard` hook to render the UI.
@@ -41,7 +42,7 @@ export default function PopulationWizardPage() {
                             <Label>1. Selecciona el Rack</Label>
                             <SearchInput
                                 options={selectors.rackOptions}
-                                onSelect={actions.handleSelectRack}
+                                onSelect={(option) => actions.handleSelectRack(option.value)}
                                 placeholder="Busca un rack por nombre o código..."
                                 value={rackSearchTerm}
                                 onValueChange={actions.setRackSearchTerm}
@@ -117,7 +118,7 @@ export default function PopulationWizardPage() {
                          <div className="flex flex-col gap-4">
                             <SearchInput
                                 options={selectors.productOptions}
-                                onSelect={actions.handleProductSelect}
+                                onSelect={(option) => actions.handleProductSelect(option.value)}
                                 value={productSearch}
                                 onValueChange={actions.setProductSearch}
                                 placeholder="Escanear o buscar producto..."

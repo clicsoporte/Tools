@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -219,7 +220,7 @@ export default function CorrectionClient() {
                                             <Label htmlFor="new-product">Producto</Label>
                                             <SearchInput
                                                 options={selectors.productOptions}
-                                                onSelect={actions.handleSelectNewProduct}
+                                                onSelect={(option) => actions.handleSelectNewProduct(option.value)}
                                                 value={newProductSearch}
                                                 onValueChange={actions.setNewProductSearch}
                                                 open={isNewProductSearchOpen}

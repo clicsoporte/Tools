@@ -136,7 +136,7 @@ function LocationForm({ initialLocation, allLocations, settings, onSave, onCance
                     <div className="flex items-center gap-2">
                         <SearchInput 
                             options={parentLocationOptions}
-                            onSelect={handleSelectParent}
+                            onSelect={(option) => handleSelectParent(option.value)}
                             value={parentSearchTerm}
                             onValueChange={setParentSearchTerm}
                             placeholder="Buscar ubicación padre..."

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Page for associating products with clients and warehouse locations.
  * This tool allows users to create a catalog-like mapping, indicating where
@@ -55,11 +56,6 @@ export default function AssignItemPage() {
     const { setTitle } = usePageTitle();
     const { state, actions, selectors } = useItemLocation();
     
-    const [cleanupType, setCleanupType] = React.useState<'product' | 'location' | 'rack' | 'level' | null>(null);
-    const [isCleanupDialogOpen, setIsCleanupDialogOpen] = React.useState(false);
-    const [itemToClean, setItemToClean] = React.useState<{ value: string; label: string } | null>(null);
-    const [isConfirmCleanupOpen, setIsConfirmCleanupOpen] = React.useState(false);
-    
     React.useEffect(() => {
         setTitle("Catálogo de Clientes por Artículo");
     }, [setTitle]);
@@ -69,38 +65,12 @@ export default function AssignItemPage() {
         globalFilter, currentPage, rowsPerPage, sortKey, sortDirection,
         formData, productSearchTerm, isProductSearchOpen,
         clientSearchTerm, isClientSearchOpen, locationSearchTerm, isLocationSearchOpen,
-        cleanupSearchTerm, isCleanupSearchOpen,
     } = state;
-    
-    const handleOpenCleanupDialog = (type: 'product' | 'location' | 'rack' | 'level') => {
-        setCleanupType(type);
-        setItemToClean(null);
-        actions.setCleanupSearchTerm('');
-        setIsCleanupDialogOpen(true);
-    };
-
-    const handleConfirmCleanup = () => {
-        if (!cleanupType || !itemToClean) return;
-        const id = (cleanupType === 'product') ? itemToClean.value : Number(itemToClean.value);
-        actions.handleCleanup(cleanupType, id);
-        setIsCleanupDialogOpen(false);
-    };
 
     const renderSortIcon = (key: SortKey) => {
         if (sortKey !== key) return null;
         return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
     };
-    
-    const getCleanupTitle = () => {
-        switch (cleanupType) {
-            case 'product': return 'Producto';
-            case 'location': return 'Ubicación';
-            case 'rack': return 'Rack';
-            case 'level': return 'Nivel';
-            default: return '';
-        }
-    };
-
 
     if (isLoading) {
         return (
@@ -121,17 +91,6 @@ export default function AssignItemPage() {
                                 <CardDescription>Gestiona las ubicaciones y la exclusividad de los productos de tus clientes.</CardDescription>
                             </div>
                             <div className="flex gap-2">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline"><Trash2 className="mr-2 h-4 w-4"/> Herramientas de Limpieza</Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('rack')}>Limpiar por Rack...</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('level')}>Limpiar por Nivel...</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('product')}>Limpiar por Producto...</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => handleOpenCleanupDialog('location')}>Limpiar por Ubicación...</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
                                 {selectors.hasPermission('warehouse:item-assignment:create') && (
                                     <Button onClick={actions.openCreateForm}>
                                         <PlusCircle className="mr-2 h-4 w-4"/>Asociar Producto a Cliente
@@ -272,12 +231,12 @@ export default function AssignItemPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                             <div className="space-y-2">
                                 <Label>Producto <span className="text-destructive">*</span></Label>
-                                <SearchInput options={selectors.productOptions} onSelect={actions.handleSelectProduct} value={productSearchTerm} onValueChange={actions.setProductSearchTerm} placeholder="Buscar producto..." open={isProductSearchOpen} onOpenChange={actions.setIsProductSearchOpen} disabled={isEditing}/>
+                                <SearchInput options={selectors.productOptions} onSelect={(option) => actions.handleSelectProduct(option.value)} value={productSearchTerm} onValueChange={actions.setProductSearchTerm} placeholder="Buscar producto..." open={isProductSearchOpen} onOpenChange={actions.setIsProductSearchOpen} disabled={isEditing}/>
                             </div>
                             <div className="space-y-2">
                                 <Label>Ubicación <span className="text-destructive">*</span></Label>
                                 <div className="flex items-center gap-2">
-                                    <SearchInput options={selectors.locationOptions} onSelect={actions.handleSelectLocation} value={locationSearchTerm} onValueChange={actions.setLocationSearchTerm} placeholder="Buscar... ('*' para ver todas)" open={isLocationSearchOpen} onOpenChange={actions.setIsLocationSearchOpen} disabled={isEditing}/>
+                                    <SearchInput options={selectors.locationOptions} onSelect={(option) => actions.handleSelectLocation(option.value)} value={locationSearchTerm} onValueChange={actions.setLocationSearchTerm} placeholder="Buscar... ('*' para ver todas)" open={isLocationSearchOpen} onOpenChange={actions.setIsLocationSearchOpen} disabled={isEditing}/>
                                     <Button type="button" variant="outline" size="icon" onClick={() => {actions.setLocationSearchTerm('*'); actions.setIsLocationSearchOpen(true)}} disabled={isEditing}>
                                         <List className="h-4 w-4" />
                                     </Button>
@@ -286,7 +245,7 @@ export default function AssignItemPage() {
                             <div className="space-y-2 md:col-span-2">
                                 <Label>Cliente (Opcional)</Label>
                                 <div className="flex items-center gap-2">
-                                    <SearchInput options={selectors.clientOptions} onSelect={(val) => actions.handleSelectClient(val)} value={clientSearchTerm} onValueChange={actions.setClientSearchTerm} placeholder="Buscar cliente..." open={isClientSearchOpen} onOpenChange={actions.setIsClientSearchOpen} />
+                                    <SearchInput options={selectors.clientOptions} onSelect={(option) => actions.handleSelectClient(option.value)} value={clientSearchTerm} onValueChange={actions.setClientSearchTerm} placeholder="Buscar cliente..." open={isClientSearchOpen} onOpenChange={actions.setIsClientSearchOpen} />
                                     <Button type="button" variant="outline" size="icon" onClick={() => actions.handleSelectClient(null)}>
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>
@@ -313,66 +272,6 @@ export default function AssignItemPage() {
                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isEditing ? 'Guardar Cambios' : 'Crear Asignación'}
                             </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-                <Dialog open={isCleanupDialogOpen} onOpenChange={setIsCleanupDialogOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Limpiar Asignaciones por {getCleanupTitle()}</DialogTitle>
-                            <DialogDescription>
-                                Selecciona {
-                                    cleanupType === 'product' ? 'el producto' : 
-                                    cleanupType === 'rack' ? 'el rack' : 
-                                    cleanupType === 'level' ? 'el nivel' : 
-                                    'la ubicación'
-                                } para eliminar todas sus asignaciones. Esta acción es irreversible.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <SearchInput
-                                options={
-                                    cleanupType === 'product' ? selectors.cleanupProductOptions : 
-                                    cleanupType === 'rack' ? selectors.cleanupRackOptions : 
-                                    cleanupType === 'level' ? selectors.cleanupLevelOptions : 
-                                    selectors.cleanupLocationOptions
-                                }
-                                onSelect={(value) => {
-                                    const options = 
-                                        cleanupType === 'product' ? selectors.cleanupProductOptions : 
-                                        cleanupType === 'rack' ? selectors.cleanupRackOptions : 
-                                        cleanupType === 'level' ? selectors.cleanupLevelOptions : 
-                                        selectors.cleanupLocationOptions;
-                                    setItemToClean(options.find(opt => opt.value === value) || null);
-                                }}
-                                value={cleanupSearchTerm}
-                                onValueChange={actions.setCleanupSearchTerm}
-                                open={isCleanupSearchOpen}
-                                onOpenChange={actions.setIsCleanupSearchOpen}
-                                placeholder={`Buscar ${getCleanupTitle().toLowerCase()}...`}
-                            />
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                            <AlertDialog open={isConfirmCleanupOpen} onOpenChange={setIsConfirmCleanupOpen}>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" disabled={!itemToClean || isSubmitting}>
-                                        Limpiar Asignaciones
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Se eliminarán TODAS las asignaciones para <strong>{itemToClean?.label}</strong>. Esta acción no se puede deshacer.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleConfirmCleanup}>Sí, limpiar todo</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>

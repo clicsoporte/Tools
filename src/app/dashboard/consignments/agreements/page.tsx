@@ -99,7 +99,7 @@ export default function AgreementsPage() {
                                                     <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
                                                     <AlertDialogDescription>
                                                         {state.agreementToDelete?.boleta_count && state.agreementToDelete.boleta_count > 0 
-                                                            ? `No se puede eliminar. El acuerdo tiene ${state.agreementToDelete.boleta_count} boleta(s) asociadas. Por favor, elimínelas primero.`
+                                                            ? `No se puede eliminar. El acuerdo tiene ${state.agreementToDelete.boleta_count} boleta(s) asociada(s). Por favor, elimínelas primero.`
                                                             : `Esta acción eliminará permanentemente el acuerdo para ${state.agreementToDelete?.client_name}.`
                                                         }
                                                     </AlertDialogDescription>
@@ -137,7 +137,7 @@ export default function AgreementsPage() {
                                 <Label htmlFor="client-search">Cliente</Label>
                                 <SearchInput
                                     options={selectors.customerOptions}
-                                    onSelect={(value) => actions.handleFieldChange('client_id', value)}
+                                    onSelect={(option) => actions.handleFieldChange('client_id', option.value)}
                                     value={state.clientSearchTerm}
                                     onValueChange={actions.setClientSearchTerm}
                                     open={state.isClientSearchOpen}
@@ -150,7 +150,7 @@ export default function AgreementsPage() {
                                 <Label htmlFor="erp-warehouse">Bodega ERP Asignada (sin IVA)</Label>
                                 <SearchInput
                                     options={selectors.warehouseOptions}
-                                    onSelect={(value) => actions.handleFieldChange('erp_warehouse_id', value)}
+                                    onSelect={(option) => actions.handleFieldChange('erp_warehouse_id', option.value)}
                                     value={state.warehouseSearchTerm}
                                     onValueChange={actions.setWarehouseSearchTerm}
                                     open={state.isWarehouseSearchOpen}
@@ -226,7 +226,7 @@ export default function AgreementsPage() {
                             <div className="space-y-2">
                                 <SearchInput
                                     options={selectors.productOptions}
-                                    onSelect={actions.addProductToAgreement}
+                                    onSelect={(option) => actions.addProductToAgreement(option.value)}
                                     value={state.productSearchTerm}
                                     onValueChange={actions.setProductSearchTerm}
                                     open={state.isProductSearchOpen}
@@ -279,5 +279,3 @@ export default function AgreementsPage() {
         </main>
     );
 }
-
-    

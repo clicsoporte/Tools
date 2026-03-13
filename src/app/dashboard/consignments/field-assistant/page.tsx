@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Page component for the new unified Consignment Field Assistant.
  * This component guides the user through client selection, action selection, and counting.
@@ -39,7 +40,7 @@ export default function FieldAssistantPage() {
                     <CardContent className="flex flex-col gap-4 items-center w-full max-w-sm mx-auto">
                         <SearchInput
                             options={selectors.agreementOptions}
-                            onSelect={actions.handleSelectClient}
+                            onSelect={(option) => actions.handleSelectClient(option.value)}
                             value={clientSearchTerm}
                             onValueChange={actions.setClientSearchTerm}
                             open={isClientSearchOpen}

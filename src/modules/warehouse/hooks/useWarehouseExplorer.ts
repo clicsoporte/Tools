@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -138,7 +139,7 @@ export function useWarehouseExplorer() {
 
         const assignedLocationIds = new Set<number>();
         const items = state.allAssignments
-            .filter(a => leafNodeIds.includes(a.locationId))
+            .filter(a => a.locationId && leafNodeIds.includes(a.locationId))
             .map(a => {
                 assignedLocationIds.add(a.locationId);
                 const product = products.find(p => p.id === a.itemId);

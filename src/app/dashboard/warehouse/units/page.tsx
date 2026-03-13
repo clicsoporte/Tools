@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Page for managing individual inventory units (pallets, boxes, etc.).
  * Allows creation of unique trackable units, assignment to products and locations,
@@ -249,7 +250,7 @@ export default function ManageUnitsPage() {
             
             doc.setFontSize(9).setFont('Helvetica', 'normal');
             const descLines = doc.splitTextToSize(product?.description || 'Descripción no disponible', rightColWidth);
-            doc.text(descLines, rightColX, currentY);
+            doc.text(descLines, textX, currentY);
             currentY += (descLines.length * 0.15) + 0.2;
             
             doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Lote/ID: ${unit.humanReadableId || 'N/A'}`, rightColX, currentY);
@@ -306,12 +307,12 @@ export default function ManageUnitsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>1. Producto <span className="text-destructive">*</span></Label>
-                                <SearchInput options={productOptions} onSelect={handleSelectProduct} value={productSearchTerm} onValueChange={setProductSearchTerm} placeholder="Buscar producto..." open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen} />
+                                <SearchInput options={productOptions} onSelect={(option) => handleSelectProduct(option.value)} value={productSearchTerm} onValueChange={setProductSearchTerm} placeholder="Buscar producto..." open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen} />
                             </div>
                              <div className="space-y-2">
                                 <Label>2. Ubicación <span className="text-destructive">*</span></Label>
                                  <div className="flex items-center gap-2">
-                                    <SearchInput options={locationOptions} onSelect={handleSelectLocation} value={locationSearchTerm} onValueChange={setLocationSearchTerm} placeholder="Buscar... ('*' o vacío para ver todas)" open={isLocationSearchOpen} onOpenChange={setIsLocationSearchOpen} />
+                                    <SearchInput options={locationOptions} onSelect={(option) => handleSelectLocation(option.value)} value={locationSearchTerm} onValueChange={setLocationSearchTerm} placeholder="Buscar... ('*' o vacío para ver todas)" open={isLocationSearchOpen} onOpenChange={setIsLocationSearchOpen} />
                                     <Button type="button" variant="outline" size="icon" onClick={() => {setLocationSearchTerm('*'); setIsLocationSearchOpen(true);}}>
                                         <List className="h-4 w-4" />
                                     </Button>

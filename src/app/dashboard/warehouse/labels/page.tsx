@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Page for the Label Center tool.
  * Allows users to generate and print labels for warehouse locations or products in locations.
@@ -62,7 +63,7 @@ export default function LabelCenterPage() {
                             <Label className="font-semibold text-lg">Paso 1: Selecciona un Rack Raíz</Label>
                              <SearchInput
                                 options={selectors.rackOptions}
-                                onSelect={actions.handleSelectRack}
+                                onSelect={(option) => actions.handleSelectRack(option.value)}
                                 value={state.rackSearchTerm}
                                 onValueChange={actions.setRackSearchTerm}
                                 open={state.isRackSearchOpen}

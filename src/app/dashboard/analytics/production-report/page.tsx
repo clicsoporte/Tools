@@ -111,7 +111,7 @@ export default function ProductionReportPage() {
                     </Popover>
                     <SearchInput
                         options={selectors.productOptions}
-                        onSelect={actions.setProductFilter}
+                        onSelect={(option) => actions.setProductFilter(option.value)}
                         value={productSearchTerm}
                         onValueChange={actions.setProductSearchTerm}
                         placeholder="Filtrar por producto..."
