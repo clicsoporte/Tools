@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getLocations, getRacks, unassignMultipleItemsFromLocation } from '@/modules/warehouse/lib/actions';
+import { getLocations, unassignMultipleItemsFromLocation } from '@/modules/warehouse/lib/actions';
 import type { WarehouseLocation, ItemLocation, Product } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -35,6 +35,7 @@ interface State {
     allAssignments: ItemLocation[];
     searchTerm: string;
     detailsSearchTerm: string;
+    selectedBuildingId: number | null;
     selectedRackId: number | null;
     selectedLevelId: number | null;
     highlightedPath: Set<number>;
@@ -53,6 +54,7 @@ export function useWarehouseExplorer() {
         allAssignments: [],
         searchTerm: '',
         detailsSearchTerm: '',
+        selectedBuildingId: null,
         selectedRackId: null,
         selectedLevelId: null,
         highlightedPath: new Set(),
@@ -117,6 +119,10 @@ export function useWarehouseExplorer() {
 
     }, [debouncedSearchTerm, state.allLocations, updateState, getAncestors]);
     
+    const selectBuilding = (buildingId: number) => {
+        updateState({ selectedBuildingId: buildingId, selectedRackId: null, selectedLevelId: null });
+    };
+
     const selectRack = (rackId: number) => {
         updateState({ selectedRackId: rackId, selectedLevelId: null });
     };
@@ -124,10 +130,15 @@ export function useWarehouseExplorer() {
     const selectLevel = (levelId: number) => {
         updateState({ selectedLevelId: levelId });
     };
+    
+    const buildings = useMemo(() => {
+        return state.allLocations.filter(l => l.parentId === null).sort((a,b) => a.name.localeCompare(b.name));
+    }, [state.allLocations]);
 
     const racks = useMemo(() => {
-        return state.allLocations.filter(l => l.type === 'rack').sort((a,b) => a.name.localeCompare(b.name));
-    }, [state.allLocations]);
+        if (!state.selectedBuildingId) return [];
+        return state.allLocations.filter(l => l.parentId === state.selectedBuildingId).sort((a,b) => a.name.localeCompare(b.name));
+    }, [state.allLocations, state.selectedBuildingId]);
 
     const levels = useMemo(() => {
         if (!state.selectedRackId) return [];
@@ -135,22 +146,37 @@ export function useWarehouseExplorer() {
     }, [state.allLocations, state.selectedRackId]);
 
     const getChildrenRecursive = useCallback((parentId: number): number[] => {
-        const children = state.allLocations.filter(l => l.parentId === parentId).map(l => l.id);
-        if (children.length === 0) return [parentId]; // It's a leaf node itself
-        return children.flatMap(childId => getChildrenRecursive(childId));
+        const descendants: number[] = [];
+        const queue: number[] = [parentId];
+        const visited = new Set<number>();
+
+        while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            if (visited.has(currentId)) continue;
+            visited.add(currentId);
+
+            const children = state.allLocations.filter(l => l.parentId === currentId);
+
+            if (children.length === 0) { // It's a leaf node
+                descendants.push(currentId);
+            } else {
+                queue.push(...children.map(c => c.id));
+            }
+        }
+        return descendants;
     }, [state.allLocations]);
 
     const details = useMemo(() => {
-        let targetId = state.selectedLevelId || state.selectedRackId;
+        const targetId = state.selectedLevelId || state.selectedRackId || state.selectedBuildingId;
+        
         if (!targetId) {
-            return { title: 'Explorador de Almacén', description: 'Selecciona un rack para empezar.', items: [], emptyLocations: [] };
+            return { title: 'Explorador de Almacén', description: 'Selecciona una bodega o zona para empezar.', items: [], emptyLocations: [] };
         }
 
         const targetNode = state.allLocations.find(l => l.id === targetId);
         if (!targetNode) return { title: 'Error', description: 'Ubicación no encontrada', items: [], emptyLocations: [] };
 
-        const allDescendantIds = getChildrenRecursive(targetId);
-        const leafNodeIds = allDescendantIds.filter(id => !state.allLocations.some(l => l.parentId === id));
+        const leafNodeIds = getChildrenRecursive(targetId);
 
         const assignedLocationIds = new Set<number>();
         
@@ -185,7 +211,7 @@ export function useWarehouseExplorer() {
             items: filteredItems,
             emptyLocations
         };
-    }, [state.selectedRackId, state.selectedLevelId, state.allLocations, state.allAssignments, products, getChildrenRecursive, debouncedDetailsSearchTerm]);
+    }, [state.selectedBuildingId, state.selectedRackId, state.selectedLevelId, state.allLocations, state.allAssignments, products, getChildrenRecursive, debouncedDetailsSearchTerm]);
     
     const handleToggleAssignmentSelection = (assignmentId: number) => {
         updateState({
@@ -234,6 +260,7 @@ export function useWarehouseExplorer() {
         actions: {
             setSearchTerm: (term: string) => updateState({ searchTerm: term }),
             setDetailsSearchTerm: (term: string) => updateState({ detailsSearchTerm: term }),
+            selectBuilding,
             selectRack,
             selectLevel,
             handleCleanup,
@@ -241,6 +268,7 @@ export function useWarehouseExplorer() {
             handleSelectAllAssignments,
         },
         selectors: {
+            buildings,
             racks,
             levels,
             details,
