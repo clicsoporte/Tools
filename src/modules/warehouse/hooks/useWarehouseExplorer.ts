@@ -9,6 +9,7 @@ import { getLocations, unassignMultipleItemsFromLocation } from '@/modules/wareh
 import type { WarehouseLocation, ItemLocation, Product } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
+import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 
 const renderLocationPathAsString = (locationId: number, locations: WarehouseLocation[]): string => {
     if (!locationId) return '';
@@ -44,6 +45,7 @@ interface State {
 
 export function useWarehouseExplorer() {
     useAuthorization(['warehouse:explorer:read']);
+    usePageTitle().setTitle("Explorador de Almacén");
     const { toast } = useToast();
     const { user, products } = useAuth();
 
@@ -77,10 +79,9 @@ export function useWarehouseExplorer() {
             updateState({ allLocations: locs, allAssignments: assigns, isLoading: false });
         } catch (error: any) {
             logError("Error loading data for Warehouse Explorer", { error: error.message });
-            toast({ title: "Error de Carga", variant: "destructive" });
             updateState({ isLoading: false });
         }
-    }, [toast, updateState]);
+    }, [updateState]);
     
     useEffect(() => {
         loadData();
@@ -195,7 +196,9 @@ export function useWarehouseExplorer() {
         const filteredItems = allEnrichedAssignments.filter(item => {
             if (!debouncedDetailsSearchTerm) return true;
             const searchLower = normalizeText(debouncedDetailsSearchTerm);
-            return normalizeText(item.productName).includes(searchLower) || normalizeText(item.itemId).includes(searchLower);
+            return normalizeText(item.productName).includes(searchLower) || 
+                   normalizeText(item.itemId).includes(searchLower) ||
+                   normalizeText(item.locationPath).includes(searchLower);
         });
 
         const emptyLocations = leafNodeIds
