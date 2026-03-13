@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -10,10 +11,10 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { getWarehouseSettings, saveWarehouseSettings, getLocations, addLocation, deleteLocation, updateLocation, addBulkLocations, unassignAllByProduct, unassignAllByLocation, unassignAllByRack, unassignAllByLevel } from '@/modules/warehouse/lib/actions';
+import { getWarehouseSettings, saveWarehouseSettings, getLocations, addLocation, deleteLocation, updateLocation, addBulkLocations } from '@/modules/warehouse/lib/actions';
 import { PlusCircle, Trash2, Edit2, Save, ChevronDown, ChevronRight, Info, Wand2, Copy, List } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { WarehouseSettings, WarehouseLocation, Product } from '@/modules/core/types';
+import { WarehouseSettings, WarehouseLocation } from '@/modules/core/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -22,7 +23,6 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
-import { getSelectableLocations } from '@/modules/warehouse/lib/actions';
 
 const emptyLocation: Omit<WarehouseLocation, 'id'> = { name: '', code: '', type: 'building', parentId: null };
 const initialWizardState = { name: '', prefix: '', levels: '', positions: '', depth: '', parentId: null as number | null };
@@ -224,7 +224,7 @@ export default function ManageLocationsClient() {
     const { isAuthorized } = useAuthorization(['warehouse:locations:update', 'warehouse:locations:delete']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user, companyData, products: authProducts } = useAuth();
+    const { user } = useAuth();
     
     const [settings, setSettings] = useState<WarehouseSettings | null>(null);
     const [locations, setLocations] = useState<WarehouseLocation[]>([]);
@@ -240,13 +240,6 @@ export default function ManageLocationsClient() {
     const [isWizardOpen, setWizardOpen] = useState(false);
     const [wizardData, setWizardData] = useState(initialWizardState);
     const [cloneData, setCloneData] = useState(initialCloneState);
-
-    const [cleanupType, setCleanupType] = React.useState<'product' | 'location' | 'rack' | 'level' | null>(null);
-    const [isCleanupDialogOpen, setIsCleanupDialogOpen] = React.useState(false);
-    const [itemToClean, setItemToClean] = React.useState<{ value: string; label: string } | null>(null);
-    const [isConfirmCleanupOpen, setIsConfirmCleanupOpen] = React.useState(false);
-    const [cleanupSearchTerm, setCleanupSearchTerm] = React.useState('');
-    const [isCleanupSearchOpen, setIsCleanupSearchOpen] = React.useState(false);
 
     const fetchAllData = useCallback(async () => {
         setIsLoading(true);
@@ -271,89 +264,6 @@ export default function ManageLocationsClient() {
             fetchAllData();
         }
     }, [setTitle, fetchAllData, isAuthorized]);
-
-    const [debouncedCleanupSearch] = useDebounce(cleanupSearchTerm, companyData?.searchDebounceTime ?? 300);
-
-    const cleanupProductOptions = useMemo(() => {
-        if (!debouncedCleanupSearch) return [];
-        const searchLower = debouncedCleanupSearch.toLowerCase();
-        if (searchLower.length < 2) return [];
-        return authProducts.filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower))
-            .map(p => ({ value: p.id, label: `[${p.id}] ${p.description}` }));
-    }, [authProducts, debouncedCleanupSearch]);
-
-    const selectableLocations = useMemo(() => getSelectableLocations(locations), [locations]);
-
-    const cleanupLocationOptions = useMemo(() => {
-        const searchTerm = debouncedCleanupSearch.trim().toLowerCase();
-        if (searchTerm === '*' || searchTerm === '') return selectableLocations.map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, locations) }));
-        return selectableLocations.filter(l => renderLocationPathAsString(l.id, locations).toLowerCase().includes(searchTerm))
-            .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, locations) }));
-    }, [locations, selectableLocations, debouncedCleanupSearch]);
-    
-    const cleanupRackOptions = useMemo(() => {
-        const searchTerm = debouncedCleanupSearch.trim().toLowerCase();
-        if (searchTerm.length < 1) return [];
-        return locations.filter(l => l.type === 'rack' && (l.name.toLowerCase().includes(searchTerm) || l.code.toLowerCase().includes(searchTerm)))
-            .map(r => ({ value: String(r.id), label: `${r.name} (${r.code})` }));
-    }, [locations, debouncedCleanupSearch]);
-
-    const cleanupLevelOptions = useMemo(() => {
-        const searchTerm = debouncedCleanupSearch.trim().toLowerCase();
-        if (!settings || searchTerm.length < 1) return [];
-        
-        const levelType = settings.locationLevels.find(l => l.name.toLowerCase().includes('nivel') || l.name.toLowerCase().includes('estante'))?.type;
-        if (!levelType) return [];
-
-        return locations.filter(l => l.type === levelType && renderLocationPathAsString(l.id, locations).toLowerCase().includes(searchTerm))
-            .map(l => ({ value: String(l.id), label: renderLocationPathAsString(l.id, locations) }));
-    }, [locations, debouncedCleanupSearch, settings]);
-    
-    const handleOpenCleanupDialog = (type: 'product' | 'location' | 'rack' | 'level') => {
-        setCleanupType(type);
-        setItemToClean(null);
-        setCleanupSearchTerm('');
-        setIsCleanupDialogOpen(true);
-    };
-
-    const handleConfirmCleanup = () => {
-        if (!cleanupType || !itemToClean) return;
-        const id = (cleanupType === 'product') ? itemToClean.value : Number(itemToClean.value);
-        handleCleanup(cleanupType, id);
-        setIsCleanupDialogOpen(false);
-    };
-
-    const handleCleanup = async (type: 'product' | 'location' | 'rack' | 'level', id: string | number) => {
-        if (!user) return;
-        // The isSubmitting logic is missing from the original hook, let's assume it should be here
-        // No, it's missing. Let's add a local one for this operation.
-        setIsLoading(true); // Re-use isLoading for simplicity
-        try {
-            if (type === 'product' && typeof id === 'string') {
-                await unassignAllByProduct(id, user.name);
-                toast({ title: "Limpieza Completada", description: `Se eliminaron todas las asignaciones para el producto ${id}.` });
-            } else if (type === 'location' && typeof id === 'number') {
-                const locPath = renderLocationPathAsString(id, locations);
-                await unassignAllByLocation(id, user.name);
-                toast({ title: "Limpieza Completada", description: `Se eliminaron todas las asignaciones de la ubicación ${locPath}.` });
-            } else if (type === 'rack' && typeof id === 'number') {
-                const rack = locations.find(l => l.id === id);
-                await unassignAllByRack(id, user.name);
-                toast({ title: "Limpieza de Rack Completada", description: `Se eliminaron todas las asignaciones del rack ${rack?.name || ''}.` });
-            } else if (type === 'level' && typeof id === 'number') {
-                const level = locations.find(l => l.id === id);
-                await unassignAllByLevel(id, user.name);
-                toast({ title: "Limpieza de Nivel Completada", description: `Se eliminaron todas las asignaciones del nivel ${level?.name || ''}.` });
-            }
-            await fetchAllData(); // Refresh data
-        } catch (e: any) {
-            logError('Failed to perform cleanup', { error: e.message, type, id });
-            toast({ title: "Error en la Limpieza", description: e.message, variant: "destructive" });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
 
     const handleAddLevel = () => {
         if (!settings || !newLevelName.trim()) return;
@@ -487,17 +397,6 @@ export default function ManageLocationsClient() {
     if (!isAuthorized) {
         return null;
     }
-
-    const getCleanupTitle = () => {
-        switch (cleanupType) {
-            case 'product': return 'Producto';
-            case 'location': return 'Ubicación';
-            case 'rack': return 'Rack';
-            case 'level': return 'Nivel';
-            default: return '';
-        }
-    };
-
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -682,72 +581,6 @@ export default function ManageLocationsClient() {
                         </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                  
-                <Dialog open={isCleanupDialogOpen} onOpenChange={setIsCleanupDialogOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Limpiar Asignaciones por {getCleanupTitle()}</DialogTitle>
-                            <DialogDescription>
-                                Selecciona {
-                                    cleanupType === 'product' ? 'el producto' : 
-                                    cleanupType === 'rack' ? 'el rack' : 
-                                    cleanupType === 'level' ? 'el nivel' : 
-                                    'la ubicación'
-                                } para eliminar todas sus asignaciones. Esta acción es irreversible.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                             <SearchInput
-                                options={
-                                    cleanupType === 'product' ? cleanupProductOptions : 
-                                    cleanupType === 'rack' ? rackOptions : 
-                                    cleanupType === 'level' ? cleanupLevelOptions : 
-                                    cleanupLocationOptions
-                                }
-                                onSelect={(value) => {
-                                    const options = 
-                                        cleanupType === 'product' ? cleanupProductOptions : 
-                                        cleanupType === 'rack' ? rackOptions : 
-                                        cleanupType === 'level' ? cleanupLevelOptions : 
-                                        cleanupLocationOptions;
-                                    const selectedOption = options.find(opt => opt.value === value);
-                                    setItemToClean(selectedOption || null);
-                                    if (selectedOption) {
-                                        setCleanupSearchTerm(selectedOption.label);
-                                    }
-                                    setIsCleanupSearchOpen(false);
-                                }}
-                                value={cleanupSearchTerm}
-                                onValueChange={setCleanupSearchTerm}
-                                open={isCleanupSearchOpen}
-                                onOpenChange={setIsCleanupSearchOpen}
-                                placeholder={`Buscar ${getCleanupTitle().toLowerCase()}...`}
-                            />
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                            <AlertDialog open={isConfirmCleanupOpen} onOpenChange={setIsConfirmCleanupOpen}>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" disabled={!itemToClean || isLoading}>
-                                        Limpiar Asignaciones
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Se eliminarán TODAS las asignaciones para <strong>{itemToClean?.label}</strong>. Esta acción no se puede deshacer.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleConfirmCleanup}>Sí, limpiar todo</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
             </div>
         </main>
     );

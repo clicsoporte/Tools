@@ -13,7 +13,7 @@ import {
   Palette, UserCheck, ShoppingBag, QrCode, HelpCircle, ClipboardCheck,
   ClipboardList, Wand2, Lock, PackageCheck, RotateCcw, BookUser, GitBranch,
   Construction, BookCopy, Cpu, FileSignature, Settings, ListChecks, FileInput, Box, SlidersHorizontal,
-  Container, Tags, Truck, LayoutGrid, FileSpreadsheet
+  Container, Tags, Truck, LayoutGrid, FileSpreadsheet, Trash2
 } from "lucide-react";
 import { allAdminPermissions } from "./permissions";
 
@@ -217,6 +217,14 @@ export const warehouseTools: Tool[] = [
         href: '/dashboard/warehouse/locks',
         icon: Lock,
         bgColor: 'bg-slate-500',
+    },
+    {
+        id: 'warehouse:cleanup',
+        name: 'Herramientas de Limpieza',
+        description: 'Limpiar asignaciones de productos por rack, nivel, ubicación o producto.',
+        href: '/dashboard/warehouse/cleanup',
+        icon: Trash2,
+        bgColor: 'bg-rose-700',
     }
 ];
 
