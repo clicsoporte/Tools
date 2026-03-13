@@ -18,6 +18,7 @@ import {
     getAllItemLocations as getAllItemLocationsServer,
     assignItemToLocation as assignItemToLocationServer,
     unassignItemFromLocation as unassignItemFromLocationServer,
+    unassignMultipleItemsFromLocation as unassignMultipleItemsFromLocationServer,
     unassignAllByProduct as unassignAllByProductServer,
     unassignAllByLocation as unassignAllByLocationServer,
     unassignAllByRack as unassignAllByRackServer,
@@ -121,6 +122,10 @@ export async function checkAssignmentConflict(payload: { itemId: string; locatio
 export async function unassignItemFromLocation(itemLocationId: number): Promise<void> {
     await logInfo(`Item location mapping with ID ${itemLocationId} was removed.`);
     return unassignItemFromLocationServer(itemLocationId);
+}
+
+export async function unassignMultipleItemsFromLocation(ids: number[], userName: string): Promise<void> {
+    return unassignMultipleItemsFromLocationServer(ids, userName);
 }
 
 export async function unassignAllByProduct(itemId: string, userName: string): Promise<void> {

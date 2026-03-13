@@ -633,6 +633,43 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
     })();
 }
 
+export async function unassignMultipleItemsFromLocation(itemLocationIds: number[], userName: string): Promise<void> {
+    const db = await connectDb(WAREHOUSE_DB_FILE);
+    
+    if (itemLocationIds.length === 0) return;
+
+    const transaction = db.transaction(() => {
+        const placeholders = itemLocationIds.map(() => '?').join(',');
+
+        // Find out which locations are affected before deleting
+        const affectedLocations = db.prepare(`
+            SELECT DISTINCT locationId FROM item_locations WHERE id IN (${placeholders})
+        `).all(...itemLocationIds) as { locationId: number }[];
+        const affectedLocationIds = affectedLocations.map(l => l.locationId);
+        
+        // Delete the assignments
+        const deleteResult = db.prepare(`DELETE FROM item_locations WHERE id IN (${placeholders})`).run(...itemLocationIds);
+        
+        // Recalculate status for each affected location
+        for (const locationId of affectedLocationIds) {
+            const remaining = db.prepare('SELECT COUNT(*) as count FROM item_locations WHERE locationId = ?').get(locationId) as { count: number };
+            if (remaining.count === 0) {
+                db.prepare('UPDATE locations SET population_status = \'P\', is_mixed = 0 WHERE id = ?').run(locationId);
+            } else {
+                updateLocationMixedStatus(db, locationId); // Use existing helper
+            }
+        }
+        logWarn(`${deleteResult.changes} item assignments were deleted in bulk by ${userName}.`);
+    });
+
+    try {
+        transaction();
+    } catch(error: any) {
+        logError('Failed to unassign multiple items', { error: error.message, ids: itemLocationIds, user: userName });
+        throw error;
+    }
+}
+
 export async function unassignAllByProduct(itemId: string, userName: string): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const locationsToUpdate = db.prepare('SELECT DISTINCT locationId FROM item_locations WHERE itemId = ?').all(itemId).map((row: any) => row.locationId);

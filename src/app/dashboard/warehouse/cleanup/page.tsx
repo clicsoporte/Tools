@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Loader2, Search, Trash2, Box, Layers, Building, Waypoints, Package, AlertTriangle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -51,7 +51,6 @@ export default function CleanupToolPage() {
                              <Label htmlFor="search-input" className="font-semibold text-lg">Paso 2: Busca el ítem a limpiar</Label>
                             <div className="flex items-center gap-2">
                                 <SearchInput
-                                    id="search-input"
                                     options={selectors.searchOptions}
                                     onSelect={actions.handleSelect}
                                     value={searchTerm}
