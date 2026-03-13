@@ -23,7 +23,7 @@ import { ScrollArea } from "./scroll-area";
 
 export interface SearchInputProps {
   options: { label: string; value: string; className?: string }[];
-  onSelect: (value: string) => void;
+  onSelect: (option: { value: string; label: string; }) => void;
   placeholder?: string;
   value: string;
   onValueChange: (search: string) => void;
@@ -49,11 +49,11 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
     
     const showPopover = open && options.length > 0;
     
-    const handleSelect = (optionValue: string) => {
+    const handleSelect = (option: { value: string; label: string; }) => {
         // Close the popover immediately for a snappier user experience.
         onOpenChange(false);
         // Then call the onSelect handler passed from the parent.
-        onSelect(optionValue);
+        onSelect(option);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,7 +94,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                                 <CommandItem
                                     key={option.value}
                                     value={option.label}
-                                    onSelect={() => handleSelect(option.value)}
+                                    onSelect={() => handleSelect(option)}
                                     className={cn("cursor-pointer", option.className)}
                                 >
                                     {option.label}

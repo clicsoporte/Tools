@@ -122,15 +122,12 @@ export function useCleanupTool() {
         });
     };
     
-    const handleItemSelect = (value: string) => {
-        const selected = searchOptions.find(opt => opt.value === value);
-        if (selected) {
-            updateState({
-                selectedItem: selected,
-                searchTerm: selected.label,
-                isSearchOpen: false,
-            });
-        }
+    const handleItemSelect = (option: { value: string; label: string }) => {
+        updateState({
+            selectedItem: option,
+            searchTerm: option.label,
+            isSearchOpen: false,
+        });
     };
     
     const handleConfirmCleanup = async () => {
@@ -152,9 +149,9 @@ export function useCleanupTool() {
             }
             toast({ title: 'Limpieza Completada', description: `Se eliminaron las asignaciones para "${selectedItem.label}".` });
             updateState({ selectedItem: null, searchTerm: '' });
-        } catch (error: any) {
-            logError('Cleanup tool action failed', { error: error.message });
-            toast({ title: 'Error en la Limpieza', description: error.message, variant: 'destructive' });
+        } catch (e: any) {
+            logError('Cleanup tool action failed', { error: e.message, type: cleanupType, id });
+            toast({ title: 'Error en la Limpieza', description: e.message, variant: 'destructive' });
         } finally {
             updateState({ isSubmitting: false });
         }
