@@ -53,12 +53,13 @@ export default function CleanupToolPage() {
                                 <SearchInput
                                     id="search-input"
                                     options={selectors.searchOptions}
-                                    onSelect={(option) => actions.handleSelect(option.value)}
+                                    onSelect={actions.handleSelect}
                                     value={searchTerm}
                                     onValueChange={actions.setSearchTerm}
                                     open={state.isSearchOpen}
                                     onOpenChange={actions.setIsSearchOpen}
                                     placeholder={selectors.searchPlaceholder}
+                                    triggerAction="icon"
                                 />
                                 <Button onClick={actions.handleSearch} disabled={!selectedItemId}>
                                     <Search className="mr-2 h-4 w-4" /> Buscar Asignaciones

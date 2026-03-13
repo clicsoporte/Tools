@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "./scroll-area";
+import { Button } from "./button";
 
 export interface SearchInputProps {
   options: { label: string; value: string; className?: string }[];
@@ -32,6 +33,7 @@ export interface SearchInputProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   disabled?: boolean;
+  triggerAction?: 'input' | 'icon';
 }
 
 const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({ 
@@ -45,26 +47,38 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
     open,
     onOpenChange,
     disabled = false,
+    triggerAction = 'input',
   }, ref) => {
     
     const showPopover = open && options.length > 0;
     
     const handleSelect = (option: { value: string; label: string; }) => {
-        // Close the popover immediately for a snappier user experience.
         onOpenChange(false);
-        // Then call the onSelect handler passed from the parent.
         onSelect(option);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         onValueChange(e.target.value);
-        if (!open) onOpenChange(true);
+        if (!open && triggerAction === 'input') {
+            onOpenChange(true);
+        }
     };
     
     return (
         <Popover open={showPopover} onOpenChange={onOpenChange}>
             <div className={cn("relative w-full", className)}>
-                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                 <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:bg-transparent"
+                    onClick={() => onOpenChange(!open)}
+                    aria-label="Mostrar opciones de búsqueda"
+                    tabIndex={-1}
+                    disabled={disabled}
+                >
+                    <Search className="h-4 w-4" />
+                </Button>
                 <PopoverTrigger asChild>
                     <Input
                         ref={ref}
@@ -83,10 +97,11 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                 className="w-[var(--radix-popover-trigger-width)] p-0" 
                 align="start"
                 onOpenAutoFocus={(e) => e.preventDefault()}
-                onPointerDownOutside={(e) => e.preventDefault()} // Fix for nested dialogs
+                onPointerDownOutside={(e) => {
+                    e.preventDefault();
+                }}
             >
                 <Command shouldFilter={false}>
-                    {/* CommandList is intrinsically scrollable, but ScrollArea gives a consistent scrollbar */}
                     <ScrollArea className="h-auto max-h-72">
                         <CommandList>
                             {options.length > 0 ? (

@@ -97,12 +97,8 @@ export function useCleanupTool() {
         });
     };
 
-    const handleSelect = (value: string) => {
-        updateState({ selectedItemId: value, isSearchOpen: false });
-        const selectedOption = selectors.searchOptions.find(opt => opt.value === value);
-        if (selectedOption) {
-            updateState({ searchTerm: selectedOption.label });
-        }
+    const handleSelect = (option: { value: string, label: string }) => {
+        updateState({ selectedItemId: option.value, isSearchOpen: false, searchTerm: option.label });
     };
 
     const handleSearch = () => {
@@ -123,11 +119,11 @@ export function useCleanupTool() {
                 break;
             case 'rack':
                 const rackChildren = getChildrenRecursive(Number(id));
-                foundAssignments = state.allAssignments.filter(a => rackChildren.has(a.locationId));
+                foundAssignments = state.allAssignments.filter(a => a.locationId && rackChildren.has(a.locationId));
                 break;
             case 'level':
                 const levelChildren = getChildrenRecursive(Number(id));
-                foundAssignments = state.allAssignments.filter(a => levelChildren.has(a.locationId));
+                foundAssignments = state.allAssignments.filter(a => a.locationId && levelChildren.has(a.locationId));
                 break;
         }
         
@@ -178,12 +174,20 @@ export function useCleanupTool() {
     const getChildrenRecursive = (parentId: number): Set<number> => {
         const descendants = new Set<number>();
         const queue: number[] = [parentId];
+        const visited = new Set<number>();
+
         while (queue.length > 0) {
             const currentId = queue.shift()!;
-            if (descendants.has(currentId)) continue;
-            descendants.add(currentId);
+            if (visited.has(currentId)) continue;
+            visited.add(currentId);
+            
             const children = state.allLocations.filter(l => l.parentId === currentId).map(l => l.id);
-            queue.push(...children);
+
+            if (children.length === 0) { // It's a leaf node
+                descendants.add(currentId);
+            } else {
+                queue.push(...children);
+            }
         }
         return descendants;
     };
