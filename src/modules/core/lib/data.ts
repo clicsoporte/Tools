@@ -147,6 +147,14 @@ export const warehouseTools: Tool[] = [
         bgColor: 'bg-blue-600',
     },
     {
+        id: 'warehouse:explorer:read',
+        name: 'Explorador de Almacén',
+        description: 'Visualiza la estructura del almacén, su ocupación y realiza limpiezas.',
+        href: '/dashboard/warehouse/explorer',
+        icon: LayoutGrid,
+        bgColor: 'bg-sky-700',
+    },
+    {
         id: 'warehouse:receiving-wizard:use',
         name: 'Asistente de Recepción',
         description: 'Registrar producto terminado o compras y generar etiquetas.',
@@ -218,14 +226,6 @@ export const warehouseTools: Tool[] = [
         icon: Lock,
         bgColor: 'bg-slate-500',
     },
-    {
-        id: 'warehouse:cleanup',
-        name: 'Herramientas de Limpieza',
-        description: 'Limpiar asignaciones de productos por rack, nivel, ubicación o producto.',
-        href: '/dashboard/warehouse/cleanup',
-        icon: Trash2,
-        bgColor: 'bg-rose-700',
-    }
 ];
 
 export const invoicesTools: Tool[] = [
