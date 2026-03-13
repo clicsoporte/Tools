@@ -154,6 +154,14 @@ export const warehouseTools: Tool[] = [
         icon: LayoutGrid,
         bgColor: 'bg-sky-700',
     },
+     {
+        id: 'warehouse:cleanup:execute',
+        name: 'Herramientas de Limpieza',
+        description: 'Elimina asignaciones de productos por rack, nivel, ubicación o producto.',
+        href: '/dashboard/warehouse/cleanup',
+        icon: Trash2,
+        bgColor: 'bg-rose-500'
+    },
     {
         id: 'warehouse:receiving-wizard:use',
         name: 'Asistente de Recepción',

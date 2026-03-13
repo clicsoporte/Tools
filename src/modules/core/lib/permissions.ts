@@ -38,7 +38,8 @@ export const permissionGroups = {
         "warehouse:item-assignment:create", "warehouse:item-assignment:delete",
         "warehouse:locations:create", "warehouse:locations:update", "warehouse:locations:delete",
         "warehouse:units:create", "warehouse:units:delete", "warehouse:locks:manage",
-        "warehouse:correction:execute", "warehouse:correction:apply", "warehouse:labels:generate", "warehouse:explorer:read"
+        "warehouse:correction:execute", "warehouse:correction:apply", "warehouse:labels:generate", 
+        "warehouse:explorer:read", "warehouse:cleanup:execute"
     ],
     "Consultas Hacienda": ["hacienda:query"],
     "Analíticas y Reportes": ["analytics:read", "analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read", "analytics:consignments-report:read"],
@@ -81,7 +82,7 @@ export const permissionTranslations = {
     "warehouse:item-assignment:create": "Almacén: Asignar Ubic./Prod.", "warehouse:item-assignment:delete": "Almacén: Eliminar Asignación",
     "warehouse:locations:create": "Almacén: Crear Ubicaciones", "warehouse:locations:update": "Almacén: Editar Ubicaciones", "warehouse:locations:delete": "Almacén: Eliminar Ubicaciones",
     "warehouse:units:create": "Almacén: Crear Lotes/QR", "warehouse:units:delete": "Almacén: Eliminar Lotes/QR", "warehouse:locks:manage": "Almacén: Gestionar Bloqueos",
-    "warehouse:correction:execute": "Almacén: Corregir Ingreso", "warehouse:correction:apply": "Almacén: Aplicar Ingreso", "warehouse:labels:generate": "Almacén: Generar Etiquetas", "warehouse:explorer:read": "Almacén: Ver Explorador",
+    "warehouse:correction:execute": "Almacén: Corregir Ingreso", "warehouse:correction:apply": "Almacén: Aplicar Ingreso", "warehouse:labels:generate": "Almacén: Generar Etiquetas", "warehouse:explorer:read": "Almacén: Ver Explorador", "warehouse:cleanup:execute": "Almacén: Usar Herramientas de Limpieza",
     "hacienda:query": "Hacienda: Realizar Consultas",
     "analytics:read": "Analíticas: Acceso", "analytics:purchase-suggestions:read": "Analíticas: Sugerencias Compra", "analytics:purchase-report:read": "Analíticas: Reporte Compras", "analytics:production-report:read": "Analíticas: Reporte Producción", "analytics:transits-report:read": "Analíticas: Reporte Tránsitos", "analytics:user-permissions:read": "Analíticas: Reporte Permisos", "analytics:physical-inventory-report:read": "Analíticas: Reporte Inv. Físico", "analytics:receiving-report:read": "Analíticas: Reporte Recepciones", "analytics:item-assignments-report:read": "Analíticas: Reporte Catálogo", "analytics:occupancy-report:read": "Analíticas: Reporte Ocupación", "analytics:consignments-report:read": "Analíticas: Reporte Consignación",
     "users:create": "Usuarios: Crear", "users:read": "Usuarios: Leer", "users:update": "Usuarios: Actualizar", "users:delete": "Usuarios: Eliminar",
@@ -180,8 +181,10 @@ export const permissionTree: Partial<Record<AppPermission, AppPermission[]>> = {
         "warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", 
         "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", 
         "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", 
-        "warehouse:correction:execute", "warehouse:labels:generate", "warehouse:explorer:read"
+        "warehouse:correction:execute", "warehouse:labels:generate", "warehouse:explorer:read",
+        "warehouse:cleanup:execute"
     ],
+    "warehouse:cleanup:execute": ["warehouse:item-assignment:delete"],
     "warehouse:item-assignment:delete": ["warehouse:item-assignment:create"],
     "warehouse:locations:update": ["warehouse:locations:create"],
     "warehouse:locations:delete": ["warehouse:locations:create"],
