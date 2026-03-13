@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getLocations, getRacks, unassignAllByLocation, unassignAllByRack, unassignAllByLevel } from '@/modules/warehouse/lib/actions';
+import { getLocations, getRacks, unassignMultipleItemsFromLocation } from '@/modules/warehouse/lib/actions';
 import type { WarehouseLocation, ItemLocation, Product } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
@@ -27,16 +28,18 @@ const normalizeText = (text: string | null | undefined): string => {
     return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };
 
-type State = {
+interface State {
     isLoading: boolean;
     isSubmitting: boolean;
     allLocations: WarehouseLocation[];
     allAssignments: ItemLocation[];
     searchTerm: string;
+    detailsSearchTerm: string;
     selectedRackId: number | null;
     selectedLevelId: number | null;
     highlightedPath: Set<number>;
-};
+    selectedAssignmentIds: Set<number>;
+}
 
 export function useWarehouseExplorer() {
     useAuthorization(['warehouse:explorer:read']);
@@ -49,12 +52,15 @@ export function useWarehouseExplorer() {
         allLocations: [],
         allAssignments: [],
         searchTerm: '',
+        detailsSearchTerm: '',
         selectedRackId: null,
         selectedLevelId: null,
         highlightedPath: new Set(),
+        selectedAssignmentIds: new Set(),
     });
 
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, 300);
+    const [debouncedDetailsSearchTerm] = useDebounce(state.detailsSearchTerm, 300);
 
     const updateState = useCallback((newState: Partial<State>) => {
         setState(prevState => ({ ...prevState, ...newState }));
@@ -64,7 +70,7 @@ export function useWarehouseExplorer() {
         try {
             const [locs, assigns] = await Promise.all([
                 getLocations(),
-                (await import('@/modules/warehouse/lib/db')).getAllItemLocations(), // Direct import to avoid dependency issues if any
+                (await import('@/modules/warehouse/lib/db')).getAllItemLocations(),
             ]);
             updateState({ allLocations: locs, allAssignments: assigns, isLoading: false });
         } catch (error: any) {
@@ -147,17 +153,25 @@ export function useWarehouseExplorer() {
         const leafNodeIds = allDescendantIds.filter(id => !state.allLocations.some(l => l.parentId === id));
 
         const assignedLocationIds = new Set<number>();
-        const items = state.allAssignments
+        
+        const allEnrichedAssignments = state.allAssignments
             .filter(a => a.locationId && leafNodeIds.includes(a.locationId))
             .map(a => {
-                assignedLocationIds.add(a.locationId);
+                assignedLocationIds.add(a.locationId!);
                 const product = products.find(p => p.id === a.itemId);
                 return {
+                    ...a,
                     productName: product?.description || a.itemId,
                     locationPath: renderLocationPathAsString(a.locationId, state.allLocations),
                 };
             });
-            
+        
+        const filteredItems = allEnrichedAssignments.filter(item => {
+            if (!debouncedDetailsSearchTerm) return true;
+            const searchLower = normalizeText(debouncedDetailsSearchTerm);
+            return normalizeText(item.productName).includes(searchLower) || normalizeText(item.itemId).includes(searchLower);
+        });
+
         const emptyLocations = leafNodeIds
             .filter(id => !assignedLocationIds.has(id))
             .map(id => {
@@ -168,46 +182,70 @@ export function useWarehouseExplorer() {
         return {
             title: targetNode.name,
             description: `Contenido de ${targetNode.code}`,
-            items,
+            items: filteredItems,
             emptyLocations
         };
-    }, [state.selectedRackId, state.selectedLevelId, state.allLocations, state.allAssignments, products, getChildrenRecursive]);
+    }, [state.selectedRackId, state.selectedLevelId, state.allLocations, state.allAssignments, products, getChildrenRecursive, debouncedDetailsSearchTerm]);
     
+    const handleToggleAssignmentSelection = (assignmentId: number) => {
+        updateState({
+            selectedAssignmentIds: new Set(
+                state.selectedAssignmentIds.has(assignmentId)
+                    ? [...state.selectedAssignmentIds].filter(id => id !== assignmentId)
+                    : [...state.selectedAssignmentIds, assignmentId]
+            ),
+        });
+    };
+    
+    const handleSelectAllAssignments = (isChecked: boolean) => {
+        if (isChecked) {
+            updateState({ selectedAssignmentIds: new Set(details.items.map(i => i.id)) });
+        } else {
+            updateState({ selectedAssignmentIds: new Set() });
+        }
+    };
+
     const handleCleanup = async () => {
-        if (!user) return;
-        const targetId = state.selectedLevelId || state.selectedRackId;
-        if (!targetId) {
-            toast({ title: 'Ninguna selección', description: 'Debes seleccionar un rack o nivel para limpiar.', variant: 'destructive' });
+        if (!user || state.selectedAssignmentIds.size === 0) {
+            toast({ title: 'Ninguna selección', description: 'Debes seleccionar al menos una asignación para limpiar.', variant: 'destructive' });
             return;
         }
 
         updateState({ isSubmitting: true });
         try {
-            const cleanupFunction = state.selectedLevelId ? unassignAllByLevel : unassignAllByRack;
-            await cleanupFunction(targetId, user.name);
-            toast({ title: "Limpieza Completada", description: `Se han eliminado todas las asignaciones para la selección.` });
-            await loadData(); // Reload all data
+            await unassignMultipleItemsFromLocation(Array.from(state.selectedAssignmentIds), user.name);
+            toast({ title: "Limpieza Exitosa", description: `${state.selectedAssignmentIds.size} asignacion(es) han sido eliminadas.` });
+            await loadData();
+            updateState({ selectedAssignmentIds: new Set() });
         } catch (error: any) {
-            logError("Failed to perform cleanup from explorer", { error: error.message, targetId });
+            logError("Failed to perform cleanup from explorer", { error: error.message });
             toast({ title: "Error en la Limpieza", description: error.message, variant: "destructive" });
         } finally {
             updateState({ isSubmitting: false });
         }
     };
+    
+    const areAllSelected = useMemo(() => {
+        return details.items.length > 0 && state.selectedAssignmentIds.size === details.items.length;
+    }, [details.items, state.selectedAssignmentIds]);
 
     return {
         state,
         actions: {
             setSearchTerm: (term: string) => updateState({ searchTerm: term }),
+            setDetailsSearchTerm: (term: string) => updateState({ detailsSearchTerm: term }),
             selectRack,
             selectLevel,
             handleCleanup,
+            handleToggleAssignmentSelection,
+            handleSelectAllAssignments,
         },
         selectors: {
             racks,
             levels,
             details,
             isHighlighted: (locationId: number) => state.highlightedPath.has(locationId),
+            areAllSelected,
         }
     };
 }

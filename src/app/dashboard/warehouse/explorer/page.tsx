@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -10,6 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Search, Loader2, Trash2, Box, Layers, Archive, Package, Building, Waypoints } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -120,21 +123,47 @@ export default function WarehouseExplorerPage() {
                                     <p className="text-muted-foreground text-center py-8">Selecciona un rack para ver sus detalles.</p>
                                 ) : (
                                     <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <h4 className="font-semibold">Ocupación</h4>
-                                            {selectors.details.items.length > 0 ? (
-                                                selectors.details.items.map((item, index) => (
-                                                    <div key={index} className="p-2 border rounded-md bg-background">
-                                                        <p className="font-medium flex items-center gap-2">
-                                                            <Package className="h-4 w-4 text-muted-foreground"/> 
-                                                            {item.productName}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground ml-6">Ubicación: {item.locationPath}</p>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <p className="text-sm text-muted-foreground">No hay productos asignados en la selección actual.</p>
-                                            )}
+                                         <div className="space-y-2">
+                                            <h4 className="font-semibold">Ocupación ({selectors.details.items.length})</h4>
+                                             <div className="relative">
+                                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                <Input
+                                                    placeholder="Buscar en esta selección..."
+                                                    value={state.detailsSearchTerm}
+                                                    onChange={(e) => actions.setDetailsSearchTerm(e.target.value)}
+                                                    className="pl-8"
+                                                />
+                                            </div>
+                                            <div className="flex items-center space-x-2 pt-2">
+                                                <Checkbox
+                                                    id="select-all-items"
+                                                    checked={selectors.areAllSelected}
+                                                    onCheckedChange={(checked) => actions.handleSelectAllAssignments(!!checked)}
+                                                    disabled={selectors.details.items.length === 0}
+                                                />
+                                                <Label htmlFor="select-all-items">Seleccionar todo</Label>
+                                            </div>
+                                            <ScrollArea className="h-40 border rounded-md">
+                                                 <div className="p-2 space-y-1">
+                                                    {selectors.details.items.length > 0 ? (
+                                                        selectors.details.items.map(item => (
+                                                            <div key={item.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-background">
+                                                                <Checkbox 
+                                                                    id={`item-${item.id}`}
+                                                                    checked={state.selectedAssignmentIds.has(item.id)}
+                                                                    onCheckedChange={() => actions.handleToggleAssignmentSelection(item.id)}
+                                                                />
+                                                                <Label htmlFor={`item-${item.id}`} className="flex flex-col flex-1 cursor-pointer">
+                                                                    <span className="font-medium">{item.productName}</span>
+                                                                    <span className="text-xs text-muted-foreground">[{item.itemId}] - {item.locationPath}</span>
+                                                                </Label>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="text-center text-sm text-muted-foreground py-4">No hay productos asignados en la selección actual.</div>
+                                                    )}
+                                                </div>
+                                            </ScrollArea>
                                         </div>
                                         <div className="space-y-2">
                                             <h4 className="font-semibold">Ubicaciones Libres ({selectors.details.emptyLocations.length})</h4>
@@ -149,19 +178,19 @@ export default function WarehouseExplorerPage() {
                                             )}
                                         </div>
                                          <div className="border-t pt-4">
-                                            <h4 className="font-semibold mb-2">Acciones</h4>
+                                            <h4 className="font-semibold mb-2">Acciones de Limpieza</h4>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button variant="destructive" disabled={!state.selectedRackId || state.isSubmitting}>
+                                                    <Button variant="destructive" disabled={state.selectedAssignmentIds.size === 0 || state.isSubmitting}>
                                                         {state.isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Trash2 className="mr-2"/>}
-                                                        Limpiar Selección
+                                                        Limpiar {state.selectedAssignmentIds.size} Asignacion(es)
                                                     </Button>
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>¿Confirmar Limpieza?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Se eliminarán todas las asignaciones de productos en: <strong>{selectors.details.title}</strong>. Esta acción no se puede deshacer.
+                                                            Se eliminarán permanentemente las <strong>{state.selectedAssignmentIds.size}</strong> asignaciones seleccionadas. Esta acción no se puede deshacer.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
