@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, FileSignature, Loader2, RefreshCw, Info, Trash2 } from 'lucide-react';
+import { PlusCircle, FileSignature, Loader2, RefreshCw, Info, Trash2, Link as LinkIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
@@ -66,12 +66,13 @@ export default function ClosuresPage() {
                                 <TableHead>Cliente</TableHead>
                                 <TableHead>Fecha Creación</TableHead>
                                 <TableHead>Estado</TableHead>
+                                <TableHead>Factura ERP</TableHead>
                                 <TableHead>Tipo / Vínculo</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {state.closures.map((closure: PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; }) => (
+                            {state.closures.map((closure: PeriodClosure & { client_name: string; client_id: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; }) => (
                                 <TableRow key={closure.id}>
                                     <TableCell className="font-mono font-bold text-primary">{closure.consecutive}</TableCell>
                                     <TableCell>{closure.client_name}</TableCell>
@@ -81,6 +82,7 @@ export default function ClosuresPage() {
                                             {selectors.getStatusLabel(closure.status)}
                                         </Badge>
                                     </TableCell>
+                                    <TableCell className="font-mono">{closure.erp_invoice_number}</TableCell>
                                     <TableCell>
                                         {closure.is_initial_inventory ? (
                                             <Badge variant="outline" className="border-green-600 text-green-700">
@@ -96,6 +98,11 @@ export default function ClosuresPage() {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right space-x-1">
+                                        {closure.status === 'approved' && selectors.hasPermission('consignments:boleta:invoice') && (
+                                            <Button variant="outline" size="sm" onClick={() => actions.openLinkInvoiceModal(closure)}>
+                                                <LinkIcon className="mr-2 h-4 w-4" /> Ligar Factura
+                                            </Button>
+                                        )}
                                         <Button 
                                             variant="outline" 
                                             size="sm"
@@ -246,6 +253,15 @@ export default function ClosuresPage() {
                                         </AlertDescription>
                                     </Alert>
                                 )}
+                                {state.selectedClosure?.status === 'invoiced' && (
+                                    <Alert variant="default" className="bg-blue-50 border-blue-200">
+                                        <AlertTitle>Cierre Facturado</AlertTitle>
+                                        <AlertDescription>
+                                            <p className="mb-2"><strong>Factura ERP:</strong> {state.selectedClosure.erp_invoice_number}</p>
+                                            <p>Este cierre ya ha sido procesado y vinculado a una factura del ERP.</p>
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
                             </div>
                         </div>
                     )}
@@ -280,7 +296,7 @@ export default function ClosuresPage() {
                             <Label>Paso 1: Selecciona un Cliente</Label>
                             <SearchInput
                                 options={selectors.agreementOptions}
-                                onSelect={actions.handleSelectAgreementForClosure}
+                                onSelect={(option) => actions.handleSelectAgreementForClosure(option.value)}
                                 value={state.newClosureClientSearch}
                                 onValueChange={actions.setNewClosureClientSearch}
                                 open={state.isNewClosureClientSearchOpen}
@@ -345,6 +361,63 @@ export default function ClosuresPage() {
                            )}
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+            
+            <Dialog open={state.isLinkInvoiceModalOpen} onOpenChange={actions.setLinkInvoiceModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Vincular Factura ERP</DialogTitle>
+                        <DialogDescription>
+                            Busca la factura en tu ERP y vincúlala a este cierre ({state.closureToLinkInvoice?.consecutive}) para marcarlo como facturado.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label>Buscar Factura (por Nº)</Label>
+                            <Input 
+                                placeholder="Escribe para buscar facturas..." 
+                                value={state.invoiceSearchTerm}
+                                onChange={e => actions.setInvoiceSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        {state.isInvoiceLoading ? (
+                            <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
+                        ) : state.searchedInvoices.length > 0 ? (
+                            <ScrollArea className="h-40 border rounded-md">
+                                <div className="p-2 space-y-1">
+                                {state.searchedInvoices.map(inv => (
+                                    <button 
+                                        key={inv.FACTURA}
+                                        className="w-full text-left p-2 rounded-md hover:bg-muted"
+                                        onClick={() => actions.handleLinkInvoice(inv.FACTURA)}
+                                    >
+                                        <p className="font-semibold">{inv.FACTURA}</p>
+                                        <p className="text-xs text-muted-foreground">{format(parseISO(inv.FECHA as string), 'dd/MM/yyyy')}</p>
+                                    </button>
+                                ))}
+                                </div>
+                            </ScrollArea>
+                        ) : state.invoiceSearchTerm.length > 2 && <p className="text-sm text-center text-muted-foreground">No se encontraron facturas.</p>}
+
+                         <div className="relative flex items-center">
+                            <div className="flex-grow border-t"></div>
+                            <span className="flex-shrink mx-4 text-muted-foreground text-xs">O</span>
+                            <div className="flex-grow border-t"></div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Ingresar Nº de Factura Manualmente</Label>
+                            <div className="flex gap-2">
+                                <Input 
+                                    placeholder="Nº de Factura Manual"
+                                    value={state.manualInvoiceNumber}
+                                    onChange={e => actions.setManualInvoiceNumber(e.target.value)}
+                                />
+                                <Button onClick={() => actions.handleLinkInvoice(state.manualInvoiceNumber)} disabled={!state.manualInvoiceNumber.trim()}>Vincular</Button>
+                            </div>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </main>
