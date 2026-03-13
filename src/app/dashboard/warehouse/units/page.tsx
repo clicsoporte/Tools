@@ -150,21 +150,23 @@ export default function ManageUnitsPage() {
              }));
     }, [allLocations, selectableLocations, debouncedLocationSearch, mixedLocationIds]);
 
-    const handleSelectProduct = (value: string) => {
-        setIsProductSearchOpen(false);
-        const product = products.find(p => p.id === value);
+    const handleSelectProduct = (option: { value: string; label: string; }) => {
+        const { value, label } = option;
+        const product = authProducts.find(p => p.id === value);
         if (product) {
             setNewUnit(prev => ({ ...prev, productId: value }));
-            setProductSearchTerm(`[${product.id}] ${product.description}`);
+            setProductSearchTerm(label);
+            setIsProductSearchOpen(false);
         }
     };
     
-    const handleSelectLocation = (value: string) => {
-        setIsLocationSearchOpen(false);
+    const handleSelectLocation = (option: { value: string; label: string; }) => {
+        const { value, label } = option;
         const location = allLocations.find(l => String(l.id) === value);
         if (location) {
             setNewUnit(prev => ({ ...prev, locationId: Number(value) }));
-            setLocationSearchTerm(renderLocationPathAsString(location.id, allLocations));
+            setLocationSearchTerm(label);
+            setIsLocationSearchOpen(false);
         }
     };
 
@@ -233,14 +235,12 @@ export default function ManageUnitsPage() {
             const margin = 0.2;
             const contentWidth = 4 - (margin * 2);
             
-            // --- Left Column (QR and Barcode) ---
             const leftColX = margin;
             const leftColWidth = 1.2;
             doc.addImage(qrCodeDataUrl, 'PNG', leftColX, margin, leftColWidth, leftColWidth);
             doc.addImage(barcodeDataUrl, 'PNG', leftColX, margin + leftColWidth + 0.1, leftColWidth, 0.4);
             doc.setFontSize(10).text(unit.unitCode!, leftColX + leftColWidth / 2, margin + leftColWidth + 0.1 + 0.4 + 0.15, { align: 'center' });
 
-            // --- Right Column (Text Info) ---
             const rightColX = leftColX + leftColWidth + 0.2;
             const rightColWidth = contentWidth - leftColWidth - 0.2;
 
@@ -250,7 +250,7 @@ export default function ManageUnitsPage() {
             
             doc.setFontSize(9).setFont('Helvetica', 'normal');
             const descLines = doc.splitTextToSize(product?.description || 'Descripción no disponible', rightColWidth);
-            doc.text(descLines, textX, currentY);
+            doc.text(descLines, rightColX, currentY);
             currentY += (descLines.length * 0.15) + 0.2;
             
             doc.setFontSize(10).setFont('Helvetica', 'bold').text(`Lote/ID: ${unit.humanReadableId || 'N/A'}`, rightColX, currentY);
@@ -267,7 +267,6 @@ export default function ManageUnitsPage() {
             const locLines = doc.splitTextToSize(renderLocationPathAsString(location?.id || 0, allLocations), rightColWidth);
             doc.text(locLines, rightColX, currentY);
             
-            // --- Footer ---
             const footerY = 3 - margin;
             doc.setFontSize(8).setTextColor(150);
             doc.text(`Creado: ${format(new Date(), 'dd/MM/yyyy')} por ${user?.name || 'Sistema'}`, 4 - margin, footerY, { align: 'right' });
@@ -307,12 +306,12 @@ export default function ManageUnitsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>1. Producto <span className="text-destructive">*</span></Label>
-                                <SearchInput options={productOptions} onSelect={(option) => handleSelectProduct(option.value)} value={productSearchTerm} onValueChange={setProductSearchTerm} placeholder="Buscar producto..." open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen} />
+                                <SearchInput options={productOptions} onSelect={handleSelectProduct} value={productSearchTerm} onValueChange={setProductSearchTerm} placeholder="Buscar producto..." open={isProductSearchOpen} onOpenChange={setIsProductSearchOpen} />
                             </div>
                              <div className="space-y-2">
                                 <Label>2. Ubicación <span className="text-destructive">*</span></Label>
                                  <div className="flex items-center gap-2">
-                                    <SearchInput options={locationOptions} onSelect={(option) => handleSelectLocation(option.value)} value={locationSearchTerm} onValueChange={setLocationSearchTerm} placeholder="Buscar... ('*' o vacío para ver todas)" open={isLocationSearchOpen} onOpenChange={setIsLocationSearchOpen} />
+                                    <SearchInput options={locationOptions} onSelect={handleSelectLocation} value={locationSearchTerm} onValueChange={setLocationSearchTerm} placeholder="Buscar... ('*' o vacío para ver todas)" open={isLocationSearchOpen} onOpenChange={setIsLocationSearchOpen} />
                                     <Button type="button" variant="outline" size="icon" onClick={() => {setLocationSearchTerm('*'); setIsLocationSearchOpen(true);}}>
                                         <List className="h-4 w-4" />
                                     </Button>

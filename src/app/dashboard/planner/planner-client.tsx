@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -95,23 +96,23 @@ export default function PlannerClient() {
         const netDifference = (order.deliveredQuantity ?? 0) - (order.defectiveQuantity ?? 0) - order.quantity;
         
         const changeStatusActions = [
-            { check: permissions.canSendToReview.allowed, action: () => actions.openStatusDialog(order, 'pending-review'), label: 'Enviar a Revisión', icon: <Send className="mr-2"/>, className: 'text-cyan-600' },
-            { check: permissions.canGoBackToPending.allowed, action: () => actions.openStatusDialog(order, 'pending'), label: 'Devolver a Pendiente', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' },
-            { check: permissions.canSendToApproval.allowed, action: () => actions.openStatusDialog(order, 'pending-approval'), label: 'Enviar a Aprobación', icon: <ShoppingBag className="mr-2"/>, className: 'text-orange-600' },
-            { check: permissions.canGoBackToReview.allowed, action: () => actions.openStatusDialog(order, 'pending-review'), label: 'Devolver a Revisión', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' },
-            { check: permissions.canConfirmModification.allowed, action: () => actions.setOrderToConfirmModification(order), label: 'Confirmar Modificación', icon: <Check className="mr-2"/>, className: 'text-green-600 font-bold' },
-            { check: permissions.canApprove.allowed, action: () => actions.openStatusDialog(order, 'approved'), label: 'Aprobar', icon: <Check className="mr-2"/>, className: 'text-green-600' },
-            { check: permissions.canQueue.allowed, action: () => actions.openStatusDialog(order, 'in-queue'), label: 'Poner en Cola', icon: <Hourglass className="mr-2"/>, className: 'text-cyan-600' },
-            { check: permissions.canStart.allowed, action: () => actions.openStatusDialog(order, 'in-progress'), label: 'Iniciar Progreso', icon: <Play className="mr-2"/>, className: 'text-blue-600' },
-            { check: permissions.canResumeFromHold.allowed, action: () => actions.openStatusDialog(order, 'in-progress'), label: 'Reanudar Progreso', icon: <Play className="mr-2"/>, className: 'text-blue-600' },
-            { check: permissions.canHold.allowed, action: () => actions.openStatusDialog(order, 'on-hold'), label: 'Poner en Espera', icon: <Pause className="mr-2"/>, className: 'text-gray-600' },
-            { check: permissions.canMaintain.allowed, action: () => actions.openStatusDialog(order, 'in-maintenance'), label: 'Poner en Mantenimiento', icon: <Wrench className="mr-2"/>, className: 'text-gray-600' },
-            { check: permissions.canComplete.allowed, action: () => actions.openStatusDialog(order, 'completed'), label: 'Marcar como Completada', icon: <PackageCheck className="mr-2"/>, className: 'text-indigo-600' },
-            { check: permissions.canReceive.allowed, action: () => actions.openStatusDialog(order, 'received-in-warehouse'), label: 'Recibir en Bodega', icon: <PackageCheck className="mr-2"/>, className: 'text-gray-700' },
-            { check: permissions.canRequestUnapproval.allowed, action: () => actions.openAdminActionDialog(order, 'unapproval-request'), label: 'Solicitar Desaprobación', icon: <AlertTriangle className="mr-2"/>, className: 'text-orange-600 font-bold' },
-            { check: permissions.canCancelPending.allowed, action: () => actions.openStatusDialog(order, 'canceled'), label: 'Cancelar Orden', icon: <XCircle className="mr-2"/>, className: 'text-red-600' },
-            { check: permissions.canRequestCancel.allowed, action: () => actions.openAdminActionDialog(order, 'cancellation-request'), label: 'Solicitar Cancelación', icon: <XCircle className="mr-2"/>, className: 'text-red-600' },
-            { check: permissions.canReopen.allowed, action: () => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }, label: 'Reabrir', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' }
+            { check: permissions.canSendToReview, action: () => actions.openStatusDialog(order, 'pending-review'), label: 'Enviar a Revisión', icon: <Send className="mr-2"/>, className: 'text-cyan-600' },
+            { check: permissions.canGoBackToPending, action: () => actions.openStatusDialog(order, 'pending'), label: 'Devolver a Pendiente', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' },
+            { check: permissions.canSendToApproval, action: () => actions.openStatusDialog(order, 'pending-approval'), label: 'Enviar a Aprobación', icon: <ShoppingBag className="mr-2"/>, className: 'text-orange-600' },
+            { check: permissions.canGoBackToReview, action: () => actions.openStatusDialog(order, 'pending-review'), label: 'Devolver a Revisión', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' },
+            { check: permissions.canConfirmModification, action: () => actions.setOrderToConfirmModification(order), label: 'Confirmar Modificación', icon: <Check className="mr-2"/>, className: 'text-green-600 font-bold' },
+            { check: permissions.canApprove, action: () => actions.openStatusDialog(order, 'approved'), label: 'Aprobar', icon: <Check className="mr-2"/>, className: 'text-green-600' },
+            { check: permissions.canQueue, action: () => actions.openStatusDialog(order, 'in-queue'), label: 'Poner en Cola', icon: <Hourglass className="mr-2"/>, className: 'text-cyan-600' },
+            { check: permissions.canStart, action: () => actions.openStatusDialog(order, 'in-progress'), label: 'Iniciar Progreso', icon: <Play className="mr-2"/>, className: 'text-blue-600' },
+            { check: permissions.canResumeFromHold, action: () => actions.openStatusDialog(order, 'in-progress'), label: 'Reanudar Progreso', icon: <Play className="mr-2"/>, className: 'text-blue-600' },
+            { check: permissions.canHold, action: () => actions.openStatusDialog(order, 'on-hold'), label: 'Poner en Espera', icon: <Pause className="mr-2"/>, className: 'text-gray-600' },
+            { check: permissions.canMaintain, action: () => actions.openStatusDialog(order, 'in-maintenance'), label: 'Poner en Mantenimiento', icon: <Wrench className="mr-2"/>, className: 'text-gray-600' },
+            { check: permissions.canComplete, action: () => actions.openStatusDialog(order, 'completed'), label: 'Marcar como Completada', icon: <PackageCheck className="mr-2"/>, className: 'text-indigo-600' },
+            { check: permissions.canReceive, action: () => actions.openStatusDialog(order, 'received-in-warehouse'), label: 'Recibir en Bodega', icon: <PackageCheck className="mr-2"/>, className: 'text-gray-700' },
+            { check: permissions.canRequestUnapproval, action: () => actions.openAdminActionDialog(order, 'unapproval-request'), label: 'Solicitar Desaprobación', icon: <AlertTriangle className="mr-2"/>, className: 'text-orange-600 font-bold' },
+            { check: permissions.canCancelPending, action: () => actions.openStatusDialog(order, 'canceled'), label: 'Cancelar Orden', icon: <XCircle className="mr-2"/>, className: 'text-red-600' },
+            { check: permissions.canRequestCancel, action: () => actions.openAdminActionDialog(order, 'cancellation-request'), label: 'Solicitar Cancelación', icon: <XCircle className="mr-2"/>, className: 'text-red-600' },
+            { check: permissions.canReopen, action: () => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }, label: 'Reabrir', icon: <Undo2 className="mr-2"/>, className: 'text-orange-600' }
         ];
 
         return (
@@ -141,8 +142,8 @@ export default function PlannerClient() {
                                     <DropdownMenuSeparator/>
                                     <DropdownMenuLabel>Cambio de Estado</DropdownMenuLabel>
                                     <DropdownMenuSeparator/>
-                                    {changeStatusActions.filter(a => a.check.allowed).length > 0 ? (
-                                        changeStatusActions.filter(a => a.check.allowed).map((action, index) => (
+                                    {changeStatusActions.filter(a => a.check).length > 0 ? (
+                                        changeStatusActions.filter(a => a.check).map((action, index) => (
                                             <DropdownMenuItem key={index} onSelect={action.action} className={action.className}>
                                                 {action.icon} {action.label}
                                             </DropdownMenuItem>

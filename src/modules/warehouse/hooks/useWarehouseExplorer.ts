@@ -79,6 +79,20 @@ export function useWarehouseExplorer() {
         loadData();
     }, [loadData]);
     
+    const getAncestors = useCallback((locationId: number): WarehouseLocation[] => {
+        const ancestors: WarehouseLocation[] = [];
+        let currentNode: WarehouseLocation | undefined = state.allLocations.find(l => l.id === locationId);
+        while (currentNode) {
+            ancestors.push(currentNode);
+            const parentId = currentNode.parentId;
+            if (parentId === null || parentId === undefined) {
+                break;
+            }
+            currentNode = state.allLocations.find(l => l.id === parentId);
+        }
+        return ancestors;
+    }, [state.allLocations]);
+
     useEffect(() => {
         if (!debouncedSearchTerm) {
             updateState({ highlightedPath: new Set() });
@@ -89,18 +103,14 @@ export function useWarehouseExplorer() {
         const found = state.allLocations.find(l => normalizeText(l.name).includes(searchLower) || normalizeText(l.code).includes(searchLower));
 
         if (found) {
-            const pathIds = new Set<number>();
-            let current: WarehouseLocation | undefined = found;
-            while(current) {
-                pathIds.add(current.id);
-                current = current.parentId ? state.allLocations.find(l => l.id === current.parentId) : undefined;
-            }
+            const ancestors = getAncestors(found.id);
+            const pathIds = new Set(ancestors.map(a => a.id));
             updateState({ highlightedPath: pathIds });
         } else {
             updateState({ highlightedPath: new Set() });
         }
 
-    }, [debouncedSearchTerm, state.allLocations, updateState]);
+    }, [debouncedSearchTerm, state.allLocations, updateState, getAncestors]);
     
     const selectRack = (rackId: number) => {
         updateState({ selectedRackId: rackId, selectedLevelId: null });
