@@ -63,43 +63,62 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
             onOpenChange(true);
         }
     };
+
+    const searchIcon = (
+      <div className="absolute left-1 top-1/2 -translate-y-1/2 flex items-center justify-center h-8 w-8 pointer-events-none">
+        <Search className="h-4 w-4 text-muted-foreground" />
+      </div>
+    );
     
+    const triggerInput = (
+      <Input
+        ref={ref}
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={handleChange}
+        onKeyDown={onKeyDown}
+        className="pl-9"
+        autoComplete="off"
+        disabled={disabled}
+      />
+    );
+
     return (
         <Popover open={showPopover} onOpenChange={onOpenChange}>
             <div className={cn("relative w-full", className)}>
-                 <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:bg-transparent"
-                    onClick={() => onOpenChange(!open)}
-                    aria-label="Mostrar opciones de búsqueda"
-                    tabIndex={-1}
-                    disabled={disabled}
-                >
-                    <Search className="h-4 w-4" />
-                </Button>
-                <PopoverTrigger asChild>
-                    <Input
-                        ref={ref}
-                        type="text"
-                        placeholder={placeholder}
-                        value={value}
-                        onChange={handleChange}
-                        onKeyDown={onKeyDown}
-                        className="pl-9"
-                        autoComplete="off"
-                        disabled={disabled}
-                    />
-                </PopoverTrigger>
+                {triggerAction === 'icon' ? (
+                    <>
+                        {/* When mode is 'icon', the button is the trigger */}
+                        <PopoverTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
+                                disabled={disabled}
+                                aria-label="Mostrar opciones"
+                            >
+                                <Search className="h-4 w-4" />
+                            </Button>
+                        </PopoverTrigger>
+                        {/* The input is just an input, it doesn't trigger the popover */}
+                        {triggerInput}
+                    </>
+                ) : (
+                    <>
+                        {/* When mode is 'input', the input is the trigger */}
+                        {searchIcon}
+                        <PopoverTrigger asChild>
+                            {triggerInput}
+                        </PopoverTrigger>
+                    </>
+                )}
             </div>
             <PopoverContent 
                 className="w-[var(--radix-popover-trigger-width)] p-0" 
                 align="start"
                 onOpenAutoFocus={(e) => e.preventDefault()}
-                onPointerDownOutside={(e) => {
-                    e.preventDefault();
-                }}
             >
                 <Command shouldFilter={false}>
                     <ScrollArea className="h-auto max-h-72">
@@ -115,7 +134,11 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                                     {option.label}
                                 </CommandItem>
                                 ))
-                            ) : null }
+                            ) : (
+                                <div className="py-6 text-center text-sm text-muted-foreground">
+                                    No hay resultados.
+                                </div>
+                            )}
                         </CommandList>
                     </ScrollArea>
                 </Command>
