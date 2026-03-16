@@ -98,8 +98,8 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE IF NOT EXISTS erp_order_lines (PEDIDO TEXT, PEDIDO_LINEA INTEGER, ARTICULO TEXT, CANTIDAD_PEDIDA REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (PEDIDO, PEDIDO_LINEA));
         CREATE TABLE IF NOT EXISTS erp_purchase_order_headers (ORDEN_COMPRA TEXT PRIMARY KEY, PROVEEDOR TEXT, FECHA_HORA TEXT, ESTADO TEXT, CreatedBy TEXT);
         CREATE TABLE IF NOT EXISTS erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY(ORDEN_COMPRA, ARTICULO));
-        CREATE TABLE IF NOT EXISTS erp_invoice_headers (FACTURA TEXT PRIMARY KEY, CLIENTE TEXT, NOMBRE_CLIENTE TEXT, FECHA TEXT);
-        CREATE TABLE IF NOT EXISTS erp_invoice_lines (FACTURA TEXT, LINEA INTEGER, ARTICULO TEXT, DESCRIPCION TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (FACTURA, LINEA));
+        CREATE TABLE IF NOT EXISTS erp_invoice_headers (FACTURA TEXT PRIMARY KEY, CLIENTE TEXT, NOMBRE_CLIENTE TEXT, TIPO_DOCUMENTO TEXT, PEDIDO TEXT, FACTURA_ORIGINAL TEXT, FECHA TEXT, FECHA_ENTREGA TEXT, ANULADA TEXT, EMBARCAR_A TEXT, DIRECCION_FACTURA TEXT, OBSERVACIONES TEXT, RUTA TEXT, USUARIO TEXT, USUARIO_ANULA TEXT, ZONA TEXT, VENDEDOR TEXT, REIMPRESO INTEGER);
+        CREATE TABLE IF NOT EXISTS erp_invoice_lines (FACTURA TEXT, TIPO_DOCUMENTO TEXT, LINEA INTEGER, BODEGA TEXT, PEDIDO TEXT, ARTICULO TEXT, ANULADA TEXT, FECHA_FACTURA TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, TOTAL_IMPUESTO1 REAL, PRECIO_TOTAL REAL, DESCRIPCION TEXT, DOCUMENTO_ORIGEN TEXT, CANT_DESPACHADA REAL, ES_CANASTA_BASICA TEXT, PRIMARY KEY (FACTURA, LINEA));
         CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);
     `;
     db.exec(schema);
@@ -274,11 +274,11 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         // Add new ERP invoice tables
         if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_invoice_headers'`).get()) {
             console.log("MIGRATION: Creating erp_invoice_headers table.");
-            db.exec(`CREATE TABLE erp_invoice_headers (FACTURA TEXT PRIMARY KEY, CLIENTE TEXT, NOMBRE_CLIENTE TEXT, FECHA TEXT);`);
+            db.exec(`CREATE TABLE erp_invoice_headers (FACTURA TEXT PRIMARY KEY, CLIENTE TEXT, NOMBRE_CLIENTE TEXT, TIPO_DOCUMENTO TEXT, PEDIDO TEXT, FACTURA_ORIGINAL TEXT, FECHA TEXT, FECHA_ENTREGA TEXT, ANULADA TEXT, EMBARCAR_A TEXT, DIRECCION_FACTURA TEXT, OBSERVACIONES TEXT, RUTA TEXT, USUARIO TEXT, USUARIO_ANULA TEXT, ZONA TEXT, VENDEDOR TEXT, REIMPRESO INTEGER);`);
         }
         if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_invoice_lines'`).get()) {
             console.log("MIGRATION: Creating erp_invoice_lines table.");
-            db.exec(`CREATE TABLE erp_invoice_lines (FACTURA TEXT, LINEA INTEGER, ARTICULO TEXT, DESCRIPCION TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, PRIMARY KEY (FACTURA, LINEA));`);
+            db.exec(`CREATE TABLE erp_invoice_lines (FACTURA TEXT, TIPO_DOCUMENTO TEXT, LINEA INTEGER, BODEGA TEXT, PEDIDO TEXT, ARTICULO TEXT, ANULADA TEXT, FECHA_FACTURA TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, TOTAL_IMPUESTO1 REAL, PRECIO_TOTAL REAL, DESCRIPCION TEXT, DOCUMENTO_ORIGEN TEXT, CANT_DESPACHADA REAL, ES_CANASTA_BASICA TEXT, PRIMARY KEY (FACTURA, LINEA));`);
         }
 
         const analyticsSettingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='analytics_settings'`).get() as { name: string } | undefined;
@@ -999,8 +999,8 @@ const createHeaderMapping = (type: ImportQuery['type']) => {
         case 'erp_order_lines': return {'PEDIDO': 'PEDIDO', 'PEDIDO_LINEA': 'PEDIDO_LINEA', 'ARTICULO': 'ARTICULO', 'CANTIDAD_PEDIDA': 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO': 'PRECIO_UNITARIO'};
         case 'erp_purchase_order_headers': return { 'ORDEN_COMPRA': 'ORDEN_COMPRA', 'PROVEEDOR': 'PROVEEDOR', 'FECHA_HORA': 'FECHA_HORA', 'ESTADO': 'ESTADO', 'CREATEDBY': 'CreatedBy' };
         case 'erp_purchase_order_lines': return { 'ORDEN_COMPRA': 'ORDEN_COMPRA', 'ARTICULO': 'ARTICULO', 'CANTIDAD_ORDENADA': 'CANTIDAD_ORDENADA' };
-        case 'erp_invoice_headers': return {'FACTURA': 'FACTURA', 'CLIENTE': 'CLIENTE', 'NOMBRE_CLIENTE': 'NOMBRE_CLIENTE', 'FECHA': 'FECHA'};
-        case 'erp_invoice_lines': return {'FACTURA': 'FACTURA', 'LINEA': 'LINEA', 'ARTICULO': 'ARTICULO', 'DESCRIPCION': 'DESCRIPCION', 'CANTIDAD': 'CANTIDAD', 'PRECIO_UNITARIO': 'PRECIO_UNITARIO'};
+        case 'erp_invoice_headers': return { 'CLIENTE': 'CLIENTE', 'NOMBRE_CLIENTE': 'NOMBRE_CLIENTE', 'TIPO_DOCUMENTO': 'TIPO_DOCUMENTO', 'FACTURA': 'FACTURA', 'PEDIDO': 'PEDIDO', 'FACTURA_ORIGINAL': 'FACTURA_ORIGINAL', 'FECHA': 'FECHA', 'FECHA_ENTREGA': 'FECHA_ENTREGA', 'ANULADA': 'ANULADA', 'EMBARCAR_A': 'EMBARCAR_A', 'DIRECCION_FACTURA': 'DIRECCION_FACTURA', 'OBSERVACIONES': 'OBSERVACIONES', 'RUTA': 'RUTA', 'USUARIO': 'USUARIO', 'USUARIO_ANULA': 'USUARIO_ANULA', 'ZONA': 'ZONA', 'VENDEDOR': 'VENDEDOR', 'REIMPRESO': 'REIMPRESO' };
+        case 'erp_invoice_lines': return { 'FACTURA': 'FACTURA', 'TIPO_DOCUMENTO': 'TIPO_DOCUMENTO', 'LINEA': 'LINEA', 'BODEGA': 'BODEGA', 'PEDIDO': 'PEDIDO', 'ARTICULO': 'ARTICULO', 'ANULADA': 'ANULADA', 'FECHA_FACTURA': 'FECHA_FACTURA', 'CANTIDAD': 'CANTIDAD', 'PRECIO_UNITARIO': 'PRECIO_UNITARIO', 'TOTAL_IMPUESTO1': 'TOTAL_IMPUESTO1', 'PRECIO_TOTAL': 'PRECIO_TOTAL', 'DESCRIPCION': 'DESCRIPCION', 'DOCUMENTO_ORIGEN': 'DOCUMENTO_ORIGEN', 'CANT_DESPACHADA': 'CANT_DESPACHADA', 'ES_CANASTA_BASICA': 'ES_CANASTA_BASICA' };
         default: return {};
     }
 }
@@ -1017,7 +1017,7 @@ const parseData = (lines: string[], type: ImportQuery['type']) => {
             const key = headerMapping[h as keyof typeof headerMapping];
             if (key) {
                 const value = data[index]?.replace(/[\\n\\r]/g, '').trim() || '';
-                if (['creditLimit', 'percentage', 'stock', 'rack', 'hPos', 'taxRate', 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO', 'TOTAL_UNIDADES', 'CANTIDAD_ORDENADA', 'CANTIDAD'].includes(key)) {
+                if (['creditLimit', 'percentage', 'stock', 'rack', 'hPos', 'taxRate', 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO', 'TOTAL_UNIDADES', 'CANTIDAD_ORDENADA', 'CANTIDAD', 'REIMPRESO', 'TOTAL_IMPUESTO1', 'PRECIO_TOTAL', 'CANT_DESPACHADA'].includes(key)) {
                     dataObject[key] = parseFloat(value.replace('%','')) || 0;
                     if(key === 'taxRate') dataObject[key] /= 100;
                 } else dataObject[key] = value;
@@ -1591,7 +1591,7 @@ export async function saveAllErpPurchaseOrderLines(lines: ErpPurchaseOrderLine[]
 
 export async function saveAllErpInvoiceHeaders(headers: ErpInvoiceHeader[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_invoice_headers (FACTURA, CLIENTE, NOMBRE_CLIENTE, FECHA) VALUES (@FACTURA, @CLIENTE, @NOMBRE_CLIENTE, @FECHA)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_invoice_headers (FACTURA, CLIENTE, NOMBRE_CLIENTE, TIPO_DOCUMENTO, PEDIDO, FACTURA_ORIGINAL, FECHA, FECHA_ENTREGA, ANULADA, EMBARCAR_A, DIRECCION_FACTURA, OBSERVACIONES, RUTA, USUARIO, USUARIO_ANULA, ZONA, VENDEDOR, REIMPRESO) VALUES (@FACTURA, @CLIENTE, @NOMBRE_CLIENTE, @TIPO_DOCUMENTO, @PEDIDO, @FACTURA_ORIGINAL, @FECHA, @FECHA_ENTREGA, @ANULADA, @EMBARCAR_A, @DIRECCION_FACTURA, @OBSERVACIONES, @RUTA, @USUARIO, @USUARIO_ANULA, @ZONA, @VENDEDOR, @REIMPRESO)');
     const transaction = db.transaction((data: ErpInvoiceHeader[]) => {
         db.prepare('DELETE FROM erp_invoice_headers').run();
         for(const header of data) insert.run(header);
@@ -1601,7 +1601,7 @@ export async function saveAllErpInvoiceHeaders(headers: ErpInvoiceHeader[]): Pro
 
 export async function saveAllErpInvoiceLines(lines: ErpInvoiceLine[]): Promise<void> {
     const db = await connectDb();
-    const insert = db.prepare('INSERT OR REPLACE INTO erp_invoice_lines (FACTURA, LINEA, ARTICULO, DESCRIPCION, CANTIDAD, PRECIO_UNITARIO) VALUES (@FACTURA, @LINEA, @ARTICULO, @DESCRIPCION, @CANTIDAD, @PRECIO_UNITARIO)');
+    const insert = db.prepare('INSERT OR REPLACE INTO erp_invoice_lines (FACTURA, TIPO_DOCUMENTO, LINEA, BODEGA, PEDIDO, ARTICULO, ANULADA, FECHA_FACTURA, CANTIDAD, PRECIO_UNITARIO, TOTAL_IMPUESTO1, PRECIO_TOTAL, DESCRIPCION, DOCUMENTO_ORIGEN, CANT_DESPACHADA, ES_CANASTA_BASICA) VALUES (@FACTURA, @TIPO_DOCUMENTO, @LINEA, @BODEGA, @PEDIDO, @ARTICULO, @ANULADA, @FECHA_FACTURA, @CANTIDAD, @PRECIO_UNITARIO, @TOTAL_IMPUESTO1, @PRECIO_TOTAL, @DESCRIPCION, @DOCUMENTO_ORIGEN, @CANT_DESPACHADA, @ES_CANASTA_BASICA)');
     const transaction = db.transaction((data: ErpInvoiceLine[]) => {
         db.prepare('DELETE FROM erp_invoice_lines').run();
         for(const line of data) insert.run(line);

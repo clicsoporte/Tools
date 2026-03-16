@@ -30,7 +30,7 @@ export const mainDbSchema: ExpectedSchema = {
     'erp_order_lines': ['PEDIDO', 'PEDIDO_LINEA', 'ARTICULO', 'CANTIDAD_PEDIDA', 'PRECIO_UNITARIO'],
     'erp_purchase_order_headers': ['ORDEN_COMPRA', 'PROVEEDOR', 'FECHA_HORA', 'ESTADO', 'CreatedBy'],
     'erp_purchase_order_lines': ['ORDEN_COMPRA', 'ARTICULO', 'CANTIDAD_ORDENADA'],
-    'erp_invoice_headers': ['FACTURA', 'CLIENTE', 'NOMBRE_CLIENTE', 'FECHA'],
-    'erp_invoice_lines': ['FACTURA', 'LINEA', 'ARTICULO', 'DESCRIPCION', 'CANTIDAD', 'PRECIO_UNITARIO'],
+    'erp_invoice_headers': ['FACTURA', 'CLIENTE', 'NOMBRE_CLIENTE', 'TIPO_DOCUMENTO', 'PEDIDO', 'FACTURA_ORIGINAL', 'FECHA', 'FECHA_ENTREGA', 'ANULADA', 'EMBARCAR_A', 'DIRECCION_FACTURA', 'OBSERVACIONES', 'RUTA', 'USUARIO', 'USUARIO_ANULA', 'ZONA', 'VENDEDOR', 'REIMPRESO'],
+    'erp_invoice_lines': ['FACTURA', 'TIPO_DOCUMENTO', 'LINEA', 'BODEGA', 'PEDIDO', 'ARTICULO', 'ANULADA', 'FECHA_FACTURA', 'CANTIDAD', 'PRECIO_UNITARIO', 'TOTAL_IMPUESTO1', 'PRECIO_TOTAL', 'DESCRIPCION', 'DOCUMENTO_ORIGEN', 'CANT_DESPACHADA', 'ES_CANASTA_BASICA'],
     'stock_settings': ['key', 'value'],
 };

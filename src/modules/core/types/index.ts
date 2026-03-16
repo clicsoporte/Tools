@@ -778,16 +778,40 @@ export type ErpInvoiceHeader = {
     FACTURA: string;
     CLIENTE: string;
     NOMBRE_CLIENTE: string;
+    TIPO_DOCUMENTO: string;
+    PEDIDO?: string;
+    FACTURA_ORIGINAL?: string;
     FECHA: string | Date;
+    FECHA_ENTREGA: string | Date;
+    ANULADA: 'S' | 'N';
+    EMBARCAR_A?: string;
+    DIRECCION_FACTURA?: string;
+    OBSERVACIONES?: string;
+    RUTA?: string;
+    USUARIO?: string;
+    USUARIO_ANULA?: string;
+    ZONA?: string;
+    VENDEDOR?: string;
+    REIMPRESO?: number;
 };
 
 export type ErpInvoiceLine = {
     FACTURA: string;
+    TIPO_DOCUMENTO: string;
     LINEA: number;
+    BODEGA?: string;
+    PEDIDO?: string;
     ARTICULO: string;
-    DESCRIPCION: string;
+    ANULADA: 'S' | 'N';
+    FECHA_FACTURA: string | Date;
     CANTIDAD: number;
     PRECIO_UNITARIO: number;
+    TOTAL_IMPUESTO1?: number;
+    PRECIO_TOTAL?: number;
+    DESCRIPCION?: string;
+    DOCUMENTO_ORIGEN?: string;
+    CANT_DESPACHADA?: number;
+    ES_CANASTA_BASICA?: 'S' | 'N';
 };
 
 
