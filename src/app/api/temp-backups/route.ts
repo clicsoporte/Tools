@@ -1,3 +1,6 @@
-// This route has been moved to /routes/temp-backups to resolve a routing conflict.
-// This file is deprecated and its content has been removed to prevent build errors.
-export {};
+
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  return new NextResponse('This route is deprecated and has been moved to /routes/temp-backups', { status: 410 });
+}
