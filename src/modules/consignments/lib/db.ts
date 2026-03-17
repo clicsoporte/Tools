@@ -919,8 +919,13 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
             totalValue: consumption > 0 ? consumption * product.price : 0,
             adjustments: totalAdjustments,
             transactions,
-            // These fields are actually not part of the required type, the error was misleading. But I will keep them for the other report.
-            boletaConsecutives: '', creationDates: '', deliveryDates: '', erpInvoices: '', erpMovementIds: '', approvers: '',
+            // These fields are not used in the billing report, so we provide empty defaults.
+            boletaConsecutives: '', 
+            creationDates: '', 
+            deliveryDates: '', 
+            erpInvoices: '', 
+            erpMovementIds: '', 
+            approvers: '',
         };
     }).filter(row => row.consumption > 0 || row.initialStock > 0 || row.totalReplenished > 0 || row.finalStock > 0 || row.adjustments !== 0);
 
