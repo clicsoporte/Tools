@@ -1,0 +1,90 @@
+REGISTRO
+ENTREGA DE EQUIPOS 
+R-INFO-002
+Fecha de Emisión: 13/05/2019            Edición: 03        Fecha de Edición: 22/03/2023     Aprobó: Gerencia General 
+
+
+
+
+ DATOS DEL COLABORADOR
+Nombre 		Cargo		Usuario de Red	
+Correo	                                @industriasgarend.com	Cédula 		Teléfono – Ext.	N/A
+Provincia		Cantón 		Distrito	
+HARDWARE
+TIPO	NOMBRE DE RED	MARCA	MODELO	NUMERO SERIE
+DESKTOP ☐  LAPTOP ☐
+USUARIO ☐  DISP.MOVIL ☐  
+☐__________________
+	
+		
+PROCESADOR	MEMORIA RAM (GB)	CAPACIDAD DE DISCO (GB)	TECLADO EXTERNO	MOUSE EXT
+			N/A	N/A
+MONITOR	CARGADOR	PLACA DE ACTIVO	MANOS LIBRES	TELEFONO
+N/A		N/A	N/A	N/A
+SOFTWARE 
+Software estándar corporativo	Accesos, estándar, corporativo	Software Con Licenciamiento 
+Microsoft Windows 10 Pro	☐
+Usuario admin, acceso a reloj, Marcas	☐
+PCgraf	☐
+Microsoft Windows 7 Pro	☐
+Acceso a Internet Ventas	☐
+Microsoft Office	☐
+7 Zip	☐
+Acceso a Internet Administrativo	☐
+Microsoft Outlook	☐
+Cliente UrBackup - Respaldos	☐
+Acceso a Internet Gerencia	☐
+Adobe Acrobat	☐
+Zebra impresión de etiquetas	☐
+Acceso a Internet Planta	☐
+Antivirus AVG Internet Sec.	☐
+Eddi Ministerio de Hacienda	☐
+Acceso a Internet Bodega	☐
+SoftLandERP	☐
+ATV Ministerio de Hacienda	☐
+Acceso a Internet Logística	☐
+Cuenta de Correo Garend	☐
+Firma Digital	☐
+Acceso solo a Intranet	☐
+Accesorios	☐
+Open VPN – VPN Garend	☐
+Acceso a Internet equipo personal	☐
+Candado para laptop	☐
+Microsoft Skype	☐
+Acceso a Intranet equipo personal	☐
+Mouse	☐
+Navegador Mozilla FireFox	☐
+Impresoras en red Garend	☐
+Teclado	☐
+Navegador Chrome	☐
+	☐
+Teclado y Mouse (kit)	☐
+Android	☐
+	☐
+SSD-HD-Bitlocker	☐
+Adobe Reader.	☐
+	☐
+	☐
+Identificador: 
+Clave de recuperación: 
+OBSERVACIONES
+Certifico que los elementos detallados en el presente documento, me han sido entregados para mi cuidado y custodia con el propósito de cumplir con las tareas y asignaciones propias de mi cargo en la empresa Industrias Garend S.A, siendo estos de mi única y exclusiva responsabilidad. Me comprometo a usar correctamente los recursos, y solo para los fines laborales establecidos, a no instalar ni permitir la instalación de software no autorizado por el departamento de tecnología, los equipos solo pueden ser manipulados para su mantenimiento y reparación por el personal técnico de Industrias Garend S.A.
+En caso de pérdida, hurto o robo debe reportarlo inmediatamente a su jefatura directa, hacer la denuncia respectiva en el Organismo de investigación judicial “O.I.J” y entregar la documentación de la denuncia a su jefatura de Industrias Garend S.A  
+En caso de daño debe entregar el equipo completo al departamento de Tecnología.
+ENTREGA DE EQUIPO
+RECIBE	ENTREGA
+Nombre:	Nombre: Jonathan Ugalde González
+Firma:	Firma:
+Fecha:	Fecha:
+Reemplazo o retiro de equipo.
+Retiro ☐               Reemplazo ☐ 
+Fecha:
+
+
+
+BITÁCORA DE ACTUALIZACIONES DEL DOCUMENTO
+Edición	Fecha de aprobación	Estatus y cambios
+01	13/05/2019	Primera Edición
+02	09/03/2021	Cambio de Formato en general 
+03	22/03/2023	Cambio, se agregó apartado de Reemplazo o retiro de equipos.
+Página 1 de 1
