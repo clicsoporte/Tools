@@ -58,7 +58,7 @@ interface State {
     invoiceSearchTerm: string;
     searchedInvoices: ErpInvoiceHeader[];
     isInvoiceLoading: boolean;
-    manualInvoiceNumber: string;
+    limitInvoiceSearchTo30Days: boolean;
 }
 
 export const useConsignmentsClosures = () => {
@@ -97,7 +97,7 @@ export const useConsignmentsClosures = () => {
         invoiceSearchTerm: '',
         searchedInvoices: [],
         isInvoiceLoading: false,
-        manualInvoiceNumber: '',
+        limitInvoiceSearchTo30Days: true,
     });
 
     const [debouncedNewClosureClientSearch] = useDebounce(state.newClosureClientSearch, 300);
@@ -140,7 +140,7 @@ export const useConsignmentsClosures = () => {
             }
             updateState({ isInvoiceLoading: true });
             try {
-                const results = await searchErpInvoices(state.closureToLinkInvoice.client_id, debouncedInvoiceSearch);
+                const results = await searchErpInvoices(state.closureToLinkInvoice.client_id, debouncedInvoiceSearch, state.limitInvoiceSearchTo30Days);
                 updateState({ searchedInvoices: results });
             } catch (error) {
                 toast({ title: "Error buscando facturas", variant: "destructive" });
@@ -149,7 +149,7 @@ export const useConsignmentsClosures = () => {
             }
         };
         fetchInvoices();
-    }, [debouncedInvoiceSearch, state.isLinkInvoiceModalOpen, state.closureToLinkInvoice, toast, updateState]);
+    }, [debouncedInvoiceSearch, state.isLinkInvoiceModalOpen, state.closureToLinkInvoice, toast, updateState, state.limitInvoiceSearchTo30Days]);
 
 
     const resetNewClosureModal = () => {
@@ -178,7 +178,6 @@ export const useConsignmentsClosures = () => {
             closureToLinkInvoice: closure,
             isLinkInvoiceModalOpen: true,
             invoiceSearchTerm: '',
-            manualInvoiceNumber: '',
             searchedInvoices: []
         });
     };
@@ -417,8 +416,8 @@ export const useConsignmentsClosures = () => {
             openLinkInvoiceModal,
             setLinkInvoiceModalOpen: (open: boolean) => updateState({ isLinkInvoiceModalOpen: open }),
             setInvoiceSearchTerm: (term: string) => updateState({ invoiceSearchTerm: term }),
-            setManualInvoiceNumber: (num: string) => updateState({ manualInvoiceNumber: num }),
             handleLinkInvoice,
+            setLimitInvoiceSearchTo30Days: (limit: boolean) => updateState({ limitInvoiceSearchTo30Days: limit }),
         },
         selectors
     };
