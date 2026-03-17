@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
@@ -521,8 +520,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
             if (!invoiceLinesColumns.has('CANT_DESPACHADA')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN CANT_DESPACHADA REAL');
             if (!invoiceLinesColumns.has('ES_CANASTA_BASICA')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN ES_CANASTA_BASICA TEXT');
 
-            // Recreate table if primary key is wrong
-            const pkInfo = (db.prepare(`PRAGMA index_list('erp_invoice_lines')`).all() as any[]).filter((i: any) => i.origin === 'pk');
+            const pkInfo = db.prepare(`PRAGMA index_list('erp_invoice_lines')`).all().filter((i: any) => i.origin === 'pk');
             if (pkInfo.length === 0) { // No explicit PK means ROWID is used, so we need to fix it
                 console.log("MIGRATION: Recreating erp_invoice_lines to fix composite primary key.");
                  db.exec(`
@@ -1888,17 +1886,26 @@ export async function getWarehouseData(): Promise<{ locations: WarehouseLocation
 }
 
 /**
- * Searches ERP invoices by client ID and a search term (invoice number).
+ * Searches ERP invoices by client ID and a search term (invoice number or client name).
  */
-export async function searchErpInvoices(clientId: string, searchTerm: string): Promise<ErpInvoiceHeader[]> {
+export async function searchErpInvoices(clientId: string, searchTerm: string, limitToLast30Days: boolean): Promise<ErpInvoiceHeader[]> {
     const db = await connectDb();
-    const results = db.prepare(`
+    let query = `
         SELECT FACTURA, CLIENTE, NOMBRE_CLIENTE, FECHA 
         FROM erp_invoice_headers 
-        WHERE CLIENTE = ? AND FACTURA LIKE ? 
-        ORDER BY FECHA DESC 
-        LIMIT 10
-    `).all(clientId, `%${searchTerm}%`) as ErpInvoiceHeader[];
+        WHERE CLIENTE = ? AND (FACTURA LIKE ? OR NOMBRE_CLIENTE LIKE ?)
+    `;
+    const params: any[] = [clientId, `%${searchTerm}%`, `%${searchTerm}%`];
+
+    if (limitToLast30Days) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        query += ' AND FECHA >= ?';
+        params.push(thirtyDaysAgo.toISOString());
+    }
+
+    query += ' ORDER BY FECHA DESC LIMIT 10';
+
+    const results = db.prepare(query).all(...params) as ErpInvoiceHeader[];
     return JSON.parse(JSON.stringify(results));
 }
-

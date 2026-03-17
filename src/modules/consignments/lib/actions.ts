@@ -548,9 +548,9 @@ export async function linkInvoiceToClosure(closureId: number, invoiceNumber: str
     return linkInvoiceToClosureServer(closureId, invoiceNumber, userName);
 }
 
-export async function searchErpInvoices(clientId: string, searchTerm: string): Promise<ErpInvoiceHeader[]> {
+export async function searchErpInvoices(clientId: string, searchTerm: string, limitToLast30Days: boolean): Promise<ErpInvoiceHeader[]> {
     await authorizeAction('consignments:boleta:invoice'); // Re-using invoice permission
-    return searchErpInvoicesServer(clientId, searchTerm);
+    return searchErpInvoicesServer(clientId, searchTerm, limitToLast30Days);
 }
 
     
