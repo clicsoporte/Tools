@@ -23,6 +23,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { SearchInput } from '@/components/ui/search-input';
 import { InventoryCountForm } from '@/components/consignments/inventory-count-form';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export const dynamic = 'force-dynamic';
 
@@ -373,50 +374,31 @@ export default function ClosuresPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
-                        <div className="space-y-2">
-                            <Label>Buscar Factura (por Nº)</Label>
-                            <Input 
-                                placeholder="Escribe para buscar facturas..." 
-                                value={state.invoiceSearchTerm}
-                                onChange={e => actions.setInvoiceSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        {state.isInvoiceLoading ? (
-                            <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
-                        ) : state.searchedInvoices.length > 0 ? (
-                            <ScrollArea className="h-40 border rounded-md">
-                                <div className="p-2 space-y-1">
-                                {state.searchedInvoices.map(inv => (
-                                    <button 
-                                        key={inv.FACTURA}
-                                        className="w-full text-left p-2 rounded-md hover:bg-muted"
-                                        onClick={() => actions.handleLinkInvoice(inv.FACTURA)}
-                                    >
-                                        <p className="font-semibold">{inv.FACTURA}</p>
-                                        <p className="text-xs text-muted-foreground">{format(parseISO(inv.FECHA as string), 'dd/MM/yyyy')}</p>
-                                    </button>
-                                ))}
-                                </div>
-                            </ScrollArea>
-                        ) : state.invoiceSearchTerm.length > 2 && <p className="text-sm text-center text-muted-foreground">No se encontraron facturas.</p>}
-
-                         <div className="relative flex items-center">
-                            <div className="flex-grow border-t"></div>
-                            <span className="flex-shrink mx-4 text-muted-foreground text-xs">O</span>
-                            <div className="flex-grow border-t"></div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Ingresar Nº de Factura Manualmente</Label>
-                            <div className="flex gap-2">
-                                <Input 
-                                    placeholder="Nº de Factura Manual"
-                                    value={state.manualInvoiceNumber}
-                                    onChange={e => actions.setManualInvoiceNumber(e.target.value)}
+                        <div className="flex justify-between items-center">
+                             <div className="space-y-2">
+                                <Label>Buscar Factura (por Nº o cliente)</Label>
+                                <SearchInput 
+                                    options={state.searchedInvoices.map(inv => ({ value: inv.FACTURA, label: `[${inv.FACTURA}] - ${inv.NOMBRE_CLIENTE}` }))}
+                                    onSelect={(option) => actions.handleLinkInvoice(option.value)}
+                                    value={state.invoiceSearchTerm}
+                                    onValueChange={actions.setInvoiceSearchTerm}
+                                    open={state.searchedInvoices.length > 0 && state.invoiceSearchTerm.length > 2}
+                                    onOpenChange={() => {}} // Managed by search term
+                                    placeholder="Escribe para buscar facturas..." 
                                 />
-                                <Button onClick={() => actions.handleLinkInvoice(state.manualInvoiceNumber)} disabled={!state.manualInvoiceNumber.trim()}>Vincular</Button>
+                            </div>
+                            <div className="flex items-center space-x-2 pt-6">
+                                <Checkbox
+                                    id="limit-days"
+                                    checked={state.limitInvoiceSearchTo30Days}
+                                    onCheckedChange={(checked) => actions.setLimitInvoiceSearchTo30Days(checked as boolean)}
+                                />
+                                <Label htmlFor="limit-days">Últimos 30 días</Label>
                             </div>
                         </div>
+                        {state.isInvoiceLoading && (
+                            <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>
