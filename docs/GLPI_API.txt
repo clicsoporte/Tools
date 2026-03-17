@@ -194,3 +194,78 @@ if __name__ == "__main__":
 ```
 
 Este documento proporciona una guía completa para que puedas integrar tu sistema con GLPI y acceder a sus datos de manera programática.
+
+---
+---
+
+# Lluvia de Ideas y Plan Conceptual: Módulo de Gestión de Activos de TI
+
+## Análisis de `Boleta_entrega.txt`
+
+El formato de la boleta de entrega es excelente y muy bien estructurado. He identificado las secciones clave:
+
+1.  **Datos del Colaborador:** Información básica del empleado.
+2.  **Hardware:** El núcleo del inventario (Marca, Modelo, **Número de Serie**).
+3.  **Software:** Checklist de aplicaciones.
+4.  **Observaciones y Firmas:** Registro de estado y conformidad.
+
+Este formato es ideal para digitalizar.
+
+## Plan de Acción Conceptual 2.0 (Lluvia de Ideas Actualizada)
+
+### Fase 1: El Corazón del Sistema - El Inventario de Activos (Base de Datos Flexible)
+
+**Objetivo:** Crear un "inventario maestro" de activos que sea personalizable desde la interfaz.
+
+*   **Base de Datos (`it_tools.db`):**
+    *   **Tabla `it_assets` (Activos):** La tabla principal para cada equipo.
+        *   **Campos Fijos:** `id`, `asset_tag` (Nº Activo Interno), `serial_number` (único), `type`, `brand`, `model`, `purchase_date`, `warranty_end_date`, `invoice_path`.
+        *   **Campos de Relación:** `current_status_id` (liga al estado), `current_location_id` (liga a la ubicación).
+        *   **Campo Mágico:** `custom_fields_data` (JSON/TEXT) para guardar datos de campos personalizados.
+    *   **Tabla `it_catalogs` (Catálogos Editables):** Una tabla maestra para todas las listas dinámicas.
+        *   Columnas: `id`, `type` (ej: 'software', 'accessory', 'asset_status', 'location'), `name` (ej: "Microsoft Office", "En Bodega").
+    *   **Tabla `it_asset_assignments` (Asignaciones):** El historial de posesión (`asset_id`, `employee_id`, `assigned_at`, `returned_at`).
+
+*   **Nueva Interfaz de Configuración (Administración > Config. de TI):**
+    *   **Gestor de Catálogos:** Una interfaz para que los administradores puedan añadir, editar o eliminar elementos de las listas:
+        *   Gestionar Estados de Activos ("En Bodega", "Asignado", "En Reparación", "Dañado", "EOL").
+        *   Gestionar Software (para el checklist).
+        *   Gestionar Accesorios (para el checklist).
+        *   Gestionar Ubicaciones (País > Sucursal > Bodega/Oficina).
+    *   **Creador de Campos Personalizados:** Una herramienta para añadir nuevos campos de texto, número o fecha al formulario de activos sin necesidad de tocar el código.
+
+### Fase 2: Digitalización de los Flujos de Entrega y Devolución
+
+**Objetivo:** Reemplazar el papel con flujos digitales y generar PDFs como evidencia.
+
+*   **Herramienta "Registrar Entrega de Equipo":**
+    *   **Paso 1:** Seleccionar un empleado de la lista del ERP.
+    *   **Paso 2:** Seleccionar un equipo "En Bodega" del nuevo inventario de activos.
+    *   **Paso 3:** Marcar los checkboxes de software y accesorios (leídos desde los catálogos dinámicos).
+    *   **Paso 4:** Al confirmar, se genera la "Boleta de Entrega" en PDF, se cambia el estado del activo a "Asignado" y se registra la asignación.
+
+*   **Herramienta "Registrar Devolución (Baja) de Equipo":**
+    *   **Paso 1:** Buscar el equipo (por serie, asset tag) o al empleado.
+    *   **Paso 2:** Seleccionar el equipo a devolver.
+    *   **Paso 3:** Añadir notas sobre el estado de la devolución.
+    *   **Paso 4:** Al confirmar, se genera una "Boleta de Baja" en PDF, se actualiza la asignación con la fecha de devolución y se cambia el estado del equipo a "En Bodega", "En Reparación", o el que corresponda.
+
+### Fase 3: Visibilidad y Control Total (El Ecosistema Conectado)
+
+**Objetivo:** Aprovechar los datos centralizados para obtener inteligencia de negocio.
+
+*   **Panel de Inventario de Activos:**
+    *   Una vista maestra con filtros potentes por Estado, Ubicación y campos personalizados.
+    *   Al hacer clic en un activo, se mostrará su **"Hoja de Vida Completa"**:
+        *   Toda su información técnica y personalizada.
+        *   Su historial completo de asignaciones (quién lo tuvo y cuándo).
+        *   **Integración con Soporte Técnico:** Una pestaña que lista todos los tickets de soporte asociados a ese número de serie, permitiendo identificar "equipos problemáticos".
+
+*   **Reporte de Bajas y Fin de Vida (EOL):**
+    *   Una vista simple que lista todos los equipos marcados como "EOL" para un control contable y de desecho adecuado.
+
+*   **Reporte de Auditoría de Empleados Inactivos:**
+    *   El sistema cruzará la lista de empleados **inactivos** del ERP con la base de datos de asignaciones.
+    *   Generará automáticamente un reporte de "Equipos Pendientes de Devolución", simplificando drásticamente el proceso de recuperación de activos al finalizar una relación laboral.
+
+Este enfoque modular y personalizable asegura que la herramienta no solo resuelva la necesidad inmediata, sino que se adapte y crezca con las necesidades futuras del departamento de TI.
