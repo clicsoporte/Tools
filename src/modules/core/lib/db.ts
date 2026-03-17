@@ -99,7 +99,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         CREATE TABLE IF NOT EXISTS erp_purchase_order_headers (ORDEN_COMPRA TEXT PRIMARY KEY, PROVEEDOR TEXT, FECHA_HORA TEXT, ESTADO TEXT, CreatedBy TEXT);
         CREATE TABLE IF NOT EXISTS erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY(ORDEN_COMPRA, ARTICULO));
         CREATE TABLE IF NOT EXISTS erp_invoice_headers (FACTURA TEXT PRIMARY KEY, CLIENTE TEXT, NOMBRE_CLIENTE TEXT, TIPO_DOCUMENTO TEXT, PEDIDO TEXT, FACTURA_ORIGINAL TEXT, FECHA TEXT, FECHA_ENTREGA TEXT, ANULADA TEXT, EMBARCAR_A TEXT, DIRECCION_FACTURA TEXT, OBSERVACIONES TEXT, RUTA TEXT, USUARIO TEXT, USUARIO_ANULA TEXT, ZONA TEXT, VENDEDOR TEXT, REIMPRESO INTEGER);
-        CREATE TABLE IF NOT EXISTS erp_invoice_lines (FACTURA TEXT, TIPO_DOCUMENTO TEXT, LINEA INTEGER, BODEGA TEXT, PEDIDO TEXT, ARTICULO TEXT, ANULADA TEXT, FECHA_FACTURA TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, TOTAL_IMPUESTO1 REAL, PRECIO_TOTAL REAL, DESCRIPCION TEXT, DOCUMENTO_ORIGEN TEXT, CANT_DESPACHADA REAL, ES_CANASTA_BASICA TEXT, PRIMARY KEY (FACTURA, LINEA));
+        CREATE TABLE IF NOT EXISTS erp_invoice_lines (FACTURA TEXT, TIPO_DOCUMENTO TEXT, LINEA INTEGER, BODEGA TEXT, PEDIDO TEXT, ARTICULO TEXT, ANULADA TEXT, FECHA_FACTURA TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, TOTAL_IMPUESTO1 REAL, PRECIO_TOTAL REAL, DESCRIPCION TEXT, DOCUMENTO_ORIGEN TEXT, CANT_DESPACHADA REAL, ES_CANASTA_BASICA TEXT, PRIMARY KEY (FACTURA, TIPO_DOCUMENTO, LINEA));
         CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);
     `;
     db.exec(schema);
@@ -270,16 +270,6 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
              console.log("Migration check skipped: Main database not initialized yet.");
              return;
         }
-        
-        // Add new ERP invoice tables
-        if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_invoice_headers'`).get()) {
-            console.log("MIGRATION: Creating erp_invoice_headers table.");
-            db.exec(`CREATE TABLE erp_invoice_headers (FACTURA TEXT PRIMARY KEY, CLIENTE TEXT, NOMBRE_CLIENTE TEXT, TIPO_DOCUMENTO TEXT, PEDIDO TEXT, FACTURA_ORIGINAL TEXT, FECHA TEXT, FECHA_ENTREGA TEXT, ANULADA TEXT, EMBARCAR_A TEXT, DIRECCION_FACTURA TEXT, OBSERVACIONES TEXT, RUTA TEXT, USUARIO TEXT, USUARIO_ANULA TEXT, ZONA TEXT, VENDEDOR TEXT, REIMPRESO INTEGER);`);
-        }
-        if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_invoice_lines'`).get()) {
-            console.log("MIGRATION: Creating erp_invoice_lines table.");
-            db.exec(`CREATE TABLE erp_invoice_lines (FACTURA TEXT, TIPO_DOCUMENTO TEXT, LINEA INTEGER, BODEGA TEXT, PEDIDO TEXT, ARTICULO TEXT, ANULADA TEXT, FECHA_FACTURA TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, TOTAL_IMPUESTO1 REAL, PRECIO_TOTAL REAL, DESCRIPCION TEXT, DOCUMENTO_ORIGEN TEXT, CANT_DESPACHADA REAL, ES_CANASTA_BASICA TEXT, PRIMARY KEY (FACTURA, LINEA));`);
-        }
 
         const analyticsSettingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='analytics_settings'`).get() as { name: string } | undefined;
         if (!analyticsSettingsTable) {
@@ -295,8 +285,6 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
             db.prepare(`INSERT OR IGNORE INTO analytics_settings (key, value) VALUES ('transitStatusAliases', ?)`).run(JSON.stringify(defaultTransitAliases));
         }
 
-        // The consignment_settings table is now deprecated and managed inside consignments.db
-        // We can safely remove it if it exists.
         if (db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignment_settings'`).get()) {
             console.log("MIGRATION: Dropping deprecated consignment_settings table from main DB.");
             db.exec(`DROP TABLE consignment_settings`);
@@ -480,7 +468,6 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
              const erpPOLinesInfo = db.prepare(`PRAGMA table_info(erp_purchase_order_lines)`).all() as { name: string }[];
              const erpPOLinesColumns = new Set(erpPOLinesInfo.map(c => c.name));
              if (!erpPOLinesColumns.has('ORDEN_COMPRA')) {
-                 // This indicates a legacy structure, so we need to recreate it.
                  console.log("MIGRATION: Recreating erp_purchase_order_lines table with composite primary key.");
                  db.exec(`DROP TABLE erp_purchase_order_lines;`);
                  db.exec(`CREATE TABLE erp_purchase_order_lines (ORDEN_COMPRA TEXT, ARTICULO TEXT, CANTIDAD_ORDENADA REAL, PRIMARY KEY (ORDEN_COMPRA, ARTICULO));`);
@@ -490,6 +477,63 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
             console.log("MIGRATION: Creating stock_settings table.");
             db.exec(`CREATE TABLE stock_settings (key TEXT PRIMARY KEY, value TEXT);`);
         }
+        
+        // --- Invoice Migrations ---
+        const invoiceHeadersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_invoice_headers'`).get() as { name: string } | undefined;
+        if (!invoiceHeadersTable) {
+            console.log("MIGRATION: Creating erp_invoice_headers table from scratch.");
+            db.exec(`CREATE TABLE erp_invoice_headers (FACTURA TEXT PRIMARY KEY, CLIENTE TEXT, NOMBRE_CLIENTE TEXT, TIPO_DOCUMENTO TEXT, PEDIDO TEXT, FACTURA_ORIGINAL TEXT, FECHA TEXT, FECHA_ENTREGA TEXT, ANULADA TEXT, EMBARCAR_A TEXT, DIRECCION_FACTURA TEXT, OBSERVACIONES TEXT, RUTA TEXT, USUARIO TEXT, USUARIO_ANULA TEXT, ZONA TEXT, VENDEDOR TEXT, REIMPRESO INTEGER);`);
+        } else {
+            const invoiceHeadersInfo = db.prepare(`PRAGMA table_info(erp_invoice_headers)`).all() as { name: string }[];
+            const invoiceHeadersColumns = new Set(invoiceHeadersInfo.map(c => c.name));
+            if (!invoiceHeadersColumns.has('TIPO_DOCUMENTO')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN TIPO_DOCUMENTO TEXT');
+            if (!invoiceHeadersColumns.has('PEDIDO')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN PEDIDO TEXT');
+            if (!invoiceHeadersColumns.has('FACTURA_ORIGINAL')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN FACTURA_ORIGINAL TEXT');
+            if (!invoiceHeadersColumns.has('FECHA_ENTREGA')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN FECHA_ENTREGA TEXT');
+            if (!invoiceHeadersColumns.has('ANULADA')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN ANULADA TEXT');
+            if (!invoiceHeadersColumns.has('EMBARCAR_A')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN EMBARCAR_A TEXT');
+            if (!invoiceHeadersColumns.has('DIRECCION_FACTURA')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN DIRECCION_FACTURA TEXT');
+            if (!invoiceHeadersColumns.has('OBSERVACIONES')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN OBSERVACIONES TEXT');
+            if (!invoiceHeadersColumns.has('RUTA')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN RUTA TEXT');
+            if (!invoiceHeadersColumns.has('USUARIO')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN USUARIO TEXT');
+            if (!invoiceHeadersColumns.has('USUARIO_ANULA')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN USUARIO_ANULA TEXT');
+            if (!invoiceHeadersColumns.has('ZONA')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN ZONA TEXT');
+            if (!invoiceHeadersColumns.has('VENDEDOR')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN VENDEDOR TEXT');
+            if (!invoiceHeadersColumns.has('REIMPRESO')) db.exec('ALTER TABLE erp_invoice_headers ADD COLUMN REIMPRESO INTEGER');
+        }
+
+        const invoiceLinesTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='erp_invoice_lines'`).get() as { name: string } | undefined;
+        if (!invoiceLinesTable) {
+            console.log("MIGRATION: Creating erp_invoice_lines table from scratch.");
+            db.exec(`CREATE TABLE erp_invoice_lines (FACTURA TEXT, TIPO_DOCUMENTO TEXT, LINEA INTEGER, BODEGA TEXT, PEDIDO TEXT, ARTICULO TEXT, ANULADA TEXT, FECHA_FACTURA TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, TOTAL_IMPUESTO1 REAL, PRECIO_TOTAL REAL, DESCRIPCION TEXT, DOCUMENTO_ORIGEN TEXT, CANT_DESPACHADA REAL, ES_CANASTA_BASICA TEXT, PRIMARY KEY (FACTURA, TIPO_DOCUMENTO, LINEA));`);
+        } else {
+            const invoiceLinesInfo = db.prepare(`PRAGMA table_info(erp_invoice_lines)`).all() as { name: string }[];
+            const invoiceLinesColumns = new Set(invoiceLinesInfo.map(c => c.name));
+            if (!invoiceLinesColumns.has('TIPO_DOCUMENTO')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN TIPO_DOCUMENTO TEXT');
+            if (!invoiceLinesColumns.has('BODEGA')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN BODEGA TEXT');
+            if (!invoiceLinesColumns.has('PEDIDO')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN PEDIDO TEXT');
+            if (!invoiceLinesColumns.has('ANULADA')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN ANULADA TEXT');
+            if (!invoiceLinesColumns.has('FECHA_FACTURA')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN FECHA_FACTURA TEXT');
+            if (!invoiceLinesColumns.has('TOTAL_IMPUESTO1')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN TOTAL_IMPUESTO1 REAL');
+            if (!invoiceLinesColumns.has('PRECIO_TOTAL')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN PRECIO_TOTAL REAL');
+            if (!invoiceLinesColumns.has('DOCUMENTO_ORIGEN')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN DOCUMENTO_ORIGEN TEXT');
+            if (!invoiceLinesColumns.has('CANT_DESPACHADA')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN CANT_DESPACHADA REAL');
+            if (!invoiceLinesColumns.has('ES_CANASTA_BASICA')) db.exec('ALTER TABLE erp_invoice_lines ADD COLUMN ES_CANASTA_BASICA TEXT');
+
+            // Recreate table if primary key is wrong
+            const pkInfo = db.prepare(`PRAGMA index_list('erp_invoice_lines')`).filter((i: any) => i.origin === 'pk');
+            if (pkInfo.length === 0) { // No explicit PK means ROWID is used, so we need to fix it
+                console.log("MIGRATION: Recreating erp_invoice_lines to fix composite primary key.");
+                 db.exec(`
+                    CREATE TABLE erp_invoice_lines_temp AS SELECT * FROM erp_invoice_lines;
+                    DROP TABLE erp_invoice_lines;
+                    CREATE TABLE erp_invoice_lines (FACTURA TEXT, TIPO_DOCUMENTO TEXT, LINEA INTEGER, BODEGA TEXT, PEDIDO TEXT, ARTICULO TEXT, ANULADA TEXT, FECHA_FACTURA TEXT, CANTIDAD REAL, PRECIO_UNITARIO REAL, TOTAL_IMPUESTO1 REAL, PRECIO_TOTAL REAL, DESCRIPCION TEXT, DOCUMENTO_ORIGEN TEXT, CANT_DESPACHADA REAL, ES_CANASTA_BASICA TEXT, PRIMARY KEY (FACTURA, TIPO_DOCUMENTO, LINEA));
+                    INSERT INTO erp_invoice_lines SELECT * FROM erp_invoice_lines_temp;
+                    DROP TABLE erp_invoice_lines_temp;
+                `);
+            }
+        }
+
 
     } catch (error) {
         console.error("Failed to apply migrations:", error);
@@ -1594,7 +1638,14 @@ export async function saveAllErpInvoiceHeaders(headers: ErpInvoiceHeader[]): Pro
     const insert = db.prepare('INSERT OR REPLACE INTO erp_invoice_headers (FACTURA, CLIENTE, NOMBRE_CLIENTE, TIPO_DOCUMENTO, PEDIDO, FACTURA_ORIGINAL, FECHA, FECHA_ENTREGA, ANULADA, EMBARCAR_A, DIRECCION_FACTURA, OBSERVACIONES, RUTA, USUARIO, USUARIO_ANULA, ZONA, VENDEDOR, REIMPRESO) VALUES (@FACTURA, @CLIENTE, @NOMBRE_CLIENTE, @TIPO_DOCUMENTO, @PEDIDO, @FACTURA_ORIGINAL, @FECHA, @FECHA_ENTREGA, @ANULADA, @EMBARCAR_A, @DIRECCION_FACTURA, @OBSERVACIONES, @RUTA, @USUARIO, @USUARIO_ANULA, @ZONA, @VENDEDOR, @REIMPRESO)');
     const transaction = db.transaction((data: ErpInvoiceHeader[]) => {
         db.prepare('DELETE FROM erp_invoice_headers').run();
-        for(const header of data) insert.run(header);
+        for(const header of data) {
+            const sanitizedHeader = {
+                ...header,
+                FECHA: header.FECHA instanceof Date ? header.FECHA.toISOString() : String(header.FECHA),
+                FECHA_ENTREGA: header.FECHA_ENTREGA instanceof Date ? header.FECHA_ENTREGA.toISOString() : String(header.FECHA_ENTREGA),
+            };
+            insert.run(sanitizedHeader);
+        }
     });
     transaction(headers);
 }
@@ -1604,7 +1655,13 @@ export async function saveAllErpInvoiceLines(lines: ErpInvoiceLine[]): Promise<v
     const insert = db.prepare('INSERT OR REPLACE INTO erp_invoice_lines (FACTURA, TIPO_DOCUMENTO, LINEA, BODEGA, PEDIDO, ARTICULO, ANULADA, FECHA_FACTURA, CANTIDAD, PRECIO_UNITARIO, TOTAL_IMPUESTO1, PRECIO_TOTAL, DESCRIPCION, DOCUMENTO_ORIGEN, CANT_DESPACHADA, ES_CANASTA_BASICA) VALUES (@FACTURA, @TIPO_DOCUMENTO, @LINEA, @BODEGA, @PEDIDO, @ARTICULO, @ANULADA, @FECHA_FACTURA, @CANTIDAD, @PRECIO_UNITARIO, @TOTAL_IMPUESTO1, @PRECIO_TOTAL, @DESCRIPCION, @DOCUMENTO_ORIGEN, @CANT_DESPACHADA, @ES_CANASTA_BASICA)');
     const transaction = db.transaction((data: ErpInvoiceLine[]) => {
         db.prepare('DELETE FROM erp_invoice_lines').run();
-        for(const line of data) insert.run(line);
+        for(const line of data) {
+            const sanitizedLine = {
+                ...line,
+                FECHA_FACTURA: line.FECHA_FACTURA instanceof Date ? line.FECHA_FACTURA.toISOString() : String(line.FECHA_FACTURA),
+            };
+            insert.run(sanitizedLine);
+        }
     });
     transaction(lines);
 }
@@ -1843,3 +1900,5 @@ export async function searchErpInvoices(clientId: string, searchTerm: string): P
     `).all(clientId, `%${searchTerm}%`) as ErpInvoiceHeader[];
     return JSON.parse(JSON.stringify(results));
 }
+
+    

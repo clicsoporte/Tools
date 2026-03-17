@@ -552,3 +552,5 @@ export async function searchErpInvoices(clientId: string, searchTerm: string): P
     await authorizeAction('consignments:boleta:invoice'); // Re-using invoice permission
     return searchErpInvoicesServer(clientId, searchTerm);
 }
+
+    
