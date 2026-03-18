@@ -38,7 +38,8 @@ import {
     linkInvoiceToClosure as linkInvoiceToClosureServer,
 } from './db';
 import { 
-    searchErpInvoices as searchErpInvoicesServer 
+    searchErpInvoices as searchErpInvoicesServer,
+    getErpInvoiceDetails 
 } from '@/modules/core/lib/db';
 import type { ErpInvoiceHeader, ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
@@ -223,6 +224,101 @@ async function sendClosurePendingEmail({
     }
 }
 
+
+async function sendClosureInvoiceLinkedEmail({
+    closureId,
+    invoiceNumber,
+    userName,
+}: {
+    closureId: number;
+    invoiceNumber: string;
+    userName: string;
+}) {
+    const [closureBillingData, invoiceDetails, settings, users, allProducts] = await Promise.all([
+        getConsignmentsBillingReportDataFromDb(closureId),
+        getErpInvoiceDetails(invoiceNumber),
+        getConsignmentSettingsServer(),
+        getAllUsers(),
+        getAllProductsFromMainDb()
+    ]);
+    
+    if (!closureBillingData.currentClosure || !invoiceDetails) {
+        logWarn('Could not send validation email: closure or invoice details not found.', { closureId, invoiceNumber });
+        return;
+    }
+
+    const { reportRows, currentClosure } = closureBillingData;
+    const { header: invoiceHeader, lines: invoiceLines } = invoiceDetails;
+    
+    const agreement = await getAgreementDetailsServer(currentClosure.agreement_id);
+    if (!agreement) return;
+
+    const allRecipients = new Set<string>();
+    (settings.notificationUserIds || []).forEach(userId => {
+        const user = users.find(u => u.id === userId);
+        if (user?.email) allRecipients.add(user.email);
+    });
+    (agreement.agreement.notification_user_ids || []).forEach(userId => {
+        const user = users.find(u => u.id === userId);
+        if (user?.email) allRecipients.add(user.email);
+    });
+    (settings.additionalNotificationEmails?.split(',') || []).map(e => e.trim()).filter(Boolean).forEach(email => allRecipients.add(email));
+
+    if (allRecipients.size === 0) return;
+
+    const consumptionMap = new Map(reportRows.map((r: ConsignmentReportRow) => [r.productId, r.consumption]));
+    const invoiceLinesMap = new Map(invoiceLines.map(l => [l.ARTICULO, l]));
+    const allProductIds = new Set([...consumptionMap.keys(), ...invoiceLinesMap.keys()]);
+    const productMap = new Map(allProducts.map(p => [p.id, p.description]));
+
+    const docTypeMap: { [key: string]: string } = { 'F': 'Factura', 'D': 'Nota de Crédito', 'R': 'Remisión' };
+    const docTypeName = docTypeMap[invoiceHeader.TIPO_DOCUMENTO] || invoiceHeader.TIPO_DOCUMENTO;
+    
+    let comparisonHtml = `<p>El usuario <strong>${userName}</strong> ha vinculado la <strong>${docTypeName} #${invoiceNumber}</strong> al Cierre de Consignación <strong>${currentClosure.consecutive}</strong> para el cliente <strong>${currentClosure.client_name}</strong>.</p>
+        <p>A continuación se muestra una comparación de las cantidades:</p>
+        <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 12px;">
+            <thead style="background-color: #f2f2f2;">
+                <tr>
+                    <th style="text-align: left;">Código</th>
+                    <th style="text-align: left;">Descripción</th>
+                    <th style="text-align: right;">Cant. Cierre</th>
+                    <th style="text-align: right;">Cant. Factura</th>
+                    <th style="text-align: right;">Diferencia</th>
+                </tr>
+            </thead>
+            <tbody>`;
+    let hasDifferences = false;
+
+    for (const productId of allProductIds) {
+        const closureQty = consumptionMap.get(productId) || 0;
+        const invoiceQty = invoiceLinesMap.get(productId)?.CANTIDAD || 0;
+        const difference = invoiceQty - closureQty;
+
+        if (difference !== 0) hasDifferences = true;
+
+        comparisonHtml += `
+            <tr style="${difference !== 0 ? 'background-color: #fef2f2; color: #b91c1c;' : ''}">
+                <td style="font-family: monospace;">${productId}</td>
+                <td>${productMap.get(productId) || 'Desconocido'}</td>
+                <td style="text-align: right;">${closureQty.toLocaleString()}</td>
+                <td style="text-align: right;">${invoiceQty.toLocaleString()}</td>
+                <td style="text-align: right; font-weight: bold;">${difference.toLocaleString()}</td>
+            </tr>`;
+    }
+
+    comparisonHtml += `</tbody></table>`;
+    if (hasDifferences) {
+        comparisonHtml += `<p style="margin-top:15px; font-weight:bold; color: #b91c1c;"><strong>¡Atención!</strong> Se encontraron diferencias entre las cantidades del cierre y las de la factura.</p>`;
+    } else {
+        comparisonHtml += `<p style="margin-top:15px; font-weight:bold; color: #16a34a;">Validación exitosa: Las cantidades del cierre y la factura coinciden.</p>`;
+    }
+    
+    await sendEmail({
+        to: Array.from(allRecipients),
+        subject: `Factura ${invoiceNumber} vinculada al Cierre ${currentClosure.consecutive}`,
+        html: comparisonHtml,
+    });
+}
 
 export async function getConsignmentAgreements(): Promise<(ConsignmentAgreement & { product_count?: number; boleta_count?: number })[]> {
     return getAgreementsServer();
@@ -544,8 +640,15 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
 }
 
 export async function linkInvoiceToClosure(closureId: number, invoiceNumber: string, userName: string): Promise<void> {
-    await authorizeAction('consignments:boleta:invoice'); // Re-using invoice permission
-    return linkInvoiceToClosureServer(closureId, invoiceNumber, userName);
+    await authorizeAction('consignments:boleta:invoice');
+    await linkInvoiceToClosureServer(closureId, invoiceNumber, userName);
+
+    try {
+        await sendClosureInvoiceLinkedEmail({ closureId, invoiceNumber, userName });
+    } catch (emailError: any) {
+        logError('Failed to send closure invoice linked email', { error: emailError.message, closureId, invoiceNumber });
+        // Do not re-throw, the main operation was successful.
+    }
 }
 
 export async function searchErpInvoices(clientId: string, searchTerm: string, limitToLast30Days: boolean): Promise<ErpInvoiceHeader[]> {

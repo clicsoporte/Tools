@@ -1687,6 +1687,19 @@ export async function getAllErpPurchaseOrderLines(): Promise<ErpPurchaseOrderLin
     }
 }
 
+export async function getErpInvoiceDetails(invoiceNumber: string): Promise<{ header: ErpInvoiceHeader, lines: ErpInvoiceLine[] } | null> {
+    const db = await connectDb();
+    const header = db.prepare('SELECT * FROM erp_invoice_headers WHERE FACTURA = ?').get(invoiceNumber) as ErpInvoiceHeader | undefined;
+
+    if (!header) {
+        return null;
+    }
+
+    const lines = db.prepare('SELECT * FROM erp_invoice_lines WHERE FACTURA = ?').all(invoiceNumber) as ErpInvoiceLine[];
+
+    return JSON.parse(JSON.stringify({ header, lines }));
+}
+
 
 // --- Notification Functions ---
 export async function createNotification(notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>): Promise<void> {

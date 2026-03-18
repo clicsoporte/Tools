@@ -1200,7 +1200,7 @@ export type PeriodClosure = {
     is_initial_inventory: boolean;
     closure_boleta_id: number;
     physical_count_ref?: string;
-    previous_closure_id?: number;
+    previous_closure_id?: number | null;
     created_at: string;
     created_by: string;
     approved_at?: string;
