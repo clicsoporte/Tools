@@ -268,7 +268,7 @@ async function sendClosureInvoiceLinkedEmail({
 
     const consumptionMap = new Map(reportRows.map((r: ConsignmentReportRow) => [r.productId, r.consumption]));
     const invoiceLinesMap = new Map(invoiceLines.map(l => [l.ARTICULO, l]));
-    const allProductIds = new Set([...consumptionMap.keys(), ...invoiceLinesMap.keys()]);
+    const allProductIds = new Set<string>([...consumptionMap.keys(), ...invoiceLinesMap.keys()]);
     const productMap = new Map(allProducts.map(p => [p.id, p.description]));
 
     const docTypeMap: { [key: string]: string } = { 'F': 'Factura', 'D': 'Nota de Crédito', 'R': 'Remisión' };

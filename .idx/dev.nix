@@ -1,36 +1,52 @@
-# To learn more about how to use Nix to configure your environment
-# see: https://firebase.google.com/docs/studio/customize-workspace
+# Para aprender más sobre cómo configurar tu entorno:
+# https://firebase.google.com/docs/studio/customize-workspace
 {pkgs}: {
-  # Which nixpkgs channel to use.
-  channel = "stable-24.11"; # or "unstable"
-  # Use https://search.nixos.org/packages to find packages
+  # Canal de nixpkgs a utilizar
+  channel = "stable-24.11"; 
+
+  # Paquetes necesarios para tu stack Next.js + SQL Server
   packages = [
     pkgs.nodejs_20
-    pkgs.zulu
+    pkgs.zulu 
+    pkgs.python3 
   ];
-  # Sets environment variables in the workspace
+
+  # Variables de entorno
   env = {};
-  # This adds a file watcher to startup the firebase emulators. The emulators will only start if
-  # a firebase.json file is written into the user's directory
+
+  # Configuración de servicios
   services.firebase.emulators = {
-    # Disabling because we are using prod backends right now
+    # 'enable' no existe, usamos 'detect' en false para evitar el auto-arranque
     detect = false;
     projectId = "demo-app";
     services = ["auth" "firestore"];
   };
+
   idx = {
-    # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
+    # Extensiones esenciales
     extensions = [
-      # "vscodevim.vim"
+      "christian-kohler.path-intellisense"
+      "dbaeumer.vscode-eslint"
     ];
+
     workspace = {
+      # Acciones al crear el workspace
       onCreate = {
+        # Limpieza inicial para optimizar el índice de la IA
+        cleanup-cache = "rm -rf .next node_modules/.cache temp_files/*";
+        npm-install = "npm install";
         default.openFiles = [
           "src/app/page.tsx"
         ];
       };
+      
+      # Acciones cada vez que se inicia el workspace
+      onStart = {
+        clean-next = "rm -rf .next/cache";
+      };
     };
-    # Enable previews and customize configuration
+
+    # Configuración de previsualización web
     previews = {
       enable = true;
       previews = {
