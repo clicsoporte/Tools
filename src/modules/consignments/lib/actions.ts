@@ -242,7 +242,7 @@ async function sendClosureInvoiceLinkedEmail({
         getAllProductsFromMainDb()
     ]);
     
-    if (!closureBillingData.currentClosure || !invoiceDetails) {
+    if ('error' in closureBillingData || !closureBillingData.currentClosure || !invoiceDetails) {
         logWarn('Could not send validation email: closure or invoice details not found.', { closureId, invoiceNumber });
         return;
     }
@@ -655,5 +655,3 @@ export async function searchErpInvoices(clientId: string, searchTerm: string, li
     await authorizeAction('consignments:boleta:invoice'); // Re-using invoice permission
     return searchErpInvoicesServer(clientId, searchTerm, limitToLast30Days);
 }
-
-    

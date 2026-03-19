@@ -5,7 +5,7 @@
 
 import { connectDb, getCompanySettings, getAllProducts as getAllProductsFromMainDb } from '@/modules/core/lib/db';
 import { getAllUsers as getAllUsersFromMain } from '@/modules/core/lib/auth';
-import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow, PeriodClosureStatus, ErpInvoiceHeader } from '@/modules/core/types';
+import type { ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow, PeriodClosureStatus, ErpInvoiceHeader, ErpInvoiceLine } from '@/modules/core/types';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -459,7 +459,7 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
     return transaction();
 }
 
-// ... the rest of the file remains unchanged. I'll include it in the final output.
+// ... rest of the file remains unchanged. I'll include it in the final output.
 
 export async function getBoletaDetails(boletaId: number): Promise<{ boleta: RestockBoleta, lines: BoletaLine[], history: BoletaHistory[] } | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
@@ -827,12 +827,7 @@ export async function saveAdjustment(payload: { agreementId: number; productId: 
     return db.prepare('SELECT * FROM consignment_adjustments WHERE id = ?').get(info.lastInsertRowid) as ConsignmentAdjustment;
 }
 
-export async function getConsignmentsBillingReportData(closureId: number): Promise<{ 
-    reportRows: ConsignmentReportRow[], 
-    boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[],
-    currentClosure: (PeriodClosure & { client_name: string }) | null,
-    previousClosure: PeriodClosure | null,
-}> {
+export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const mainDb = await connectDb();
 
@@ -844,7 +839,7 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     `).get(closureId) as (PeriodClosure & { client_name: string }) | undefined;
 
     if (!currentClosure) {
-        throw new Error("Cierre no encontrado o no tiene un estado válido (aprobado/facturado) para este reporte.");
+        return { error: "Cierre no encontrado o no está en estado 'Aprobado' o 'Facturado'." };
     }
 
     const previousClosure = currentClosure.previous_closure_id 
@@ -919,7 +914,6 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
             totalValue: consumption > 0 ? consumption * product.price : 0,
             adjustments: totalAdjustments,
             transactions,
-            // These fields are not used in the billing report, so we provide empty defaults.
             boletaConsecutives: '', 
             creationDates: '', 
             deliveryDates: '', 

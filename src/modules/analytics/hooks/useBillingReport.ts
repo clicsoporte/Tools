@@ -57,14 +57,31 @@ export function useBillingReport() {
             }
             try {
                 const data = await getConsignmentsBillingReportData(Number(closureId));
-                updateState({ 
-                    reportData: data.reportRows, 
-                    boletasInPeriod: data.boletas,
-                    closureInfo: data.currentClosure,
-                    previousClosure: data.previousClosure,
-                });
+                if ('error' in data) {
+                    toast({
+                        title: "Error al Cargar Reporte",
+                        description: data.error,
+                        variant: "destructive",
+                        duration: 7000
+                    });
+                    logError("Failed to fetch billing report data", { error: data.error, closureId });
+                    updateState({ reportData: null });
+                } else {
+                    updateState({ 
+                        reportData: data.reportRows, 
+                        boletasInPeriod: data.boletas,
+                        closureInfo: data.currentClosure,
+                        previousClosure: data.previousClosure,
+                    });
+                }
             } catch (error: any) {
                 logError("Failed to fetch billing report data", { error: error.message, closureId });
+                toast({
+                    title: 'Error Inesperado',
+                    description: 'No se pudo cargar el reporte de facturación. Verifica que el ID del cierre sea correcto y que esté aprobado.',
+                    variant: 'destructive',
+                    duration: 7000
+                });
             } finally {
                 updateState({ isLoading: false });
             }
