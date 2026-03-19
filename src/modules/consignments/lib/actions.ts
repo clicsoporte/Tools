@@ -267,8 +267,12 @@ async function sendClosureInvoiceLinkedEmail({
     if (allRecipients.size === 0) return;
 
     const consumptionMap = new Map(reportRows.map((r: ConsignmentReportRow) => [r.productId, r.consumption]));
-    const invoiceLinesMap = new Map(invoiceLines.map(l => [l.ARTICULO, l]));
-    const allProductIds = new Set<string>([...consumptionMap.keys(), ...invoiceLinesMap.keys()]);
+    const invoiceLinesMap = new Map(invoiceLines.map((l: ErpInvoiceLine) => [l.ARTICULO, l]));
+
+    const consumptionKeys: string[] = Array.from(consumptionMap.keys());
+    const invoiceKeys: string[] = Array.from(invoiceLinesMap.keys());
+    const allProductIds = new Set<string>([...consumptionKeys, ...invoiceKeys]);
+
     const productMap = new Map(allProducts.map(p => [p.id, p.description]));
 
     const docTypeMap: { [key: string]: string } = { 'F': 'Factura', 'D': 'Nota de Crédito', 'R': 'Remisión' };
@@ -441,8 +445,8 @@ export async function createBoletaFromCount(agreementId: number, counts: Record<
         
         await createNotificationForPermission(
             'consignments:boleta:approve',
-            `Nueva boleta ${boleta.consecutive} para "${agreementDetails.agreement.client_name}" requiere aprobación.`,
-            `/dashboard/consignments/boletas`,
+            `Nueva boleta de consignación ${boleta.consecutive} para "${agreementDetails.agreement.client_name}" requiere aprobación.`,
+            '/dashboard/consignments/boletas',
             boleta.id,
             'consignment_boleta',
             'approve'
@@ -603,7 +607,14 @@ export async function rejectPeriodClosure(closureId: number, notes: string, upda
 }
 
 export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
-    return getConsignmentsBillingReportDataFromDb(closureId);
+    if (!closureId) {
+        return { error: "ID de cierre no especificado." };
+    }
+    const data = await getConsignmentsBillingReportDataFromDb(closureId);
+    if ('error' in data) {
+         throw new Error(data.error);
+    }
+    return data;
 }
 
 
