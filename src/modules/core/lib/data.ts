@@ -458,14 +458,6 @@ export const consignmentsReportTools: Tool[] = [
         bgColor: 'bg-lime-600',
     },
     {
-        id: 'consignments:boleta:approve',
-        name: 'Reporte de Facturación (Oficial)',
-        description: 'Gestiona cierres y genera el reporte de facturación oficial desde un período aprobado.',
-        href: '/dashboard/analytics/billing-report',
-        icon: FileSignature,
-        bgColor: 'bg-indigo-600',
-    },
-    {
         id: 'analytics:consignments-report:read', // Re-use permission
         name: 'Monitor de Inventario',
         description: 'Ver inventario teórico vs. último conteo físico para un cliente.',
@@ -571,8 +563,8 @@ export const allTools: Tool[] = [
     ...warehouseTools, 
     ...consignmentsTools, 
     ...itTools,
-    ...consignmentsReportTools,
     ...purchasingReportTools,
+    ...productionReportTools,
     ...inventoryReportTools,
-    ...productionReportTools
+    ...consignmentsReportTools
 ];
