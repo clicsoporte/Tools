@@ -50,7 +50,6 @@ export function useBillingReport() {
         setTitle("Reporte de Facturación");
         const fetchReportData = async () => {
             if (!closureId) {
-                toast({ title: 'ID de Cierre no encontrado', description: 'No se especificó un cierre para generar el reporte.', variant: 'destructive'});
                 updateState({ isLoading: false });
                 return;
             }
@@ -72,6 +71,8 @@ export function useBillingReport() {
 
         if (isAuthorized) {
             fetchReportData();
+        } else {
+            updateState({ isLoading: false });
         }
     }, [closureId, isAuthorized, setTitle, toast, updateState]);
     
