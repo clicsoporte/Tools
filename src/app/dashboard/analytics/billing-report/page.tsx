@@ -16,6 +16,15 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
 
 export default function BillingReportPage() {
     const { state, actions, selectors, isAuthorized } = useBillingReport();
@@ -36,8 +45,8 @@ export default function BillingReportPage() {
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card className="max-w-4xl mx-auto">
                     <CardHeader>
-                        <CardTitle>Error</CardTitle>
-                        <CardDescription>No se pudo cargar el reporte de facturación. Verifica que el ID del cierre sea correcto y que esté aprobado.</CardDescription>
+                        <CardTitle>ID de cierre no encontrado</CardTitle>
+                        <CardDescription>No se especificó un cierre para generar el reporte. Por favor, accede a este reporte desde la página de &quot;Gestión de Cierres&quot;.</CardDescription>
                     </CardHeader>
                     <CardContent>
                          <Button asChild variant="outline">
@@ -87,7 +96,48 @@ export default function BillingReportPage() {
                         <AlertDescription>
                             <ul className="list-disc list-inside text-sm space-y-1 mt-2">
                                 <li><strong>Inventario Inicial:</strong> Basado en el conteo del cierre anterior ({previousClosure?.consecutive || 'Ninguno'}).</li>
-                                <li><strong>Entregas en el Período:</strong> Se incluyeron {boletasInPeriod.length} boleta(s) de reposición.</li>
+                                <li>
+                                    <div className="flex items-center">
+                                        <strong>Entregas en el Período:</strong>
+                                        <Dialog open={state.isBoletasDialogOpen} onOpenChange={actions.setIsBoletasDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="link" className="p-0 h-auto ml-1 text-blue-600 text-sm">
+                                                    Se incluyeron {boletasInPeriod.length} boleta(s) de reposición.
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-[625px]">
+                                                <DialogHeader>
+                                                    <DialogTitle>Boletas Incluidas en el Cierre</DialogTitle>
+                                                    <DialogDescription>
+                                                        Estas son las boletas de reposición cuyas entregas se consideraron para calcular el consumo de este período.
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <ScrollArea className="max-h-[60vh] mt-4">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Consecutivo</TableHead>
+                                                                <TableHead>Fecha</TableHead>
+                                                                <TableHead>Usuario</TableHead>
+                                                                <TableHead>Movimiento ERP</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {boletasInPeriod.map(boleta => (
+                                                                <TableRow key={boleta.id}>
+                                                                    <TableCell className="font-mono">{boleta.consecutive}</TableCell>
+                                                                    <TableCell>{format(parseISO(boleta.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}</TableCell>
+                                                                    <TableCell>{boleta.created_by}</TableCell>
+                                                                    <TableCell>{boleta.erp_movement_id || '-'}</TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </ScrollArea>
+                                            </DialogContent>
+                                        </Dialog>
+                                    </div>
+                                </li>
                                 <li><strong>Inventario Final:</strong> Basado en el conteo de este cierre ({closureInfo?.consecutive}).</li>
                             </ul>
                         </AlertDescription>

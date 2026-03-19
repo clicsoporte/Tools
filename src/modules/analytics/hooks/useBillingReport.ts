@@ -19,6 +19,7 @@ import { es } from 'date-fns/locale';
 
 interface State {
     isLoading: boolean;
+    isBoletasDialogOpen: boolean;
     reportData: ConsignmentReportRow[] | null;
     boletasInPeriod: (RestockBoleta & { lines: BoletaLine[], history: BoletaHistory[] })[];
     closureInfo: (PeriodClosure & { client_name: string }) | null;
@@ -34,6 +35,7 @@ export function useBillingReport() {
     
     const [state, setState] = useState<State>({
         isLoading: true,
+        isBoletasDialogOpen: false,
         reportData: null,
         boletasInPeriod: [],
         closureInfo: null,
@@ -63,7 +65,6 @@ export function useBillingReport() {
                 });
             } catch (error: any) {
                 logError("Failed to fetch billing report data", { error: error.message, closureId });
-                toast({ title: "Error al Generar", description: error.message, variant: 'destructive' });
             } finally {
                 updateState({ isLoading: false });
             }
@@ -162,6 +163,7 @@ export function useBillingReport() {
         actions: {
             handleExportExcel,
             handleExportPDF,
+            setIsBoletasDialogOpen: (isOpen: boolean) => updateState({ isBoletasDialogOpen: isOpen }),
         },
         selectors: {},
         isAuthorized,
