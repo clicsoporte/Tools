@@ -41,7 +41,7 @@ import {
     searchErpInvoices as searchErpInvoicesServer,
     getErpInvoiceDetails 
 } from '@/modules/core/lib/db';
-import type { ErpInvoiceHeader, ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow } from '@/modules/core/types';
+import type { ErpInvoiceHeader, ConsignmentAgreement, ConsignmentProduct, RestockBoleta, BoletaLine, BoletaHistory, User, Product, RestockBoletaStatus, ConsignmentSettings, PeriodClosure, PhysicalCount, BoletaType, ConsignmentAdjustment, ConsignmentAdjustmentReason, ConsignmentReportRow, ErpInvoiceLine } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError, logInfo, logWarn } from '@/modules/core/lib/logger';
 import { createNotification, createNotificationForPermission } from '@/modules/core/lib/notifications-actions';
@@ -606,7 +606,7 @@ export async function rejectPeriodClosure(closureId: number, notes: string, upda
     return rejectPeriodClosureServer(closureId, notes, updatedBy);
 }
 
-export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
+export async function getConsignmentsBillingReportData(closureId: number): Promise<{ reportRows: ConsignmentReportRow[], boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[], currentClosure: (PeriodClosure & { client_name: string; }), previousClosure: PeriodClosure | null; } | { error: string; }> {
     if (!closureId) {
         return { error: "ID de cierre no especificado." };
     }

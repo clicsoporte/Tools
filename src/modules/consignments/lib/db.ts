@@ -812,22 +812,7 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
     })();
 }
 
-
-export async function saveAdjustment(payload: { agreementId: number; productId: string; quantity: number; reason: ConsignmentAdjustmentReason; notes?: string; userName: string; }): Promise<ConsignmentAdjustment> {
-    await authorizeAction('consignments:adjustments:create');
-    const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    const { agreementId, productId, quantity, reason, notes, userName } = payload;
-    const now = new Date().toISOString();
-
-    const info = db.prepare('INSERT INTO consignment_adjustments (agreement_id, product_id, quantity, reason, notes, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(agreementId, productId, quantity, reason, notes, now, userName);
-
-    logInfo(`Consignment adjustment created by ${userName}`, { ...payload });
-    
-    return db.prepare('SELECT * FROM consignment_adjustments WHERE id = ?').get(info.lastInsertRowid) as ConsignmentAdjustment;
-}
-
-export async function getConsignmentsBillingReportData(closureId: number): Promise<any> {
+export async function getConsignmentsBillingReportData(closureId: number): Promise<{ reportRows: ConsignmentReportRow[]; boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]; currentClosure: (PeriodClosure & { client_name: string; }); previousClosure: PeriodClosure | null; } | { error: string; }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const mainDb = await connectDb();
 
@@ -839,7 +824,7 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     `).get(closureId) as (PeriodClosure & { client_name: string }) | undefined;
 
     if (!currentClosure) {
-        return { error: "Cierre no encontrado o no está en estado 'Aprobado' o 'Facturado'." };
+        return { error: "Cierre no encontrado o no está en estado 'Aprobado'." };
     }
 
     const previousClosure = currentClosure.previous_closure_id 
