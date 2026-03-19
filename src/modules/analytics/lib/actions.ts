@@ -391,45 +391,19 @@ export async function getConsignmentsReportData(
             const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
             const totalValue = consumption * product.price;
 
-            const relevantBoletas = boletasInPeriod.filter((b: any) =>
-                b.lines.some((l: any) => l.product_id === product.product_id && l.replenish_quantity > 0)
-            );
-
-            const boletaConsecutives = [...new Set(relevantBoletas.map((b: any) => b.consecutive))].join(', ');
-            const creationDates = [...new Set(relevantBoletas.map((b: any) => format(parseISO(b.created_at), 'dd/MM/yy')))].join(', ');
-            const erpInvoices = [...new Set(relevantBoletas.map((b: any) => b.erp_invoice_number).filter(Boolean))].join(', ');
-            const erpMovementIds = [...new Set(relevantBoletas.map((b: any) => b.erp_movement_id).filter(Boolean))].join(', ');
-            const deliveryDates = [...new Set(relevantBoletas.map((b: any) => b.delivery_date ? format(parseISO(b.delivery_date), 'dd/MM/yy') : null).filter(Boolean))].join(', ');
-            const approvers = [...new Set(relevantBoletas.map((b: any) => b.approved_by).filter(Boolean))].join(', ');
-            
-            // Collect detailed transactions
             const transactions: ConsignmentReportRow['transactions'] = [];
             
             boletasInPeriod.forEach(boleta => {
                 boleta.lines.forEach(line => {
                     if (line.product_id === product.product_id && line.replenish_quantity > 0) {
-                        transactions.push({
-                            date: boleta.created_at,
-                            type: 'Entrega',
-                            document: boleta.consecutive,
-                            quantity: line.replenish_quantity,
-                            user: boleta.approved_by || boleta.created_by,
-                            notes: boleta.notes
-                        });
+                        transactions.push({ date: boleta.created_at, type: 'Entrega', document: boleta.consecutive, quantity: line.replenish_quantity, user: boleta.approved_by || boleta.created_by, notes: boleta.notes });
                     }
                 });
             });
 
             adjustmentsInPeriod.forEach(adj => {
                 if (adj.product_id === product.product_id) {
-                    transactions.push({
-                        date: adj.created_at,
-                        type: `Ajuste: ${adj.reason}`,
-                        document: `AJUSTE-${adj.id}`,
-                        quantity: adj.quantity,
-                        user: adj.created_by,
-                        notes: adj.notes
-                    });
+                    transactions.push({ date: adj.created_at, type: `Ajuste: ${adj.reason}`, document: `AJUSTE-${adj.id}`, quantity: adj.quantity, user: adj.created_by, notes: adj.notes });
                 }
             });
 
@@ -447,12 +421,12 @@ export async function getConsignmentsReportData(
                 totalValue: totalValue > 0 ? totalValue : 0,
                 adjustments: totalAdjustments,
                 transactions,
-                boletaConsecutives,
-                creationDates,
-                deliveryDates,
-                erpInvoices,
-                erpMovementIds,
-                approvers,
+                boletaConsecutives: '', 
+                creationDates: '', 
+                deliveryDates: '', 
+                erpInvoices: '', 
+                erpMovementIds: '', 
+                approvers: '',
             };
         });
 

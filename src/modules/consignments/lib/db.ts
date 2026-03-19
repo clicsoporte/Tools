@@ -840,14 +840,14 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
         SELECT pc.*, ca.client_name 
         FROM period_closures pc
         JOIN consignment_agreements ca ON pc.agreement_id = ca.id
-        WHERE pc.id = ? AND pc.status = 'approved'
+        WHERE pc.id = ? AND pc.status IN ('approved', 'invoiced')
     `).get(closureId) as (PeriodClosure & { client_name: string }) | undefined;
 
     if (!currentClosure) {
-        throw new Error("Cierre no encontrado o no está en estado 'Aprobado'.");
+        throw new Error("Cierre no encontrado o no tiene un estado válido (aprobado/facturado) para este reporte.");
     }
 
-    const previousClosure = currentClosure.previous_closure_id
+    const previousClosure = currentClosure.previous_closure_id 
         ? db.prepare('SELECT * FROM period_closures WHERE id = ?').get(currentClosure.previous_closure_id) as PeriodClosure
         : null;
 
