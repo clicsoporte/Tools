@@ -158,17 +158,17 @@ export function useReceivingReport() {
         }
     };
     
-    const renderLocationPath = (locationId: number) => {
+    const renderLocationPath = useCallback((locationId: number) => {
         const path: string[] = [];
         let current: WarehouseLocation | undefined = state.allLocations.find(l => l.id === locationId);
         while(current) {
             path.unshift(current.name);
             const parentId = current.parentId;
             if (!parentId) break;
-            current = state.allLocations.find(l => l.id === parentId);
+            current = state.allLocations.find(l => l.id === current!.parentId);
         }
         return path.join(' > ');
-    };
+    }, [state.allLocations]);
 
     const handleExportExcel = () => {
         const headers = ["Estado", "Consecutivo Ingreso", "Trazabilidad", "Producto", "Código", "Nº Lote", "Cantidad", "Usuario", "Fecha", "Notas"];
@@ -197,7 +197,7 @@ export function useReceivingReport() {
             item.createdBy,
             format(parseISO(item.createdAt), 'dd/MM/yyyy HH:mm'),
         ]);
-        generateDocument({ docTitle: "Reporte de Recepciones", docId: '', companyData, meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }], blocks: [], table: { columns: tableHeaders, rows: tableRows }, totals: [] }).save('reporte_recepciones.pdf');
+        generateDocument({ docTitle: "Reporte de Recepciones", docId: '', companyData, meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }], blocks: [], table: { columns: tableHeaders, rows: tableRows as RowInput[] }, totals: [] }).save('reporte_recepciones.pdf');
     };
 
     const actions = {
@@ -218,12 +218,12 @@ export function useReceivingReport() {
         availableColumns,
         visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as { id: string; label: string; }[], [state.visibleColumns]),
         userOptions: useMemo(() => Array.from(new Set(state.data.map(d => d.createdBy))).map(u => ({ value: u, label: u })), [state.data]),
-        locationOptions: useMemo(() => state.allLocations.map(l => ({ value: String(l.id), label: renderLocationPath(l.id) })), [state.allLocations]),
-        getColumnContent: (item: InventoryUnit, colId: string): { content: any; className?: string; type?: string; variant?: 'default' | 'secondary' | 'destructive' | 'outline' } => {
+        locationOptions: useMemo(() => state.allLocations.map(l => ({ value: String(l.id), label: renderLocationPath(l.id) })), [state.allLocations, renderLocationPath]),
+        getColumnContent: (item: InventoryUnit, colId: string): { content: any; className?: string; type?: string; variant?: 'default' | 'secondary' | 'destructive' | 'outline' | undefined; } => {
              const statusInfo = statusTranslations[item.status] || { label: item.status, variant: 'outline' };
             switch (colId) {
                 case 'status': return { type: 'badge', content: { text: statusInfo.label, variant: statusInfo.variant }, className: item.status === 'applied' ? 'bg-green-600' : '' };
-                case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono" };
+                case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono text-xs" };
                 case 'productDescription': return { type: 'multiline', content: [ { text: products.find(p => p.id === item.productId)?.description || '' }, { text: item.productId, className: "text-xs text-muted-foreground" } ] };
                 case 'quantity': return { type: 'string', content: item.quantity, className: 'font-bold' };
                 case 'createdBy': return { type: 'string', content: item.createdBy };
@@ -235,12 +235,19 @@ export function useReceivingReport() {
                 case 'locationPath': return { type: 'string', content: item.locationId ? renderLocationPath(item.locationId) : '', className: "text-xs" };
                 case 'traceability':
                     if (item.correctionConsecutive) {
-                        const original = state.data.find(u => u.receptionConsecutive === item.receptionConsecutive && u.id !== item.id);
-                        return { type: 'badge', content: { text: `${item.correctionConsecutive} (Anula ${original?.receptionConsecutive || 'N/A'})`, variant: 'destructive' } };
+                        const correctedUnit = state.data.find(u => u.correctedFromUnitId === item.id);
+                        const replacementText = correctedUnit ? `Reemplazado por ${correctedUnit.receptionConsecutive}` : 'Anulado sin reemplazo';
+                        return {
+                            type: 'badge',
+                            content: { text: `${item.correctionConsecutive} (Anula ${item.receptionConsecutive})`, variant: 'destructive' }
+                        };
                     }
                     if (item.correctedFromUnitId) {
                         const original = state.data.find(u => u.id === item.correctedFromUnitId);
-                        return { type: 'badge', content: { text: `Corrige a ${original?.receptionConsecutive || 'N/A'}`, variant: 'outline' } };
+                        return {
+                            type: 'badge',
+                            content: { text: `Corrige a ${original?.receptionConsecutive || 'N/A'}`, variant: 'outline' }
+                        };
                     }
                     return { type: 'string', content: 'N/A' };
                 default: return { type: 'string', content: (item as any)[colId] || '' };
