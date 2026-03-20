@@ -6,7 +6,7 @@
 import { getCompletedOrdersByDateRange, getPlannerSettings } from '@/modules/planner/lib/db';
 import { getAllRoles, getAllSuppliers, getAllStock, getAllCustomers, getAllProducts, connectDb, getAnalyticsSettings } from '@/modules/core/lib/db';
 import { getAllUsersForReport } from '@/modules/core/lib/auth';
-import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, ConsignmentProduct, ConsignmentReportRow, PeriodClosure, ConsignmentAdjustment, PhysicalCount, TransitStatusAlias } from '@/modules/core/types';
+import type { DateRange, ProductionOrder, PlannerSettings, ProductionOrderHistoryEntry, Product, User, Role, ErpPurchaseOrderLine, ErpPurchaseOrderHeader, Supplier, StockInfo, PhysicalInventoryComparisonItem, ItemLocation, WarehouseLocation, InventoryUnit, WarehouseSettings, AnalyticsSettings, RestockBoleta, BoletaLine, BoletaHistory, ConsignmentProduct, ConsignmentReportRow, PeriodClosure, ConsignmentAdjustment, PhysicalCount, TransitStatusAlias, BoletaType } from '@/modules/core/types';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import type { ProductionReportDetail, ProductionReportData } from '../hooks/useProductionReport';
 import { logError } from '@/modules/core/lib/logger';
@@ -219,19 +219,6 @@ export async function getPhysicalInventoryReportData({ dateRange }: { dateRange?
 }
 
 
-export async function getReceivingReportData({ dateRange }: { dateRange?: DateRange }): Promise<{ units: InventoryUnit[], locations: WarehouseLocation[] }> {
-    try {
-        const [units, locations] = await Promise.all([
-            getInventoryUnits({ dateRange, includeVoided: true }),
-            getWarehouseLocations(),
-        ]);
-        return JSON.parse(JSON.stringify({ units, locations }));
-    } catch (error) {
-        logError('Failed to generate receiving report data', { error });
-        throw new Error('No se pudo generar el reporte de recepciones.');
-    }
-}
-
 export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyReportRow[], allLocations: WarehouseLocation[], warehouseSettings: WarehouseSettings }> {
     try {
         const [allLocations, allUnits, allAssignments, allProducts, allCustomers, warehouseSettings] = await Promise.all([
@@ -297,149 +284,6 @@ export async function getOccupancyReportData(): Promise<{ reportRows: OccupancyR
     }
 }
 
-export async function getConsignmentsReportData(
-    agreementId: string, 
-    dateRange: { from: Date; to: Date },
-    filters: { boletaIds?: string[], closureId?: string } = {}
-): Promise<{ 
-    reportRows: ConsignmentReportRow[], 
-    boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[],
-    allBoletasForClient: RestockBoleta[],
-    allClosuresForClient: (PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[]
-}> {
-    try {
-        const agreementIdNum = parseInt(agreementId, 10);
-        const agreementDetails = await getAgreementDetails(agreementIdNum);
-        if (!agreementDetails) {
-            throw new Error("Acuerdo de consignación no encontrado.");
-        }
-        
-        const [allBoletasForClient, allClosuresForClient] = await Promise.all([
-            getBoletas({ agreementId: agreementIdNum, status: [], type: 'REPOSITION' }),
-            getPeriodClosures({ agreementId: agreementIdNum })
-        ]);
-
-        let reportDateRange = dateRange;
-        if (filters.closureId) {
-            const closureDetails = allClosuresForClient.find(c => c.id === Number(filters.closureId));
-            if (closureDetails) {
-                const previousClosure = closureDetails.previous_closure_id 
-                    ? await getPeriodClosureDetails(closureDetails.previous_closure_id) 
-                    : null;
-                
-                reportDateRange = {
-                    from: previousClosure ? parseISO(previousClosure.created_at) : new Date(0), // From beginning of time if no previous
-                    to: parseISO(closureDetails.created_at)
-                };
-            }
-        }
-
-        const { products: agreementProducts } = agreementDetails;
-
-        const initialBoleta = await getLatestBoletaBeforeDate(agreementIdNum, reportDateRange.from);
-        const initialStockMap = new Map<string, number>();
-        if (initialBoleta) {
-            for (const line of initialBoleta.lines) {
-                initialStockMap.set(line.product_id, line.counted_quantity);
-            }
-        }
-
-        let boletasInPeriod = await getBoletasByDateRange(agreementId, reportDateRange, ['approved', 'sent', 'invoiced']);
-        
-        if (filters.boletaIds && filters.boletaIds.length > 0) {
-            const boletaIdSet = new Set(filters.boletaIds.map(Number));
-            boletasInPeriod = boletasInPeriod.filter(b => boletaIdSet.has(b.id));
-        }
-        
-        const adjustmentsInPeriod = await getAdjustmentsInPeriod(agreementIdNum, reportDateRange);
-        
-        const replenishedMap = new Map<string, number>();
-        for (const boleta of boletasInPeriod) {
-            for (const line of boleta.lines) {
-                const current = replenishedMap.get(line.product_id) || 0;
-                replenishedMap.set(line.product_id, current + line.replenish_quantity);
-            }
-        }
-        
-        const adjustmentsMap = new Map<string, number>();
-        adjustmentsInPeriod.forEach((adj: ConsignmentAdjustment) => {
-            const current = adjustmentsMap.get(adj.product_id) || 0;
-            adjustmentsMap.set(adj.product_id, current + adj.quantity);
-        });
-        
-        const finalStockMap = new Map<string, number>();
-        if (boletasInPeriod.length > 0) {
-            const latestBoletaInPeriod = boletasInPeriod[boletasInPeriod.length - 1];
-            for (const line of latestBoletaInPeriod.lines) {
-                finalStockMap.set(line.product_id, line.counted_quantity);
-            }
-        }
-
-        const allProducts = await getAllProducts();
-        const productMap = new Map(allProducts.map((p: Product) => [p.id, p.description]));
-
-        const reportRows: ConsignmentReportRow[] = agreementProducts.map(product => {
-            const initialStock = initialStockMap.get(product.product_id) || 0;
-            const totalReplenished = replenishedMap.get(product.product_id) || 0;
-            const totalAdjustments = adjustmentsMap.get(product.product_id) || 0;
-            
-            const hasFinalCount = finalStockMap.has(product.product_id);
-            const finalStock = hasFinalCount 
-                ? finalStockMap.get(product.product_id)!
-                : (initialStock + totalReplenished + totalAdjustments);
-            
-            const consumption = (initialStock + totalReplenished + totalAdjustments) - finalStock;
-            const totalValue = consumption * product.price;
-
-            const transactions: ConsignmentReportRow['transactions'] = [];
-            
-            boletasInPeriod.forEach(boleta => {
-                boleta.lines.forEach(line => {
-                    if (line.product_id === product.product_id && line.replenish_quantity > 0) {
-                        transactions.push({ date: boleta.created_at, type: 'Entrega', document: boleta.consecutive, quantity: line.replenish_quantity, user: boleta.approved_by || boleta.created_by, notes: boleta.notes });
-                    }
-                });
-            });
-
-            adjustmentsInPeriod.forEach(adj => {
-                if (adj.product_id === product.product_id) {
-                    transactions.push({ date: adj.created_at, type: `Ajuste: ${adj.reason}`, document: `AJUSTE-${adj.id}`, quantity: adj.quantity, user: adj.created_by, notes: adj.notes });
-                }
-            });
-
-            transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-            return {
-                productId: product.product_id,
-                productDescription: productMap.get(product.product_id) || 'Producto Desconocido',
-                clientProductCode: product.client_product_code || '',
-                initialStock,
-                totalReplenished,
-                finalStock,
-                consumption: consumption > 0 ? consumption : 0,
-                price: product.price,
-                totalValue: totalValue > 0 ? totalValue : 0,
-                adjustments: totalAdjustments,
-                transactions,
-                boletaConsecutives: '', 
-                creationDates: '', 
-                deliveryDates: '', 
-                erpInvoices: '', 
-                erpMovementIds: '', 
-                approvers: '',
-            };
-        });
-
-        const finalReportRows = reportRows.filter(row => row.consumption > 0 || row.initialStock > 0 || row.totalReplenished > 0 || row.adjustments !== 0 || row.finalStock > 0);
-        
-        return { reportRows: finalReportRows, boletas: boletasInPeriod, allBoletasForClient, allClosuresForClient };
-
-    } catch (error: any) {
-        logError('Failed to generate consignments report data', { error: error.message });
-        throw new Error(`No se pudo generar el reporte de consignaciones: ${error.message}`);
-    }
-}
-
 export async function getInventoryMonitorData(agreementId: number): Promise<any> {
     const mainDb = await connectDb();
     const productMap = new Map((await mainDb.prepare('SELECT id, description FROM products').all() as Product[]).map(p => [p.id, p.description]));
@@ -449,7 +293,7 @@ export async function getInventoryMonitorData(agreementId: number): Promise<any>
     const endDate = new Date(); // To now
 
     const [boletasInPeriod, lastPhysicalCount, countHistory, adjustmentsInPeriod] = await Promise.all([
-        getBoletasByDateRange(String(agreementId), { from: startDate, to: endDate }),
+        getBoletasByDateRange(String(agreementId), { from: startDate, to: endDate }, ['approved', 'sent', 'invoiced'], 'REPOSITION'),
         getLatestPhysicalCount(agreementId),
         getPhysicalCountHistory(agreementId),
         getAdjustmentsInPeriod(agreementId, { from: startDate, to: endDate })

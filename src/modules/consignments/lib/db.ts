@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -491,7 +490,7 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return transaction();
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange?: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
+export async function getBoletasByDateRange(agreementId: string, dateRange?: { from: Date; to: Date }, statuses?: RestockBoletaStatus[], type?: BoletaType): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     let query = 'SELECT * FROM restock_boletas WHERE agreement_id = ?';
@@ -505,6 +504,11 @@ export async function getBoletasByDateRange(agreementId: string, dateRange?: { f
     if (statuses && statuses.length > 0) {
         query += ` AND status IN (${statuses.map(() => '?').join(',')})`;
         params.push(...statuses);
+    }
+    
+    if (type) {
+        query += ' AND type = ?';
+        params.push(type);
     }
     
     query += ' ORDER BY created_at ASC'; // Order by oldest to newest to process chronologically
@@ -696,7 +700,7 @@ export async function getPhysicalCountByRef(agreementId: number, countedAt: stri
     return JSON.parse(JSON.stringify(counts));
 }
 
-export async function getPeriodClosures(filters: { agreementId?: number } = {}): Promise<(PeriodClosure & { client_name: string; client_id: string; is_initial_inventory: boolean; })[]> {
+export async function getPeriodClosures(filters: {} = {}): Promise<(PeriodClosure & { client_name: string; client_id: string; is_initial_inventory: boolean; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     let query = 'SELECT pc.*, ca.client_name, ca.client_id FROM period_closures pc JOIN consignment_agreements ca ON pc.agreement_id = ca.id';
     const params: any[] = [];
@@ -833,7 +837,7 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     const startDate = previousClosure ? parseISO(previousClosure.created_at) : new Date(0);
     const endDate = parseISO(currentClosure.created_at);
 
-    const boletasInPeriod = await getBoletasByDateRange(String(currentClosure.agreement_id), { from: startDate, to: endDate }, ['approved', 'sent', 'invoiced']);
+    const boletasInPeriod = await getBoletasByDateRange(String(currentClosure.agreement_id), { from: startDate, to: endDate }, ['approved', 'sent', 'invoiced'], 'REPOSITION');
     const adjustmentsInPeriod = await getAdjustmentsInPeriod(currentClosure.agreement_id, { from: startDate, to: endDate });
     const agreementDetails = await getAgreementDetails(currentClosure.agreement_id);
     const allProducts = await mainDb.prepare('SELECT * FROM products').all() as Product[];
@@ -1034,7 +1038,7 @@ export async function forceRelayLock(agreementId: number, userId: number, userNa
 
 export async function releaseAgreementLock(agreementId: number, userId: number): Promise<void> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
-    // Only release the lock if the current user is the one who holds it.
+    // Only release locks that belong to the current user's session
     db.prepare('UPDATE consignment_agreements SET locked_by = NULL, locked_by_user_id = NULL, locked_at = NULL WHERE id = ? AND locked_by_user_id = ?').run(agreementId, userId);
 }
 
@@ -1075,5 +1079,3 @@ export async function linkInvoiceToClosure(closureId: number, invoiceNumber: str
         logInfo(`Linked invoice ${invoiceNumber} to closure ${closure.consecutive}`, { user: userName, closureId, boletasUpdated: boletasToUpdate.length });
     })();
 }
-
-    

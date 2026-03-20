@@ -267,7 +267,7 @@ async function sendClosureInvoiceLinkedEmail({
     if (allRecipients.size === 0) return;
 
     const consumptionMap = new Map(reportRows.map((r: ConsignmentReportRow) => [r.productId, r.consumption]));
-    const invoiceLinesMap = new Map(invoiceLines.map((l: ErpInvoiceLine) => [l.ARTICULO, l]));
+    const invoiceLinesMap = new Map(invoiceLines.map((l) => [l.ARTICULO, l]));
 
     const consumptionKeys: string[] = Array.from(consumptionMap.keys());
     const invoiceKeys: string[] = Array.from(invoiceLinesMap.keys());
@@ -573,8 +573,8 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return updateBoletaServer(boleta, lines, updatedBy);
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[]): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
-    const result = await getBoletasByDateRangeServer(agreementId, dateRange, statuses);
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[], type?: BoletaType): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
+    const result = await getBoletasByDateRangeServer(agreementId, dateRange, statuses, type);
     return result;
 }
 
