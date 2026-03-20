@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -923,6 +924,132 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
         boletas: JSON.parse(JSON.stringify(boletasInPeriod)),
         currentClosure: JSON.parse(JSON.stringify(currentClosure)),
         previousClosure: JSON.parse(JSON.stringify(previousClosure)),
+    };
+}
+
+
+export async function getConsignmentsReportData(
+    agreementId: string,
+    dateRange: { from: Date; to: Date },
+    filters: { boletaIds?: string[]; closureId?: string }
+): Promise<{
+    reportRows: ConsignmentReportRow[];
+    boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[] })[];
+    allBoletasForClient: RestockBoleta[];
+    allClosuresForClient: (PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[];
+}> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const mainDb = await connectDb();
+    const agreementIdNum = Number(agreementId);
+
+    const [allClosuresForClient, allBoletasForClient] = await Promise.all([
+        (db.prepare('SELECT pc.*, ca.client_name FROM period_closures pc JOIN consignment_agreements ca ON pc.agreement_id = ca.id WHERE pc.agreement_id = ? AND pc.status = \'approved\' ORDER BY pc.created_at DESC').all(agreementIdNum) as (PeriodClosure & {client_name: string})[]),
+        (db.prepare('SELECT * FROM restock_boletas WHERE agreement_id = ? ORDER BY created_at DESC').all(agreementIdNum) as RestockBoleta[])
+    ]);
+
+    let effectiveStartDate: Date, effectiveEndDate: Date;
+    let initialStockClosure: PeriodClosure | null = null;
+    let finalStockClosure: PeriodClosure | null = null;
+
+    if (filters.closureId) {
+        finalStockClosure = db.prepare('SELECT * FROM period_closures WHERE id = ?').get(filters.closureId) as PeriodClosure;
+        if (!finalStockClosure) throw new Error('Cierre final no encontrado');
+        
+        initialStockClosure = finalStockClosure.previous_closure_id
+            ? db.prepare('SELECT * FROM period_closures WHERE id = ?').get(finalStockClosure.previous_closure_id) as PeriodClosure
+            : null;
+        
+        effectiveStartDate = initialStockClosure ? parseISO(initialStockClosure.created_at) : new Date(0);
+        effectiveEndDate = parseISO(finalStockClosure.created_at);
+    } else {
+        effectiveStartDate = dateRange.from;
+        effectiveEndDate = dateRange.to;
+        initialStockClosure = db.prepare(`
+            SELECT * FROM period_closures 
+            WHERE agreement_id = ? AND status = 'approved' AND created_at < ? 
+            ORDER BY created_at DESC LIMIT 1
+        `).get(agreementIdNum, effectiveStartDate.toISOString()) as PeriodClosure | null;
+    }
+
+    const boletaFilter = filters.boletaIds && filters.boletaIds.length > 0 ? filters.boletaIds.map(Number) : null;
+    let boletasInPeriod = await getBoletasByDateRange(agreementId, { from: effectiveStartDate, to: effectiveEndDate }, ['approved', 'sent', 'invoiced'], 'REPOSITION');
+
+    if (boletaFilter) {
+        boletasInPeriod = boletasInPeriod.filter(b => boletaFilter.includes(b.id));
+    }
+
+    const adjustmentsInPeriod = await getAdjustmentsInPeriod(agreementIdNum, { from: effectiveStartDate, to: effectiveEndDate });
+    const agreementDetails = await getAgreementDetails(agreementIdNum);
+    const allProducts = await getAllProductsFromMainDb();
+    const productMap = new Map(allProducts.map(p => [p.id, p.description]));
+
+    const getStockFromClosure = (closure: PeriodClosure | null): Map<string, number> => {
+        const stockMap = new Map<string, number>();
+        if (closure?.physical_count_ref) {
+            const counts = db.prepare('SELECT product_id, quantity FROM physical_counts WHERE agreement_id = ? AND counted_at = ?').all(closure.agreement_id, closure.physical_count_ref) as { product_id: string, quantity: number }[];
+            counts.forEach(c => stockMap.set(c.product_id, c.quantity));
+        }
+        return stockMap;
+    };
+    
+    const initialStockMap = getStockFromClosure(initialStockClosure);
+    const finalStockMap = getStockFromClosure(finalStockClosure);
+
+    const replenishedMap = new Map<string, number>();
+    boletasInPeriod.forEach(boleta => boleta.lines.forEach(line => replenishedMap.set(line.product_id, (replenishedMap.get(line.product_id) || 0) + line.replenish_quantity)));
+    
+    const adjustmentsMap = new Map<string, number>();
+    adjustmentsInPeriod.forEach(adj => adjustmentsMap.set(adj.product_id, (adjustmentsMap.get(adj.product_id) || 0) + adj.quantity));
+
+    const reportRows: ConsignmentReportRow[] = (agreementDetails?.products || []).map(product => {
+        const initialStock = initialStockMap.get(product.product_id) || 0;
+        const totalReplenished = replenishedMap.get(product.product_id) || 0;
+        const totalAdjustments = adjustmentsMap.get(product.product_id) || 0;
+        const finalStock = finalStockClosure ? (finalStockMap.get(product.product_id) || 0) : 0;
+        const consumption = finalStockClosure ? (initialStock + totalReplenished + totalAdjustments) - finalStock : (initialStock + totalReplenished + totalAdjustments);
+
+
+        const transactions: ConsignmentReportRow['transactions'] = [];
+        boletasInPeriod.forEach(boleta => {
+            boleta.lines.forEach(line => {
+                if (line.product_id === product.product_id && line.replenish_quantity > 0) {
+                    transactions.push({ date: boleta.created_at, type: 'Entrega', document: boleta.consecutive, quantity: line.replenish_quantity, user: boleta.approved_by || boleta.created_by, notes: boleta.notes });
+                }
+            });
+        });
+        adjustmentsInPeriod.forEach(adj => {
+            if (adj.product_id === product.product_id) {
+                transactions.push({ date: adj.created_at, type: `Ajuste: ${adj.reason}`, document: `AJUSTE-${adj.id}`, quantity: adj.quantity, user: adj.created_by, notes: adj.notes });
+            }
+        });
+        transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        return {
+            productId: product.product_id,
+            productDescription: productMap.get(product.product_id) || 'Producto Desconocido',
+            clientProductCode: product.client_product_code || '',
+            initialStock,
+            totalReplenished,
+            finalStock,
+            consumption: consumption > 0 ? consumption : 0,
+            price: product.price,
+            totalValue: consumption > 0 ? consumption * product.price : 0,
+            adjustments: totalAdjustments,
+            transactions,
+            boletaConsecutives: '', 
+            creationDates: '', 
+            deliveryDates: '', 
+            erpInvoices: '', 
+            erpMovementIds: '', 
+            approvers: '',
+        };
+    }).filter(row => row.consumption !== 0 || row.initialStock !== 0 || row.totalReplenished !== 0 || row.finalStock !== 0 || row.adjustments !== 0);
+
+    return {
+        reportRows: JSON.parse(JSON.stringify(reportRows)),
+        boletas: JSON.parse(JSON.stringify(boletasInPeriod)),
+        allBoletasForClient: JSON.parse(JSON.stringify(allBoletasForClient)),
+        allClosuresForClient: JSON.parse(JSON.stringify(allClosuresForClient))
     };
 }
 

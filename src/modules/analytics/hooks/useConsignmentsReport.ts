@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Hook for managing the logic for the new Consignments Report page.
  */

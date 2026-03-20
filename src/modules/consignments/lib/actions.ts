@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client-side functions for interacting with the Consignments module's server-side DB functions.
  */
@@ -624,7 +625,7 @@ export async function getConsignmentsReportData(
     filters: { boletaIds?: string[]; closureId?: string }
 ): Promise<{
     reportRows: ConsignmentReportRow[];
-    boletas: (RestockBoleta & { lines: BoletaLine[] })[];
+    boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[] })[];
     allBoletasForClient: RestockBoleta[];
     allClosuresForClient: (PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[];
 }> {
