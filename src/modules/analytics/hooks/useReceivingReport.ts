@@ -10,7 +10,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { getReceivingReportData } from '@/modules/analytics/lib/actions';
-import type { InventoryUnit, DateRange, UserPreferences, WarehouseLocation } from '@/modules/core/types';
+import type { InventoryUnit, DateRange, UserPreferences, WarehouseLocation, Company } from '@/modules/core/types';
 import { exportToExcel } from '@/lib/excel-export';
 import { format, parseISO, startOfDay, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -19,6 +19,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 import { generateDocument } from '@/lib/pdf-generator';
 import { cn } from '@/lib/utils';
+import type { RowInput } from 'jspdf-autotable';
 
 
 const availableColumns = [
@@ -159,10 +160,12 @@ export function useReceivingReport() {
     
     const renderLocationPath = (locationId: number) => {
         const path: string[] = [];
-        let current = state.allLocations.find(l => l.id === locationId);
+        let current: WarehouseLocation | undefined = state.allLocations.find(l => l.id === locationId);
         while(current) {
             path.unshift(current.name);
-            current = current.parentId ? state.allLocations.find(l => l.id === current.parentId) : undefined;
+            const parentId = current.parentId;
+            if (!parentId) break;
+            current = state.allLocations.find(l => l.id === parentId);
         }
         return path.join(' > ');
     };
@@ -187,8 +190,8 @@ export function useReceivingReport() {
     const handleExportPDF = () => {
         if (!companyData) return;
         const tableHeaders = ["Consecutivo", "Producto", "Cantidad", "Usuario", "Fecha"];
-        const tableRows = sortedData.map(item => [
-            item.receptionConsecutive,
+        const tableRows: RowInput[] = sortedData.map(item => [
+            item.receptionConsecutive || '',
             `${products.find(p => p.id === item.productId)?.description || ''}\n(${item.productId})`,
             item.quantity,
             item.createdBy,
@@ -197,49 +200,58 @@ export function useReceivingReport() {
         generateDocument({ docTitle: "Reporte de Recepciones", docId: '', companyData, meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }], blocks: [], table: { columns: tableHeaders, rows: tableRows }, totals: [] }).save('reporte_recepciones.pdf');
     };
 
+    const actions = {
+        fetchData,
+        setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined } }),
+        setSearchTerm: (term: string) => updateState({ searchTerm: term }),
+        setUserFilter: (filter: string[]) => updateState({ userFilter: filter }),
+        setLocationFilter: (filter: string[]) => updateState({ locationFilter: filter }),
+        handleClearFilters: () => updateState({ searchTerm: '', userFilter: [], locationFilter: [] }),
+        handleColumnVisibilityChange,
+        handleSavePreferences,
+        handleExportExcel,
+        handleExportPDF,
+    };
+    
+    const selectors = {
+        sortedData,
+        availableColumns,
+        visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as { id: string; label: string; }[], [state.visibleColumns]),
+        userOptions: useMemo(() => Array.from(new Set(state.data.map(d => d.createdBy))).map(u => ({ value: u, label: u })), [state.data]),
+        locationOptions: useMemo(() => state.allLocations.map(l => ({ value: String(l.id), label: renderLocationPath(l.id) })), [state.allLocations]),
+        getColumnContent: (item: InventoryUnit, colId: string): { content: any; className?: string; type?: string; variant?: 'default' | 'secondary' | 'destructive' | 'outline' } => {
+             const statusInfo = statusTranslations[item.status] || { label: item.status, variant: 'outline' };
+            switch (colId) {
+                case 'status': return { type: 'badge', content: { text: statusInfo.label, variant: statusInfo.variant }, className: item.status === 'applied' ? 'bg-green-600' : '' };
+                case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono" };
+                case 'productDescription': return { type: 'multiline', content: [ { text: products.find(p => p.id === item.productId)?.description || '' }, { text: item.productId, className: "text-xs text-muted-foreground" } ] };
+                case 'quantity': return { type: 'string', content: item.quantity, className: 'font-bold' };
+                case 'createdBy': return { type: 'string', content: item.createdBy };
+                case 'createdAt': return { type: 'string', content: item.createdAt ? format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') : '' };
+                case 'appliedBy': return { type: 'string', content: item.appliedBy || '' };
+                case 'appliedAt': return { type: 'string', content: item.appliedAt ? format(parseISO(item.appliedAt), 'dd/MM/yy HH:mm') : '' };
+                case 'annulledBy': return { type: 'string', content: item.annulledBy || '' };
+                case 'annulledAt': return { type: 'string', content: item.annulledAt ? format(parseISO(item.annulledAt), 'dd/MM/yy HH:mm') : '' };
+                case 'locationPath': return { type: 'string', content: item.locationId ? renderLocationPath(item.locationId) : '', className: "text-xs" };
+                case 'traceability':
+                    if (item.correctionConsecutive) {
+                        const original = state.data.find(u => u.receptionConsecutive === item.receptionConsecutive && u.id !== item.id);
+                        return { type: 'badge', content: { text: `${item.correctionConsecutive} (Anula ${original?.receptionConsecutive || 'N/A'})`, variant: 'destructive' } };
+                    }
+                    if (item.correctedFromUnitId) {
+                        const original = state.data.find(u => u.id === item.correctedFromUnitId);
+                        return { type: 'badge', content: { text: `Corrige a ${original?.receptionConsecutive || 'N/A'}`, variant: 'outline' } };
+                    }
+                    return { type: 'string', content: 'N/A' };
+                default: return { type: 'string', content: (item as any)[colId] || '' };
+            }
+        }
+    };
+
     return {
         state,
-        actions: {
-            fetchData,
-            setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined } }),
-            setSearchTerm: (term: string) => updateState({ searchTerm: term }),
-            setUserFilter: (filter: string[]) => updateState({ userFilter: filter }),
-            setLocationFilter: (filter: string[]) => updateState({ locationFilter: filter }),
-            handleClearFilters: () => updateState({ searchTerm: '', userFilter: [], locationFilter: [] }),
-            handleColumnVisibilityChange,
-            handleSavePreferences,
-            handleExportExcel,
-            handleExportPDF,
-        },
-        selectors: {
-            sortedData,
-            availableColumns,
-            visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as { id: string; label: string; }[], [state.visibleColumns]),
-            userOptions: useMemo(() => Array.from(new Set(state.data.map(d => d.createdBy))).map(u => ({ value: u, label: u })), [state.data]),
-            locationOptions: useMemo(() => state.allLocations.map(l => ({ value: String(l.id), label: renderLocationPath(l.id) })), [state.allLocations]),
-            getColumnContent: (item: InventoryUnit, colId: string): { content: any; className?: string; type?: string; variant?: 'default' | 'secondary' | 'destructive' | 'outline' } => {
-                 const statusInfo = statusTranslations[item.status] || { label: item.status, variant: 'outline' };
-                switch (colId) {
-                    case 'status': return { type: 'badge', content: statusInfo.label, variant: statusInfo.variant, className: item.status === 'applied' ? 'bg-green-600' : '' };
-                    case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono" };
-                    case 'productDescription': return { type: 'multiline', content: [ { text: products.find(p => p.id === item.productId)?.description || '' }, { text: item.productId, className: "text-xs text-muted-foreground" } ] };
-                    case 'quantity': return { type: 'string', content: item.quantity, className: 'font-bold' };
-                    case 'createdBy': return { type: 'string', content: item.createdBy };
-                    case 'createdAt': return { type: 'string', content: format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') };
-                    case 'traceability':
-                        if (item.correctionConsecutive) {
-                             const original = state.data.find(u => u.correctionConsecutive === item.correctionConsecutive && u.id !== item.id);
-                             return { type: 'badge', content: `${item.correctionConsecutive} (Anula ${original?.receptionConsecutive || 'N/A'})`, variant: 'destructive' };
-                        }
-                        if (item.correctedFromUnitId) {
-                            const original = state.data.find(u => u.id === item.correctedFromUnitId);
-                            return { type: 'badge', content: `Corrige a ${original?.receptionConsecutive || 'N/A'}`, variant: 'outline' };
-                        }
-                        return { type: 'string', content: 'N/A' };
-                    default: return { type: 'string', content: (item as any)[colId] || '' };
-                }
-            }
-        },
+        actions,
+        selectors,
         isAuthorized,
         isInitialLoading,
     };

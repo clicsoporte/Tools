@@ -23,6 +23,7 @@ import {
     approvePeriodClosure as approvePeriodClosureServer,
     rejectPeriodClosure as rejectPeriodClosureServer,
     getConsignmentsBillingReportData as getConsignmentsBillingReportDataFromDb,
+    getConsignmentsReportData as getConsignmentsReportDataFromDb,
     saveReplenishmentBoleta as saveReplenishmentBoletaServer,
     createBoletaFromCount as createBoletaFromCountDb, // Import the new DB function
     getPhysicalCountByRef as getPhysicalCountByRefServer,
@@ -267,7 +268,7 @@ async function sendClosureInvoiceLinkedEmail({
     if (allRecipients.size === 0) return;
 
     const consumptionMap = new Map(reportRows.map((r: ConsignmentReportRow) => [r.productId, r.consumption]));
-    const invoiceLinesMap = new Map(invoiceLines.map((l) => [l.ARTICULO, l]));
+    const invoiceLinesMap = new Map(invoiceLines.map((l: ErpInvoiceLine) => [l.ARTICULO, l]));
 
     const consumptionKeys: string[] = Array.from(consumptionMap.keys());
     const invoiceKeys: string[] = Array.from(invoiceLinesMap.keys());
@@ -617,6 +618,18 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     return data;
 }
 
+export async function getConsignmentsReportData(
+    agreementId: string,
+    dateRange: { from: Date; to: Date },
+    filters: { boletaIds?: string[]; closureId?: string }
+): Promise<{
+    reportRows: ConsignmentReportRow[];
+    boletas: (RestockBoleta & { lines: BoletaLine[] })[];
+    allBoletasForClient: RestockBoleta[];
+    allClosuresForClient: (PeriodClosure & { client_name: string; is_initial_inventory: boolean; previous_closure_consecutive?: string; })[];
+}> {
+    return getConsignmentsReportDataFromDb(agreementId, dateRange, filters);
+}
 
 export async function saveReplenishmentBoleta(agreementId: number, lines: { productId: string; quantity: number }[], userName: string): Promise<RestockBoleta> {
     return saveReplenishmentBoletaServer(agreementId, lines, userName);

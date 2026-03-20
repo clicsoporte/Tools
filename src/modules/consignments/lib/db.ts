@@ -497,7 +497,7 @@ export async function updateBoleta(boleta: RestockBoleta, lines: BoletaLine[], u
     return transaction();
 }
 
-export async function getBoletasByDateRange(agreementId: string, dateRange?: { from: Date; to: Date }, statuses?: RestockBoletaStatus[], type?: BoletaType): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
+export async function getBoletasByDateRange(agreementId: string, dateRange: { from: Date; to: Date }, statuses?: RestockBoletaStatus[], type?: BoletaType): Promise<(RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     
     let query = 'SELECT * FROM restock_boletas WHERE agreement_id = ?';
@@ -834,7 +834,7 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     `).get(closureId) as (PeriodClosure & { client_name: string }) | undefined;
 
     if (!currentClosure) {
-        return { error: "Cierre no encontrado o no está en estado 'Aprobado'." };
+        return { error: "Cierre no encontrado o no está en estado 'Aprobado' o 'Facturado'." };
     }
 
     const previousClosure = currentClosure.previous_closure_id 
