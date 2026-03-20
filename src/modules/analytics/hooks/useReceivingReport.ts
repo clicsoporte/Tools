@@ -1,153 +1,246 @@
 /**
- * @fileoverview Page for the Receiving Report.
- * This component visualizes receiving events recorded via the receiving wizard.
+ * @fileoverview Hook to manage the logic for the physical inventory report page.
  */
 'use client';
 
 import React from 'react';
-import { useReceivingReport } from '@/modules/analytics/hooks/useReceivingReport';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, CalendarIcon, Search, FileDown, FileSpreadsheet, FilterX, Columns3 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useToast } from '@/modules/core/hooks/use-toast';
+import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { logError } from '@/modules/core/lib/logger';
+import { getReceivingReportData } from '@/modules/analytics/lib/actions';
+import type { InventoryUnit, DateRange, UserPreferences, WarehouseLocation } from '@/modules/core/types';
+import { exportToExcel } from '@/lib/excel-export';
+import { format, parseISO, startOfDay, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useDebounce } from 'use-debounce';
+import { useAuth } from '@/modules/core/hooks/useAuth';
+import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
+import { generateDocument } from '@/lib/pdf-generator';
 import { cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
-import { SearchInput } from '@/components/ui/search-input';
-import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
-import { Badge } from '@/components/ui/badge';
-import { useReceivingReport as useReceivingReportLogic } from '@/modules/analytics/hooks/useReceivingReport';
 
-export default function ReceivingReportPage() {
-    const {
+
+const availableColumns = [
+    { id: 'status', label: 'Estado' },
+    { id: 'receptionConsecutive', label: 'Consecutivo Ingreso' },
+    { id: 'traceability', label: 'Trazabilidad' },
+    { id: 'productDescription', label: 'Producto' },
+    { id: 'humanReadableId', label: 'Nº Lote / ID' },
+    { id: 'quantity', label: 'Cant.' },
+    { id: 'createdBy', label: 'Recibido Por' },
+    { id: 'createdAt', label: 'Fecha Ingreso' },
+    { id: 'appliedBy', label: 'Aplicado Por' },
+    { id: 'appliedAt', label: 'Fecha Aplicación' },
+    { id: 'annulledBy', label: 'Anulado Por' },
+    { id: 'annulledAt', label: 'Fecha Anulación' },
+    { id: 'locationPath', label: 'Ubicación' },
+];
+
+const statusTranslations: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    pending: { label: 'Pendiente', variant: 'secondary' },
+    applied: { label: 'Aplicado', variant: 'default' },
+    voided: { label: 'Anulado', variant: 'destructive' },
+};
+
+const normalizeText = (text: string) => text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+interface State {
+    isLoading: boolean;
+    data: InventoryUnit[];
+    allLocations: WarehouseLocation[];
+    dateRange: DateRange;
+    searchTerm: string;
+    userFilter: string[];
+    locationFilter: string[];
+    visibleColumns: string[];
+}
+
+export function useReceivingReport() {
+    const { isAuthorized } = useAuthorization(['analytics:receiving-report:read']);
+    const { setTitle } = usePageTitle();
+    const { toast } = useToast();
+    const { user, products, companyData } = useAuth();
+    
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+    const [state, setState] = useState<State>({
+        isLoading: false,
+        data: [],
+        allLocations: [],
+        dateRange: { from: startOfDay(subDays(new Date(), 7)), to: new Date() },
+        searchTerm: '',
+        userFilter: [],
+        locationFilter: [],
+        visibleColumns: availableColumns.map(c => c.id),
+    });
+
+    const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
+
+    const updateState = useCallback((newState: Partial<State>) => {
+        setState(prevState => ({ ...prevState, ...newState }));
+    }, []);
+
+    const fetchData = useCallback(async () => {
+        updateState({ isLoading: true });
+        try {
+            const { units, locations } = await getReceivingReportData({ dateRange: state.dateRange });
+            updateState({ data: units, allLocations: locations });
+        } catch (error: any) {
+            logError("Failed to fetch receiving report data", { error: error.message });
+            toast({ title: "Error al Generar Reporte", description: error.message, variant: "destructive" });
+        } finally {
+            updateState({ isLoading: false });
+        }
+    }, [state.dateRange, toast, updateState]);
+    
+    const loadPrefs = useCallback(async () => {
+        if(user) {
+           const prefs = await getUserPreferences(user.id, 'receivingReportPrefs');
+           if (prefs) {
+               updateState({ visibleColumns: prefs.visibleColumns || availableColumns.map(c => c.id) });
+           }
+       }
+       setIsInitialLoading(false);
+   }, [user, updateState]);
+
+    useEffect(() => {
+        setTitle("Reporte de Recepciones y Movimientos");
+        if (isAuthorized) {
+            loadPrefs();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setTitle, isAuthorized]);
+
+    const sortedData = useMemo(() => {
+        let data = [...state.data];
+        
+        if (debouncedSearchTerm) {
+            const searchLower = normalizeText(debouncedSearchTerm);
+            data = data.filter(item => {
+                const product = products.find(p => p.id === item.productId);
+                const fullText = `${item.productId} ${product?.description || ''} ${item.humanReadableId || ''} ${item.documentId || ''} ${item.erpDocumentId || ''}`;
+                return normalizeText(fullText).includes(searchLower);
+            });
+        }
+        
+        if (state.userFilter.length > 0) {
+            data = data.filter(item => state.userFilter.includes(item.createdBy));
+        }
+
+        if (state.locationFilter.length > 0) {
+            const locationIds = new Set(state.locationFilter.map(Number));
+            data = data.filter(item => item.locationId !== null && locationIds.has(item.locationId));
+        }
+        
+        data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        return data;
+    }, [state.data, debouncedSearchTerm, products, state.userFilter, state.locationFilter]);
+
+    const handleColumnVisibilityChange = (columnId: string, checked: boolean) => {
+        updateState({
+            visibleColumns: checked
+                ? [...state.visibleColumns, columnId]
+                : state.visibleColumns.filter(id => id !== columnId)
+        });
+    };
+    
+    const handleSavePreferences = async () => {
+        if (!user) return;
+        try {
+            await saveUserPreferences(user.id, 'receivingReportPrefs', { visibleColumns: state.visibleColumns });
+            toast({ title: 'Preferencias Guardadas' });
+        } catch (error: any) {
+            logError('Failed to save preferences for receiving report', { error: error.message });
+            toast({ title: 'Error', description: 'No se pudieron guardar las preferencias.', variant: 'destructive' });
+        }
+    };
+    
+    const renderLocationPath = (locationId: number) => {
+        const path: string[] = [];
+        let current = state.allLocations.find(l => l.id === locationId);
+        while(current) {
+            path.unshift(current.name);
+            current = current.parentId ? state.allLocations.find(l => l.id === current.parentId) : undefined;
+        }
+        return path.join(' > ');
+    };
+
+    const handleExportExcel = () => {
+        const headers = ["Estado", "Consecutivo Ingreso", "Trazabilidad", "Producto", "Código", "Nº Lote", "Cantidad", "Usuario", "Fecha", "Notas"];
+        const dataToExport = sortedData.map(item => [
+            statusTranslations[item.status]?.label || item.status,
+            item.receptionConsecutive,
+            item.correctionConsecutive ? `${item.correctionConsecutive} (Anula ${item.receptionConsecutive})` : (item.correctedFromUnitId ? `Corrige a ${state.data.find(u => u.id === item.correctedFromUnitId)?.receptionConsecutive || 'N/A'}` : 'N/A'),
+            products.find(p => p.id === item.productId)?.description || '',
+            item.productId,
+            item.humanReadableId,
+            item.quantity,
+            item.createdBy,
+            format(parseISO(item.createdAt), 'dd/MM/yyyy HH:mm'),
+            item.notes || ''
+        ]);
+        exportToExcel({ fileName: 'reporte_recepciones', sheetName: 'Recepciones', headers, data: dataToExport, columnWidths: [15, 20, 25, 40, 20, 20, 10, 20, 20, 40] });
+    };
+
+    const handleExportPDF = () => {
+        if (!companyData) return;
+        const tableHeaders = ["Consecutivo", "Producto", "Cantidad", "Usuario", "Fecha"];
+        const tableRows = sortedData.map(item => [
+            item.receptionConsecutive,
+            `${products.find(p => p.id === item.productId)?.description || ''}\n(${item.productId})`,
+            item.quantity,
+            item.createdBy,
+            format(parseISO(item.createdAt), 'dd/MM/yyyy HH:mm'),
+        ]);
+        generateDocument({ docTitle: "Reporte de Recepciones", docId: '', companyData, meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }], blocks: [], table: { columns: tableHeaders, rows: tableRows }, totals: [] }).save('reporte_recepciones.pdf');
+    };
+
+    return {
         state,
-        actions,
-        selectors,
+        actions: {
+            fetchData,
+            setDateRange: (range: DateRange | undefined) => updateState({ dateRange: range || { from: undefined, to: undefined } }),
+            setSearchTerm: (term: string) => updateState({ searchTerm: term }),
+            setUserFilter: (filter: string[]) => updateState({ userFilter: filter }),
+            setLocationFilter: (filter: string[]) => updateState({ locationFilter: filter }),
+            handleClearFilters: () => updateState({ searchTerm: '', userFilter: [], locationFilter: [] }),
+            handleColumnVisibilityChange,
+            handleSavePreferences,
+            handleExportExcel,
+            handleExportPDF,
+        },
+        selectors: {
+            sortedData,
+            availableColumns,
+            visibleColumnsData: useMemo(() => state.visibleColumns.map(id => availableColumns.find(col => col.id === id)).filter(Boolean) as { id: string; label: string; }[], [state.visibleColumns]),
+            userOptions: useMemo(() => Array.from(new Set(state.data.map(d => d.createdBy))).map(u => ({ value: u, label: u })), [state.data]),
+            locationOptions: useMemo(() => state.allLocations.map(l => ({ value: String(l.id), label: renderLocationPath(l.id) })), [state.allLocations]),
+            getColumnContent: (item: InventoryUnit, colId: string): { content: any; className?: string; type?: string; variant?: 'default' | 'secondary' | 'destructive' | 'outline' } => {
+                 const statusInfo = statusTranslations[item.status] || { label: item.status, variant: 'outline' };
+                switch (colId) {
+                    case 'status': return { type: 'badge', content: statusInfo.label, variant: statusInfo.variant, className: item.status === 'applied' ? 'bg-green-600' : '' };
+                    case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono" };
+                    case 'productDescription': return { type: 'multiline', content: [ { text: products.find(p => p.id === item.productId)?.description || '' }, { text: item.productId, className: "text-xs text-muted-foreground" } ] };
+                    case 'quantity': return { type: 'string', content: item.quantity, className: 'font-bold' };
+                    case 'createdBy': return { type: 'string', content: item.createdBy };
+                    case 'createdAt': return { type: 'string', content: format(parseISO(item.createdAt), 'dd/MM/yy HH:mm') };
+                    case 'traceability':
+                        if (item.correctionConsecutive) {
+                             const original = state.data.find(u => u.correctionConsecutive === item.correctionConsecutive && u.id !== item.id);
+                             return { type: 'badge', content: `${item.correctionConsecutive} (Anula ${original?.receptionConsecutive || 'N/A'})`, variant: 'destructive' };
+                        }
+                        if (item.correctedFromUnitId) {
+                            const original = state.data.find(u => u.id === item.correctedFromUnitId);
+                            return { type: 'badge', content: `Corrige a ${original?.receptionConsecutive || 'N/A'}`, variant: 'outline' };
+                        }
+                        return { type: 'string', content: 'N/A' };
+                    default: return { type: 'string', content: (item as any)[colId] || '' };
+                }
+            }
+        },
         isAuthorized,
         isInitialLoading,
-    } = useReceivingReportLogic();
-
-    const { isLoading, dateRange, searchTerm, userFilter, locationFilter, visibleColumns } = state;
-    const { sortedData, availableColumns, visibleColumnsData } = selectors;
-
-    if (isInitialLoading) {
-        return (
-            <main className="flex-1 p-4 md:p-6 lg:p-8">
-                <Card>
-                    <CardHeader><Skeleton className="h-8 w-64" /><Skeleton className="h-5 w-96 mt-2" /></CardHeader>
-                    <CardContent className="space-y-4"><Skeleton className="h-10 w-full max-w-sm" /><Skeleton className="h-48 w-full" /></CardContent>
-                </Card>
-            </main>
-        );
-    }
-    
-    if (isAuthorized === false) return null;
-
-    return (
-        <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
-            <Card>
-                 <CardHeader>
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
-                            <CardTitle>Reporte de Recepciones y Movimientos</CardTitle>
-                            <CardDescription>Audita las recepciones de mercadería y movimientos de inventario registrados en el sistema.</CardDescription>
-                        </div>
-                        <Button onClick={actions.fetchData} disabled={isLoading}>
-                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-                            Generar Reporte
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-4">
-                         <Popover>
-                            <PopoverTrigger asChild>
-                                <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto sm:min-w-[260px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? (dateRange.to ? (`${format(dateRange.from, "LLL dd, y", { locale: es })} - ${format(dateRange.to, "LLL dd, y", { locale: es })}`) : format(dateRange.from, "LLL dd, y", { locale: es })) : (<span>Rango de Fechas</span>)}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={actions.setDateRange} numberOfMonths={2} locale={es} /></PopoverContent>
-                        </Popover>
-                        <SearchInput
-                            options={[]}
-                            value={searchTerm}
-                            onValueChange={actions.setSearchTerm}
-                            placeholder="Buscar por producto, lote, documento..."
-                            open={false}
-                            onOpenChange={()=>{}}
-                            onSelect={()=>{}}
-                            className="w-full sm:w-auto flex-1"
-                        />
-                        <MultiSelectFilter title="Usuario" options={selectors.userOptions} selectedValues={userFilter} onSelectedChange={actions.setUserFilter} className="w-full sm:w-auto" />
-                        <MultiSelectFilter title="Ubicación" options={selectors.locationOptions} selectedValues={locationFilter} onSelectedChange={actions.setLocationFilter} className="w-full sm:w-auto" />
-                        <Button variant="ghost" onClick={actions.handleClearFilters} className="flex-shrink-0"><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                     <div className="flex justify-between items-center">
-                        <div>
-                            <CardTitle>Resultados</CardTitle>
-                            <CardDescription>Se encontraron {sortedData.length} registros que coinciden con tus filtros.</CardDescription>
-                        </div>
-                         <div className="flex items-center gap-2">
-                             <DialogColumnSelector
-                                allColumns={availableColumns}
-                                visibleColumns={visibleColumns}
-                                onColumnChange={actions.handleColumnVisibilityChange}
-                                onSave={actions.handleSavePreferences}
-                            />
-                            <Button variant="outline" onClick={actions.handleExportPDF} disabled={isLoading || sortedData.length === 0}><FileDown className="mr-2"/>Exportar PDF</Button>
-                            <Button variant="outline" onClick={actions.handleExportExcel} disabled={isLoading || sortedData.length === 0}><FileSpreadsheet className="mr-2"/>Exportar Excel</Button>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <ScrollArea className="h-[60vh] border rounded-md">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    {visibleColumnsData.map(col => (
-                                        <TableHead key={col.id}>{col.label}</TableHead>
-                                    ))}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow><TableCell colSpan={visibleColumns.length} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
-                                ) : sortedData.length > 0 ? (
-                                    sortedData.map(item => (
-                                        <TableRow key={item.id} className={cn(item.quantity === 0 && 'bg-destructive/10 text-destructive')}>
-                                            {visibleColumns.map(colId => {
-                                                const { content, className, type, variant } = selectors.getColumnContent(item, colId);
-                                                return (
-                                                    <TableCell key={colId} className={cn(className, item.quantity === 0 && 'text-destructive')}>
-                                                        {type === 'badge' ? (
-                                                            <Badge variant={variant as any}>{content}</Badge>
-                                                        ) : (
-                                                            content
-                                                        )}
-                                                    </TableCell>
-                                                )
-                                            })}
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow><TableCell colSpan={visibleColumns.length} className="h-24 text-center">No hay datos para los filtros seleccionados.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
-                </CardContent>
-            </Card>
-        </main>
-    );
+    };
 }
