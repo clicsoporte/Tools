@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the consignments module database.
  */
@@ -12,7 +13,6 @@ import { createNotification, createNotificationForPermission } from '@/modules/c
 import { sendEmail } from '@/modules/core/lib/email-service';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { getAllUsers } from '@/modules/core/lib/auth-client';
 
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
@@ -460,7 +460,6 @@ export async function updateBoletaStatus(payload: { boletaId: number, status: st
 }
 
 // ... rest of the file remains unchanged. I'll include it in the final output.
-
 export async function getBoletaDetails(boletaId: number): Promise<{ boleta: RestockBoleta, lines: BoletaLine[], history: BoletaHistory[] } | null> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const boleta = db.prepare('SELECT * FROM restock_boletas WHERE id = ?').get(boletaId) as RestockBoleta | undefined;
@@ -812,7 +811,7 @@ export async function annulPeriodClosure(closureId: number, updatedBy: string): 
     })();
 }
 
-export async function getConsignmentsBillingReportData(closureId: number): Promise<{ reportRows: ConsignmentReportRow[]; boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[]; currentClosure: (PeriodClosure & { client_name: string; }); previousClosure: PeriodClosure | null; } | { error: string; }> {
+export async function getConsignmentsBillingReportData(closureId: number): Promise<{ reportRows: ConsignmentReportRow[], boletas: (RestockBoleta & { lines: BoletaLine[]; history: BoletaHistory[]; })[], currentClosure: (PeriodClosure & { client_name: string; }), previousClosure: PeriodClosure | null; } | { error: string; }> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     const mainDb = await connectDb();
 
@@ -824,7 +823,7 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     `).get(closureId) as (PeriodClosure & { client_name: string }) | undefined;
 
     if (!currentClosure) {
-        return { error: "Cierre no encontrado o no está en estado 'Aprobado'." };
+        return { error: "Cierre no encontrado o no está en estado 'Aprobado' o 'Facturado'." };
     }
 
     const previousClosure = currentClosure.previous_closure_id 
@@ -970,6 +969,23 @@ export async function getAdjustmentsInPeriod(agreementId: number, dateRange: { f
     return JSON.parse(JSON.stringify(adjustments));
 }
 
+export async function saveAdjustment(payload: {
+    agreementId: number;
+    productId: string;
+    quantity: number;
+    reason: ConsignmentAdjustmentReason;
+    notes?: string;
+    userName: string;
+}): Promise<void> {
+    const db = await connectDb(CONSIGNMENTS_DB_FILE);
+    const { agreementId, productId, quantity, reason, notes, userName } = payload;
+    
+    db.prepare(
+        'INSERT INTO consignment_adjustments (agreement_id, product_id, quantity, reason, notes, created_at, created_by) VALUES (?, ?, ?, ?, ?, datetime(\'now\'), ?)'
+    ).run(agreementId, productId, quantity, reason, notes || null, userName);
+    
+    logInfo('Consignment adjustment saved', { ...payload });
+}
 
 export async function getPhysicalCountHistory(agreementId: number): Promise<{ counted_at: string, counted_by: string }[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
@@ -1059,3 +1075,5 @@ export async function linkInvoiceToClosure(closureId: number, invoiceNumber: str
         logInfo(`Linked invoice ${invoiceNumber} to closure ${closure.consecutive}`, { user: userName, closureId, boletasUpdated: boletasToUpdate.length });
     })();
 }
+
+    
