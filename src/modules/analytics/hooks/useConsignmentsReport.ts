@@ -8,7 +8,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
-import { getConsignmentsReportData } from '@/modules/analytics/lib/actions';
+import { getConsignmentsReportData } from '@/modules/consignments/lib/actions';
 import { getConsignmentAgreements } from '@/modules/consignments/lib/actions';
 import type { DateRange, ConsignmentAgreement, Company, RestockBoleta, BoletaLine, BoletaHistory, UserPreferences, PeriodClosure, ConsignmentReportRow } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';

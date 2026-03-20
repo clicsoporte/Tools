@@ -12,6 +12,7 @@ import { createNotification, createNotificationForPermission } from '@/modules/c
 import { sendEmail } from '@/modules/core/lib/email-service';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getAllUsers } from '@/modules/core/lib/auth-client';
 
 
 const CONSIGNMENTS_DB_FILE = 'consignments.db';
@@ -198,7 +199,8 @@ export async function runConsignmentsMigrations(db: import('better-sqlite3').Dat
             }
         }
 
-        if (!db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignment_adjustments'`).get()) {
+        const adjustmentsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='consignment_adjustments'`).get();
+        if (!adjustmentsTable) {
             db.exec(`CREATE TABLE consignment_adjustments (id INTEGER PRIMARY KEY AUTOINCREMENT, agreement_id INTEGER NOT NULL, product_id TEXT NOT NULL, quantity INTEGER NOT NULL, reason TEXT NOT NULL, notes TEXT, created_at TEXT NOT NULL, created_by TEXT NOT NULL, FOREIGN KEY (agreement_id) REFERENCES consignment_agreements(id));`);
         }
 
@@ -336,7 +338,12 @@ export async function getAgreementDetails(agreementId: number): Promise<{ agreem
     return JSON.parse(JSON.stringify({ agreement, products }));
 }
 
-export async function getBoletas(filters: { status: string[], dateRange?: { from?: Date, to?: Date }, type?: BoletaType, agreementId?: number }) {
+export async function getBoletas(filters: {
+    status: string[],
+    dateRange?: { from?: Date, to?: Date },
+    type?: BoletaType,
+    agreementId?: number
+}) {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     let query = `
         SELECT 
@@ -700,7 +707,7 @@ export async function getPhysicalCountByRef(agreementId: number, countedAt: stri
     return JSON.parse(JSON.stringify(counts));
 }
 
-export async function getPeriodClosures(filters: {} = {}): Promise<(PeriodClosure & { client_name: string; client_id: string; is_initial_inventory: boolean; })[]> {
+export async function getPeriodClosures(filters: { agreementId?: number } = {}): Promise<(PeriodClosure & { client_name: string; client_id: string; is_initial_inventory: boolean; })[]> {
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
     let query = 'SELECT pc.*, ca.client_name, ca.client_id FROM period_closures pc JOIN consignment_agreements ca ON pc.agreement_id = ca.id';
     const params: any[] = [];
@@ -827,7 +834,7 @@ export async function getConsignmentsBillingReportData(closureId: number): Promi
     `).get(closureId) as (PeriodClosure & { client_name: string }) | undefined;
 
     if (!currentClosure) {
-        return { error: "Cierre no encontrado o no está en estado 'Aprobado' o 'Facturado'." };
+        return { error: "Cierre no encontrado o no está en estado 'Aprobado'." };
     }
 
     const previousClosure = currentClosure.previous_closure_id 
@@ -1044,6 +1051,7 @@ export async function releaseAgreementLock(agreementId: number, userId: number):
 
 
 export async function linkInvoiceToClosure(closureId: number, invoiceNumber: string, userName: string): Promise<void> {
+    await authorizeAction('consignments:boleta:invoice');
     const db = await connectDb(CONSIGNMENTS_DB_FILE);
 
     db.transaction(() => {

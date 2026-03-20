@@ -351,3 +351,11 @@ export async function getInventoryMonitorData(agreementId: number): Promise<any>
         countHistory,
     }));
 }
+
+export async function getReceivingReportData({ dateRange }: { dateRange?: DateRange }): Promise<{ units: InventoryUnit[], locations: WarehouseLocation[] }> {
+    const [units, locations] = await Promise.all([
+        getInventoryUnits({ dateRange, includeVoided: true }),
+        getWarehouseLocations(),
+    ]);
+    return { units, locations };
+}
