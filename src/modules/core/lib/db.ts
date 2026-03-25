@@ -1206,10 +1206,10 @@ export async function importAllData(): Promise<{ results: { type: string; count:
     if (!companySettings) throw new Error("No se pudo cargar la configuración de la empresa.");
     
     const importTasks: ImportQuery['type'][] = [
-        'customers', 'products', 'exemptions', 'stock', 'locations', 
-        'cabys', 'suppliers', 'erp_order_headers', 'erp_order_lines', 
-        'erp_purchase_order_headers', 'erp_purchase_order_lines',
-        'erp_invoice_headers', 'erp_invoice_lines'
+        'customers', 'products', 'exemptions', 'stock', 'locations', 'cabys', 'suppliers', 
+        'erp_order_headers', 'erp_order_lines', 'erp_purchase_order_headers', 
+        'erp_purchase_order_lines', 'erp_invoice_headers', 'erp_invoice_lines', 
+        'employees', 'departments', 'positions', 'payrolls', 'salespersons'
     ];
     
     const results: { type: string; count: number; }[] = [];
