@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook for managing the state and logic of the CostAssistantPage component.
  */
@@ -15,6 +16,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
+    if (!s) return 0;
     
     // This regex handles numbers like "1,234.56" or "1.234,56"
     const normalized = s.replace(/[.,](?=\d{3})/g, '').replace(',', '.');
@@ -33,8 +35,8 @@ const initialColumnVisibility: CostAssistantSettings['columnVisibility'] = {
     quantity: true,
     discountAmountUnit: true,
     discountPercentage: true,
-    xmlPackCost: false,
     xmlGrossPackCost: false,
+    xmlPackCost: false,
     unitCostWithoutTax: true,
     taxRate: true,
     margin: true,
@@ -376,24 +378,23 @@ export const useCostAssistant = () => {
                 return { ...line, sellPriceWithoutTax, finalSellPrice, profitPerLine };
             }
 
-            let baseUnitCostPerPack = line.xmlPackCost;
+            let baseCostPerPack = line.xmlPackCost; // Net cost from XML
             if (state.discountHandling === 'company') {
-                 baseUnitCostPerPack = line.xmlGrossPackCost;
+                 baseCostPerPack = line.xmlGrossPackCost;
             }
 
-            const lineNetValue = line.xmlPackCost * line.originalQuantity;
-            const proratedAdditionalCost = totalNetInvoiceValue > 0 ? (lineNetValue / totalNetInvoiceValue) * totalAdditionalCosts : 0;
-            const additionalCostPerPack = line.originalQuantity > 0 ? proratedAdditionalCost / line.originalQuantity : 0;
+            const proratedAdditionalCost = totalNetInvoiceValue > 0 ? (line.xmlPackCost * line.originalQuantity / totalNetInvoiceValue) * totalAdditionalCosts : 0;
             
-            const finalCostPerPack = baseUnitCostPerPack + additionalCostPerPack;
+            const totalCostPerPack = baseCostPerPack + (proratedAdditionalCost / line.originalQuantity);
             
-            const finalUnitCostWithoutTax = line.unitsPerPack > 0 ? finalCostPerPack / line.unitsPerPack : 0;
+            const finalUnitCostWithoutTax = line.unitsPerPack > 0 ? totalCostPerPack / line.unitsPerPack : 0;
 
             const sellPriceWithoutTax = finalUnitCostWithoutTax / (1 - line.margin);
             const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
             
-            const actualUnitCost = (line.xmlPackCost + (additionalCostPerPack || 0)) / (line.unitsPerPack || 1);
-            const profitPerLine = (sellPriceWithoutTax - actualUnitCost) * line.quantity;
+            // For profit, always use the real cost paid
+            const realCostPerUnit = ((line.xmlPackCost * line.originalQuantity) + proratedAdditionalCost) / line.quantity;
+            const profitPerLine = (sellPriceWithoutTax - realCostPerUnit) * line.quantity;
 
             return {
                 ...line,
@@ -455,16 +456,16 @@ export const useCostAssistant = () => {
             { id: 'originalQuantity', label: 'Cant. XML', className: 'min-w-[120px] text-right' },
             { id: 'unitsPerPack', label: 'Uds/Paq', tooltip: 'Unidades por paquete/caja para desglose de costo.', className: 'min-w-[100px]' },
             { id: 'quantity', label: 'Cant. Total', className: 'min-w-[120px] text-right font-bold' },
-            { id: 'discountAmountUnit', label: 'Desc. Unit.', tooltip: 'Descuento por unidad.', className: 'min-w-[150px] text-right' },
+            { id: 'discountAmountUnit', label: 'Desc. Unit. (s/IVA)', tooltip: 'Descuento por unidad, sin IVA.', className: 'min-w-[150px] text-right' },
             { id: 'discountPercentage', label: 'Desc. %', tooltip: 'Porcentaje de descuento sobre el costo bruto.', className: 'min-w-[120px] text-right' },
-            { id: 'xmlGrossPackCost', label: 'Costo Paq. Bruto', tooltip: 'Costo por paquete/caja según factura XML, antes de descuentos.', className: 'min-w-[180px] text-right' },
-            { id: 'xmlPackCost', label: 'Costo Paq. Neto', tooltip: 'Costo por paquete/caja según factura XML, después de descuentos.', className: 'min-w-[180px] text-right' },
-            { id: 'unitCostWithoutTax', label: 'Costo Unit. Final', tooltip: 'Costo por unidad individual, prorrateado y después de descuentos.', className: 'min-w-[180px] text-right' },
+            { id: 'xmlGrossPackCost', label: 'Costo Paq. Bruto (s/IVA)', tooltip: 'Costo por paquete/caja según factura XML, antes de descuentos.', className: 'min-w-[180px] text-right' },
+            { id: 'xmlPackCost', label: 'Costo Paq. Neto (s/IVA)', tooltip: 'Costo por paquete/caja según factura XML, después de descuentos.', className: 'min-w-[180px] text-right' },
+            { id: 'unitCostWithoutTax', label: 'Costo Unit. Final (s/IVA)', tooltip: 'Costo por unidad individual, prorrateado y después de descuentos.', className: 'min-w-[180px] text-right' },
             { id: 'taxRate', label: 'Imp. %', className: 'min-w-[100px]' },
-            { id: 'margin', label: 'Margen', className: 'min-w-[100px]' },
-            { id: 'sellPriceWithoutTax', label: 'PVP s/IVA', tooltip: 'Precio de venta sugerido por unidad antes de impuestos.', className: 'min-w-[180px] text-right' },
-            { id: 'finalSellPrice', label: 'PVP Final', tooltip: 'Precio de venta final sugerido, con IVA incluido.', className: 'min-w-[180px] text-right' },
-            { id: 'profitPerLine', label: 'Ganancia Bruta', tooltip: 'Ganancia total estimada para esta línea de producto.', className: 'min-w-[180px] text-right' },
+            { id: 'margin', label: 'Margen %', className: 'min-w-[100px]' },
+            { id: 'sellPriceWithoutTax', label: 'PVP Unit. (s/IVA)', tooltip: 'Precio de venta sugerido por unidad antes de impuestos.', className: 'min-w-[180px] text-right' },
+            { id: 'finalSellPrice', label: 'PVP Final (c/IVA)', tooltip: 'Precio de venta final sugerido, con IVA incluido.', className: 'min-w-[180px] text-right' },
+            { id: 'profitPerLine', label: 'Ganancia Bruta (s/IVA)', tooltip: 'Ganancia total estimada para esta línea de producto (Venta Neta - Costo Total Final).', className: 'min-w-[180px] text-right' },
         ], [])
     };
 
