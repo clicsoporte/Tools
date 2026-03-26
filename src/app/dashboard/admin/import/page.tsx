@@ -274,6 +274,7 @@ export default function ImportDataPage() {
                           id="import-mode"
                           checked={companyData?.importMode === 'sql'}
                           onCheckedChange={(checked: boolean) => handleCompanyDataChange('importMode', checked ? 'sql' : 'file')}
+                          disabled={!hasPermission('admin:import:sql-config')}
                         />
                         <Label htmlFor="import-mode">Importar desde SQL Server</Label>
                     </div>
