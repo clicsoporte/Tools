@@ -269,7 +269,7 @@ export default function CostAssistantPage() {
                                  <DialogColumnSelector
                                     allColumns={selectors.columns}
                                     visibleColumns={Object.keys(state.columnVisibility).filter(k => state.columnVisibility[k as keyof typeof state.columnVisibility])}
-                                    onColumnChange={(columnId, checked) => actions.setColumnVisibility(columnId, checked)}
+                                    onColumnChange={(columnId, checked) => actions.setColumnVisibility(columnId as keyof ColumnVisibility, checked)}
                                     onSave={actions.handleSaveColumnVisibility}
                                 />
                                 {state.exportStatus === 'idle' && (
@@ -324,7 +324,7 @@ export default function CostAssistantPage() {
                                             {state.columnVisibility.description && <TableCell className={selectors.columns.find((c: {id: string})=>c.id === 'description')?.className}><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0"/></TableCell>}
                                             
                                             {state.columnVisibility.originalQuantity && <TableCell className={selectors.columns.find((c: {id: string})=>c.id === 'originalQuantity')?.className}>{line.originalQuantity}</TableCell>}
-                                            {state.columnVisibility.unitsPerPack && <TableCell className={selectors.columns.find((c: {id: string})=>c.id === 'unitsPerPack')?.className}><Input type="text" value={line.displayUnitsPerPack} onChange={e => actions.handleUnitsPerPackChange(line.id, e.target.value)} className="h-auto p-1 border-0 text-right"/></TableCell>}
+                                            {state.columnVisibility.unitsPerPack && <TableCell className={selectors.columns.find((c: {id: string})=>c.id === 'unitsPerPack')?.className}><Input type="text" value={line.displayUnitsPerPack} onChange={e => actions.updateLine(line.id, { displayUnitsPerPack: e.target.value })} onBlur={e => actions.handleUnitsPerPackBlur(line.id, e.target.value)} className="h-auto p-1 border-0 text-right"/></TableCell>}
                                             {state.columnVisibility.quantity && <TableCell className={selectors.columns.find((c: {id: string})=>c.id === 'quantity')?.className}>{line.quantity}</TableCell>}
 
                                             {state.columnVisibility.discountAmountUnit && <TableCell className={cn(selectors.columns.find((c: {id: string})=>c.id === 'discountAmountUnit')?.className, "font-mono")}>{actions.formatCurrency(line.discountAmountUnit)}</TableCell>}

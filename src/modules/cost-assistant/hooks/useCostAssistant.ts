@@ -162,15 +162,16 @@ export const useCostAssistant = () => {
         }));
     };
     
-    const handleUnitsPerPackChange = (lineId: string, displayValue: string) => {
-        const newUnitsPerPack = Math.max(1, parseDecimal(displayValue));
+    const handleUnitsPerPackBlur = (lineId: string, displayValue: string) => {
+        const numericValue = parseDecimal(displayValue);
+        const newUnitsPerPack = Math.max(1, numericValue);
         const line = state.lines.find(l => l.id === lineId);
         if (line) {
             const newQuantity = line.originalQuantity * newUnitsPerPack;
             updateLine(lineId, {
                 unitsPerPack: newUnitsPerPack,
                 displayUnitsPerPack: String(newUnitsPerPack),
-                quantity: newQuantity,
+                quantity: newQuantity
             });
         }
     };
@@ -195,7 +196,7 @@ export const useCostAssistant = () => {
         const numericValue = parseDecimal(displayValue);
         updateLine(lineId, {
             unitCostWithoutTax: numericValue,
-            displayUnitCost: String(numericValue),
+            displayUnitCost: String(numericValue.toFixed(4)), // Re-format to ensure consistency
             isCostEdited: true, // Mark as manually edited
         });
     };
@@ -377,7 +378,6 @@ export const useCostAssistant = () => {
 
             let baseUnitCostPerPack = line.xmlPackCost;
 
-            // NEW: The discount is NOT part of the cost calculation anymore if we are keeping it as profit
             if (state.discountHandling === 'company') {
                  baseUnitCostPerPack = line.xmlGrossPackCost;
             }
@@ -394,7 +394,6 @@ export const useCostAssistant = () => {
             const sellPriceWithoutTax = finalUnitCostWithoutTax / (1 - line.margin);
             const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
             
-            // Recalculate profit based on what was actually paid
             const actualUnitCost = (line.xmlPackCost + (additionalCostPerPack || 0)) / (line.unitsPerPack || 1);
             const profitPerLine = (sellPriceWithoutTax - actualUnitCost) * line.quantity;
 
@@ -429,10 +428,10 @@ export const useCostAssistant = () => {
     const actions = {
         removeLine,
         updateLine,
-        handleUnitsPerPackChange,
         handleMarginBlur,
         handleTaxRateBlur,
         handleUnitCostBlur,
+        handleUnitsPerPackBlur,
         formatCurrency,
         handleClear,
         openFileDialog,
