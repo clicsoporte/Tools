@@ -42,7 +42,7 @@ const initialColumnVisibility: CostAssistantSettings['columnVisibility'] = {
     profitPerLine: true,
 };
 
-type ColumnVisibility = typeof initialColumnVisibility;
+export type ColumnVisibility = typeof initialColumnVisibility;
 
 type ExportStatus = 'idle' | 'generating' | 'ready';
 
@@ -64,7 +64,7 @@ export const useCostAssistant = () => {
     useAuthorization(['dashboard:access', 'cost-assistant:access']); // Permissions
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user, isAuthReady } = useAuth(); // Use isAuthReady
+    const { user, isAuthReady } = useAuth();
     
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -124,7 +124,7 @@ export const useCostAssistant = () => {
                 margin: 0.20,
                 displayTaxRate: (line.taxRate * 100).toFixed(0),
                 displayUnitCost: line.unitCostWithoutTax.toFixed(4),
-                displayUnitsPerPack: "1",
+                displayUnitsPerPack: String(line.unitsPerPack || 1),
                 isCostEdited: false,
                 finalSellPrice: 0,
                 profitPerLine: 0, 
