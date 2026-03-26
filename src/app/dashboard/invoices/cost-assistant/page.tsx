@@ -31,25 +31,11 @@ export default function CostAssistantPage() {
     const {
         state,
         actions,
+        selectors
     } = useCostAssistant();
     
     const { isAuthReady } = useAuth();
     
-    const columns = [
-        { id: 'cabysCode', label: 'Cabys', defaultVisible: true, className: 'min-w-[150px]' },
-        { id: 'supplierCode', label: 'Cód. Artículo', defaultVisible: true, className: 'min-w-[150px]' },
-        { id: 'description', label: 'Descripción', defaultVisible: true, className: 'min-w-[400px]' },
-        { id: 'quantity', label: 'Cant.', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-right' },
-        { id: 'discountAmount', label: 'Descuento', defaultVisible: false, className: 'min-w-[180px] text-right', tooltip: 'Descuento total aplicado a esta línea.' },
-        { id: 'unitCostWithoutTax', label: 'Costo Unit. (s/IVA)', defaultVisible: true, className: 'w-[180px] min-w-[180px] text-right', tooltip: 'Costo por unidad sin impuestos después de prorratear costos adicionales y aplicar descuentos (si corresponde).' },
-        { id: 'unitCostWithTax', label: 'Costo Unit. (c/IVA)', defaultVisible: false, className: 'min-w-[180px] text-right' },
-        { id: 'taxRate', label: 'Imp. %', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-center' },
-        { id: 'margin', label: 'Margen', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-right' },
-        { id: 'sellPriceWithoutTax', label: 'P.V.P Unitario (s/IVA)', defaultVisible: true, className: 'min-w-[180px] text-right', tooltip: 'Precio de Venta al Público por unidad, sin impuestos.' },
-        { id: 'finalSellPrice', label: 'P.V.P Unitario Sugerido', defaultVisible: true, className: 'min-w-[180px] text-right', tooltip: 'Precio de Venta al Público final por unidad (con IVA incluido).' },
-        { id: 'profitPerLine', label: 'Ganancia por Línea', defaultVisible: true, className: 'min-w-[180px] text-right', tooltip: 'Ganancia total para esta línea de productos (Cantidad x Ganancia por unidad).' },
-    ];
-
     if (!isAuthReady || isAuthorized === null) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
@@ -281,7 +267,7 @@ export default function CostAssistantPage() {
                              </div>
                              <div className="flex items-center gap-2">
                                  <DialogColumnSelector
-                                    allColumns={columns}
+                                    allColumns={selectors.columns}
                                     visibleColumns={Object.keys(state.columnVisibility).filter(k => state.columnVisibility[k as keyof typeof state.columnVisibility])}
                                     onColumnChange={(columnId, checked) => actions.setColumnVisibility(columnId as keyof typeof state.columnVisibility, checked)}
                                     onSave={actions.handleSaveColumnVisibility}
@@ -317,7 +303,7 @@ export default function CostAssistantPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        {columns.map(col => state.columnVisibility[col.id as keyof typeof state.columnVisibility] && (
+                                        {selectors.columns.map(col => state.columnVisibility[col.id as keyof typeof state.columnVisibility] && (
                                             <TableHead key={col.id} className={cn(col.className)}>
                                                 {col.tooltip ? (
                                                     <Tooltip>
@@ -333,14 +319,17 @@ export default function CostAssistantPage() {
                                 <TableBody>
                                     {state.lines.length > 0 ? state.lines.map((line) => (
                                         <TableRow key={line.id}>
-                                            {state.columnVisibility.cabysCode && <TableCell className={columns.find(c=>c.id === 'cabysCode')?.className}><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
-                                            {state.columnVisibility.supplierCode && <TableCell className={columns.find(c=>c.id === 'supplierCode')?.className}><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
-                                            {state.columnVisibility.description && <TableCell className={columns.find(c=>c.id === 'description')?.className}><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0"/></TableCell>}
-                                            {state.columnVisibility.quantity && <TableCell className={columns.find(c=>c.id === 'quantity')?.className}><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>}
-                                            {state.columnVisibility.discountAmount && <TableCell className={cn(columns.find(c=>c.id === 'discountAmount')?.className, "font-mono")}>{line.discountAmount > 0 ? `${actions.formatCurrency(line.discountAmount)} (${((line.discountAmount / (line.xmlUnitCost * line.quantity)) * 100).toFixed(1)}%)` : actions.formatCurrency(0)}</TableCell>}
-                                            {state.columnVisibility.unitCostWithoutTax && <TableCell className={cn(columns.find(c=>c.id === 'unitCostWithoutTax')?.className, "font-mono")}><Input type="text" value={line.displayUnitCost} onChange={(e) => actions.updateLine(line.id, { displayUnitCost: e.target.value })} onBlur={(e) => actions.handleUnitCostBlur(line.id, e.target.value)} className="h-auto p-1 border-0 text-right" /></TableCell>}
-                                            {state.columnVisibility.unitCostWithTax && <TableCell className={cn(columns.find(c=>c.id === 'unitCostWithTax')?.className, "font-mono")}>{actions.formatCurrency(line.unitCostWithTax)}</TableCell>}
-                                            {state.columnVisibility.taxRate && <TableCell className={columns.find(c=>c.id === 'taxRate')?.className}>
+                                            {state.columnVisibility.cabysCode && <TableCell className={selectors.columns.find(c=>c.id === 'cabysCode')?.className}><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
+                                            {state.columnVisibility.supplierCode && <TableCell className={selectors.columns.find(c=>c.id === 'supplierCode')?.className}><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
+                                            {state.columnVisibility.description && <TableCell className={selectors.columns.find(c=>c.id === 'description')?.className}><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0"/></TableCell>}
+                                            {state.columnVisibility.quantity && <TableCell className={selectors.columns.find(c=>c.id === 'quantity')?.className}><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>}
+                                            
+                                            {state.columnVisibility.discountAmountUnit && <TableCell className={cn(selectors.columns.find(c=>c.id === 'discountAmountUnit')?.className, "font-mono")}>{actions.formatCurrency(line.discountAmountUnit)}</TableCell>}
+                                            {state.columnVisibility.discountPercentage && <TableCell className={cn(selectors.columns.find(c=>c.id === 'discountPercentage')?.className, "font-mono")}>{`${(line.discountPercentage * 100).toFixed(2)}%`}</TableCell>}
+
+                                            {state.columnVisibility.unitCostWithoutTax && <TableCell className={cn(selectors.columns.find(c=>c.id === 'unitCostWithoutTax')?.className, "font-mono")}><Input type="text" value={line.displayUnitCost} onChange={(e) => actions.updateLine(line.id, { displayUnitCost: e.target.value })} onBlur={(e) => actions.handleUnitCostBlur(line.id, e.target.value)} className="h-auto p-1 border-0 text-right" /></TableCell>}
+                                            
+                                            {state.columnVisibility.taxRate && <TableCell className={selectors.columns.find(c=>c.id === 'taxRate')?.className}>
                                                     <div className="relative">
                                                         <Input 
                                                             type="text" 
@@ -353,7 +342,7 @@ export default function CostAssistantPage() {
                                                     </div>
                                                 </TableCell>}
                                             {state.columnVisibility.margin && 
-                                                <TableCell className={columns.find(c=>c.id === 'margin')?.className}>
+                                                <TableCell className={selectors.columns.find(c=>c.id === 'margin')?.className}>
                                                     <div className="relative">
                                                         <Input 
                                                             type="text" 
@@ -366,9 +355,9 @@ export default function CostAssistantPage() {
                                                     </div>
                                                 </TableCell>
                                             }
-                                            {state.columnVisibility.sellPriceWithoutTax && <TableCell className={cn(columns.find(c=>c.id === 'sellPriceWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</TableCell>}
-                                            {state.columnVisibility.finalSellPrice && <TableCell className={cn(columns.find(c=>c.id === 'finalSellPrice')?.className, "font-bold text-base text-primary")}>{actions.formatCurrency(line.finalSellPrice)}</TableCell>}
-                                            {state.columnVisibility.profitPerLine && <TableCell className={cn(columns.find(c=>c.id === 'profitPerLine')?.className, "font-bold text-base text-blue-600")}>{actions.formatCurrency(line.profitPerLine || 0)}</TableCell>}
+                                            {state.columnVisibility.sellPriceWithoutTax && <TableCell className={cn(selectors.columns.find(c=>c.id === 'sellPriceWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</TableCell>}
+                                            {state.columnVisibility.finalSellPrice && <TableCell className={cn(selectors.columns.find(c=>c.id === 'finalSellPrice')?.className, "font-bold text-base text-primary")}>{actions.formatCurrency(line.finalSellPrice)}</TableCell>}
+                                            {state.columnVisibility.profitPerLine && <TableCell className={cn(selectors.columns.find(c=>c.id === 'profitPerLine')?.className, "font-bold text-base text-blue-600")}>{actions.formatCurrency(line.profitPerLine || 0)}</TableCell>}
                                             <TableCell>
                                                 <Button variant="ghost" size="icon" onClick={() => actions.removeLine(line.id)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -377,7 +366,7 @@ export default function CostAssistantPage() {
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={columns.length + 1} className="h-24 text-center">
+                                            <TableCell colSpan={selectors.columns.length + 1} className="h-24 text-center">
                                                 Carga un archivo XML para ver los artículos.
                                             </TableCell>
                                         </TableRow>

@@ -544,7 +544,7 @@ export type InventoryUnit = {
     appliedAt?: string | null;
     appliedBy?: string | null;
     annulledAt?: string | null;
-    annulledBy?: string | null;
+    annulledBy?: string;
 };
 
 
@@ -928,7 +928,7 @@ export interface UserPreferences {
 export type DraftableCostAssistantLine = Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost'>;
 
 export type CostAssistantLine = {
-    id: string; // Unique ID for the line, e.g., `${invoiceKey}-${lineNumber}`
+    id: string;
     invoiceKey: string;
     lineNumber: number;
     cabysCode: string;
@@ -936,22 +936,30 @@ export type CostAssistantLine = {
     supplierCodeType: string;
     description: string;
     quantity: number;
-    discountAmount: number; // Discount amount for the entire line
-    xmlUnitCost: number; // Cost from XML, before prorating
-    unitCostWithTax: number; // Cost per unit with tax, in local currency (CRC)
-    unitCostWithoutTax: number; // Cost per unit without tax, in local currency (CRC), after prorating/editing
-    taxRate: number; // e.g., 0.13
-    taxCode: string; // e.g., '08' for 13%
-    margin: number; // Profit margin, e.g., 0.20 for 20%
+    // Discount info
+    discountAmount: number;
+    discountAmountUnit: number;
+    discountPercentage: number;
+    // Cost info
+    subTotal: number; // MontoTotal - Descuento
+    unitCostBeforeDiscount: number; // PrecioUnitario
+    unitCostWithoutTax: number; // Final calculated cost for margin calculation
+    isCostEdited: boolean;
+    // Tax Info
+    taxRate: number;
+    taxCode: string;
+    // Display & UI fields
     displayMargin: string;
+    margin: number;
     displayTaxRate: string;
     displayUnitCost: string;
-    isCostEdited: boolean;
+    // Calculated fields
     sellPriceWithoutTax: number;
     finalSellPrice: number;
     profitPerLine: number;
     supplierName: string;
 };
+
 
 // Shared between modules
 export type ProcessedInvoiceInfo = {
@@ -984,9 +992,9 @@ export type CostAssistantSettings = {
         supplierCode: boolean;
         description: boolean;
         quantity: boolean;
-        discountAmount: boolean;
+        discountAmountUnit: boolean;
+        discountPercentage: boolean;
         unitCostWithoutTax: boolean;
-        unitCostWithTax: boolean;
         taxRate: boolean;
         margin: boolean;
         sellPriceWithoutTax: boolean;
