@@ -38,7 +38,7 @@ const parseDecimal = (str: any): number => {
 
 
 interface InvoiceParseResult {
-    lines: CostAssistantLine[];
+    lines: Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'displayUnitsPerPack' | 'finalSellPrice' | 'profitPerLine' | 'sellPriceWithoutTax' | 'isCostEdited'>[];
     invoiceInfo: Omit<ProcessedInvoiceInfo, 'status' | 'errorMessage'>;
 }
 
@@ -100,7 +100,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
     const tipoCambio = parseDecimal(tipoCambioStr) || 1.0;
 
 
-    const lines: CostAssistantLine[] = [];
+    const lines: Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'displayUnitsPerPack' | 'finalSellPrice' | 'profitPerLine' | 'sellPriceWithoutTax' | 'isCostEdited'>[] = [];
     for (const [index, linea] of lineasDetalle.entries()) {
         const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
         if (cantidad === 0) continue;
@@ -110,7 +110,6 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         const codigosComerciales = linea.CodigoComercial || []; // It's now always an array
         
         if (codigosComerciales.length > 0) {
-            // Prioritize type '01' (Código del producto del vendedor)
             const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01');
             if (preferredCodeNode && preferredCodeNode.Codigo) {
                 supplierCode = preferredCodeNode.Codigo;
@@ -125,32 +124,28 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         const cabysV44 = getValue(linea, ['CodigoCABYS']);
         const cabysCode = cabysV44 || cabysV43 || 'N/A';
         
-        const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
-        
         const descuentoNode = getValue(linea, ['Descuento']);
         const discountAmount = descuentoNode ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
         
         const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
-        
-        const subTotalWithDiscount = subTotal - discountAmount;
-        
-        const unitCostWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
-        const unitCostWithoutTax = cantidad > 0 ? subTotalWithDiscount / cantidad : 0;
+        const precioUnitario = parseDecimal(getValue(linea, ['PrecioUnitario'], '0'));
 
         const impuestoNode = getValue(linea, ['Impuesto']);
-        let taxRate = 0.13; // Default
-        let taxCode = '08'; // Default
+        let taxRate = 0.13;
+        let taxCode = '08';
         if (impuestoNode) {
             taxRate = parseDecimal(getValue(impuestoNode, ['Tarifa'], '13')) / 100;
             taxCode = getValue(impuestoNode, ['CodigoTarifaIVA'], '08');
         }
         
-        const unitCostWithTaxInColones = moneda === 'USD' ? unitCostWithTax * tipoCambio : unitCostWithTax;
-        const unitCostWithoutTaxInColones = moneda === 'USD' ? unitCostWithoutTax * tipoCambio : unitCostWithoutTax;
+        const unitCostBeforeDiscountInColones = moneda === 'USD' ? precioUnitario * tipoCambio : precioUnitario;
+        const discountAmountInColones = moneda === 'USD' ? discountAmount * tipoCambio : discountAmount;
+
+        const totalCostBeforeDiscount = unitCostBeforeDiscountInColones * cantidad;
+        const discountPercentage = totalCostBeforeDiscount > 0 ? discountAmountInColones / totalCostBeforeDiscount : 0;
+        const discountAmountUnit = cantidad > 0 ? discountAmountInColones / cantidad : 0;
         
         const numeroLinea = getValue(linea, ['NumeroLinea'], index + 1);
-
-        // Clean up the description field
         const rawDescription = getValue(linea, ['Detalle']);
         const cleanDescription = rawDescription.split(';')[0].trim();
 
@@ -162,21 +157,17 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             supplierCode: supplierCode,
             supplierCodeType: supplierCodeType,
             description: cleanDescription,
+            originalQuantity: cantidad,
+            unitsPerPack: 1,
             quantity: cantidad,
-            discountAmount,
-            unitCostWithTax: unitCostWithTaxInColones,
-            unitCostWithoutTax: unitCostWithoutTaxInColones,
-            xmlUnitCost: unitCostWithoutTaxInColones, // Store original cost
-            taxRate: taxRate,
-            taxCode: taxCode,
-            displayMargin: "20",
-            margin: 0.20,
-            displayTaxRate: (taxRate * 100).toFixed(0),
-            displayUnitCost: unitCostWithoutTaxInColones.toFixed(4),
-            isCostEdited: false,
-            finalSellPrice: 0, // Calculated in the frontend
-            profitPerLine: 0, // Calculated in the frontend
-            sellPriceWithoutTax: 0, // Calculated in the frontend
+            discountAmount: discountAmountInColones,
+            discountAmountUnit,
+            discountPercentage,
+            xmlPackCost: unitCostBeforeDiscountInColones,
+            unitCostWithoutTax: 0, // Placeholder, calculated on frontend
+            taxRate,
+            taxCode,
+            margin: 0,
             supplierName: emisorNombre,
         });
     }
@@ -184,8 +175,8 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
     return { lines, invoiceInfo };
 }
 
-export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines: CostAssistantLine[], processedInvoices: ProcessedInvoiceInfo[] }> {
-    let allLines: CostAssistantLine[] = [];
+export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines: Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'displayUnitsPerPack' | 'finalSellPrice' | 'profitPerLine' | 'sellPriceWithoutTax' | 'isCostEdited'>[], processedInvoices: ProcessedInvoiceInfo[] }> {
+    let allLines: Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'displayUnitsPerPack' | 'finalSellPrice' | 'profitPerLine' | 'sellPriceWithoutTax' | 'isCostEdited'>[] = [];
     const processedInvoices: ProcessedInvoiceInfo[] = [];
 
     for (const [index, xmlContent] of xmlContents.entries()) {
@@ -227,8 +218,8 @@ const defaultSettings: CostAssistantSettings = {
     draftPrefix: 'AC-',
     nextDraftNumber: 1,
     columnVisibility: {
-        cabysCode: true, supplierCode: true, description: true, quantity: true,
-        discountAmount: false, unitCostWithoutTax: true, unitCostWithTax: false, taxRate: true,
+        cabysCode: true, supplierCode: true, description: true, originalQuantity: false, unitsPerPack: true, quantity: true,
+        discountAmountUnit: true, discountPercentage: true, xmlPackCost: false, unitCostWithoutTax: true, taxRate: true,
         margin: true, sellPriceWithoutTax: true, finalSellPrice: true, profitPerLine: true
     },
     discountHandling: 'company',
@@ -280,19 +271,22 @@ export async function getNextDraftNumber(): Promise<number> {
 
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
     const headers = [
-        "Cabys", "Cód. Artículo", "Descripción", "Cant.", "Descuento", 
-        "Costo Unit. (s/IVA)", "Costo Unit. (c/IVA)", "Imp. %", "Margen", 
-        "P.V.P Unitario (s/IVA)", "P.V.P Unitario Sugerido", "Ganancia por Línea"
+        "Cabys", "Cód. Artículo", "Descripción", "Cant. Original (XML)", "Uds/Paq", "Cant. Total", 
+        "Desc. Unit. (s/IVA)", "Desc. %", "Costo Paq. (XML)", "Costo Unit. Final (s/IVA)",
+        "Imp. %", "Margen", "P.V.P Unitario (s/IVA)", "P.V.P Unitario Sugerido", "Ganancia por Línea"
     ];
     
     const dataToExport = lines.map(line => [
         line.cabysCode,
         line.supplierCode,
         line.description,
+        line.originalQuantity,
+        line.unitsPerPack,
         line.quantity,
-        line.discountAmount,
+        line.discountAmountUnit,
+        `${(line.discountPercentage * 100).toFixed(2)}%`,
+        line.xmlPackCost,
         line.unitCostWithoutTax,
-        line.unitCostWithTax,
         line.taxRate * 100,
         `${(line.margin * 100).toFixed(2)}%`,
         line.sellPriceWithoutTax,
@@ -306,10 +300,13 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
         { wch: 15 }, // Cabys
         { wch: 15 }, // Cód. Artículo
         { wch: 40 }, // Descripción
-        { wch: 10 }, // Cant.
-        { wch: 12 }, // Descuento
-        { wch: 20 }, // Costo Unit. (s/IVA)
-        { wch: 20 }, // Costo Unit. (c/IVA)
+        { wch: 12 }, // Cant. Original
+        { wch: 10 }, // Uds/Paq
+        { wch: 12 }, // Cant. Total
+        { wch: 15 }, // Desc. Unit
+        { wch: 10 }, // Desc. %
+        { wch: 15 }, // Costo Paq. XML
+        { wch: 20 }, // Costo Unit. Final
         { wch: 10 }, // Imp. %
         { wch: 10 }, // Margen
         { wch: 22 }, // P.V.P Unitario (s/IVA)

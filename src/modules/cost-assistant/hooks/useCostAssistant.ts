@@ -28,10 +28,13 @@ const initialColumnVisibility: CostAssistantSettings['columnVisibility'] = {
     cabysCode: true,
     supplierCode: true,
     description: true,
+    originalQuantity: false,
+    unitsPerPack: true,
     quantity: true,
-    discountAmount: false,
+    discountAmountUnit: true,
+    discountPercentage: true,
+    xmlPackCost: false,
     unitCostWithoutTax: true,
-    unitCostWithTax: false,
     taxRate: true,
     margin: true,
     sellPriceWithoutTax: true,
@@ -121,9 +124,10 @@ export const useCostAssistant = () => {
                 margin: 0.20,
                 displayTaxRate: (line.taxRate * 100).toFixed(0),
                 displayUnitCost: line.unitCostWithoutTax.toFixed(4),
+                displayUnitsPerPack: "1",
                 isCostEdited: false,
-                finalSellPrice: 0, // Will be calculated by useMemo
-                profitPerLine: 0, // Will be calculated by useMemo
+                finalSellPrice: 0,
+                profitPerLine: 0, 
                 sellPriceWithoutTax: 0,
             }));
             
@@ -155,6 +159,19 @@ export const useCostAssistant = () => {
             ...prevState,
             lines: prevState.lines.filter(line => line.id !== id)
         }));
+    };
+    
+    const handleUnitsPerPackChange = (lineId: string, displayValue: string) => {
+        const newUnitsPerPack = Math.max(1, parseDecimal(displayValue));
+        const line = state.lines.find(l => l.id === lineId);
+        if (line) {
+            const newQuantity = line.originalQuantity * newUnitsPerPack;
+            updateLine(lineId, {
+                unitsPerPack: newUnitsPerPack,
+                displayUnitsPerPack: String(newUnitsPerPack),
+                quantity: newQuantity,
+            });
+        }
     };
 
     const handleMarginBlur = (lineId: string, displayValue: string) => {
@@ -288,7 +305,7 @@ export const useCostAssistant = () => {
         const newDraft: Omit<CostAnalysisDraft, 'id' | 'createdAt'> = {
             userId: user.id,
             name: draftName,
-            lines: state.lines.map(({ displayMargin, displayTaxRate, displayUnitCost, ...line }) => line), // Remove display fields
+            lines: state.lines.map(({ displayMargin, displayTaxRate, displayUnitCost, displayUnitsPerPack, ...line }) => line), // Remove display fields
             globalCosts: {
                 transportCost: state.transportCost,
                 otherCosts: state.otherCosts,
@@ -315,7 +332,8 @@ export const useCostAssistant = () => {
             ...line,
             displayMargin: (line.margin * 100).toFixed(2),
             displayTaxRate: (line.taxRate * 100).toFixed(0),
-            displayUnitCost: line.unitCostWithoutTax.toFixed(4)
+            displayUnitCost: line.unitCostWithoutTax.toFixed(4),
+            displayUnitsPerPack: String(line.unitsPerPack || 1),
         }));
 
         setState(prevState => ({
@@ -344,11 +362,11 @@ export const useCostAssistant = () => {
     };
 
     const linesWithCalculatedCosts = useMemo(() => {
-        const totalInvoiceValue = state.lines.reduce((sum, line) => sum + (line.xmlUnitCost * line.quantity), 0);
+        const totalInvoiceValue = state.lines.reduce((sum, line) => sum + (line.xmlPackCost * line.originalQuantity), 0);
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
 
         return state.lines.map(line => {
-            if (line.isCostEdited) {
+             if (line.isCostEdited) {
                 // If cost is manually edited, calculations are based on that edited cost
                 const sellPriceWithoutTax = line.unitCostWithoutTax / (1 - line.margin);
                 const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
@@ -356,19 +374,21 @@ export const useCostAssistant = () => {
                 return { ...line, sellPriceWithoutTax, finalSellPrice, profitPerLine };
             }
 
-            let baseUnitCost = line.xmlUnitCost;
+            let baseUnitCostPerPack = line.xmlPackCost;
 
             // Apply discount to base cost if option is selected
-            if (state.discountHandling === 'customer' && line.discountAmount > 0 && line.quantity > 0) {
-                baseUnitCost -= (line.discountAmount / line.quantity);
+            if (state.discountHandling === 'customer') {
+                baseUnitCostPerPack -= line.discountAmount / line.originalQuantity;
             }
 
             // Prorate additional costs based on the line's value relative to the total invoice value
-            const lineTotalValue = line.xmlUnitCost * line.quantity;
+            const lineTotalValue = line.xmlPackCost * line.originalQuantity;
             const proratedAdditionalCost = totalInvoiceValue > 0 ? (lineTotalValue / totalInvoiceValue) * totalAdditionalCosts : 0;
-            const additionalCostPerUnit = line.quantity > 0 ? proratedAdditionalCost / line.quantity : 0;
+            const additionalCostPerPack = line.originalQuantity > 0 ? proratedAdditionalCost / line.originalQuantity : 0;
             
-            const finalUnitCostWithoutTax = baseUnitCost + additionalCostPerUnit;
+            const finalCostPerPack = baseUnitCostPerPack + additionalCostPerPack;
+            
+            const finalUnitCostWithoutTax = line.unitsPerPack > 0 ? finalCostPerPack / line.unitsPerPack : 0;
 
             const sellPriceWithoutTax = finalUnitCostWithoutTax / (1 - line.margin);
             const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
@@ -392,7 +412,7 @@ export const useCostAssistant = () => {
     }, [linesWithCalculatedCosts, state.lines]);
 
     const totals = useMemo(() => {
-        const totalPurchaseCost = state.lines.reduce((sum, line) => sum + (line.unitCostWithTax * line.quantity), 0);
+        const totalPurchaseCost = state.lines.reduce((sum, line) => sum + (line.xmlPackCost * line.originalQuantity), 0);
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
         const totalFinalCost = state.lines.reduce((sum, line) => sum + (line.unitCostWithoutTax * line.quantity), 0);
         const totalSellValue = state.lines.reduce((sum, line) => sum + (line.finalSellPrice * line.quantity), 0);
@@ -405,6 +425,7 @@ export const useCostAssistant = () => {
     const actions = {
         removeLine,
         updateLine,
+        handleUnitsPerPackChange,
         handleMarginBlur,
         handleTaxRateBlur,
         handleUnitCostBlur,
@@ -424,11 +445,30 @@ export const useCostAssistant = () => {
         handleFinalizeExport,
         setDiscountHandling: (value: 'customer' | 'company') => setState(prevState => ({ ...prevState, discountHandling: value })),
     };
+    
+    const selectors = {
+        columns: useMemo(() => [
+            { id: 'cabysCode', label: 'Cabys', className: 'w-[150px]' },
+            { id: 'supplierCode', label: 'Cód. Prov.', className: 'w-[150px]' },
+            { id: 'description', label: 'Descripción', className: 'min-w-[300px]' },
+            { id: 'originalQuantity', label: 'Cant. XML', className: 'w-[100px] text-right' },
+            { id: 'unitsPerPack', label: 'Uds/Paq', tooltip: 'Unidades por paquete/caja para desglose de costo.', className: 'w-[100px]' },
+            { id: 'quantity', label: 'Cant. Total', className: 'w-[100px] text-right font-bold' },
+            { id: 'discountAmountUnit', label: 'Desc. Unit.', tooltip: 'Descuento por unidad.', className: 'w-[120px] text-right' },
+            { id: 'discountPercentage', label: 'Desc. %', tooltip: 'Porcentaje de descuento sobre el costo bruto.', className: 'w-[100px] text-right' },
+            { id: 'xmlPackCost', label: 'Costo Paq. XML', tooltip: 'Costo por paquete/caja según la factura XML.', className: 'w-[150px] text-right' },
+            { id: 'unitCostWithoutTax', label: 'Costo Unit. Final', tooltip: 'Costo por unidad individual, prorrateado y después de descuentos.', className: 'w-[150px] text-right' },
+            { id: 'taxRate', label: 'Imp. %', className: 'w-[100px]' },
+            { id: 'margin', label: 'Margen', className: 'w-[100px]' },
+            { id: 'sellPriceWithoutTax', label: 'PVP s/IVA', tooltip: 'Precio de venta sugerido por unidad antes de impuestos.', className: 'w-[150px] text-right' },
+            { id: 'finalSellPrice', label: 'PVP Final', tooltip: 'Precio de venta final sugerido, con IVA incluido.', className: 'w-[150px] text-right' },
+            { id: 'profitPerLine', label: 'Ganancia Bruta', tooltip: 'Ganancia total estimada para esta línea de producto.', className: 'w-[150px] text-right' },
+        ], [])
+    };
 
     return {
         state: { ...state, totals, fileInputRef },
         actions,
+        selectors,
     };
 };
-
-    

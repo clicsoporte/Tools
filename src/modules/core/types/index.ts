@@ -925,7 +925,7 @@ export interface UserPreferences {
 
 
 // --- Cost Assistant Types ---
-export type DraftableCostAssistantLine = Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost'>;
+export type DraftableCostAssistantLine = Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'displayUnitsPerPack'>;
 
 export type CostAssistantLine = {
     id: string;
@@ -935,14 +935,15 @@ export type CostAssistantLine = {
     supplierCode: string;
     supplierCodeType: string;
     description: string;
+    originalQuantity: number;
+    unitsPerPack: number;
     quantity: number;
     // Discount info
     discountAmount: number;
     discountAmountUnit: number;
     discountPercentage: number;
     // Cost info
-    subTotal: number; // MontoTotal - Descuento
-    unitCostBeforeDiscount: number; // PrecioUnitario
+    xmlPackCost: number; // Cost per pack from XML, before prorating
     unitCostWithoutTax: number; // Final calculated cost for margin calculation
     isCostEdited: boolean;
     // Tax Info
@@ -953,6 +954,7 @@ export type CostAssistantLine = {
     margin: number;
     displayTaxRate: string;
     displayUnitCost: string;
+    displayUnitsPerPack: string;
     // Calculated fields
     sellPriceWithoutTax: number;
     finalSellPrice: number;
@@ -991,9 +993,12 @@ export type CostAssistantSettings = {
         cabysCode: boolean;
         supplierCode: boolean;
         description: boolean;
+        originalQuantity: boolean;
+        unitsPerPack: boolean;
         quantity: boolean;
         discountAmountUnit: boolean;
         discountPercentage: boolean;
+        xmlPackCost: boolean;
         unitCostWithoutTax: boolean;
         taxRate: boolean;
         margin: boolean;
