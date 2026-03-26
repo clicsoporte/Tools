@@ -16,11 +16,11 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
     
-    if (s.includes(',')) {
-        return parseFloat(s.replace(/\./g, '').replace(',', '.'));
-    }
+    // This regex handles numbers like "1,234.56" or "1.234,56"
+    const normalized = s.replace(/[.,](?=\d{3})/g, '').replace(',', '.');
     
-    return parseFloat(s);
+    const parsed = parseFloat(normalized);
+    return isNaN(parsed) ? 0 : parsed;
 };
 
 
@@ -33,8 +33,8 @@ const initialColumnVisibility: CostAssistantSettings['columnVisibility'] = {
     quantity: true,
     discountAmountUnit: true,
     discountPercentage: true,
-    xmlGrossPackCost: false,
     xmlPackCost: false,
+    xmlGrossPackCost: false,
     unitCostWithoutTax: true,
     taxRate: true,
     margin: true,
@@ -162,7 +162,7 @@ export const useCostAssistant = () => {
         }));
     };
     
-    const handleUnitsPerPackBlur = (lineId: string, displayValue: string) => {
+     const handleUnitsPerPackBlur = (lineId: string, displayValue: string) => {
         const numericValue = parseDecimal(displayValue);
         const newUnitsPerPack = Math.max(1, numericValue);
         const line = state.lines.find(l => l.id === lineId);
@@ -175,7 +175,7 @@ export const useCostAssistant = () => {
             });
         }
     };
-
+    
     const handleMarginBlur = (lineId: string, displayValue: string) => {
         const numericValue = parseDecimal(displayValue);
         updateLine(lineId, {
@@ -364,7 +364,7 @@ export const useCostAssistant = () => {
     };
 
     const linesWithCalculatedCosts = useMemo(() => {
-        const totalInvoiceNetValue = state.lines.reduce((sum, line) => sum + (line.xmlPackCost * line.originalQuantity), 0);
+        const totalNetInvoiceValue = state.lines.reduce((sum, line) => sum + (line.xmlPackCost * line.originalQuantity), 0);
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
 
         return state.lines.map(line => {
@@ -377,14 +377,12 @@ export const useCostAssistant = () => {
             }
 
             let baseUnitCostPerPack = line.xmlPackCost;
-
             if (state.discountHandling === 'company') {
                  baseUnitCostPerPack = line.xmlGrossPackCost;
             }
 
-            // Prorate additional costs based on the line's NET value relative to the total invoice NET value
             const lineNetValue = line.xmlPackCost * line.originalQuantity;
-            const proratedAdditionalCost = totalInvoiceNetValue > 0 ? (lineNetValue / totalInvoiceNetValue) * totalAdditionalCosts : 0;
+            const proratedAdditionalCost = totalNetInvoiceValue > 0 ? (lineNetValue / totalNetInvoiceValue) * totalAdditionalCosts : 0;
             const additionalCostPerPack = line.originalQuantity > 0 ? proratedAdditionalCost / line.originalQuantity : 0;
             
             const finalCostPerPack = baseUnitCostPerPack + additionalCostPerPack;
@@ -451,22 +449,22 @@ export const useCostAssistant = () => {
     
     const selectors = {
         columns: useMemo(() => [
-            { id: 'cabysCode', label: 'Cabys', className: 'w-[150px]' },
-            { id: 'supplierCode', label: 'Cód. Prov.', className: 'w-[150px]' },
+            { id: 'cabysCode', label: 'Cabys', className: 'min-w-[150px]' },
+            { id: 'supplierCode', label: 'Cód. Prov.', className: 'min-w-[150px]' },
             { id: 'description', label: 'Descripción', className: 'min-w-[300px]' },
-            { id: 'originalQuantity', label: 'Cant. XML', className: 'w-[100px] text-right' },
-            { id: 'unitsPerPack', label: 'Uds/Paq', tooltip: 'Unidades por paquete/caja para desglose de costo.', className: 'w-[100px]' },
-            { id: 'quantity', label: 'Cant. Total', className: 'w-[100px] text-right font-bold' },
-            { id: 'discountAmountUnit', label: 'Desc. Unit.', tooltip: 'Descuento por unidad.', className: 'w-[120px] text-right' },
-            { id: 'discountPercentage', label: 'Desc. %', tooltip: 'Porcentaje de descuento sobre el costo bruto.', className: 'w-[100px] text-right' },
-            { id: 'xmlGrossPackCost', label: 'Costo Paq. Bruto', tooltip: 'Costo por paquete/caja según factura XML, antes de descuentos.', className: 'w-[150px] text-right' },
-            { id: 'xmlPackCost', label: 'Costo Paq. Neto', tooltip: 'Costo por paquete/caja según factura XML, después de descuentos.', className: 'w-[150px] text-right' },
-            { id: 'unitCostWithoutTax', label: 'Costo Unit. Final', tooltip: 'Costo por unidad individual, prorrateado y después de descuentos.', className: 'w-[150px] text-right' },
-            { id: 'taxRate', label: 'Imp. %', className: 'w-[100px]' },
-            { id: 'margin', label: 'Margen', className: 'w-[100px]' },
-            { id: 'sellPriceWithoutTax', label: 'PVP s/IVA', tooltip: 'Precio de venta sugerido por unidad antes de impuestos.', className: 'w-[150px] text-right' },
-            { id: 'finalSellPrice', label: 'PVP Final', tooltip: 'Precio de venta final sugerido, con IVA incluido.', className: 'w-[150px] text-right' },
-            { id: 'profitPerLine', label: 'Ganancia Bruta', tooltip: 'Ganancia total estimada para esta línea de producto.', className: 'w-[150px] text-right' },
+            { id: 'originalQuantity', label: 'Cant. XML', className: 'min-w-[120px] text-right' },
+            { id: 'unitsPerPack', label: 'Uds/Paq', tooltip: 'Unidades por paquete/caja para desglose de costo.', className: 'min-w-[100px]' },
+            { id: 'quantity', label: 'Cant. Total', className: 'min-w-[120px] text-right font-bold' },
+            { id: 'discountAmountUnit', label: 'Desc. Unit.', tooltip: 'Descuento por unidad.', className: 'min-w-[150px] text-right' },
+            { id: 'discountPercentage', label: 'Desc. %', tooltip: 'Porcentaje de descuento sobre el costo bruto.', className: 'min-w-[120px] text-right' },
+            { id: 'xmlGrossPackCost', label: 'Costo Paq. Bruto', tooltip: 'Costo por paquete/caja según factura XML, antes de descuentos.', className: 'min-w-[180px] text-right' },
+            { id: 'xmlPackCost', label: 'Costo Paq. Neto', tooltip: 'Costo por paquete/caja según factura XML, después de descuentos.', className: 'min-w-[180px] text-right' },
+            { id: 'unitCostWithoutTax', label: 'Costo Unit. Final', tooltip: 'Costo por unidad individual, prorrateado y después de descuentos.', className: 'min-w-[180px] text-right' },
+            { id: 'taxRate', label: 'Imp. %', className: 'min-w-[100px]' },
+            { id: 'margin', label: 'Margen', className: 'min-w-[100px]' },
+            { id: 'sellPriceWithoutTax', label: 'PVP s/IVA', tooltip: 'Precio de venta sugerido por unidad antes de impuestos.', className: 'min-w-[180px] text-right' },
+            { id: 'finalSellPrice', label: 'PVP Final', tooltip: 'Precio de venta final sugerido, con IVA incluido.', className: 'min-w-[180px] text-right' },
+            { id: 'profitPerLine', label: 'Ganancia Bruta', tooltip: 'Ganancia total estimada para esta línea de producto.', className: 'min-w-[180px] text-right' },
         ], [])
     };
 
