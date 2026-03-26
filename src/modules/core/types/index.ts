@@ -938,24 +938,20 @@ export type CostAssistantLine = {
     originalQuantity: number;
     unitsPerPack: number;
     quantity: number;
-    // Discount info
     discountAmount: number;
     discountAmountUnit: number;
     discountPercentage: number;
-    // Cost info
-    xmlPackCost: number; // Cost per pack from XML, before prorating
-    unitCostWithoutTax: number; // Final calculated cost for margin calculation
+    xmlGrossPackCost: number; // Cost before discount
+    xmlPackCost: number; // Cost after discount (from SubTotal)
+    unitCostWithoutTax: number;
     isCostEdited: boolean;
-    // Tax Info
     taxRate: number;
     taxCode: string;
-    // Display & UI fields
-    displayMargin: string;
     margin: number;
+    displayMargin: string;
     displayTaxRate: string;
     displayUnitCost: string;
     displayUnitsPerPack: string;
-    // Calculated fields
     sellPriceWithoutTax: number;
     finalSellPrice: number;
     profitPerLine: number;
@@ -998,6 +994,7 @@ export type CostAssistantSettings = {
         quantity: boolean;
         discountAmountUnit: boolean;
         discountPercentage: boolean;
+        xmlGrossPackCost: boolean;
         xmlPackCost: boolean;
         unitCostWithoutTax: boolean;
         taxRate: boolean;

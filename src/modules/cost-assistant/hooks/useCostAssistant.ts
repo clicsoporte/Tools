@@ -33,6 +33,7 @@ const initialColumnVisibility: CostAssistantSettings['columnVisibility'] = {
     quantity: true,
     discountAmountUnit: true,
     discountPercentage: true,
+    xmlGrossPackCost: false,
     xmlPackCost: false,
     unitCostWithoutTax: true,
     taxRate: true,
@@ -362,7 +363,7 @@ export const useCostAssistant = () => {
     };
 
     const linesWithCalculatedCosts = useMemo(() => {
-        const totalInvoiceValue = state.lines.reduce((sum, line) => sum + (line.xmlPackCost * line.originalQuantity), 0);
+        const totalInvoiceNetValue = state.lines.reduce((sum, line) => sum + (line.xmlPackCost * line.originalQuantity), 0);
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
 
         return state.lines.map(line => {
@@ -376,14 +377,14 @@ export const useCostAssistant = () => {
 
             let baseUnitCostPerPack = line.xmlPackCost;
 
-            // Apply discount to base cost if option is selected
-            if (state.discountHandling === 'customer') {
-                baseUnitCostPerPack -= line.discountAmount / line.originalQuantity;
+            // NEW: The discount is NOT part of the cost calculation anymore if we are keeping it as profit
+            if (state.discountHandling === 'company') {
+                 baseUnitCostPerPack = line.xmlGrossPackCost;
             }
 
-            // Prorate additional costs based on the line's value relative to the total invoice value
-            const lineTotalValue = line.xmlPackCost * line.originalQuantity;
-            const proratedAdditionalCost = totalInvoiceValue > 0 ? (lineTotalValue / totalInvoiceValue) * totalAdditionalCosts : 0;
+            // Prorate additional costs based on the line's NET value relative to the total invoice NET value
+            const lineNetValue = line.xmlPackCost * line.originalQuantity;
+            const proratedAdditionalCost = totalInvoiceNetValue > 0 ? (lineNetValue / totalInvoiceNetValue) * totalAdditionalCosts : 0;
             const additionalCostPerPack = line.originalQuantity > 0 ? proratedAdditionalCost / line.originalQuantity : 0;
             
             const finalCostPerPack = baseUnitCostPerPack + additionalCostPerPack;
@@ -392,7 +393,10 @@ export const useCostAssistant = () => {
 
             const sellPriceWithoutTax = finalUnitCostWithoutTax / (1 - line.margin);
             const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
-            const profitPerLine = (sellPriceWithoutTax - finalUnitCostWithoutTax) * line.quantity;
+            
+            // Recalculate profit based on what was actually paid
+            const actualUnitCost = (line.xmlPackCost + (additionalCostPerPack || 0)) / (line.unitsPerPack || 1);
+            const profitPerLine = (sellPriceWithoutTax - actualUnitCost) * line.quantity;
 
             return {
                 ...line,
@@ -412,11 +416,11 @@ export const useCostAssistant = () => {
     }, [linesWithCalculatedCosts, state.lines]);
 
     const totals = useMemo(() => {
-        const totalPurchaseCost = state.lines.reduce((sum, line) => sum + (line.xmlPackCost * line.originalQuantity), 0);
+        const totalPurchaseCost = state.lines.reduce((sum, line) => sum + (line.xmlGrossPackCost * line.originalQuantity), 0);
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
         const totalFinalCost = state.lines.reduce((sum, line) => sum + (line.unitCostWithoutTax * line.quantity), 0);
         const totalSellValue = state.lines.reduce((sum, line) => sum + (line.finalSellPrice * line.quantity), 0);
-        const estimatedGrossProfit = totalSellValue - totalFinalCost;
+        const estimatedGrossProfit = state.lines.reduce((sum, line) => sum + (line.profitPerLine || 0), 0);
 
         return { totalPurchaseCost, totalAdditionalCosts, totalFinalCost, totalSellValue, estimatedGrossProfit };
     }, [state.lines, state.transportCost, state.otherCosts]);
@@ -456,7 +460,8 @@ export const useCostAssistant = () => {
             { id: 'quantity', label: 'Cant. Total', className: 'w-[100px] text-right font-bold' },
             { id: 'discountAmountUnit', label: 'Desc. Unit.', tooltip: 'Descuento por unidad.', className: 'w-[120px] text-right' },
             { id: 'discountPercentage', label: 'Desc. %', tooltip: 'Porcentaje de descuento sobre el costo bruto.', className: 'w-[100px] text-right' },
-            { id: 'xmlPackCost', label: 'Costo Paq. XML', tooltip: 'Costo por paquete/caja según la factura XML.', className: 'w-[150px] text-right' },
+            { id: 'xmlGrossPackCost', label: 'Costo Paq. Bruto', tooltip: 'Costo por paquete/caja según factura XML, antes de descuentos.', className: 'w-[150px] text-right' },
+            { id: 'xmlPackCost', label: 'Costo Paq. Neto', tooltip: 'Costo por paquete/caja según factura XML, después de descuentos.', className: 'w-[150px] text-right' },
             { id: 'unitCostWithoutTax', label: 'Costo Unit. Final', tooltip: 'Costo por unidad individual, prorrateado y después de descuentos.', className: 'w-[150px] text-right' },
             { id: 'taxRate', label: 'Imp. %', className: 'w-[100px]' },
             { id: 'margin', label: 'Margen', className: 'w-[100px]' },

@@ -138,12 +138,12 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             taxCode = getValue(impuestoNode, ['CodigoTarifaIVA'], '08');
         }
         
-        const unitCostBeforeDiscountInColones = moneda === 'USD' ? precioUnitario * tipoCambio : precioUnitario;
+        const unitGrossCostInColones = moneda === 'USD' ? precioUnitario * tipoCambio : precioUnitario;
         const discountAmountInColones = moneda === 'USD' ? discountAmount * tipoCambio : discountAmount;
+        const netCostPerPack = cantidad > 0 ? (subTotal / cantidad) : 0;
 
-        const totalCostBeforeDiscount = unitCostBeforeDiscountInColones * cantidad;
-        const discountPercentage = totalCostBeforeDiscount > 0 ? discountAmountInColones / totalCostBeforeDiscount : 0;
         const discountAmountUnit = cantidad > 0 ? discountAmountInColones / cantidad : 0;
+        const discountPercentage = (unitGrossCostInColones * cantidad) > 0 ? discountAmountInColones / (unitGrossCostInColones * cantidad) : 0;
         
         const numeroLinea = getValue(linea, ['NumeroLinea'], index + 1);
         const rawDescription = getValue(linea, ['Detalle']);
@@ -163,7 +163,8 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             discountAmount: discountAmountInColones,
             discountAmountUnit,
             discountPercentage,
-            xmlPackCost: unitCostBeforeDiscountInColones,
+            xmlGrossPackCost: unitGrossCostInColones,
+            xmlPackCost: netCostPerPack, // NET cost per pack/unit from XML
             unitCostWithoutTax: 0, // Placeholder, calculated on frontend
             taxRate,
             taxCode,
@@ -219,7 +220,7 @@ const defaultSettings: CostAssistantSettings = {
     nextDraftNumber: 1,
     columnVisibility: {
         cabysCode: true, supplierCode: true, description: true, originalQuantity: false, unitsPerPack: true, quantity: true,
-        discountAmountUnit: true, discountPercentage: true, xmlPackCost: false, unitCostWithoutTax: true, taxRate: true,
+        discountAmountUnit: true, discountPercentage: true, xmlGrossPackCost: false, xmlPackCost: false, unitCostWithoutTax: true, taxRate: true,
         margin: true, sellPriceWithoutTax: true, finalSellPrice: true, profitPerLine: true
     },
     discountHandling: 'company',
@@ -272,7 +273,7 @@ export async function getNextDraftNumber(): Promise<number> {
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
     const headers = [
         "Cabys", "Cód. Artículo", "Descripción", "Cant. Original (XML)", "Uds/Paq", "Cant. Total", 
-        "Desc. Unit. (s/IVA)", "Desc. %", "Costo Paq. (XML)", "Costo Unit. Final (s/IVA)",
+        "Desc. Unit. (s/IVA)", "Desc. %", "Costo Paq. Bruto", "Costo Paq. Neto", "Costo Unit. Final (s/IVA)",
         "Imp. %", "Margen", "P.V.P Unitario (s/IVA)", "P.V.P Unitario Sugerido", "Ganancia por Línea"
     ];
     
@@ -285,6 +286,7 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
         line.quantity,
         line.discountAmountUnit,
         `${(line.discountPercentage * 100).toFixed(2)}%`,
+        line.xmlGrossPackCost,
         line.xmlPackCost,
         line.unitCostWithoutTax,
         line.taxRate * 100,
@@ -305,7 +307,8 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
         { wch: 12 }, // Cant. Total
         { wch: 15 }, // Desc. Unit
         { wch: 10 }, // Desc. %
-        { wch: 15 }, // Costo Paq. XML
+        { wch: 15 }, // Costo Paq. Bruto
+        { wch: 15 }, // Costo Paq. Neto
         { wch: 20 }, // Costo Unit. Final
         { wch: 10 }, // Imp. %
         { wch: 10 }, // Margen
