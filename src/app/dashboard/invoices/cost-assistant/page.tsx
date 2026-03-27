@@ -66,12 +66,12 @@ export default function CostAssistantPage() {
                 />
                 <Card>
                     <CardHeader>
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div className="flex flex-col gap-4">
                             <div>
                                 <CardTitle>Asistente de Costos y Precios</CardTitle>
                                 <CardDescription>Carga facturas XML para extraer artículos, añadir costos y calcular precios de venta.</CardDescription>
                             </div>
-                             <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end">
+                             <div className="flex items-center gap-2 flex-wrap">
                                 <Dialog>
                                     <DialogTrigger asChild>
                                         <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
@@ -152,8 +152,8 @@ export default function CostAssistantPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                             <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-6">
                                 <Card>
                                     <CardHeader>
                                         <CardTitle>Configuración de Cálculo</CardTitle>
@@ -195,10 +195,43 @@ export default function CostAssistantPage() {
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card className="lg:col-start-1 lg:row-start-2">
+                                <Card className="sm:col-start-2 md:col-start-1">
                                     <CardHeader>
-                                        <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5"/>Resumen General</CardTitle>
+                                        <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" />Facturas Procesadas</CardTitle>
                                     </CardHeader>
+                                    <CardContent className="max-w-xs">
+                                        <ScrollArea className="h-40">
+                                            {state.processedInvoices.length > 0 ? (
+                                                <ul className="space-y-3 text-sm">
+                                                    {state.processedInvoices.map((invoice, index) => (
+                                                        <li key={index} className="border-b pb-2">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex-shrink-0">
+                                                                    <p className="font-semibold text-muted-foreground">{invoice.invoiceNumber}</p>
+                                                                    <p className="truncate">{invoice.supplierName}</p>
+                                                                    <p className="text-xs text-muted-foreground">{isValid(parseISO(invoice.invoiceDate)) ? format(parseISO(invoice.invoiceDate), 'dd/MM/yyyy') : 'Fecha Inválida'}</p>
+                                                                </div>
+                                                                <div className={cn("flex items-center gap-1 text-xs font-medium", invoice.status === 'success' ? 'text-green-600' : 'text-red-600')}>
+                                                                    {invoice.status === 'success' ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                                                                    <span>{invoice.status === 'success' ? 'Éxito' : 'Error'}</span>
+                                                                </div>
+                                                            </div>
+                                                            {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <p className="text-sm text-center text-muted-foreground h-full flex items-center justify-center">Aún no se han cargado facturas.</p>
+                                            )}
+                                        </ScrollArea>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                             <div className="space-y-4">
+                               <Card className="w-full">
+                                  <CardHeader>
+                                      <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5"/>Resumen General</CardTitle>
+                                  </CardHeader>
                                     <CardContent className="space-y-2 text-sm">
                                         <div className="flex justify-between">
                                             <span className="text-muted-foreground">Costo Total de Compra:</span>
@@ -221,39 +254,6 @@ export default function CostAssistantPage() {
                                             <span>{actions.formatCurrency(state.totals.estimatedGrossProfit)}</span>
                                         </div>
                                     </CardContent>
-                                </Card>
-                            </div>
-                             <div className="lg:col-span-1 space-y-4">
-                               <Card className="w-full">
-                                  <CardHeader>
-                                      <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" />Facturas Procesadas</CardTitle>
-                                  </CardHeader>
-                                  <CardContent>
-                                      <ScrollArea className="h-40">
-                                          {state.processedInvoices.length > 0 ? (
-                                              <ul className="space-y-3 text-sm">
-                                                  {state.processedInvoices.map((invoice, index) => (
-                                                      <li key={index} className="border-b pb-2">
-                                                          <div className="flex items-center gap-4">
-                                                              <div className="flex-shrink-0">
-                                                                  <p className="font-semibold text-muted-foreground">{invoice.invoiceNumber}</p>
-                                                                  <p>{invoice.supplierName}</p>
-                                                                  <p className="text-xs text-muted-foreground">{isValid(parseISO(invoice.invoiceDate)) ? format(parseISO(invoice.invoiceDate), 'dd/MM/yyyy') : 'Fecha Inválida'}</p>
-                                                              </div>
-                                                              <div className={cn("flex items-center gap-1 text-xs font-medium", invoice.status === 'success' ? 'text-green-600' : 'text-red-600')}>
-                                                                  {invoice.status === 'success' ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                                                                  <span>{invoice.status === 'success' ? 'Éxito' : 'Error'}</span>
-                                                              </div>
-                                                          </div>
-                                                          {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
-                                                      </li>
-                                                  ))}
-                                              </ul>
-                                          ) : (
-                                              <p className="text-sm text-center text-muted-foreground h-full flex items-center justify-center">Aún no se han cargado facturas.</p>
-                                          )}
-                                      </ScrollArea>
-                                  </CardContent>
                               </Card>
                             </div>
                         </div>
@@ -305,7 +305,7 @@ export default function CostAssistantPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        {selectors.columns.map((col: { id: keyof ColumnVisibility; label: string; tooltip?: string; className?: string; }) => state.columnVisibility[col.id] && (
+                                        {selectors.columns.map((col) => state.columnVisibility[col.id as keyof ColumnVisibility] && (
                                             <TableHead key={col.id} className={cn(col.className)}>
                                                 {col.tooltip ? (
                                                     <Tooltip>
@@ -321,45 +321,46 @@ export default function CostAssistantPage() {
                                 <TableBody>
                                     {state.lines.length > 0 ? state.lines.map((line) => (
                                         <TableRow key={line.id}>
-                                            {state.columnVisibility.cabysCode && <TableCell className={cn(selectors.columns.find(c => c.id === 'cabysCode')?.className, "font-mono text-xs")}>{line.cabysCode}</TableCell>}
-                                            {state.columnVisibility.supplierCode && <TableCell className={cn(selectors.columns.find(c => c.id === 'supplierCode')?.className, "font-mono text-xs")}>{line.supplierCode}</TableCell>}
-                                            {state.columnVisibility.description && <TableCell className={selectors.columns.find(c => c.id === 'description')?.className}><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0"/></TableCell>}
-                                            {state.columnVisibility.originalQuantity && <TableCell className={cn(selectors.columns.find(c => c.id === 'originalQuantity')?.className, "text-right")}>{line.originalQuantity}</TableCell>}
-                                            {state.columnVisibility.unitsPerPack && <TableCell className={selectors.columns.find(c => c.id === 'unitsPerPack')?.className}><Input type="text" value={line.displayUnitsPerPack} onChange={e => actions.updateLine(line.id, { displayUnitsPerPack: e.target.value })} onBlur={e => actions.handleUnitsPerPackBlur(line.id, e.target.value)} className="h-auto p-1 border-0 text-right"/></TableCell>}
-                                            {state.columnVisibility.quantity && <TableCell className={cn(selectors.columns.find(c => c.id === 'quantity')?.className, "text-right")}>{line.quantity}</TableCell>}
-                                            {state.columnVisibility.discountAmountUnit && <TableCell className={cn(selectors.columns.find(c => c.id === 'discountAmountUnit')?.className, "font-mono text-right")}>{actions.formatCurrency(line.discountAmountUnit)}</TableCell>}
-                                            {state.columnVisibility.discountPercentage && <TableCell className={cn(selectors.columns.find(c => c.id === 'discountPercentage')?.className, "font-mono text-right")}>{`${(line.discountPercentage * 100).toFixed(2)}%`}</TableCell>}
-                                            {state.columnVisibility.xmlPackCost && <TableCell className={cn(selectors.columns.find(c => c.id === 'xmlPackCost')?.className, "font-mono text-right")}>{actions.formatCurrency(line.xmlPackCost)}</TableCell>}
-                                            {state.columnVisibility.unitCostWithoutTax && <TableCell className={cn(selectors.columns.find(c => c.id === 'unitCostWithoutTax')?.className, "font-mono text-right")}>{actions.formatCurrency(line.unitCostWithoutTax)}</TableCell>}
-                                            {state.columnVisibility.taxRate && <TableCell className={selectors.columns.find(c => c.id === 'taxRate')?.className}>
+                                            {state.columnVisibility.cabysCode && <TableCell className={cn(selectors.columns.find(c => c.id === 'cabysCode')?.className)}>{line.cabysCode}</TableCell>}
+                                            {state.columnVisibility.supplierCode && <TableCell className={cn(selectors.columns.find(c => c.id === 'supplierCode')?.className)}>{line.supplierCode}</TableCell>}
+                                            {state.columnVisibility.description && <TableCell className={cn(selectors.columns.find(c => c.id === 'description')?.className)}><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0 bg-transparent"/></TableCell>}
+                                            {state.columnVisibility.originalQuantity && <TableCell className={cn(selectors.columns.find(c => c.id === 'originalQuantity')?.className)}>{line.originalQuantity}</TableCell>}
+                                            {state.columnVisibility.unitsPerPack && <TableCell className={cn(selectors.columns.find(c => c.id === 'unitsPerPack')?.className)}><Input type="text" value={line.displayUnitsPerPack} onChange={e => actions.updateLine(line.id, { displayUnitsPerPack: e.target.value })} onBlur={e => actions.handleUnitsPerPackBlur(line.id, e.target.value)} className="h-auto p-1 border-0 bg-transparent text-right"/></TableCell>}
+                                            {state.columnVisibility.quantity && <TableCell className={cn(selectors.columns.find(c => c.id === 'quantity')?.className)}>{line.quantity}</TableCell>}
+                                            {state.columnVisibility.discountAmountUnit && <TableCell className={cn(selectors.columns.find(c => c.id === 'discountAmountUnit')?.className, "font-mono")}>{actions.formatCurrency(line.discountAmountUnit)}</TableCell>}
+                                            {state.columnVisibility.discountPercentage && <TableCell className={cn(selectors.columns.find(c => c.id === 'discountPercentage')?.className, "font-mono")}>{`${(line.discountPercentage * 100).toFixed(2)}%`}</TableCell>}
+                                            {state.columnVisibility.xmlPackCost && <TableCell className={cn(selectors.columns.find(c => c.id === 'xmlPackCost')?.className, "font-mono")}>{actions.formatCurrency(line.xmlPackCost)}</TableCell>}
+                                            {state.columnVisibility.xmlGrossPackCost && <TableCell className={cn(selectors.columns.find(c => c.id === 'xmlGrossPackCost')?.className, "font-mono")}>{actions.formatCurrency(line.xmlGrossPackCost)}</TableCell>}
+                                            {state.columnVisibility.unitCostWithoutTax && <TableCell className={cn(selectors.columns.find(c => c.id === 'unitCostWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.unitCostWithoutTax)}</TableCell>}
+                                            {state.columnVisibility.taxRate && <TableCell className={cn(selectors.columns.find(c => c.id === 'taxRate')?.className)}>
                                                     <div className="relative">
                                                         <Input 
                                                             type="text" 
                                                             value={line.displayTaxRate}
                                                             onChange={(e) => actions.updateLine(line.id, { displayTaxRate: e.target.value })}
                                                             onBlur={(e) => actions.handleTaxRateBlur(line.id, e.target.value)}
-                                                            className="h-auto p-1 border-0 text-right pr-6" 
+                                                            className="h-auto p-1 border-0 bg-transparent text-right pr-6" 
                                                         />
                                                         <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
                                                     </div>
                                                 </TableCell>}
                                             {state.columnVisibility.margin && 
-                                                <TableCell className={selectors.columns.find(c => c.id === 'margin')?.className}>
+                                                <TableCell className={cn(selectors.columns.find(c => c.id === 'margin')?.className)}>
                                                     <div className="relative">
                                                         <Input 
                                                             type="text" 
                                                             value={line.displayMargin}
                                                             onChange={(e) => actions.updateLine(line.id, { displayMargin: e.target.value })}
                                                             onBlur={(e) => actions.handleMarginBlur(line.id, e.target.value)}
-                                                            className="h-auto p-1 border-0 text-right pr-6" 
+                                                            className="h-auto p-1 border-0 bg-transparent text-right pr-6" 
                                                         />
                                                         <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
                                                     </div>
                                                 </TableCell>
                                             }
-                                            {state.columnVisibility.sellPriceWithoutTax && <TableCell className={cn(selectors.columns.find(c => c.id === 'sellPriceWithoutTax')?.className, "font-mono text-right")}>{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</TableCell>}
-                                            {state.columnVisibility.finalSellPrice && <TableCell className={cn(selectors.columns.find(c => c.id === 'finalSellPrice')?.className, "font-bold text-base text-primary text-right")}>{actions.formatCurrency(line.finalSellPrice)}</TableCell>}
-                                            {state.columnVisibility.profitPerLine && <TableCell className={cn(selectors.columns.find(c => c.id === 'profitPerLine')?.className, "font-bold text-base text-blue-600 text-right")}>{actions.formatCurrency(line.profitPerLine || 0)}</TableCell>}
+                                            {state.columnVisibility.sellPriceWithoutTax && <TableCell className={cn(selectors.columns.find(c => c.id === 'sellPriceWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</TableCell>}
+                                            {state.columnVisibility.finalSellPrice && <TableCell className={cn(selectors.columns.find(c => c.id === 'finalSellPrice')?.className, "font-bold text-base text-primary")}>{actions.formatCurrency(line.finalSellPrice)}</TableCell>}
+                                            {state.columnVisibility.profitPerLine && <TableCell className={cn(selectors.columns.find(c => c.id === 'profitPerLine')?.className, "font-bold text-base text-blue-600")}>{actions.formatCurrency(line.profitPerLine || 0)}</TableCell>}
                                             <TableCell>
                                                 <Button variant="ghost" size="icon" onClick={() => actions.removeLine(line.id)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
