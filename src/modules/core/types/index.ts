@@ -925,7 +925,7 @@ export interface UserPreferences {
 
 
 // --- Cost Assistant Types ---
-export type DraftableCostAssistantLine = Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'displayUnitsPerPack'>;
+export type DraftableCostAssistantLine = Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitsPerPack'>;
 
 export type CostAssistantLine = {
     id: string;
@@ -944,13 +944,11 @@ export type CostAssistantLine = {
     xmlGrossPackCost: number; // Cost before discount
     xmlPackCost: number; // Cost after discount (from SubTotal)
     unitCostWithoutTax: number;
-    isCostEdited: boolean;
     taxRate: number;
     taxCode: string;
     margin: number;
     displayMargin: string;
     displayTaxRate: string;
-    displayUnitCost: string;
     displayUnitsPerPack: string;
     sellPriceWithoutTax: number;
     finalSellPrice: number;
@@ -994,7 +992,6 @@ export type CostAssistantSettings = {
         quantity: boolean;
         discountAmountUnit: boolean;
         discountPercentage: boolean;
-        xmlGrossPackCost: boolean;
         xmlPackCost: boolean;
         unitCostWithoutTax: boolean;
         taxRate: boolean;

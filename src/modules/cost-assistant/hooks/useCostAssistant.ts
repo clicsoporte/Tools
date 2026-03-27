@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook for managing the state and logic of the CostAssistantPage component.
  */
@@ -18,7 +17,6 @@ const parseDecimal = (str: any): number => {
     const s = String(str).trim();
     if (!s) return 0;
 
-    // Find the last occurrence of a dot or comma, which is likely the decimal separator
     const lastDot = s.lastIndexOf('.');
     const lastComma = s.lastIndexOf(',');
 
@@ -38,7 +36,6 @@ const parseDecimal = (str: any): number => {
         decimalPart = s.substring(decimalSeparatorIndex + 1);
     }
     
-    // Remove all non-digit characters from the integer part (our thousands separators)
     const cleanedInteger = integerPart.replace(/\D/g, '');
     const cleanedDecimal = decimalPart.replace(/\D/g, '');
     
@@ -58,7 +55,6 @@ const initialColumnVisibility: CostAssistantSettings['columnVisibility'] = {
     quantity: true,
     discountAmountUnit: true,
     discountPercentage: true,
-    xmlGrossPackCost: false,
     xmlPackCost: false,
     unitCostWithoutTax: true,
     taxRate: true,
@@ -149,9 +145,7 @@ export const useCostAssistant = () => {
                 displayMargin: "20",
                 margin: 0.20,
                 displayTaxRate: (line.taxRate * 100).toFixed(0),
-                displayUnitCost: line.unitCostWithoutTax.toFixed(4),
                 displayUnitsPerPack: String(line.unitsPerPack || 1),
-                isCostEdited: false,
                 finalSellPrice: 0,
                 profitPerLine: 0, 
                 sellPriceWithoutTax: 0,
@@ -214,15 +208,6 @@ export const useCostAssistant = () => {
         updateLine(lineId, {
             taxRate: numericValue / 100,
             displayTaxRate: String(numericValue)
-        });
-    };
-
-    const handleUnitCostBlur = (lineId: string, displayValue: string) => {
-        const numericValue = parseDecimal(displayValue);
-        updateLine(lineId, {
-            unitCostWithoutTax: numericValue,
-            displayUnitCost: String(numericValue.toFixed(4)), // Re-format to ensure consistency
-            isCostEdited: true, // Mark as manually edited
         });
     };
 
@@ -332,7 +317,7 @@ export const useCostAssistant = () => {
         const newDraft: Omit<CostAnalysisDraft, 'id' | 'createdAt'> = {
             userId: user.id,
             name: draftName,
-            lines: state.lines.map(({ displayMargin, displayTaxRate, displayUnitCost, displayUnitsPerPack, ...line }) => line), // Remove display fields
+            lines: state.lines.map(({ displayMargin, displayTaxRate, displayUnitsPerPack, ...line }) => line), // Remove display fields
             globalCosts: {
                 transportCost: state.transportCost,
                 otherCosts: state.otherCosts,
@@ -359,7 +344,6 @@ export const useCostAssistant = () => {
             ...line,
             displayMargin: (line.margin * 100).toFixed(2),
             displayTaxRate: (line.taxRate * 100).toFixed(0),
-            displayUnitCost: line.unitCostWithoutTax.toFixed(4),
             displayUnitsPerPack: String(line.unitsPerPack || 1),
         }));
 
@@ -391,38 +375,35 @@ export const useCostAssistant = () => {
     const linesWithCalculatedCosts = useMemo(() => {
         const totalNetInvoiceValue = state.lines.reduce((sum, line) => sum + (line.xmlPackCost * line.originalQuantity), 0);
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
-
+    
         return state.lines.map(line => {
-             if (line.isCostEdited) {
-                // If cost is manually edited, calculations are based on that edited cost
-                const sellPriceWithoutTax = line.unitCostWithoutTax / (1 - line.margin);
-                const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
-                const profitPerLine = (sellPriceWithoutTax - line.unitCostWithoutTax) * line.quantity;
-                return { ...line, sellPriceWithoutTax, finalSellPrice, profitPerLine };
-            }
-
             let baseCostPerPack = line.xmlPackCost; // Net cost from XML
             if (state.discountHandling === 'company') {
-                 baseCostPerPack = line.xmlGrossPackCost;
+                baseCostPerPack = line.xmlGrossPackCost;
             }
-
-            const proratedAdditionalCost = totalNetInvoiceValue > 0 ? (line.xmlPackCost * line.originalQuantity / totalNetInvoiceValue) * totalAdditionalCosts : 0;
+    
+            const proratedAdditionalCostPerOriginalUnit = totalNetInvoiceValue > 0
+                ? (line.xmlPackCost / totalNetInvoiceValue) * totalAdditionalCosts
+                : 0;
             
-            const totalCostPerPack = baseCostPerPack + (proratedAdditionalCost / line.originalQuantity);
+            const totalCostPerOriginalUnit = baseCostPerPack + proratedAdditionalCostPerOriginalUnit;
             
-            const finalUnitCostWithoutTax = line.unitsPerPack > 0 ? totalCostPerPack / line.unitsPerPack : 0;
-
+            const finalUnitCostWithoutTax = line.unitsPerPack > 0
+                ? totalCostPerOriginalUnit / line.unitsPerPack
+                : 0;
+    
             const sellPriceWithoutTax = finalUnitCostWithoutTax / (1 - line.margin);
             const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
             
-            // For profit, always use the real cost paid
-            const realCostPerUnit = ((line.xmlPackCost * line.originalQuantity) + proratedAdditionalCost) / line.quantity;
+            const realCostPerUnit = line.quantity > 0 
+                ? ((line.xmlPackCost * line.originalQuantity) + (proratedAdditionalCostPerOriginalUnit * line.originalQuantity)) / line.quantity
+                : 0;
+    
             const profitPerLine = (sellPriceWithoutTax - realCostPerUnit) * line.quantity;
-
+    
             return {
                 ...line,
                 unitCostWithoutTax: finalUnitCostWithoutTax,
-                displayUnitCost: String(finalUnitCostWithoutTax.toFixed(4)),
                 finalSellPrice,
                 sellPriceWithoutTax,
                 profitPerLine,
@@ -452,7 +433,6 @@ export const useCostAssistant = () => {
         updateLine,
         handleMarginBlur,
         handleTaxRateBlur,
-        handleUnitCostBlur,
         handleUnitsPerPackBlur,
         formatCurrency,
         handleClear,
@@ -481,7 +461,6 @@ export const useCostAssistant = () => {
             { id: 'quantity', label: 'Cant. Total', className: 'min-w-[120px] text-right font-bold' },
             { id: 'discountAmountUnit', label: 'Desc. Unit. (s/IVA)', tooltip: 'Descuento por unidad, sin IVA.', className: 'min-w-[150px] text-right' },
             { id: 'discountPercentage', label: 'Desc. %', tooltip: 'Porcentaje de descuento sobre el costo bruto.', className: 'min-w-[120px] text-right' },
-            { id: 'xmlGrossPackCost', label: 'Costo Paq. Bruto', tooltip: 'Costo por paquete/caja según factura XML, antes de descuentos.', className: 'min-w-[180px] text-right' },
             { id: 'xmlPackCost', label: 'Costo Paq. Neto (s/IVA)', tooltip: 'Costo por paquete/caja según factura XML, después de descuentos.', className: 'min-w-[180px] text-right' },
             { id: 'unitCostWithoutTax', label: 'Costo Unit. Final (s/IVA)', tooltip: 'Costo por unidad individual, prorrateado y después de descuentos.', className: 'min-w-[180px] text-right' },
             { id: 'taxRate', label: 'Imp. %', className: 'min-w-[100px]' },
