@@ -992,6 +992,7 @@ export type CostAssistantSettings = {
         quantity: boolean;
         discountAmountUnit: boolean;
         discountPercentage: boolean;
+        xmlGrossPackCost: boolean;
         xmlPackCost: boolean;
         unitCostWithoutTax: boolean;
         taxRate: boolean;
@@ -1241,3 +1242,5 @@ export class AuthError extends Error {
     this.name = "AuthError";
   }
 }
+
+    
