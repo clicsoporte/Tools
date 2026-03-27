@@ -7,7 +7,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings, DraftableCostAssistantLine } from '@/modules/core/types';
+import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
 import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings, getAllDrafts, saveDraft, deleteDraft, exportForERP, cleanupExportFile } from '../lib/actions';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -55,7 +55,6 @@ const initialColumnVisibility: CostAssistantSettings['columnVisibility'] = {
     quantity: true,
     discountAmountUnit: false,
     discountPercentage: true,
-    xmlGrossPackCost: false,
     xmlPackCost: true,
     unitCostWithoutTax: true,
     taxRate: true,
@@ -183,9 +182,18 @@ export const useCostAssistant = () => {
     };
     
      const handleUnitsPerPackBlur = (lineId: string, displayValue: string) => {
+        if (displayValue.trim() === '') {
+            updateLine(lineId, {
+                unitsPerPack: 1,
+                displayUnitsPerPack: '1',
+            });
+            return;
+        }
+
         const numericValue = parseDecimal(displayValue);
         const newUnitsPerPack = Math.max(1, numericValue);
         const line = state.lines.find(l => l.id === lineId);
+        
         if (line) {
             const newQuantity = line.originalQuantity * newUnitsPerPack;
             updateLine(lineId, {
@@ -219,12 +227,12 @@ export const useCostAssistant = () => {
         })}`;
     };
 
-    const setColumnVisibility = (column: keyof ColumnVisibility, isVisible: boolean) => {
+    const setColumnVisibility = (columnId: string, isVisible: boolean) => {
         setState(prevState => ({
             ...prevState,
             columnVisibility: {
                 ...prevState.columnVisibility,
-                [column]: isVisible,
+                [columnId]: isVisible,
             }
         }));
     };
@@ -424,11 +432,30 @@ export const useCostAssistant = () => {
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
         const totalFinalCost = state.lines.reduce((sum, line) => sum + (line.unitCostWithoutTax * line.quantity), 0);
         const totalSellValue = state.lines.reduce((sum, line) => sum + (line.finalSellPrice * line.quantity), 0);
-        const estimatedGrossProfit = state.lines.reduce((sum, line) => sum + (line.profitPerLine || 0), 0);
+        const estimatedGrossProfit = totalSellValue - totalFinalCost;
 
         return { totalPurchaseCost, totalAdditionalCosts, totalFinalCost, totalSellValue, estimatedGrossProfit };
     }, [state.lines, state.transportCost, state.otherCosts]);
 
+    const selectors = {
+        columns: useMemo(() => [
+            { id: 'cabysCode', label: 'Cabys', className: 'min-w-[150px]' },
+            { id: 'supplierCode', label: 'Cód. Prov.', className: 'min-w-[150px]' },
+            { id: 'description', label: 'Descripción', className: 'min-w-[400px]' },
+            { id: 'originalQuantity', label: 'Cant. XML', tooltip: 'La cantidad que aparece en la factura XML.', className: 'w-[120px] text-right' },
+            { id: 'unitsPerPack', label: 'Uds/Paq', tooltip: 'Unidades por paquete/caja para desglose de costo.', className: 'w-[100px] text-right' },
+            { id: 'quantity', label: 'Cant. Total', className: 'w-[120px] text-right font-bold' },
+            { id: 'discountAmountUnit', label: 'Desc. Unit. (s/IVA)', tooltip: 'Descuento por unidad, sin IVA.', className: 'w-[150px] text-right' },
+            { id: 'discountPercentage', label: 'Desc. %', tooltip: 'Porcentaje de descuento sobre el costo bruto.', className: 'w-[120px] text-right' },
+            { id: 'xmlPackCost', label: 'Costo Paq. Neto (s/IVA)', tooltip: 'Costo por paquete/caja según factura XML, después de descuentos.', className: 'w-[180px] text-right' },
+            { id: 'unitCostWithoutTax', label: 'Costo Unit. Final (s/IVA)', tooltip: 'Costo por unidad individual, prorrateado y después de descuentos.', className: 'w-[180px] text-right' },
+            { id: 'taxRate', label: 'Imp. %', className: 'min-w-[120px] text-center' },
+            { id: 'margin', label: 'Margen %', className: 'min-w-[120px] text-center' },
+            { id: 'sellPriceWithoutTax', label: 'PVP Unit. (s/IVA)', tooltip: 'Precio de venta sugerido por unidad antes de impuestos.', className: 'w-[180px] text-right' },
+            { id: 'finalSellPrice', label: 'PVP Final (c/IVA)', tooltip: 'Precio de venta final sugerido, con IVA incluido.', className: 'w-[180px] text-right' },
+            { id: 'profitPerLine', label: 'Ganancia Bruta (s/IVA)', tooltip: 'Ganancia total estimada para esta línea de producto (Venta Neta - Costo Total Final).', className: 'w-[180px] text-right' },
+        ], [])
+    };
 
     const actions = {
         removeLine,
@@ -451,27 +478,6 @@ export const useCostAssistant = () => {
         deleteDraft: deleteDraftAction,
         handleFinalizeExport,
         setDiscountHandling: (value: 'customer' | 'company') => setState(prevState => ({ ...prevState, discountHandling: value })),
-    };
-    
-    const selectors = {
-        columns: useMemo(() => [
-            { id: 'cabysCode', label: 'Cabys', className: 'w-[150px]' },
-            { id: 'supplierCode', label: 'Cód. Prov.', className: 'w-[150px]' },
-            { id: 'description', label: 'Descripción', className: 'w-[300px]' },
-            { id: 'originalQuantity', label: 'Cant. XML', tooltip: 'La cantidad que aparece en la factura XML.', className: 'w-[120px] text-right' },
-            { id: 'unitsPerPack', label: 'Uds/Paq', tooltip: 'Unidades por paquete/caja para desglose de costo.', className: 'w-[100px] text-right' },
-            { id: 'quantity', label: 'Cant. Total', className: 'w-[120px] text-right font-bold' },
-            { id: 'discountAmountUnit', label: 'Desc. Unit. (s/IVA)', tooltip: 'Descuento por unidad, sin IVA.', className: 'w-[150px] text-right' },
-            { id: 'discountPercentage', label: 'Desc. %', tooltip: 'Porcentaje de descuento sobre el costo bruto.', className: 'w-[120px] text-right' },
-            { id: 'xmlGrossPackCost', label: 'Costo Paq. Bruto', tooltip: 'Costo por paquete/caja según factura XML, antes de descuentos.', className: 'w-[180px] text-right' },
-            { id: 'xmlPackCost', label: 'Costo Paq. Neto (s/IVA)', tooltip: 'Costo por paquete/caja según factura XML, después de descuentos.', className: 'w-[180px] text-right' },
-            { id: 'unitCostWithoutTax', label: 'Costo Unit. Final (s/IVA)', tooltip: 'Costo por unidad individual, prorrateado y después de descuentos.', className: 'w-[180px] text-right' },
-            { id: 'taxRate', label: 'Imp. %', className: 'w-[100px] text-center' },
-            { id: 'margin', label: 'Margen %', className: 'w-[100px] text-center' },
-            { id: 'sellPriceWithoutTax', label: 'PVP Unit. (s/IVA)', tooltip: 'Precio de venta sugerido por unidad antes de impuestos.', className: 'w-[180px] text-right' },
-            { id: 'finalSellPrice', label: 'PVP Final (c/IVA)', tooltip: 'Precio de venta final sugerido, con IVA incluido.', className: 'w-[180px] text-right' },
-            { id: 'profitPerLine', label: 'Ganancia Bruta (s/IVA)', tooltip: 'Ganancia total estimada para esta línea de producto (Venta Neta - Costo Total Final).', className: 'w-[180px] text-right' },
-        ], [])
     };
 
     return {
