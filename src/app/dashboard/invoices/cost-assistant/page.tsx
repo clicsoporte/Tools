@@ -71,7 +71,7 @@ export default function CostAssistantPage() {
                                 <CardTitle>Asistente de Costos y Precios</CardTitle>
                                 <CardDescription>Carga facturas XML para extraer artículos, añadir costos y calcular precios de venta.</CardDescription>
                             </div>
-                             <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <Dialog>
                                     <DialogTrigger asChild>
                                         <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
@@ -152,110 +152,108 @@ export default function CostAssistantPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-6">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Configuración de Cálculo</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="transport-cost">Costo de Transporte (Total)</Label>
-                                            <Input 
-                                                id="transport-cost" 
-                                                type="number" 
-                                                value={state.transportCost || ''}
-                                                onChange={(e) => actions.setTransportCost(Number(e.target.value))}
-                                                placeholder="Ej: 5000"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="other-costs">Otros Costos (Total)</Label>
-                                            <Input 
-                                                id="other-costs" 
-                                                type="number" 
-                                                value={state.otherCosts || ''}
-                                                onChange={(e) => actions.setOtherCosts(Number(e.target.value))}
-                                                placeholder="Ej: 10000"
-                                            />
-                                        </div>
-                                        <Separator/>
-                                        <div className="space-y-3">
-                                            <Label>Manejo de Descuentos en Factura</Label>
-                                            <RadioGroup value={state.discountHandling} onValueChange={(value) => actions.setDiscountHandling(value as 'customer' | 'company')}>
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value="customer" id="disc-customer" />
-                                                    <Label htmlFor="disc-customer" className="font-normal">Trasladar descuento al costo (beneficia al cliente)</Label>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value="company" id="disc-company" />
-                                                    <Label htmlFor="disc-company" className="font-normal">Trasladar descuento a la ganancia (beneficia a la empresa)</Label>
-                                                </div>
-                                            </RadioGroup>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                                <Card className="sm:col-start-2 md:col-start-1">
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" />Facturas Procesadas</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="max-w-xs">
-                                        <ScrollArea className="h-40">
-                                            {state.processedInvoices.length > 0 ? (
-                                                <ul className="space-y-3 text-sm">
-                                                    {state.processedInvoices.map((invoice, index) => (
-                                                        <li key={index} className="border-b pb-2">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="flex-shrink-0">
-                                                                    <p className="font-semibold text-muted-foreground">{invoice.invoiceNumber}</p>
-                                                                    <p className="truncate">{invoice.supplierName}</p>
-                                                                    <p className="text-xs text-muted-foreground">{isValid(parseISO(invoice.invoiceDate)) ? format(parseISO(invoice.invoiceDate), 'dd/MM/yyyy') : 'Fecha Inválida'}</p>
-                                                                </div>
-                                                                <div className={cn("flex items-center gap-1 text-xs font-medium", invoice.status === 'success' ? 'text-green-600' : 'text-red-600')}>
-                                                                    {invoice.status === 'success' ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                                                                    <span>{invoice.status === 'success' ? 'Éxito' : 'Error'}</span>
-                                                                </div>
+                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                            {/* --- Left Column: Merged Card --- */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Configuración y Resumen</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="transport-cost">Costo de Transporte (Total)</Label>
+                                        <Input 
+                                            id="transport-cost" 
+                                            type="number" 
+                                            value={state.transportCost || ''}
+                                            onChange={(e) => actions.setTransportCost(Number(e.target.value))}
+                                            placeholder="Ej: 5000"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="other-costs">Otros Costos (Total)</Label>
+                                        <Input 
+                                            id="other-costs" 
+                                            type="number" 
+                                            value={state.otherCosts || ''}
+                                            onChange={(e) => actions.setOtherCosts(Number(e.target.value))}
+                                            placeholder="Ej: 10000"
+                                        />
+                                    </div>
+                                    <Separator/>
+                                    <div className="space-y-3">
+                                        <Label>Manejo de Descuentos en Factura</Label>
+                                        <RadioGroup value={state.discountHandling} onValueChange={(value) => actions.setDiscountHandling(value as 'customer' | 'company')}>
+                                            <div className="flex items-center space-x-2">
+                                                <RadioGroupItem value="customer" id="disc-customer" />
+                                                <Label htmlFor="disc-customer" className="font-normal">Trasladar descuento al costo (beneficia al cliente)</Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <RadioGroupItem value="company" id="disc-company" />
+                                                <Label htmlFor="disc-company" className="font-normal">Trasladar descuento a la ganancia (beneficia a la empresa)</Label>
+                                            </div>
+                                        </RadioGroup>
+                                    </div>
+                                </CardContent>
+                                <Separator className="my-4" />
+                                <CardHeader className="pt-0">
+                                    <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5"/>Resumen General</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2 text-sm pt-0">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Costo Total de Compra:</span>
+                                        <span className="font-medium">{actions.formatCurrency(state.totals.totalPurchaseCost)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Costos Adicionales Totales:</span>
+                                        <span className="font-medium">{actions.formatCurrency(state.totals.totalAdditionalCosts)}</span>
+                                    </div>
+                                    <div className="flex justify-between font-bold border-t pt-2">
+                                        <span>Costo Total Final:</span>
+                                        <span>{actions.formatCurrency(state.totals.totalFinalCost)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-green-600 font-bold">
+                                        <span>Ingreso Total Estimado (Venta):</span>
+                                        <span>{actions.formatCurrency(state.totals.totalSellValue)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-blue-700 font-bold text-lg border-t pt-2">
+                                        <span>Ganancia Bruta Estimada:</span>
+                                        <span>{actions.formatCurrency(state.totals.estimatedGrossProfit)}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* --- Right Column: Processed Invoices Card --- */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" />Facturas Procesadas</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <ScrollArea className="h-96">
+                                        {state.processedInvoices.length > 0 ? (
+                                            <ul className="space-y-3 text-sm">
+                                                {state.processedInvoices.map((invoice, index) => (
+                                                    <li key={index} className="border-b pb-2">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="flex-1">
+                                                                <p className="font-semibold text-muted-foreground">{invoice.invoiceNumber}</p>
+                                                                <p className="truncate">{invoice.supplierName}</p>
+                                                                <p className="text-xs text-muted-foreground">{isValid(parseISO(invoice.invoiceDate)) ? format(parseISO(invoice.invoiceDate), 'dd/MM/yyyy') : 'Fecha Inválida'}</p>
                                                             </div>
-                                                            {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : (
-                                                <p className="text-sm text-center text-muted-foreground h-full flex items-center justify-center">Aún no se han cargado facturas.</p>
-                                            )}
-                                        </ScrollArea>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                             <div className="space-y-4">
-                               <Card className="w-full">
-                                  <CardHeader>
-                                      <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5"/>Resumen General</CardTitle>
-                                  </CardHeader>
-                                    <CardContent className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Costo Total de Compra:</span>
-                                            <span className="font-medium">{actions.formatCurrency(state.totals.totalPurchaseCost)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Costos Adicionales Totales:</span>
-                                            <span className="font-medium">{actions.formatCurrency(state.totals.totalAdditionalCosts)}</span>
-                                        </div>
-                                        <div className="flex justify-between font-bold border-t pt-2">
-                                            <span>Costo Total Final:</span>
-                                            <span>{actions.formatCurrency(state.totals.totalFinalCost)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-green-600 font-bold">
-                                            <span>Ingreso Total Estimado (Venta):</span>
-                                            <span>{actions.formatCurrency(state.totals.totalSellValue)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-blue-700 font-bold text-lg border-t pt-2">
-                                            <span>Ganancia Bruta Estimada:</span>
-                                            <span>{actions.formatCurrency(state.totals.estimatedGrossProfit)}</span>
-                                        </div>
-                                    </CardContent>
-                              </Card>
-                            </div>
+                                                            <div className={cn("flex items-center gap-1 text-xs font-medium", invoice.status === 'success' ? 'text-green-600' : 'text-red-600')}>
+                                                                {invoice.status === 'success' ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                                                                <span>{invoice.status === 'success' ? 'Éxito' : 'Error'}</span>
+                                                            </div>
+                                                        </div>
+                                                        {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="text-sm text-center text-muted-foreground h-full flex items-center justify-center">Aún no se han cargado facturas.</p>
+                                        )}
+                                    </ScrollArea>
+                                </CardContent>
+                            </Card>
                         </div>
                     </CardContent>
                 </Card>
@@ -307,12 +305,10 @@ export default function CostAssistantPage() {
                                     <TableRow>
                                         {selectors.columns.map((col) => state.columnVisibility[col.id as keyof ColumnVisibility] && (
                                             <TableHead key={col.id} className={cn(col.className)}>
-                                                {col.tooltip ? (
-                                                    <Tooltip>
-                                                        <TooltipTrigger className="cursor-help underline decoration-dotted">{col.label}</TooltipTrigger>
-                                                        <TooltipContent><p>{col.tooltip}</p></TooltipContent>
-                                                    </Tooltip>
-                                                ) : col.label}
+                                                <Tooltip>
+                                                    <TooltipTrigger className="cursor-help underline decoration-dotted">{col.label}</TooltipTrigger>
+                                                    <TooltipContent><p>{col.tooltip}</p></TooltipContent>
+                                                </Tooltip>
                                             </TableHead>
                                         ))}
                                         <TableHead className="w-[50px]"></TableHead>
@@ -329,8 +325,8 @@ export default function CostAssistantPage() {
                                             {state.columnVisibility.quantity && <TableCell className={cn(selectors.columns.find(c => c.id === 'quantity')?.className)}>{line.quantity}</TableCell>}
                                             {state.columnVisibility.discountAmountUnit && <TableCell className={cn(selectors.columns.find(c => c.id === 'discountAmountUnit')?.className, "font-mono")}>{actions.formatCurrency(line.discountAmountUnit)}</TableCell>}
                                             {state.columnVisibility.discountPercentage && <TableCell className={cn(selectors.columns.find(c => c.id === 'discountPercentage')?.className, "font-mono")}>{`${(line.discountPercentage * 100).toFixed(2)}%`}</TableCell>}
-                                            {state.columnVisibility.xmlPackCost && <TableCell className={cn(selectors.columns.find(c => c.id === 'xmlPackCost')?.className, "font-mono")}>{actions.formatCurrency(line.xmlPackCost)}</TableCell>}
                                             {state.columnVisibility.xmlGrossPackCost && <TableCell className={cn(selectors.columns.find(c => c.id === 'xmlGrossPackCost')?.className, "font-mono")}>{actions.formatCurrency(line.xmlGrossPackCost)}</TableCell>}
+                                            {state.columnVisibility.xmlPackCost && <TableCell className={cn(selectors.columns.find(c => c.id === 'xmlPackCost')?.className, "font-mono")}>{actions.formatCurrency(line.xmlPackCost)}</TableCell>}
                                             {state.columnVisibility.unitCostWithoutTax && <TableCell className={cn(selectors.columns.find(c => c.id === 'unitCostWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.unitCostWithoutTax)}</TableCell>}
                                             {state.columnVisibility.taxRate && <TableCell className={cn(selectors.columns.find(c => c.id === 'taxRate')?.className)}>
                                                     <div className="relative">
