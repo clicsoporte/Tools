@@ -17,11 +17,34 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
     if (!s) return 0;
+
+    // Find the last occurrence of a dot or comma, which is likely the decimal separator
+    const lastDot = s.lastIndexOf('.');
+    const lastComma = s.lastIndexOf(',');
+
+    let decimalSeparatorIndex = -1;
+
+    if (lastDot > lastComma) {
+        decimalSeparatorIndex = lastDot;
+    } else if (lastComma > -1) {
+        decimalSeparatorIndex = lastComma;
+    }
+
+    let integerPart = s;
+    let decimalPart = '';
+
+    if (decimalSeparatorIndex !== -1) {
+        integerPart = s.substring(0, decimalSeparatorIndex);
+        decimalPart = s.substring(decimalSeparatorIndex + 1);
+    }
     
-    // This regex handles numbers like "1,234.56" or "1.234,56"
-    const normalized = s.replace(/[.,](?=\d{3})/g, '').replace(',', '.');
+    // Remove all non-digit characters from the integer part (our thousands separators)
+    const cleanedInteger = integerPart.replace(/\D/g, '');
+    const cleanedDecimal = decimalPart.replace(/\D/g, '');
     
-    const parsed = parseFloat(normalized);
+    const finalString = cleanedDecimal.length > 0 ? `${cleanedInteger}.${cleanedDecimal}` : cleanedInteger;
+    
+    const parsed = parseFloat(finalString);
     return isNaN(parsed) ? 0 : parsed;
 };
 
@@ -458,7 +481,7 @@ export const useCostAssistant = () => {
             { id: 'quantity', label: 'Cant. Total', className: 'min-w-[120px] text-right font-bold' },
             { id: 'discountAmountUnit', label: 'Desc. Unit. (s/IVA)', tooltip: 'Descuento por unidad, sin IVA.', className: 'min-w-[150px] text-right' },
             { id: 'discountPercentage', label: 'Desc. %', tooltip: 'Porcentaje de descuento sobre el costo bruto.', className: 'min-w-[120px] text-right' },
-            { id: 'xmlGrossPackCost', label: 'Costo Paq. Bruto (s/IVA)', tooltip: 'Costo por paquete/caja según factura XML, antes de descuentos.', className: 'min-w-[180px] text-right' },
+            { id: 'xmlGrossPackCost', label: 'Costo Paq. Bruto', tooltip: 'Costo por paquete/caja según factura XML, antes de descuentos.', className: 'min-w-[180px] text-right' },
             { id: 'xmlPackCost', label: 'Costo Paq. Neto (s/IVA)', tooltip: 'Costo por paquete/caja según factura XML, después de descuentos.', className: 'min-w-[180px] text-right' },
             { id: 'unitCostWithoutTax', label: 'Costo Unit. Final (s/IVA)', tooltip: 'Costo por unidad individual, prorrateado y después de descuentos.', className: 'min-w-[180px] text-right' },
             { id: 'taxRate', label: 'Imp. %', className: 'min-w-[100px]' },
