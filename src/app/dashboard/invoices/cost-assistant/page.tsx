@@ -66,93 +66,93 @@ export default function CostAssistantPage() {
                 />
                 <Card>
                     <CardHeader>
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-start gap-4">
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             <div>
                                 <CardTitle>Asistente de Costos y Precios</CardTitle>
                                 <CardDescription>Carga facturas XML para extraer artículos, añadir costos y calcular precios de venta.</CardDescription>
                             </div>
-                        </div>
-                         <div className="flex items-center gap-2 flex-wrap pt-4">
-                             <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>¿Iniciar una nueva operación?</DialogTitle>
-                                        <DialogDescription>
-                                            Esta acción limpiará todos los artículos, costos y facturas cargadas. ¿Deseas continuar?
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                                        <DialogClose asChild><Button onClick={actions.handleClear}>Sí, limpiar todo</Button></DialogClose>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                            <Button variant="outline" onClick={actions.openFileDialog} disabled={state.isProcessing}>
-                                {state.isProcessing ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <UploadCloud className="mr-2 h-4 w-4" />
-                                )}
-                                Cargar Facturas XML
-                            </Button>
-                            <Sheet onOpenChange={(open) => open && actions.loadDrafts()}>
-                                <SheetTrigger asChild>
-                                    <Button variant="outline"><FolderClock className="mr-2 h-4 w-4"/>Cargar Borradores</Button>
-                                </SheetTrigger>
-                                <SheetContent className="sm:max-w-2xl">
-                                    <SheetHeader>
-                                        <SheetTitle>Borradores Guardados</SheetTitle>
-                                        <SheetDescription>Selecciona un análisis guardado para continuar trabajando en él.</SheetDescription>
-                                    </SheetHeader>
-                                    <div className="py-4">
-                                        <ScrollArea className="h-[80vh]">
-                                            {state.drafts && state.drafts.length > 0 ? (
-                                                <div className="space-y-3 pr-4">
-                                                    {state.drafts.map((draft) => (
-                                                        <Card key={draft.id}>
-                                                            <CardHeader>
-                                                                <CardTitle className="text-lg flex items-center gap-2">
-                                                                    <span className="font-mono text-base bg-muted px-2 py-1 rounded">{draft.id}</span>
-                                                                    <span>{draft.name}</span>
-                                                                </CardTitle>
-                                                                <CardDescription>Guardado el {isValid(parseISO(draft.createdAt)) ? format(parseISO(draft.createdAt), 'dd/MM/yyyy HH:mm') : 'Fecha inválida'}</CardDescription>
-                                                            </CardHeader>
-                                                            <CardFooter className="flex justify-end gap-2">
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild><Button variant="destructive" size="sm">Eliminar</Button></AlertDialogTrigger>
-                                                                    <AlertDialogContent>
-                                                                        <AlertDialogHeader>
-                                                                            <AlertDialogTitle>¿Eliminar Borrador?</AlertDialogTitle>
-                                                                            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter>
-                                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                            <AlertDialogAction onClick={() => actions.deleteDraft(draft.id)}>Sí, eliminar</AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
-                                                                <SheetClose asChild>
-                                                                    <Button size="sm" onClick={() => actions.loadDraft(draft)}>Cargar</Button>
-                                                                </SheetClose>
-                                                            </CardFooter>
-                                                        </Card>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p className="text-center text-muted-foreground py-8">No hay borradores guardados.</p>
-                                            )}
-                                        </ScrollArea>
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
-                            <Button onClick={actions.saveDraft}><Save className="mr-2 h-4 w-4"/>Guardar Borrador</Button>
+                             <div className="flex items-center gap-2 flex-wrap">
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>¿Iniciar una nueva operación?</DialogTitle>
+                                            <DialogDescription>
+                                                Esta acción limpiará todos los artículos, costos y facturas cargadas. ¿Deseas continuar?
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter>
+                                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                                            <DialogClose asChild><Button onClick={actions.handleClear}>Sí, limpiar todo</Button></DialogClose>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                                <Button variant="outline" onClick={actions.openFileDialog} disabled={state.isProcessing}>
+                                    {state.isProcessing ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <UploadCloud className="mr-2 h-4 w-4" />
+                                    )}
+                                    Cargar Facturas XML
+                                </Button>
+                                <Sheet onOpenChange={(open) => open && actions.loadDrafts()}>
+                                    <SheetTrigger asChild>
+                                        <Button variant="outline"><FolderClock className="mr-2 h-4 w-4"/>Cargar Borradores</Button>
+                                    </SheetTrigger>
+                                    <SheetContent className="sm:max-w-2xl">
+                                        <SheetHeader>
+                                            <SheetTitle>Borradores Guardados</SheetTitle>
+                                            <SheetDescription>Selecciona un análisis guardado para continuar trabajando en él.</SheetDescription>
+                                        </SheetHeader>
+                                        <div className="py-4">
+                                            <ScrollArea className="h-[80vh]">
+                                                {state.drafts && state.drafts.length > 0 ? (
+                                                    <div className="space-y-3 pr-4">
+                                                        {state.drafts.map((draft) => (
+                                                            <Card key={draft.id}>
+                                                                <CardHeader>
+                                                                    <CardTitle className="text-lg flex items-center gap-2">
+                                                                        <span className="font-mono text-base bg-muted px-2 py-1 rounded">{draft.id}</span>
+                                                                        <span>{draft.name}</span>
+                                                                    </CardTitle>
+                                                                    <CardDescription>Guardado el {isValid(parseISO(draft.createdAt)) ? format(parseISO(draft.createdAt), 'dd/MM/yyyy HH:mm') : 'Fecha inválida'}</CardDescription>
+                                                                </CardHeader>
+                                                                <CardFooter className="flex justify-end gap-2">
+                                                                    <AlertDialog>
+                                                                        <AlertDialogTrigger asChild><Button variant="destructive" size="sm">Eliminar</Button></AlertDialogTrigger>
+                                                                        <AlertDialogContent>
+                                                                            <AlertDialogHeader>
+                                                                                <AlertDialogTitle>¿Eliminar Borrador?</AlertDialogTitle>
+                                                                                <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                                                                            </AlertDialogHeader>
+                                                                            <AlertDialogFooter>
+                                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                                <AlertDialogAction onClick={() => actions.deleteDraft(draft.id)}>Sí, eliminar</AlertDialogAction>
+                                                                            </AlertDialogFooter>
+                                                                        </AlertDialogContent>
+                                                                    </AlertDialog>
+                                                                    <SheetClose asChild>
+                                                                        <Button size="sm" onClick={() => actions.loadDraft(draft)}>Cargar</Button>
+                                                                    </SheetClose>
+                                                                </CardFooter>
+                                                            </Card>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-center text-muted-foreground py-8">No hay borradores guardados.</p>
+                                                )}
+                                            </ScrollArea>
+                                        </div>
+                                    </SheetContent>
+                                </Sheet>
+                                <Button onClick={actions.saveDraft}><Save className="mr-2 h-4 w-4"/>Guardar Borrador</Button>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent>
-                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                              <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
                                 <Card>
                                     <CardHeader>
@@ -223,8 +223,8 @@ export default function CostAssistantPage() {
                                     </CardContent>
                                 </Card>
                             </div>
-                            <div className="lg:col-span-1 space-y-4">
-                               <Card>
+                            <div className="lg:col-span-2 space-y-4">
+                               <Card className="w-full">
                                   <CardHeader>
                                       <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" />Facturas Procesadas</CardTitle>
                                   </CardHeader>
@@ -271,7 +271,7 @@ export default function CostAssistantPage() {
                                  <DialogColumnSelector
                                     allColumns={selectors.columns}
                                     visibleColumns={Object.keys(state.columnVisibility).filter(k => state.columnVisibility[k as keyof typeof state.columnVisibility])}
-                                    onColumnChange={(columnId, checked) => actions.setColumnVisibility(columnId, checked)}
+                                    onColumnChange={(columnId, checked) => actions.setColumnVisibility(columnId as keyof ColumnVisibility, checked)}
                                     onSave={actions.handleSaveColumnVisibility}
                                 />
                                 {state.exportStatus === 'idle' && (
@@ -305,7 +305,7 @@ export default function CostAssistantPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        {selectors.columns.map((col: { id: string; label: string; className?: string; tooltip?: string; }) => state.columnVisibility[col.id as keyof typeof state.columnVisibility] && (
+                                        {selectors.columns.map((col) => state.columnVisibility[col.id as keyof typeof state.columnVisibility] && (
                                             <TableHead key={col.id} className={cn(col.className)}>
                                                 {col.tooltip ? (
                                                     <Tooltip>
@@ -321,18 +321,18 @@ export default function CostAssistantPage() {
                                 <TableBody>
                                     {state.lines.length > 0 ? state.lines.map((line) => (
                                         <TableRow key={line.id}>
-                                            {state.columnVisibility.cabysCode && <TableCell className={selectors.columns.find(c =>c.id === 'cabysCode')?.className}><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
-                                            {state.columnVisibility.supplierCode && <TableCell className={selectors.columns.find(c =>c.id === 'supplierCode')?.className}><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
-                                            {state.columnVisibility.description && <TableCell className={selectors.columns.find(c =>c.id === 'description')?.className}><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0"/></TableCell>}
-                                            {state.columnVisibility.originalQuantity && <TableCell className={selectors.columns.find(c =>c.id === 'originalQuantity')?.className}>{line.originalQuantity}</TableCell>}
-                                            {state.columnVisibility.unitsPerPack && <TableCell className={selectors.columns.find(c =>c.id === 'unitsPerPack')?.className}><Input type="text" value={line.displayUnitsPerPack} onChange={e => actions.updateLine(line.id, { displayUnitsPerPack: e.target.value })} onBlur={e => actions.handleUnitsPerPackBlur(line.id, e.target.value)} className="h-auto p-1 border-0 text-right"/></TableCell>}
-                                            {state.columnVisibility.quantity && <TableCell className={selectors.columns.find(c =>c.id === 'quantity')?.className}>{line.quantity}</TableCell>}
-                                            {state.columnVisibility.discountAmountUnit && <TableCell className={cn(selectors.columns.find(c =>c.id === 'discountAmountUnit')?.className, "font-mono")}>{actions.formatCurrency(line.discountAmountUnit)}</TableCell>}
-                                            {state.columnVisibility.discountPercentage && <TableCell className={cn(selectors.columns.find(c =>c.id === 'discountPercentage')?.className, "font-mono")}>{`${(line.discountPercentage * 100).toFixed(2)}%`}</TableCell>}
-                                            {state.columnVisibility.xmlPackCost && <TableCell className={cn(selectors.columns.find(c =>c.id === 'xmlPackCost')?.className, "font-mono")}>{actions.formatCurrency(line.xmlPackCost)}</TableCell>}
-                                            {state.columnVisibility.xmlGrossPackCost && <TableCell className={cn(selectors.columns.find(c =>c.id === 'xmlGrossPackCost')?.className, "font-mono")}>{actions.formatCurrency(line.xmlGrossPackCost)}</TableCell>}
-                                            {state.columnVisibility.unitCostWithoutTax && <TableCell className={cn(selectors.columns.find(c =>c.id === 'unitCostWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.unitCostWithoutTax)}</TableCell>}
-                                            {state.columnVisibility.taxRate && <TableCell className={selectors.columns.find(c =>c.id === 'taxRate')?.className}>
+                                            {state.columnVisibility.cabysCode && <TableCell className={selectors.columns.find(c => c.id === 'cabysCode')?.className}><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
+                                            {state.columnVisibility.supplierCode && <TableCell className={selectors.columns.find(c => c.id === 'supplierCode')?.className}><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
+                                            {state.columnVisibility.description && <TableCell className={selectors.columns.find(c => c.id === 'description')?.className}><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0"/></TableCell>}
+                                            {state.columnVisibility.originalQuantity && <TableCell className={selectors.columns.find(c => c.id === 'originalQuantity')?.className}>{line.originalQuantity}</TableCell>}
+                                            {state.columnVisibility.unitsPerPack && <TableCell className={selectors.columns.find(c => c.id === 'unitsPerPack')?.className}><Input type="text" value={line.displayUnitsPerPack} onChange={e => actions.updateLine(line.id, { displayUnitsPerPack: e.target.value })} onBlur={e => actions.handleUnitsPerPackBlur(line.id, e.target.value)} className="h-auto p-1 border-0 text-right"/></TableCell>}
+                                            {state.columnVisibility.quantity && <TableCell className={selectors.columns.find(c => c.id === 'quantity')?.className}>{line.quantity}</TableCell>}
+                                            {state.columnVisibility.discountAmountUnit && <TableCell className={cn(selectors.columns.find(c => c.id === 'discountAmountUnit')?.className, "font-mono")}>{actions.formatCurrency(line.discountAmountUnit)}</TableCell>}
+                                            {state.columnVisibility.discountPercentage && <TableCell className={cn(selectors.columns.find(c => c.id === 'discountPercentage')?.className, "font-mono")}>{`${(line.discountPercentage * 100).toFixed(2)}%`}</TableCell>}
+                                            {state.columnVisibility.xmlGrossPackCost && <TableCell className={cn(selectors.columns.find(c => c.id === 'xmlGrossPackCost')?.className, "font-mono")}>{actions.formatCurrency(line.xmlGrossPackCost)}</TableCell>}
+                                            {state.columnVisibility.xmlPackCost && <TableCell className={cn(selectors.columns.find(c => c.id === 'xmlPackCost')?.className, "font-mono")}>{actions.formatCurrency(line.xmlPackCost)}</TableCell>}
+                                            {state.columnVisibility.unitCostWithoutTax && <TableCell className={cn(selectors.columns.find(c => c.id === 'unitCostWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.unitCostWithoutTax)}</TableCell>}
+                                            {state.columnVisibility.taxRate && <TableCell className={selectors.columns.find(c => c.id === 'taxRate')?.className}>
                                                     <div className="relative">
                                                         <Input 
                                                             type="text" 
@@ -345,7 +345,7 @@ export default function CostAssistantPage() {
                                                     </div>
                                                 </TableCell>}
                                             {state.columnVisibility.margin && 
-                                                <TableCell className={selectors.columns.find(c =>c.id === 'margin')?.className}>
+                                                <TableCell className={selectors.columns.find(c => c.id === 'margin')?.className}>
                                                     <div className="relative">
                                                         <Input 
                                                             type="text" 
@@ -358,9 +358,9 @@ export default function CostAssistantPage() {
                                                     </div>
                                                 </TableCell>
                                             }
-                                            {state.columnVisibility.sellPriceWithoutTax && <TableCell className={cn(selectors.columns.find(c =>c.id === 'sellPriceWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</TableCell>}
-                                            {state.columnVisibility.finalSellPrice && <TableCell className={cn(selectors.columns.find(c =>c.id === 'finalSellPrice')?.className, "font-bold text-base text-primary")}>{actions.formatCurrency(line.finalSellPrice)}</TableCell>}
-                                            {state.columnVisibility.profitPerLine && <TableCell className={cn(selectors.columns.find(c =>c.id === 'profitPerLine')?.className, "font-bold text-base text-blue-600")}>{actions.formatCurrency(line.profitPerLine || 0)}</TableCell>}
+                                            {state.columnVisibility.sellPriceWithoutTax && <TableCell className={cn(selectors.columns.find(c => c.id === 'sellPriceWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</TableCell>}
+                                            {state.columnVisibility.finalSellPrice && <TableCell className={cn(selectors.columns.find(c => c.id === 'finalSellPrice')?.className, "font-bold text-base text-primary")}>{actions.formatCurrency(line.finalSellPrice)}</TableCell>}
+                                            {state.columnVisibility.profitPerLine && <TableCell className={cn(selectors.columns.find(c => c.id === 'profitPerLine')?.className, "font-bold text-base text-blue-600")}>{actions.formatCurrency(line.profitPerLine || 0)}</TableCell>}
                                             <TableCell>
                                                 <Button variant="ghost" size="icon" onClick={() => actions.removeLine(line.id)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
