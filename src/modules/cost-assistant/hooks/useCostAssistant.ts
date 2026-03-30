@@ -7,7 +7,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
+import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings, DraftableCostAssistantLine } from '@/modules/core/types';
 import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings, getAllDrafts, saveDraft, deleteDraft, exportForERP, cleanupExportFile } from '../lib/actions';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -383,21 +383,25 @@ export const useCostAssistant = () => {
     };
 
     const linesWithCalculatedCosts = useMemo(() => {
+        // FIX: The base for prorating should always be the NET value of the invoices,
+        // otherwise, items with high gross cost unfairly absorb more of the additional costs.
         const totalNetInvoiceValue = state.lines.reduce((sum, line) => {
-            const baseCostPerPack = state.discountHandling === 'company' ? line.xmlGrossPackCost : line.xmlPackCost;
-            return sum + (baseCostPerPack * line.originalQuantity);
+            return sum + (line.xmlPackCost * line.originalQuantity);
         }, 0);
 
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
     
         return state.lines.map(line => {
-            let baseCostPerPack = line.xmlPackCost; // Net cost from XML
+            // The base cost for the item calculation STILL depends on the toggle.
+            // This is correct.
+            let baseCostPerPack = line.xmlPackCost; // Default: Benefit customer (use net cost)
             if (state.discountHandling === 'company') {
-                baseCostPerPack = line.xmlGrossPackCost;
+                baseCostPerPack = line.xmlGrossPackCost; // Benefit company (use gross cost)
             }
             
             const proratedAdditionalCostPerPack = totalNetInvoiceValue > 0
-                ? (baseCostPerPack / totalNetInvoiceValue) * totalAdditionalCosts
+                // FIX: The proration is based on the item's NET contribution to the total NET value.
+                ? (line.xmlPackCost / totalNetInvoiceValue) * totalAdditionalCosts
                 : 0;
             
             const totalCostPerPack = baseCostPerPack + proratedAdditionalCostPerPack;
