@@ -20,6 +20,51 @@ import path from 'path';
 import fs from 'fs';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 
+type ColumnVisibility = CostAssistantSettings['columnVisibility'];
+
+const ALL_EXPORT_COLUMNS: { id: keyof ColumnVisibility, label: string, width: number }[] = [
+    { id: 'cabysCode', label: 'Cabys', width: 15 },
+    { id: 'supplierCode', label: 'Cód. Artículo', width: 15 },
+    { id: 'description', label: 'Descripción', width: 40 },
+    { id: 'originalQuantity', label: 'Cant. Original (XML)', width: 12 },
+    { id: 'unitsPerPack', label: 'Uds/Paq', width: 10 },
+    { id: 'quantity', label: 'Cant. Total', width: 12 },
+    { id: 'discountAmountUnit', label: 'Desc. Unit. (s/IVA)', width: 15 },
+    { id: 'discountPercentage', label: 'Desc. %', width: 10 },
+    { id: 'xmlGrossPackCost', label: 'Costo Paq. Bruto', width: 15 },
+    { id: 'xmlPackCost', label: 'Costo Paq. Neto', width: 15 },
+    { id: 'unitCostWithoutTax', label: 'Costo Unit. Final (s/IVA)', width: 20 },
+    { id: 'taxRate', label: 'Imp. %', width: 10 },
+    { id: 'margin', label: 'Margen %', width: 10 },
+    { id: 'sellPriceWithoutTax', label: 'P.V.P Unit. (s/IVA)', width: 22 },
+    { id: 'finalSellPrice', label: 'P.V.P Unitario Sugerido', width: 22 },
+    { id: 'profitPerLine', label: 'Ganancia por Línea', width: 20 },
+];
+
+// Helper to get and format the value for a specific column
+function getColumnValue(line: CostAssistantLine, colId: keyof ColumnVisibility): string | number {
+    switch (colId) {
+        case 'cabysCode': return line.cabysCode;
+        case 'supplierCode': return line.supplierCode;
+        case 'description': return line.description;
+        case 'originalQuantity': return line.originalQuantity;
+        case 'unitsPerPack': return line.unitsPerPack;
+        case 'quantity': return line.quantity;
+        case 'discountAmountUnit': return line.discountAmountUnit;
+        case 'discountPercentage': return `${(line.discountPercentage * 100).toFixed(2)}%`;
+        case 'xmlGrossPackCost': return line.xmlGrossPackCost;
+        case 'xmlPackCost': return line.xmlPackCost;
+        case 'unitCostWithoutTax': return line.unitCostWithoutTax;
+        case 'taxRate': return line.taxRate * 100;
+        case 'margin': return `${(line.margin * 100).toFixed(2)}%`;
+        case 'sellPriceWithoutTax': return line.sellPriceWithoutTax;
+        case 'finalSellPrice': return line.finalSellPrice;
+        case 'profitPerLine': return line.profitPerLine;
+        default: return '';
+    }
+}
+
+
 // Helper to get a value from a potentially nested object
 const getValue = (obj: any, path: string[], defaultValue: any = '') => {
     return path.reduce((acc, key) => (acc && acc[key] !== undefined) ? acc[key] : defaultValue, obj);
@@ -270,52 +315,22 @@ export async function getNextDraftNumber(): Promise<number> {
     return settings.nextDraftNumber || 1;
 }
 
-export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
-    const headers = [
-        "Cabys", "Cód. Artículo", "Descripción", "Cant. Original (XML)", "Uds/Paq", "Cant. Total", 
-        "Desc. Unit. (s/IVA)", "Desc. %", "Costo Paq. Bruto", "Costo Paq. Neto", "Costo Unit. Final (s/IVA)",
-        "Imp. %", "Margen", "P.V.P Unitario (s/IVA)", "P.V.P Unitario Sugerido", "Ganancia por Línea"
-    ];
+export async function exportForERP(lines: CostAssistantLine[], columnVisibility: ColumnVisibility): Promise<string> {
+    const visibleColumns = ALL_EXPORT_COLUMNS.filter(col => columnVisibility[col.id as keyof ColumnVisibility]);
     
-    const dataToExport = lines.map(line => [
-        line.cabysCode,
-        line.supplierCode,
-        line.description,
-        line.originalQuantity,
-        line.unitsPerPack,
-        line.quantity,
-        line.discountAmountUnit,
-        `${(line.discountPercentage * 100).toFixed(2)}%`,
-        line.xmlGrossPackCost,
-        line.xmlPackCost,
-        line.unitCostWithoutTax,
-        line.taxRate * 100,
-        `${(line.margin * 100).toFixed(2)}%`,
-        line.sellPriceWithoutTax,
-        line.finalSellPrice,
-        line.profitPerLine,
-    ]);
+    if (visibleColumns.length === 0) {
+        throw new Error("No hay columnas seleccionadas para exportar.");
+    }
+    
+    const headers = visibleColumns.map(col => col.label);
+    
+    const dataToExport = lines.map(line => 
+        visibleColumns.map(col => getColumnValue(line, col.id as keyof ColumnVisibility))
+    );
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataToExport]);
     
-    worksheet['!cols'] = [
-        { wch: 15 }, // Cabys
-        { wch: 15 }, // Cód. Artículo
-        { wch: 40 }, // Descripción
-        { wch: 12 }, // Cant. Original
-        { wch: 10 }, // Uds/Paq
-        { wch: 12 }, // Cant. Total
-        { wch: 15 }, // Desc. Unit
-        { wch: 10 }, // Desc. %
-        { wch: 15 }, // Costo Paq. Bruto
-        { wch: 15 }, // Costo Paq. Neto
-        { wch: 20 }, // Costo Unit. Final
-        { wch: 10 }, // Imp. %
-        { wch: 10 }, // Margen
-        { wch: 22 }, // P.V.P Unitario (s/IVA)
-        { wch: 22 }, // P.V.P Unitario Sugerido
-        { wch: 20 }, // Ganancia por Línea
-    ];
+    worksheet['!cols'] = visibleColumns.map(col => ({ wch: col.width }));
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'AnalisisDeCostos');

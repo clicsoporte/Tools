@@ -269,7 +269,7 @@ export const useCostAssistant = () => {
         }
         setState(prevState => ({ ...prevState, exportStatus: 'generating' }));
         try {
-            const fileName = await exportForERP(state.lines);
+            const fileName = await exportForERP(state.lines, state.columnVisibility);
             setState(prevState => ({ ...prevState, exportStatus: 'ready', exportFileName: fileName }));
             toast({ title: 'Exportación Lista', description: 'Tu archivo está listo para ser descargado.' });
         } catch (error: any) {
@@ -383,8 +383,6 @@ export const useCostAssistant = () => {
     };
 
     const linesWithCalculatedCosts = useMemo(() => {
-        // FIX: The base for prorating should always be the NET value of the invoices,
-        // otherwise, items with high gross cost unfairly absorb more of the additional costs.
         const totalNetInvoiceValue = state.lines.reduce((sum, line) => {
             return sum + (line.xmlPackCost * line.originalQuantity);
         }, 0);
@@ -392,15 +390,12 @@ export const useCostAssistant = () => {
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
     
         return state.lines.map(line => {
-            // The base cost for the item calculation STILL depends on the toggle.
-            // This is correct.
-            let baseCostPerPack = line.xmlPackCost; // Default: Benefit customer (use net cost)
+            let baseCostPerPack = line.xmlPackCost; 
             if (state.discountHandling === 'company') {
-                baseCostPerPack = line.xmlGrossPackCost; // Benefit company (use gross cost)
+                baseCostPerPack = line.xmlGrossPackCost;
             }
             
             const proratedAdditionalCostPerPack = totalNetInvoiceValue > 0
-                // FIX: The proration is based on the item's NET contribution to the total NET value.
                 ? (line.xmlPackCost / totalNetInvoiceValue) * totalAdditionalCosts
                 : 0;
             
