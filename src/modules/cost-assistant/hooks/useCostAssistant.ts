@@ -383,7 +383,8 @@ export const useCostAssistant = () => {
     };
 
     const linesWithCalculatedCosts = useMemo(() => {
-        const totalNetInvoiceValue = state.lines.reduce((sum, line) => {
+        const totalProratableValue = state.lines.reduce((sum, line) => {
+            // CORRECTED: Always use the net cost (xmlPackCost) for the proration base.
             return sum + (line.xmlPackCost * line.originalQuantity);
         }, 0);
 
@@ -395,8 +396,8 @@ export const useCostAssistant = () => {
                 baseCostPerPack = line.xmlGrossPackCost;
             }
             
-            const proratedAdditionalCostPerPack = totalNetInvoiceValue > 0
-                ? (line.xmlPackCost / totalNetInvoiceValue) * totalAdditionalCosts
+            const proratedAdditionalCostPerPack = totalProratableValue > 0
+                ? (line.xmlPackCost / totalProratableValue) * totalAdditionalCosts
                 : 0;
             
             const totalCostPerPack = baseCostPerPack + proratedAdditionalCostPerPack;
