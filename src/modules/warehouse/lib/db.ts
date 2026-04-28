@@ -1102,7 +1102,7 @@ export async function getActiveLocks(): Promise<WarehouseLocation[]> {
     return JSON.parse(JSON.stringify(locks));
 }
 
-export async function lockEntity(payload: { entityIds: number[]; userName: string; userId: number; }): Promise<{ locked: boolean }> {
+export async function lockEntity(payload: { entityIds: number[]; userName: string; userId: number; }): Promise<{ locked: boolean; message: string; }> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { entityIds, userName, userId } = payload;
     const sessionId = String(userId); // Use user ID as the session ID
@@ -1112,14 +1112,16 @@ export async function lockEntity(payload: { entityIds: number[]; userName: strin
         const conflictingLocks = db.prepare(`SELECT id, lockedBy FROM locations WHERE id IN (${placeholders}) AND isLocked = 1`).all(...entityIds) as { id: number; lockedBy: string }[];
         
         if (conflictingLocks.length > 0) {
-            logWarn('Lock attempt failed, entity already locked', { conflictingLocks, user: userName });
-            return { locked: true };
+            const locker = conflictingLocks[0].lockedBy || 'otro usuario';
+            const message = `Uno o más niveles ya están en uso por ${locker}.`;
+            logWarn('Lock attempt failed, entity already locked', { conflictingLocks, user: userName, message });
+            return { locked: true, message };
         }
 
         const stmt = db.prepare(`UPDATE locations SET isLocked = 1, lockedBy = ?, lockedBySessionId = ? WHERE id IN (${placeholders})`);
         stmt.run(userName, sessionId, ...entityIds);
         
-        return { locked: false };
+        return { locked: false, message: 'Bloqueo exitoso.' };
     });
 
     return transaction();
@@ -1173,7 +1175,7 @@ export async function updateLocationPopulationStatus(locationId: number, status:
     db.prepare('UPDATE locations SET population_status = ? WHERE id = ?').run(status, locationId);
 }
 
-export async function finalizePopulationSession(payload: { levelIds: number[]; userName: string; userId: number; assignments: { locationId: number; itemId: string; }[] }): Promise<void> {
+export async function finalizePopulationSession(payload: { levelIds: number[]; userName: string; userId: number; assignments: { locationId: number, itemId: string }[] }): Promise<void> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
     const { levelIds, userName, userId, assignments } = payload;
     
@@ -1371,7 +1373,7 @@ export async function cleanupAndInitializeLocationFlags(): Promise<{ deletedCoun
     return result;
 }
 
-export async function checkAssignmentConflict(payload: { itemId: string; locationId: number; }): Promise<{
+export async function checkAssignmentConflict(payload: { itemId: string, locationId: number; }): Promise<{
     productHasOtherLocations: boolean;
     locationHasOtherProducts: boolean;
     conflictingProduct?: Product;

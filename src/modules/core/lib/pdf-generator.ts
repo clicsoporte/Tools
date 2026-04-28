@@ -32,6 +32,7 @@ export interface DocumentData {
     notes?: string;
     paymentInfo?: string;
     totals: { label: string; value: string }[];
+    signatureBlock?: { label: string; value: string }[];
     paperSize?: 'letter' | 'legal';
     orientation?: 'portrait' | 'landscape';
     topLegend?: string;
@@ -143,7 +144,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     
     addHeader();
     
-    if (data.blocks.length > 0) {
+    if (data.blocks && data.blocks.length > 0) {
         autoTable(doc, {
             startY: finalY,
             body: data.blocks.map(b => ([
@@ -159,19 +160,21 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         finalY = (doc as any).lastAutoTable.finalY + 15;
     }
 
-    autoTable(doc, {
-        head: [data.table.columns],
-        body: data.table.rows,
-        startY: finalY,
-        margin: { right: margin, left: margin, bottom: 80 },
-        theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
-        styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
-        columnStyles: data.table.columnStyles,
-        didDrawPage: didDrawPage,
-    });
+    if (data.table && data.table.rows.length > 0) {
+        autoTable(doc, {
+            head: [data.table.columns],
+            body: data.table.rows,
+            startY: finalY,
+            margin: { right: margin, left: margin, bottom: 120 }, // Increased bottom margin
+            theme: 'striped',
+            headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
+            styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
+            columnStyles: data.table.columnStyles,
+            didDrawPage: didDrawPage,
+        });
+        finalY = (doc as any).lastAutoTable.finalY;
+    }
     
-    finalY = (doc as any).lastAutoTable.finalY;
     
     const pageHeight = doc.internal.pageSize.getHeight();
     let totalPages = (doc.internal as any).getNumberOfPages();
@@ -179,7 +182,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
 
     let bottomContentY = finalY + 20;
 
-    if (bottomContentY > pageHeight - 140) {
+    if (bottomContentY > pageHeight - 160) { // Increased check value
         doc.addPage();
         currentPage++;
         totalPages++;
@@ -227,6 +230,20 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         
         rightY += isLast ? 18 : 14;
     });
+
+    if(data.signatureBlock && data.signatureBlock.length > 0) {
+        const signatureY = pageHeight - 80;
+        const colWidth = (pageWidth - (margin * 2)) / data.signatureBlock.length;
+        
+        data.signatureBlock.forEach((sig, index) => {
+            const x = margin + (index * colWidth) + (colWidth / 2);
+            doc.setLineCap(2);
+            doc.line(x - 60, signatureY, x + 60, signatureY); // Draw line
+            doc.setFontSize(8);
+            doc.text(sig.label, x, signatureY + 12, { align: 'center' });
+            doc.text(sig.value, x, signatureY + 22, { align: 'center' });
+        });
+    }
 
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
