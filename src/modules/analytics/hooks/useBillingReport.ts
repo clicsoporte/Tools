@@ -12,7 +12,7 @@ import { logError } from '@/modules/core/lib/logger';
 import { getConsignmentsBillingReportData } from '@/modules/consignments/lib/actions';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { exportToExcel } from '@/lib/excel-export';
-import { generateDocument } from '@/lib/pdf-generator';
+import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import type { ConsignmentReportRow, RestockBoleta, BoletaLine, BoletaHistory, PeriodClosure, Company } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';

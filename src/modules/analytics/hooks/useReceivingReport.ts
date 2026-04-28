@@ -17,7 +17,7 @@ import { es } from 'date-fns/locale';
 import { useDebounce } from 'use-debounce';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
-import { generateDocument } from '@/lib/pdf-generator';
+import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { cn } from '@/lib/utils';
 import type { RowInput } from 'jspdf-autotable';
 
@@ -184,7 +184,7 @@ export function useReceivingReport() {
             format(parseISO(item.createdAt), 'dd/MM/yyyy HH:mm'),
             item.notes || ''
         ]);
-        exportToExcel({ fileName: 'reporte_recepciones', sheetName: 'Recepciones', headers, data: dataToExport, columnWidths: [15, 20, 25, 40, 20, 20, 10, 20, 20, 40] });
+        exportToExcel({ fileName: 'reporte_recepciones', sheetName: 'Recepciones', title: 'Reporte de Recepciones y Movimientos', data: dataToExport, headers: [], columnWidths: [15, 20, 25, 40, 20, 20, 10, 20, 20, 40] });
     };
 
     const handleExportPDF = () => {
@@ -197,7 +197,7 @@ export function useReceivingReport() {
             item.createdBy,
             format(parseISO(item.createdAt), 'dd/MM/yyyy HH:mm'),
         ]);
-        generateDocument({ docTitle: "Reporte de Recepciones", docId: '', companyData, meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }], blocks: [], table: { columns: tableHeaders, rows: tableRows as RowInput[] }, totals: [] }).save('reporte_recepciones.pdf');
+        generateDocument({ docTitle: "Reporte de Recepciones y Movimientos", docId: '', companyData, meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }], blocks: [], table: { columns: tableHeaders, rows: tableRows as RowInput[] }, totals: [] }).save('reporte_recepciones.pdf');
     };
 
     const actions = {
@@ -222,7 +222,7 @@ export function useReceivingReport() {
         getColumnContent: (item: InventoryUnit, colId: string): { content: any; className?: string; type?: string; variant?: 'default' | 'secondary' | 'destructive' | 'outline' | undefined; } => {
              const statusInfo = statusTranslations[item.status] || { label: item.status, variant: 'outline' };
             switch (colId) {
-                case 'status': return { type: 'badge', content: { text: statusInfo.label, variant: statusInfo.variant }, className: item.status === 'applied' ? 'bg-green-600' : '' };
+                case 'status': return { type: 'badge', content: statusInfo.label, variant: statusInfo.variant, className: item.status === 'applied' ? 'bg-green-600' : '' };
                 case 'receptionConsecutive': return { type: 'string', content: item.receptionConsecutive || 'N/A', className: "font-mono text-xs" };
                 case 'productDescription': return { type: 'multiline', content: [ { text: products.find(p => p.id === item.productId)?.description || '' }, { text: item.productId, className: "text-xs text-muted-foreground" } ] };
                 case 'quantity': return { type: 'string', content: item.quantity, className: 'font-bold' };
@@ -239,14 +239,16 @@ export function useReceivingReport() {
                         const replacementText = correctedUnit ? `Reemplazado por ${correctedUnit.receptionConsecutive}` : 'Anulado sin reemplazo';
                         return {
                             type: 'badge',
-                            content: { text: `${item.correctionConsecutive} (Anula ${item.receptionConsecutive})`, variant: 'destructive' }
+                            content: `${item.correctionConsecutive} (Anula ${item.receptionConsecutive})`,
+                            variant: 'destructive'
                         };
                     }
                     if (item.correctedFromUnitId) {
                         const original = state.data.find(u => u.id === item.correctedFromUnitId);
                         return {
                             type: 'badge',
-                            content: { text: `Corrige a ${original?.receptionConsecutive || 'N/A'}`, variant: 'outline' }
+                            content: `Corrige a ${original?.receptionConsecutive || 'N/A'}`,
+                            variant: 'outline'
                         };
                     }
                     return { type: 'string', content: 'N/A' };

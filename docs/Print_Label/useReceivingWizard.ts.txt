@@ -8,18 +8,18 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import { getLocations, getAllItemLocations, addInventoryUnit, getSelectableLocations, assignItemToLocation, checkAssignmentConflict } from '@/modules/warehouse/lib/actions';
+import { getLocations, getAllItemLocations, addInventoryUnit, getSelectableLocations, assignItemToLocation } from '@/modules/warehouse/lib/actions';
 import type { Product, WarehouseLocation, ItemLocation, InventoryUnit } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import jsPDF from "jspdf";
 import QRCode from 'qrcode';
-import JsBarcode from 'jsbarcode';
+import jsbarcode from 'jsbarcode';
 import { format } from 'date-fns';
 
 type WizardStep = 'select_product' | 'select_location' | 'confirm_suggested' | 'confirm_new' | 'finished';
 
-const renderLocationPathAsString = (locationId: number | null, locations: WarehouseLocation[]): string => {
+const renderLocationPathAsString = (locationId: number, locations: WarehouseLocation[]): string => {
     if (!locationId) return '';
     const path: WarehouseLocation[] = [];
     let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
@@ -33,7 +33,7 @@ const renderLocationPathAsString = (locationId: number | null, locations: Wareho
 };
 
 export const useReceivingWizard = () => {
-    useAuthorization(['warehouse:receiving-wizard:use']);
+    useAuthorization(['warehouse:receiving:create']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user, companyData, products: authProducts, isAuthReady } = useAuth();
@@ -49,23 +49,16 @@ export const useReceivingWizard = () => {
         suggestedLocations: [] as WarehouseLocation[],
         selectedLocationId: null as number | null,
         newLocationId: null as number | null,
-        quantity: '1',
+        quantity: '',
         humanReadableId: '',
         documentId: '',
         erpDocumentId: '',
-        notes: '',
         lastCreatedUnit: null as InventoryUnit | null,
         productSearchTerm: '',
         isProductSearchOpen: false,
         locationSearchTerm: '',
         isLocationSearchOpen: false,
-        saveAsDefault: true,
-        // Conflict dialogs
-        isMixedLocationConfirmOpen: false,
-        conflictingItems: [] as Product[],
-        isTargetLocationMixed: false,
-        moveProductConfirmOpen: false,
-        moveAndMixConfirmOpen: false,
+        saveAsDefault: true, // New state for the switch
     });
     
     const [debouncedProductSearch] = useDebounce(state.productSearchTerm, companyData?.searchDebounceTime ?? 500);
@@ -102,7 +95,7 @@ export const useReceivingWizard = () => {
         if (debouncedProductSearch.length < 2) return [];
         const searchLower = debouncedProductSearch.toLowerCase();
         return authProducts
-            .filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower) || (p.barcode || '').toLowerCase().includes(searchLower))
+            .filter(p => p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower))
             .map(p => ({ value: p.id, label: `[${p.id}] ${p.description}` }));
     }, [authProducts, debouncedProductSearch]);
 
@@ -126,7 +119,7 @@ export const useReceivingWizard = () => {
         
         updateState({
             selectedProduct: product,
-            productSearchTerm: '',
+            productSearchTerm: `[${product.id}] ${product.description}`,
             suggestedLocations: suggested,
             step: 'select_location',
             isProductSearchOpen: false,
@@ -181,11 +174,10 @@ export const useReceivingWizard = () => {
             selectedLocationId: null,
             newLocationId: null,
             locationSearchTerm: '',
-            quantity: '1',
+            quantity: '',
             humanReadableId: '',
             documentId: '',
             erpDocumentId: '',
-            notes: '',
             lastCreatedUnit: null,
             saveAsDefault: true,
         });
@@ -199,7 +191,7 @@ export const useReceivingWizard = () => {
 
         try {
             const canvas = document.createElement('canvas');
-            JsBarcode(canvas, unit.unitCode!, { format: 'CODE128', displayValue: false });
+            jsbarcode(canvas, unit.unitCode!, { format: 'CODE128', displayValue: false });
             const barcodeDataUrl = canvas.toDataURL('image/png');
 
             const qrCodeDataUrl = await QRCode.toDataURL(unit.unitCode!, { errorCorrectionLevel: 'H', width: 200 });
@@ -240,7 +232,7 @@ export const useReceivingWizard = () => {
             currentY += 0.15;
             
             doc.setFontSize(9).setFont('Helvetica', 'normal');
-            const locLines = doc.splitTextToSize(renderLocationPathAsString(unit.locationId, state.allLocations), rightColWidth);
+            const locLines = doc.splitTextToSize(renderLocationPathAsString(unit.locationId!, state.allLocations), rightColWidth);
             doc.text(locLines, rightColX, currentY);
             
             // --- Footer ---
@@ -257,100 +249,51 @@ export const useReceivingWizard = () => {
         }
     };
     
-    const refreshItemLocations = useCallback(async () => {
-        try {
-            const itemLocs = await getAllItemLocations();
-            updateState({ allItemLocations: itemLocs });
-        } catch (error) {
-            logError("Failed to refresh item locations in wizard", { error });
-        }
-    }, [updateState]);
-
-    const performRegistration = useCallback(async (mode?: 'move' | 'add' | 'add_and_mix' | 'move_and_mix') => {
-        if (!user || !state.selectedProduct || !state.newLocationId || !state.quantity) return;
-        updateState({ isSubmitting: true });
-        
-        try {
-            if (state.saveAsDefault) {
-                 await assignItemToLocation({
-                    itemId: state.selectedProduct.id,
-                    locationId: state.newLocationId,
-                    clientId: null,
-                    updatedBy: user.name,
-                    isExclusive: 0,
-                    requiresCertificate: 0,
-                }, mode);
-                // Re-fetch item locations to update suggestions for the next run
-                await refreshItemLocations();
-            }
-
-            const newUnit = await addInventoryUnit({
-                productId: state.selectedProduct.id,
-                locationId: state.newLocationId,
-                quantity: parseFloat(state.quantity),
-                humanReadableId: state.humanReadableId,
-                documentId: state.documentId,
-                erpDocumentId: state.erpDocumentId,
-                notes: state.notes,
-                createdBy: user.name,
-            });
-
-            updateState({ lastCreatedUnit: newUnit, step: 'finished' });
-            
-        } catch (error: any) {
-            logError('Failed to register new unit', { error: error.message });
-            toast({ title: "Error al Registrar", description: error.message, variant: "destructive" });
-        } finally {
-            updateState({ isSubmitting: false, isMixedLocationConfirmOpen: false, moveAndMixConfirmOpen: false, moveProductConfirmOpen: false });
-        }
-    }, [user, state.selectedProduct, state.newLocationId, state.quantity, state.humanReadableId, state.documentId, state.erpDocumentId, state.notes, state.saveAsDefault, toast, updateState, refreshItemLocations]);
-
     const handleConfirmAndRegister = async () => {
         if (!user || !state.selectedProduct || !state.newLocationId || !state.quantity) {
             toast({ title: 'Datos faltantes', variant: 'destructive'});
             return;
         }
-
-        const quantityNum = parseFloat(state.quantity);
-        if (isNaN(quantityNum) || quantityNum <= 0) {
-            toast({ title: 'Cantidad Inválida', description: 'La cantidad debe ser un número mayor a cero.', variant: 'destructive' });
-            return;
-        }
-        
         updateState({ isSubmitting: true });
-
         try {
-            const conflictResult = await checkAssignmentConflict({ itemId: state.selectedProduct.id, locationId: state.newLocationId });
-    
-            if (conflictResult.isLocked) {
-                toast({ title: "Ubicación Bloqueada", description: `Esta ubicación está siendo modificada por ${conflictResult.lockedBy || 'otro usuario'}. Intenta de nuevo más tarde.`, variant: "destructive" });
-                updateState({ isSubmitting: false });
-                return;
-            }
-
-            if (conflictResult.productHasOtherLocations && conflictResult.locationHasOtherProducts) {
-                updateState({ moveAndMixConfirmOpen: true });
-            } else if (conflictResult.productHasOtherLocations) {
-                updateState({ moveProductConfirmOpen: true });
-            } else if (conflictResult.locationHasOtherProducts) {
-                updateState({ 
-                    conflictingItems: [conflictResult.conflictingProduct!].filter(Boolean), 
-                    isMixedLocationConfirmOpen: true,
-                    isTargetLocationMixed: state.allLocations.find(l => l.id === state.newLocationId)?.is_mixed === 1,
+            const unitData = {
+                productId: state.selectedProduct.id,
+                locationId: state.newLocationId,
+                quantity: parseFloat(state.quantity) || 1,
+                humanReadableId: state.humanReadableId,
+                documentId: state.documentId,
+                erpDocumentId: state.erpDocumentId,
+                createdBy: user.name,
+                notes: `Recibido vía asistente: ${state.quantity} unidades.`,
+            };
+            const newUnit = await addInventoryUnit(unitData);
+            
+            if (state.saveAsDefault) {
+                await assignItemToLocation({
+                    itemId: unitData.productId,
+                    locationId: unitData.locationId,
+                    clientId: null,
+                    isExclusive: 0,
+                    updatedBy: user.name,
                 });
-            } else {
-                await performRegistration('add'); 
+                // After saving, re-fetch the item locations to update the local state
+                const updatedItemLocations = await getAllItemLocations();
+                updateState({ allItemLocations: updatedItemLocations });
             }
-             if(conflictResult.productHasOtherLocations || conflictResult.locationHasOtherProducts) {
-                updateState({ isSubmitting: false });
-            }
-        } catch (e: any) {
-            logError('Conflict check failed in receiving wizard', { error: e.message });
-            toast({ title: 'Error de Verificación', description: e.message, variant: 'destructive' });
+            
+            updateState({
+                step: 'finished',
+                lastCreatedUnit: newUnit,
+            });
+            toast({ title: 'Unidad Registrada', description: `Se creó la unidad ${newUnit.unitCode}.`});
+
+        } catch (error: any) {
+            logError('Failed to register unit', { error: error.message });
+            toast({ title: 'Error al Registrar', description: error.message, variant: 'destructive' });
+        } finally {
             updateState({ isSubmitting: false });
         }
     };
-    
 
     return {
         state,
@@ -373,11 +316,6 @@ export const useReceivingWizard = () => {
             setSaveAsDefault: (save: boolean) => updateState({ saveAsDefault: save }),
             handleProductSearchKeyDown,
             handlePrintLabel,
-            setIsMixedLocationConfirmOpen: (open: boolean) => updateState({ isMixedLocationConfirmOpen: open }),
-            setMoveProductConfirmOpen: (open: boolean) => updateState({ moveProductConfirmOpen: open }),
-            setMoveAndMixConfirmOpen: (open: boolean) => updateState({ moveAndMixConfirmOpen: open }),
-            setNotes: (notes: string) => updateState({ notes: notes }),
-            performRegistration,
         },
         selectors: {
             productOptions,
@@ -386,3 +324,5 @@ export const useReceivingWizard = () => {
         },
     };
 };
+
+    

@@ -8,9 +8,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import jsPDF from "jspdf";
-import QRCode from 'qrcode';
-import JsBarcode from 'jsbarcode';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -28,8 +25,11 @@ import { Separator } from '@/components/ui/separator';
 import { SearchInput } from '@/components/ui/search-input';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { MultiSelectFilter } from '@/components/ui/multi-select-filter';
-import { format, parseISO } from 'date-fns';
-import { cn } from "@/lib/utils";
+import jsPDF from "jspdf";
+import QRCode from 'qrcode';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import jsbarcode from 'jsbarcode';
 import { Badge } from '@/components/ui/badge';
 
 type SearchResultItem = {
@@ -50,18 +50,6 @@ const normalizeText = (text: string | null | undefined): string => {
     return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };
 
-const renderLocationPathAsString = (locationId: number, locations: WarehouseLocation[]): string => {
-    if (!locationId) return "N/A";
-    const path: WarehouseLocation[] = [];
-    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
-    while (current) {
-        path.unshift(current);
-        const parentId = current.parentId;
-        current = parentId ? locations.find(l => l.id === parentId) : undefined;
-    }
-    return path.map(l => l.name).join(' > ');
-};
-
 const LocationIcon = ({ type }: { type: WarehouseLocation['type'] }) => {
     switch (type) {
         case 'building': return <Building className="h-5 w-5 text-muted-foreground" />;
@@ -72,6 +60,44 @@ const LocationIcon = ({ type }: { type: WarehouseLocation['type'] }) => {
         default: return <MapPin className="h-5 w-5 text-muted-foreground" />;
     }
 };
+
+const renderLocationPath = (locationId: number | null | undefined, locations: WarehouseLocation[]) => {
+    if (!locationId) return <span className="text-muted-foreground italic">Sin ubicación</span>;
+    const path: WarehouseLocation[] = [];
+    let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
+    
+    while (current) {
+        path.unshift(current);
+        const parentId = current.parentId;
+        current = parentId ? locations.find(l => l.id === parentId) : undefined;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            {path.map((loc, index) => (
+                <React.Fragment key={loc.id}>
+                    <div className="flex items-center gap-1">
+                        <LocationIcon type={loc.type} />
+                        <span>{loc.name}</span>
+                    </div>
+                    {index < path.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />}
+                </React.Fragment>
+            ))}
+        </div>
+    );
+};
+
+const renderLocationPathAsString = (locationId: number, locations: any[]): string => {
+    if (!locationId) return "N/A";
+    const path: any[] = [];
+    let current = locations.find(l => l.id === locationId);
+    while (current) {
+        path.unshift(current);
+        current = current.parentId ? locations.find(l => l.id === current.parentId) : undefined;
+    }
+    return path.map(l => l.name).join(' > ');
+};
+
 
 export default function WarehouseSearchPage() {
     useAuthorization(['warehouse:access']);
@@ -86,13 +112,12 @@ export default function WarehouseSearchPage() {
         isAuthReady,
         allLocations: locations,
         allInventory: inventory,
-        allItemLocations,
+        allItemLocations: itemLocations,
         stockLevels: stock,
         stockSettings
     } = useAuth();
 
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isPrinting, setIsPrinting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     
@@ -101,49 +126,6 @@ export default function WarehouseSearchPage() {
     const [classificationFilter, setClassificationFilter] = useState<string[]>([]);
     const [warehouseFilter, setWarehouseFilter] = useState<string[]>([]);
     const [locationFilter, setLocationFilter] = useState<string[]>([]);
-
-    const mixedLocationIds = useMemo(() => {
-        const counts = new Map<number, number>();
-        allItemLocations.forEach(il => {
-            if (il.locationId) {
-                counts.set(il.locationId, (counts.get(il.locationId) || 0) + 1);
-            }
-        });
-        return new Set(
-            Array.from(counts.entries())
-                .filter(([_, count]) => count > 1)
-                .map(([locationId]) => locationId)
-        );
-    }, [allItemLocations]);
-
-    const renderLocationPath = useCallback((locationId: number | null | undefined, locations: WarehouseLocation[]) => {
-        if (!locationId) return <span className="text-muted-foreground italic">Sin ubicación</span>;
-        const path: WarehouseLocation[] = [];
-        let current: WarehouseLocation | undefined = locations.find(l => l.id === locationId);
-        
-        while (current) {
-            path.unshift(current);
-            const parentId = current.parentId;
-            current = parentId ? locations.find(l => l.id === parentId) : undefined;
-        }
-
-        const isMixed = mixedLocationIds.has(locationId);
-
-        return (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                {path.map((loc, index) => (
-                    <React.Fragment key={loc.id}>
-                        <div className="flex items-center gap-1">
-                            <LocationIcon type={loc.type} />
-                            <span>{loc.name}</span>
-                        </div>
-                        {index < path.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />}
-                    </React.Fragment>
-                ))}
-                {isMixed && <Badge variant="destructive" className="ml-2">Mixta</Badge>}
-            </div>
-        );
-    }, [mixedLocationIds]);
     
     const handleClearFilters = () => {
         setSearchTerm('');
@@ -198,7 +180,7 @@ export default function WarehouseSearchPage() {
                 const product = products.find(p => p.id.toLowerCase() === productId);
                 if (product) {
                     const productInventory = inventory.filter(inv => inv.itemId === product.id);
-                    const productItemLocations = allItemLocations.filter(il => il.itemId === product.id);
+                    const productItemLocations = itemLocations.filter(il => il.itemId === product.id);
                     const requiresCertificate = productItemLocations.some(il => il.requiresCertificate === 1);
                     const physicalLocations = [
                         ...productInventory.map(inv => ({ path: renderLocationPath(inv.locationId, locations), quantity: inv.quantity, location: locations.find(l => l.id === inv.locationId) })),
@@ -221,7 +203,7 @@ export default function WarehouseSearchPage() {
         let results: Product[] = [...products];
         if (debouncedSearchTerm) {
             const customerItemIds = new Set(
-                allItemLocations
+                itemLocations
                     .filter(il => customers.some(c => c.id === il.clientId && normalizeText(c.name).includes(searchLower)))
                     .map(il => il.itemId)
             );
@@ -237,7 +219,7 @@ export default function WarehouseSearchPage() {
 
         let searchResultItems = results.map(product => {
             const productInventory = inventory.filter(inv => inv.itemId === product.id);
-            const productItemLocations = allItemLocations.filter(il => il.itemId === product.id);
+            const productItemLocations = itemLocations.filter(il => il.itemId === product.id);
             const requiresCertificate = productItemLocations.some(il => il.requiresCertificate === 1);
             const physicalLocations = [
                 ...productInventory.map(inv => ({ path: renderLocationPath(inv.locationId, locations), quantity: inv.quantity, location: locations.find(l => l.id === inv.locationId) })),
@@ -269,18 +251,17 @@ export default function WarehouseSearchPage() {
         
         return searchResultItems.sort((a, b) => a.product.id.localeCompare(b.product.id));
 
-    }, [hasActiveFilters, products, allItemLocations, customers, inventory, stock, locations, debouncedSearchTerm, classificationFilter, warehouseFilter, locationFilter, isAuthReady, renderLocationPath]);
+    }, [hasActiveFilters, products, itemLocations, customers, inventory, stock, locations, debouncedSearchTerm, classificationFilter, warehouseFilter, locationFilter, isAuthReady]);
     
-    const handlePrintUnitLabel = async (product: Product, location: WarehouseLocation) => {
+    const handlePrintLabel = async (product: Product, location: WarehouseLocation) => {
         if (!user || !companyData) return;
-        setIsPrinting(true);
         try {
             const newUnit = await addInventoryUnit({ productId: product.id, locationId: location.id, createdBy: user.name, notes: 'Etiqueta generada desde búsqueda.', quantity: 1 });
 
-            const qrCodeDataUrl = await QRCode.toDataURL(newUnit.unitCode!, { errorCorrectionLevel: 'H', width: 200 });
+            const qrCodeDataUrl = await QRCode.toDataURL(newUnit.productId, { errorCorrectionLevel: 'H', width: 200 });
 
             const barcodeCanvas = document.createElement('canvas');
-            JsBarcode(barcodeCanvas, newUnit.unitCode!, { format: 'CODE128', displayValue: false });
+            jsbarcode(barcodeCanvas, newUnit.unitCode!, { format: 'CODE128', displayValue: false });
             const barcodeDataUrl = barcodeCanvas.toDataURL('image/png');
 
             const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 3] });
@@ -323,60 +304,6 @@ export default function WarehouseSearchPage() {
         } catch (err: any) {
             logError("Failed to generate and print label", { error: err.message, productId: product.id });
             toast({ title: 'Error al Imprimir', description: err.message, variant: 'destructive' });
-        } finally {
-            setIsPrinting(false);
-        }
-    };
-    
-    const handlePrintProductLocationLabel = async (product: Product, location: WarehouseLocation) => {
-        if (!companyData || !user) return;
-        setIsPrinting(true);
-        try {
-            const qrContent = `${location.id}>${product.id}`;
-            const qrCodeDataUrl = await QRCode.toDataURL(qrContent, { errorCorrectionLevel: 'M', width: 200 });
-            
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
-            const margin = 40;
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-
-            doc.addImage(qrCodeDataUrl, 'PNG', margin, margin, 100, 100);
-
-            doc.setFontSize(9);
-            doc.setFont('Helvetica', 'normal');
-            doc.setTextColor('#666');
-            doc.text(`Creado: ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - margin, margin, { align: 'right' });
-            if (user) {
-                doc.text(`por ${user.name}`, pageWidth - margin, margin + 12, { align: 'right' });
-            }
-
-            doc.setTextColor('#000');
-            
-            doc.setFontSize(150);
-            doc.setFont('Helvetica', 'bold');
-            doc.text(product.id, pageWidth / 2, pageHeight / 2 - 40, { align: 'center'});
-
-            doc.setFontSize(52);
-            doc.setFont('Helvetica', 'normal');
-            const descLines = doc.splitTextToSize(product.description, pageWidth - margin * 2);
-            doc.text(descLines, pageWidth / 2, pageHeight / 2 + 50, { align: 'center' });
-
-            const footerText = renderLocationPathAsString(location.id, locations);
-            doc.setFontSize(24);
-            doc.setFont('Helvetica', 'bold');
-            doc.text('Ubicación:', margin, pageHeight - 80);
-            doc.setFontSize(28);
-            doc.setFont('Helvetica', 'normal');
-            const footerLines = doc.splitTextToSize(footerText, pageWidth - margin * 2);
-            doc.text(footerLines, margin, pageHeight - 50);
-
-            doc.save(`etiqueta_escaner_${product.id}_${location.code}.pdf`);
-            toast({ title: "Etiqueta para Escáner Generada" });
-        } catch (err: any) {
-            logError("Failed to generate scanner label", { error: err.message, productId: product.id, locationId: location.id });
-            toast({ title: 'Error al Imprimir', description: err.message, variant: 'destructive' });
-        } finally {
-            setIsPrinting(false);
         }
     };
     
@@ -531,14 +458,9 @@ export default function WarehouseSearchPage() {
                                                             <span className="font-bold text-lg">{loc.quantity.toLocaleString()}</span>
                                                         )}
                                                         {item.product && loc.location && (
-                                                            <>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-700" onClick={() => handlePrintUnitLabel(item.product!, loc.location!)} title="Imprimir Etiqueta de Unidad">
-                                                                    <Printer className="h-4 w-4" />
-                                                                </Button>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-600 hover:text-orange-700" onClick={() => handlePrintProductLocationLabel(item.product!, loc.location!)} title="Imprimir Etiqueta de Escáner">
-                                                                    <Printer className="h-4 w-4" />
-                                                                </Button>
-                                                            </>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handlePrintLabel(item.product!, loc.location!)}>
+                                                                <Printer className="h-4 w-4" />
+                                                            </Button>
                                                         )}
                                                     </div>
                                                 </div>
@@ -573,31 +495,15 @@ export default function WarehouseSearchPage() {
                             );
                         })
                     ) : (
-                        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-                             <div className="flex flex-col items-center gap-2 text-center">
-                                {hasActiveFilters ? (
-                                    <>
-                                        <h3 className="text-2xl font-bold tracking-tight">Sin Resultados</h3>
-                                        <p className="text-sm text-muted-foreground">No se encontraron productos o clientes para los filtros aplicados.</p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Search className="h-12 w-12 text-muted-foreground" />
-                                        <h3 className="text-2xl font-bold tracking-tight">Realiza una Búsqueda</h3>
-                                        <p className="text-sm text-muted-foreground max-w-md">Usa la barra de búsqueda superior para encontrar productos por código, descripción o código de barras, o para localizar un cliente.</p>
-                                    </>
-                                )}
-                            </div>
+                        <div className="text-center py-16 text-muted-foreground">
+                            {hasActiveFilters 
+                                ? <p>No se encontraron resultados para los filtros aplicados.</p> 
+                                : <p>Comienza a escribir en la barra de búsqueda o usa los filtros avanzados para ver los resultados.</p>
+                            }
                         </div>
                     )}
                 </div>
             </main>
-            {isPrinting && (
-                 <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Generando PDF...</span>
-                </div>
-            )}
         </div>
     );
 }
