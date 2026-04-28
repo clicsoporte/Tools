@@ -32,9 +32,23 @@ import {
     getChildLocations as getChildLocationsServer,
     correctInventoryUnit as correctInventoryUnitServer,
     searchInventoryUnits as searchInventoryUnitsServer,
+    migrateLegacyInventoryUnits as migrateLegacyInventoryUnitsServer,
+    initializePopulationStatus as initializePopulationStatusServer,
+    cleanupAndInitializeLocationFlags as cleanupAndInitializeLocationFlagsServer,
+    applyInventoryUnit as applyInventoryUnitServer,
+    checkAssignmentConflict as checkAssignmentConflictServer,
+    unassignAllByProduct as unassignAllByProductServer,
+    unassignAllByLocation as unassignAllByLocationServer,
+    unassignAllByRack as unassignAllByRackServer,
+    unassignAllByLevel as unassignAllByLevelServer,
+    unassignMultipleItemsFromLocation as unassignMultipleItemsFromLocationServer,
+    getRacks as getRacksServer,
+    getLevelsForRack as getLevelsForRackServer,
+    updateLocationPopulationStatus as updateLocationPopulationStatusServer,
+    finalizePopulationSession as finalizePopulationSessionServer,
 } from './db';
 import { getStockSettings as getStockSettingsDb, saveStockSettings as saveStockSettingsDb } from '@/modules/core/lib/db';
-import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User, DateRange } from '@/modules/core/types';
+import type { WarehouseSettings, WarehouseLocation, WarehouseInventoryItem, MovementLog, ItemLocation, InventoryUnit, StockSettings, User, DateRange, Product } from '@/modules/core/types';
 import { logInfo, logWarn } from '@/modules/core/lib/logger';
 
 export const getWarehouseSettings = async (): Promise<WarehouseSettings> => getWarehouseSettingsServer();
@@ -90,9 +104,10 @@ export const updateInventory = async(itemId: string, locationId: number, quantit
 export const getItemLocations = async (itemId: string): Promise<ItemLocation[]> => getItemLocationsServer(itemId);
 export const getAllItemLocations = async (): Promise<ItemLocation[]> => getAllItemLocationsServer();
 
-export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }): Promise<ItemLocation> {
-    return assignItemToLocationServer(payload);
+export async function assignItemToLocation(payload: Partial<Omit<ItemLocation, 'updatedAt'>> & { updatedBy: string }, mode?: 'move' | 'add' | 'add_and_mix' | 'move_and_mix'): Promise<ItemLocation> {
+    return assignItemToLocationServer(payload, mode);
 }
+
 
 export async function unassignItemFromLocation(itemLocationId: number): Promise<void> {
     await logInfo(`Item location mapping with ID ${itemLocationId} was removed.`);
@@ -104,8 +119,8 @@ export const getWarehouseData = async () => getWarehouseDataServer();
 export const getMovements = async (itemId?: string): Promise<MovementLog[]> => getMovementsServer(itemId);
 
 // --- Inventory Unit Actions ---
-export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive'>): Promise<InventoryUnit> => addInventoryUnitServer(unit);
-export const getInventoryUnits = async (): Promise<InventoryUnit[]> => getInventoryUnitsServer();
+export const addInventoryUnit = async (unit: Omit<InventoryUnit, 'id' | 'createdAt' | 'unitCode' | 'receptionConsecutive' | 'status'>): Promise<InventoryUnit> => addInventoryUnitServer(unit);
+export const getInventoryUnits = async (filters?: { dateRange?: DateRange; includeVoided?: boolean; statuses?: string[] }): Promise<InventoryUnit[]> => getInventoryUnitsServer(filters);
 export const deleteInventoryUnit = async (id: number): Promise<void> => deleteInventoryUnitServer(id);
 export const getInventoryUnitById = async (id: string | number): Promise<InventoryUnit | null> => getInventoryUnitByIdServer(id);
 
@@ -128,13 +143,36 @@ export const searchInventoryUnits = async (filters: {
     documentId?: string;
     receptionConsecutive?: string;
     showVoided?: boolean;
+    statusFilter?: string[];
 }): Promise<InventoryUnit[]> => searchInventoryUnitsServer(filters);
 
 
 
 // --- Wizard Lock Actions ---
 export const getActiveLocks = async (): Promise<WarehouseLocation[]> => getActiveLocksServer();
-export const lockEntity = async (payload: { entityIds: number[]; userName: string; userId: number; }): Promise<{ locked: boolean }> => lockEntityServer(payload);
+export const lockEntity = async (payload: { entityIds: number[]; userName: string; userId: number; }): Promise<{ locked: boolean; message: string }> => lockEntityServer(payload);
 export const releaseLock = async (entityIds: number[], userId: number): Promise<void> => releaseLockServer(entityIds, userId);
 export const forceReleaseLock = async (locationId: number): Promise<void> => forceReleaseLockServer(locationId);
 export const getChildLocations = async (parentIds: number[]): Promise<WarehouseLocation[]> => getChildLocationsServer(parentIds);
+
+// Maintenance actions
+export const migrateLegacyInventoryUnits = async (): Promise<number> => migrateLegacyInventoryUnitsServer();
+export const initializePopulationStatus = async (): Promise<{ updated: number }> => initializePopulationStatusServer();
+export const cleanupAndInitializeLocationFlags = async (): Promise<{ deletedCount: number; mixedCount: number; initializedCount: number; }> => cleanupAndInitializeLocationFlagsServer();
+
+// Correction tool actions
+export const applyInventoryUnit = async (payload: { unitId: number; newProductId: string; newQuantity: number; newHumanReadableId: string; newDocumentId: string; newErpDocumentId: string; updatedBy: string; }): Promise<void> => applyInventoryUnitServer(payload);
+
+// Item Location (Catalog) actions
+export const checkAssignmentConflict = async (payload: { itemId: string, locationId: number }): Promise<{ productHasOtherLocations: boolean; locationHasOtherProducts: boolean; conflictingProduct?: Product; isLocked: boolean; lockedBy?: string | null; }> => checkAssignmentConflictServer(payload);
+export const unassignAllByProduct = async (itemId: string, userName: string): Promise<void> => unassignAllByProductServer(itemId, userName);
+export const unassignAllByLocation = async (locationId: number, userName: string): Promise<void> => unassignAllByLocationServer(locationId, userName);
+export const unassignAllByRack = async (rackId: number, userName: string): Promise<void> => unassignAllByRackServer(rackId, userName);
+export const unassignAllByLevel = async (levelId: number, userName: string): Promise<void> => unassignAllByLevelServer(levelId, userName);
+export const unassignMultipleItemsFromLocation = async (itemLocationIds: number[], userName: string): Promise<void> => unassignMultipleItemsFromLocationServer(itemLocationIds, userName);
+
+// Population Wizard actions
+export const getRacks = async (): Promise<WarehouseLocation[]> => getRacksServer();
+export const getLevelsForRack = async (rackId: number): Promise<(WarehouseLocation & { isCompleted?: boolean })[]> => getLevelsForRackServer(rackId);
+export const updateLocationPopulationStatus = async (locationId: number, status: 'S'): Promise<void> => updateLocationPopulationStatusServer(locationId, status);
+export const finalizePopulationSession = async (payload: { levelIds: number[]; userName: string; userId: number; assignments: { locationId: number, itemId: string }[] }): Promise<void> => finalizePopulationSessionServer(payload);
