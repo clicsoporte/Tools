@@ -180,8 +180,8 @@ export function AuthForm({ initialHasUsers, initialCompanyName, initialSystemVer
       case 'force_change':
         return (
           <div className="space-y-4">
-            <div className="space-y-2"><Label htmlFor="new-password">Nueva Contraseña</Label><Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required /></div>
-            <div className="space-y-2"><Label htmlFor="confirm-new-password">Confirmar Nueva Contraseña</Label><Input id="confirm-new-password" type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} required /></div>
+            <div className="space-y-2"><Label htmlFor="new-password">Nueva Contraseña</Label><Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required suppressHydrationWarning /></div>
+            <div className="space-y-2"><Label htmlFor="confirm-new-password">Confirmar Nueva Contraseña</Label><Input id="confirm-new-password" type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} required suppressHydrationWarning /></div>
             <CardFooter className="p-0 pt-4"><Button onClick={handleSetNewPassword} className="w-full" disabled={isProcessing}>{isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Establecer Nueva Contraseña</Button></CardFooter>
           </div>
         );
@@ -197,18 +197,18 @@ export function AuthForm({ initialHasUsers, initialCompanyName, initialSystemVer
       default:
         return (
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2"><Label htmlFor="email">Correo Electrónico</Label><Input id="email" type="email" placeholder="usuario@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+            <div className="space-y-2"><Label htmlFor="email">Correo Electrónico</Label><Input id="email" type="email" placeholder="usuario@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} required suppressHydrationWarning /></div>
             <div className="space-y-2">
               <div className="flex items-center justify-between"><Label htmlFor="password">Contraseña</Label>
                 <Dialog open={isRecoveryDialogOpen} onOpenChange={setRecoveryDialogOpen}>
                   <DialogTrigger asChild><button type="button" className="text-sm font-medium text-primary hover:underline">¿Olvidaste tu contraseña?</button></DialogTrigger>
                   <DialogContent><DialogHeader><DialogTitle>Recuperación de Contraseña</DialogTitle><DialogDescription>Ingresa tu correo. Si existe, te enviaremos una contraseña temporal.</DialogDescription></DialogHeader>
-                    <div className="space-y-4 py-4"><div className="space-y-2"><Label htmlFor="recovery-email">Correo Electrónico</Label><Input id="recovery-email" type="email" value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)} placeholder="tu@correo.com" /></div></div>
+                    <div className="space-y-4 py-4"><div className="space-y-2"><Label htmlFor="recovery-email">Correo Electrónico</Label><Input id="recovery-email" type="email" value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)} placeholder="tu@correo.com" suppressHydrationWarning /></div></div>
                     <DialogFooter><DialogClose asChild><Button variant="ghost" type="button">Cancelar</Button></DialogClose><Button onClick={handleRecoveryStart} type="button" disabled={isProcessing}>{isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enviar Correo</Button></DialogFooter>
                   </DialogContent>
                 </Dialog>
               </div>
-              <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required suppressHydrationWarning />
             </div>
             <CardFooter className="p-0 pt-4"><Button type="submit" className="w-full" disabled={isProcessing}>{isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Iniciar Sesión</Button></CardFooter>
           </form>
